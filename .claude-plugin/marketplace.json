@@ -1,0 +1,20 @@
+{
+  "name": "techjays-delivery-os",
+  "owner": {
+    "name": "Techjays",
+    "email": "delivery@techjays.com"
+  },
+  "description": "Techjays Delivery OS — an internal AI operating system for project discovery, scope management, documentation, and technical validation. Bundles a shared core plus per-domain agent plugins.",
+  "plugins": [
+    {
+      "name": "delivery-os",
+      "source": "./plugins/delivery-os-core",
+      "description": "Shared foundation: project-workspace scaffolding, the cross-agent document contract, shared vocabulary, and canonical templates. Install this first."
+    },
+    {
+      "name": "ba",
+      "source": "./plugins/ba",
+      "description": "Business Analyst Agent — discovery artifact intake, source classification, living scope maintenance, and supporting registers. Provides /ba:intake."
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "name": "ba",
+  "version": "0.1.0",
+  "description": "Business Analyst Agent for Techjays Delivery OS. Processes discovery artifacts, classifies sources safely, maintains a living scope document and supporting registers, and prepares shared context for downstream Doc and TL agents. Provides /ba:intake.",
+  "author": {
+    "name": "Techjays",
+    "email": "delivery@techjays.com"
+  },
+  "keywords": ["business-analyst", "discovery", "requirements", "scope", "intake"]
+}

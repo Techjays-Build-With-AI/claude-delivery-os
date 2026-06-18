@@ -1,0 +1,11 @@
+{
+  "extraKnownMarketplaces": {
+    "techjays-delivery-os": {
+      "source": { "source": "github", "repo": "techjays/claude-delivery-os" }
+    }
+  },
+  "enabledPlugins": {
+    "delivery-os@techjays-delivery-os": true,
+    "ba@techjays-delivery-os": true
+  }
+}

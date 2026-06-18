@@ -1,0 +1,10 @@
+{
+  "name": "delivery-os",
+  "version": "0.1.0",
+  "description": "Shared foundation for Techjays Delivery OS: project-workspace scaffolding, the cross-agent document contract, shared vocabulary, and canonical templates. Every agent plugin (ba, doc, tl, qa) depends on this contract so their documents stay interoperable.",
+  "author": {
+    "name": "Techjays",
+    "email": "delivery@techjays.com"
+  },
+  "keywords": ["delivery", "discovery", "scope", "documentation", "techjays"]
+}
