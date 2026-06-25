@@ -13,30 +13,24 @@ This is the single source of truth that makes Delivery OS documents **shareable 
 
 ## 1. Workspace layout
 
-Every Delivery OS project is a folder with this structure. Agents read inputs and write outputs **only** at these paths.
+Every Delivery OS project lives under a **single named container folder** (so the user can see exactly what Delivery OS owns, and delete one folder for a clean slate). Agents read and write **only** at these paths.
 
 ```text
-project-name/
-├── intake.index.md            # human-authored: declares artifact sources (BA input)
-├── raw-artifacts/             # human-supplied source material
-│   ├── client-requirements/
-│   ├── meeting-transcripts/
-│   ├── client-reference-docs/
-│   ├── system-screenshots/
-│   ├── process-maps/
-│   ├── sample-data/
-│   └── emails/
-├── shared-context/            # cross-agent context (BA writes, everyone reads)
+<project-name>/                  # the one container — everything Delivery OS owns lives here
+├── README.md                    # what init created + how to use it (the workspace manifest)
+├── intake.index.md              # LIVING source registry — maintained by /ba:intake (human-editable)
+├── artifacts/                   # generated normalized summaries — categories created on demand
+│   ├── <category>/              # emergent (e.g. meeting-transcripts/, requirements/) — NOT pre-made
+│   │   └── <name>.summary.md    # markdown summary of one source doc (traces to the original)
+│   └── ...
+├── shared-context/              # cross-agent context (BA writes, everyone reads)
 │   ├── project-profile.md
 │   ├── glossary.md
 │   ├── stakeholder-map.md
 │   ├── system-landscape.md
 │   └── decision-log.md
-├── ba-output/                 # Business Analyst Agent outputs
-│   ├── scope.md               # the living scope document (primary handoff)
-│   ├── artifact-map.md
-│   ├── artifact-ledger.md
-│   ├── source-classification.md
+├── ba-output/                   # Business Analyst Agent outputs
+│   ├── scope.md                 # the living scope document (primary handoff)
 │   ├── requirement-register.md
 │   ├── workflow-register.md
 │   ├── business-rule-register.md
@@ -50,12 +44,21 @@ project-name/
 │   ├── change-log.md
 │   └── intake-runs/
 │       └── run-001.md ...
-├── doc-output/                # Doc Agent outputs (Phase 2) — created on demand
-├── tl-output/                 # TL Agent outputs (Phase 3) — created on demand
-└── final/                     # approved, client-facing deliverables
+├── doc-output/                  # Doc Agent outputs (Phase 2) — created on demand
+├── tl-output/                   # TL Agent outputs (Phase 3) — created on demand
+└── final/                       # approved, client-facing deliverables
 ```
 
-**Handoff rule:** an agent reads another agent's **published** files (`ba-output/`, `shared-context/`); it never reaches into another agent's working notes. `shared-context/` and `ba-output/scope.md` are the primary handoff surfaces.
+### Source handling — reference, never copy or move
+Original source files (local folders/files, Google Drive, etc.) **stay where they are**. The workspace never copies, moves, or deletes a user's originals. Intake only:
+1. **records** each source in `intake.index.md` (its real location + classification + status), and
+2. **generates** a normalized markdown summary under `artifacts/<category>/` for eligible sources.
+So the workspace holds only the **index + generated summaries** — it is a knowledge layer *over* the user's files, not a copy of them.
+
+### `intake.index.md` is the single source registry
+It is **agent-maintained** (the user can still hand-edit it) and folds together what were previously separate artifact-map / artifact-ledger / source-classification files: each source's description, original location, detected category, usage mode (the classification + reason), summary path, content hash, and status all live in one registry. Add sources conversationally via `/ba:intake add "..."` — the agent classifies, summarizes, and registers them.
+
+**Handoff rule:** an agent reads another agent's **published** files (`ba-output/`, `shared-context/`, `artifacts/`); it never reaches into another agent's working notes. `shared-context/` and `ba-output/scope.md` are the primary handoff surfaces.
 
 ---
 
@@ -65,12 +68,28 @@ project-name/
 
 ```yaml
 ---
-doc_type: scope            # scope | requirement-register | glossary | run-summary | ...
+doc_type: scope            # scope | requirement-register | glossary | run-summary | source-summary | intake-index | ...
 schema_version: 1.0        # the contract version this file conforms to
 produced_by: ba            # ba | doc | tl | qa | delivery-os
 last_intake_run: run-003   # the run that last touched this file (omit if N/A)
 status: Emerging           # see §5 maturity values
 generated_at: 2026-06-18   # ISO date of last write
+---
+```
+
+A **normalized source summary** (`artifacts/<category>/<name>.summary.md`) carries extra provenance so a fact extracted from it traces all the way back to the untouched original:
+
+```yaml
+---
+doc_type: source-summary
+schema_version: 1.0
+produced_by: ba
+source_id: SRC-002              # matches the intake.index registry row
+summary_of: "D:/acme/meetings/2026-06-12-kickoff.docx"   # the ORIGINAL location (path or Drive link), referenced not copied
+source_hash: "sha256:…"         # so re-runs detect change
+usage_mode: Deep Analysis
+status: Processed
+generated_at: 2026-06-18
 ---
 ```
 
@@ -84,7 +103,7 @@ IDs are the threads that let one agent cite what another produced. They are **ap
 
 | Entity            | Prefix | Example  | Lives in                     |
 |-------------------|--------|----------|------------------------------|
-| Requirement       | `REQ`  | REQ-001  | requirement-register.md      |
+| Requirement       | `<MODULE>-<FR\|AI\|DET\|HUM>` | INTK-AI-02 | requirement-register.md / scope §3 |
 | Workflow          | `WF`   | WF-001   | workflow-register.md         |
 | Business rule     | `BR`   | BR-001   | business-rule-register.md    |
 | Data entity       | `DATA` | DATA-001 | data-register.md             |
@@ -94,9 +113,11 @@ IDs are the threads that let one agent cite what another produced. They are **ap
 | Clarification     | `CLR`  | CLR-001  | clarification-log.md         |
 | Contradiction     | `CON`  | CON-001  | contradiction-log.md         |
 | Decision          | `DEC`  | DEC-001  | shared-context/decision-log.md |
-| Artifact source   | `SRC`  | SRC-001  | artifact-map.md / ledger     |
+| Artifact source   | `SRC`  | SRC-001  | intake.index.md (registry)   |
 
-IDs are zero-padded to 3 digits. Cross-references are written inline as the bare ID (e.g. "validated by EX-014" or "see WF-002").
+IDs are zero-padded to 3 digits (functional-requirement `NN` is 2 digits within its module, per the scope template). Cross-references are written inline as the bare ID (e.g. "validated by EX-014" or "see WF-002").
+
+**Requirement IDs** follow the Techjays Scope Document convention: `<MODULE>-<FR|AI|DET|HUM>-<NN>` where the module prefix is a short uppercase abbreviation (Intake → `INTK`, Validation → `VALD`), the middle token is `FR` or the responsibility code, and `NN` is sequential within that module. The same ID is used in `requirement-register.md` and in `scope.md` §3.x.3 so they trace 1:1.
 
 ---
 
@@ -125,8 +146,14 @@ All agents use these exact values — no synonyms.
 **Usage mode** (per source, how deeply to process it):
 `Deep Analysis` · `Reference Only` · `Sample and Summarize` · `Index Only` · `Future Agent Input` · `Needs User Guidance`
 
-**Scope maturity** (document-level status):
-`Draft` · `Emerging` · `Reviewed` · `Frozen`
+**Scope maturity** (document-level status, in frontmatter):
+`Draft` · `Emerging` · `Reviewed` · `Frozen` — surfaced on the scope cover block as `Draft` / `In Review` / `Approved`.
+
+**Responsibility** (`Resp.` on every functional requirement, per the Techjays Scope Document):
+`AI` (AI capability) · `DET` (deterministic logic) · `HUM` (human action)
+
+**Priority** (`Pri.`, MoSCoW):
+`M` (Must) · `S` (Should) · `C` (Could) · `W` (Won't-this-phase)
 
 ---
 
@@ -134,7 +161,8 @@ All agents use these exact values — no synonyms.
 
 | Surface                              | Produced by | Consumed by        |
 |--------------------------------------|-------------|--------------------|
-| `intake.index.md`                    | human       | ba                 |
+| `intake.index.md` (source registry)  | ba (human-editable) | ba           |
+| `artifacts/**/*.summary.md`          | ba          | ba (extraction)    |
 | `shared-context/*`                   | ba          | doc, tl, qa        |
 | `ba-output/scope.md`                 | ba          | doc, tl, qa        |
 | `ba-output/requirement-register.md`  | ba          | doc, tl, qa        |
@@ -144,3 +172,20 @@ All agents use these exact values — no synonyms.
 | `tl-output/*`                        | tl          | human, delivery    |
 
 When a downstream agent (doc/tl/qa) runs, it should prefer `ba-output/scope.md` as its primary input and **not re-run BA analysis** unless explicitly asked.
+
+---
+
+## 7. Canonical deliverable formats (Techjays D&D pack)
+
+Client-facing deliverables conform to the Techjays **Design & Discovery** templates. These are the authority for structure and style; the markdown an agent maintains is the living source that the Doc Agent renders into the branded `.docx` at freeze time. The **Scope Document** template is bundled with this core plugin at `${CLAUDE_PLUGIN_ROOT}/templates/d&d/scope-document/` (versioned via its `manifest.json` + `CHANGELOG.md`); the rest still live in the repo `docs/D&D Documentation/` and will be bundled as their agents are built.
+
+| Deliverable | D&D template | Maintained as | Owner |
+|-------------|--------------|---------------|-------|
+| Scope Document | **bundled** → `templates/d&d/scope-document/scope-document-template.docx` | `ba-output/scope.md` (module-centric) | ba |
+| RAID Register | `docs/…/04 - RAID Register Template.docx` | assumption-register + clarification-log + contradiction-log (feeds A/D/R/Q rows) | ba |
+| Executive Summary | `docs/…/01 - Executive Summary Template.docx` | `doc-output/` | doc (Phase 2) |
+| Technical Architecture | `docs/…/03 - Technical Architecture Template.docx` | `tl-output/` | tl (Phase 3) |
+| Implementation Plan | `docs/…/05 - Implementation Plan Template.docx` | `doc-output/` | doc (Phase 2) |
+
+**RAID alignment** — the BA registers map onto the RAID Register's four registers:
+`assumption-register.md` → Assumptions `A-##` · dependencies → Dependencies `D-##` · `contradiction-log.md` / risk notes → Risks `R-##` · `clarification-log.md` → Open Questions `Q-##` (classified: *Must close before estimate · Proceed with assumption · Minor implementation detail · Too uncertain (exclude/T&M) · Future phase*). Scope §7 only references RAID — it never duplicates these.
