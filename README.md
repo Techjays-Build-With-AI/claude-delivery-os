@@ -27,6 +27,8 @@ This repository is distributed once across the org. Teams add it as a marketplac
 
 (Replace `techjays/claude-delivery-os` with the actual git host/repo once published.)
 
+> 📦 **Full step-by-step setup — install + `/delivery-os:init` — lives in [docs/SETUP.md](docs/SETUP.md).** It's the shared guide every plugin README links to, so the steps stay in one place.
+
 ## Roll out to a team (recommended)
 
 Commit `examples/team-settings.json` (below) into a project's `.claude/settings.json`. When teammates trust the repo, Claude Code prompts them to add the marketplace and enable the listed plugins automatically:

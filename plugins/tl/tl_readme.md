@@ -40,17 +40,28 @@ Findings carry a severity — `Blocker` · `Major` · `Minor` · `Nit` — and a
 
 ---
 
-## Install
+## Setup
 
-The TL plugin builds on the shared core, so install that first:
+Installation and workspace setup are the same across all Delivery OS plugins, so they live in one shared guide: **[docs/SETUP.md](../../docs/SETUP.md)**. The short version for `tl`:
 
-```text
-/plugin marketplace add techjays/claude-delivery-os
-/plugin install delivery-os@techjays-delivery-os
-/plugin install tl@techjays-delivery-os
-```
+1. **Install** the core, then the TL plugin (see [docs/SETUP.md → Step 1–2](../../docs/SETUP.md#step-1--add-the-marketplace-and-install-the-core)):
+   ```text
+   /plugin marketplace add techjays/claude-delivery-os
+   /plugin install delivery-os@techjays-delivery-os
+   /plugin install tl@techjays-delivery-os
+   ```
+2. **A workspace is optional for `tl`.** Unlike `/ba:intake`, the TL agent can review any document standalone — you don't have to run `/delivery-os:init` first.
 
-You don't need the `ba` plugin to run a review — but if a Delivery OS workspace exists (with `ba-output/scope.md` and `shared-context/`), the TL agent will use it as context.
+### Do I need `/delivery-os:init`?
+
+`/delivery-os:init <project-name>` scaffolds the standard Delivery OS workspace (see [docs/SETUP.md → Step 3](../../docs/SETUP.md#step-3--initialize-a-project-workspace-delivery-osinit)). For the TL agent it's **optional**, and it only changes two things:
+
+| | With a workspace (`init` was run) | Standalone (no workspace) |
+|---|---|---|
+| **Report location** | `tl-output/spec-review-<timestamp>.{html,md}` (the agent creates `tl-output/` on first run) | written **beside the reviewed document**, with a note that no workspace was found |
+| **Input context** | also reads `ba-output/scope.md` and `shared-context/` if present, to ground the review | reviews only the document you point it at |
+
+So: run `/delivery-os:init` if you want the review filed inside a project workspace and cross-referenced with BA discovery; skip it for a quick one-off review of any spec.
 
 ---
 

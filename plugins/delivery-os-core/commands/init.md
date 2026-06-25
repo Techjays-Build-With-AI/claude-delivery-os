@@ -39,7 +39,7 @@ You are scaffolding a new Delivery OS project. **Everything goes under one named
    | `shared-context/system-landscape.md` | `<project-name>/shared-context/system-landscape.md` |
    | `shared-context/decision-log.md` | `<project-name>/shared-context/decision-log.md` |
 
-   The `ba-output/` register files are created by the BA Agent on first intake — the workspace starts clean.
+   The `ba-output/` register files are created by the BA Agent on first intake — the workspace starts clean. **Do not pre-create downstream agent output folders** (`tl-output/`, `doc-output/`, `qa-output/`): by design each downstream agent creates its own output folder the first time it runs, so a fresh workspace has no empty folders for agents that may never be used (see the `delivery-os-conventions` *Output-folder creation rule*). `init` scaffolds only `shared-context/` and `ba-output/`.
 
 4. **Report.** Print the exact tree you created, note that **original source files are never moved or copied** (Delivery OS only indexes and summarizes them), and give the next step:
    > Add your sources in one line, e.g.:
