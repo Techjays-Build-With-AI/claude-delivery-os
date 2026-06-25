@@ -15,6 +15,11 @@
       "name": "ba",
       "source": "./plugins/ba",
       "description": "Business Analyst Agent — discovery artifact intake, source classification, living scope maintenance, and supporting registers. Provides /ba:intake."
+    },
+    {
+      "name": "tl",
+      "source": "./plugins/tl",
+      "description": "Technical Lead Agent — reviews technical specification documents for applied AI systems (architecture, system/feature flows, data schema, API contracts, libraries, AI observability/evals/feedback/compliance, infrastructure, CI/CD, release management, and cost projection) and produces a scored review report. Provides /tl:review."
     }
   ]
 }

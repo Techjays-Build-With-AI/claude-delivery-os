@@ -9,8 +9,8 @@ generated_at: YYYY-MM-DD
 
 # Requirement Register
 
-Append-only. Every requirement carries a source citation and a confidence value.
+Append-only. The flat index of every functional requirement; the module-centric `scope.md` §3.x.3 tables are assembled from these rows. IDs are module-prefixed `<MODULE>-<FR|AI|DET|HUM>-<NN>` and match the scope exactly. `Resp.` = AI/DET/HUM, `Pri.` = M/S/C/W (MoSCoW). Every requirement carries a source citation and a confidence value.
 
-| REQ ID | Requirement | Module | Source | Confidence | Status | Open Questions |
-|--------|-------------|--------|--------|------------|--------|----------------|
-| REQ-001 |  |  | [SRC-### › path] | Likely | New |  |
+| ID | Requirement | Module | Resp. | Pri. | Acceptance Criteria | Source | Confidence | Status |
+|----|-------------|--------|-------|------|---------------------|--------|------------|--------|
+| INTK-AI-02 |  | Intake | AI | M |  | [SRC-### › path] | Likely | New |

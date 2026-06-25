@@ -1,72 +1,44 @@
 ---
 doc_type: intake-index
 schema_version: 1.0
-produced_by: human
+produced_by: ba
 status: Draft
 generated_at: YYYY-MM-DD
 ---
 
 # Project Intake Index
 
-> Declare every source the BA Agent should consider. For each source set a **Usage Mode** (Deep Analysis / Reference Only / Sample and Summarize / Index Only / Future Agent Input). The agent classifies anything left unmarked conservatively.
+> **Living source registry — maintained by `/ba:intake`.** You don't have to fill the table by hand. Just tell intake where your material is:
+>
+> ```text
+> /ba:intake add "meeting transcripts in <folder or Drive link>, requirements in <folder or Drive link>, invoice archive in <folder> for reference only"
+> ```
+>
+> Intake classifies each source, generates a summary under `artifacts/`, and adds a row below. Originals are **referenced, never copied or moved.** You may still hand-edit this file (e.g. correct a usage mode) and re-run intake.
 
 ## Project
 - Client:
 - Project Name:
 - Business Domain:
-- Project Stage:
+- Project Stage: Discovery
 - Discovery Owner:
 - Discovery Start Date:
 
-## Artifact Sources
+## Sources
 
-### Source 1: Client Requirement Documents
-- Type: Local Folder
-- Path: ./raw-artifacts/client-requirements
-- Content: Requirement specifications and functional documents shared by the client
-- Usage Mode: Deep Analysis
-- Authority: High
-- Priority: High
+<!--
+  One row per source. Maintained by intake. Columns:
+  - SRC: stable id (SRC-001, …)
+  - Description: what the source is, in plain words
+  - Original Location: the REAL path or Drive link (never changed; not copied here)
+  - Type: Local Folder | Local File | Google Drive | Code Repository | …
+  - Category: emergent grouping used under artifacts/ (e.g. meeting-transcripts)
+  - Usage Mode: Deep Analysis | Reference Only | Sample and Summarize | Index Only | Future Agent Input | Needs User Guidance
+  - Summary: path to the generated summary (or folder index), or — for non-summarized modes
+  - Hash: content hash / mtime, for change detection
+  - Status: New | Processed | Changed | Unchanged | Inaccessible | Access Required | Needs User Guidance | …
+-->
 
-### Source 2: Meeting Transcripts
-- Type: Local Folder
-- Path: ./raw-artifacts/meeting-transcripts
-- Content: Discovery meeting transcripts and notes
-- Usage Mode: Deep Analysis
-- Authority: Medium
-- Priority: High
-
-### Source 3: Historical Reference Archive (example)
-- Type: Local Folder
-- Path: ./raw-artifacts/sample-data
-- Content: Historical files shared by the client for reference
-- Usage Mode: Reference Only
-- Authority: Medium
-- Priority: Low
-- Intake Rule: Do not fully analyze during intake. Create an index only.
-
-### Source 4: Google Drive Reference Folder (example)
-- Type: Google Drive
-- Link: https://drive.google.com/...
-- Content: Client-shared reference documents, screenshots, and sample files
-- Usage Mode: Reference Only
-- Authority: Medium
-- Priority: Medium
-- Access Required: Google Drive MCP / Connector
-- Fallback: Export locally to ./raw-artifacts/client-reference-docs
-
-### Source 5: Existing Application Repository (example)
-- Type: Code Repository
-- Path: ../client-application-repo
-- Content: Existing application codebase
-- Usage Mode: Future Agent Input
-- Future Agent: TL Agent
-- Intake Rule: Do not analyze during BA intake unless explicitly requested.
-
-## Processing Rules
-- Respect explicit Usage Mode and Intake Rule per source.
-- Apply default safeguards to large folders (see ba-classification).
-
-## Output Location
-- BA outputs: ./ba-output/
-- Shared context: ./shared-context/
+| SRC | Description | Original Location | Type | Category | Usage Mode | Summary | Hash | Status |
+|-----|-------------|-------------------|------|----------|------------|---------|------|--------|
+| | _no sources yet — run `/ba:intake add "…"`_ | | | | | | | |

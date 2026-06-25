@@ -1,0 +1,10 @@
+{
+  "name": "tl",
+  "version": "0.1.0",
+  "description": "Technical Lead Agent for Techjays Delivery OS. Reviews technical specification documents for applied AI systems — architecture and system design, feature/system sequence flows, data schema, API contracts, libraries; the applied-AI engineering concerns (observability, traceability, evals, feedback loops, compliance) when an LLM is involved; and delivery concerns (infrastructure, CI/CD, release management, and running-cost projection). Produces a scored review report. Provides /tl:review.",
+  "author": {
+    "name": "Techjays",
+    "email": "delivery@techjays.com"
+  },
+  "keywords": ["technical-lead", "spec-review", "architecture", "applied-ai", "llm", "cost-projection"]
+}

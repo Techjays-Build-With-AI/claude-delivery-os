@@ -5,7 +5,7 @@ description: What the BA Agent extracts from eligible artifacts and how it recor
 
 # BA intelligence extraction
 
-For each eligible (Deep Analysis / sampled) artifact, extract the categories below, assign a stable ID and confidence value (see `delivery-os-conventions`), and cite the source `[SRC-### › path]`.
+Extraction reads the **normalized summaries** under `artifacts/` (produced during ingest — see `ba-classification`), not the raw originals. For each eligible source, extract the categories below, assign a stable ID and confidence value (see `delivery-os-conventions`), and cite the source as `[SRC-### › <original location>]` — traceability runs original → summary → scope item, so the citation always names the untouched original.
 
 ## The 20 extraction categories
 
@@ -32,27 +32,45 @@ For each eligible (Deep Analysis / sampled) artifact, extract the categories bel
 
 ## Living scope document (`ba-output/scope.md`)
 
-Maintain these sections (full template ships at `delivery-os-core/templates/ba-output/scope.md`):
+**The scope document is the frozen baseline deliverable and MUST conform to the Techjays D&D Scope Document Template** (`docs/D&D Documentation/02 - Scope Document Template.docx`). It is **module-centric**, not a flat list. The full markdown template ships at `delivery-os-core/templates/ba-output/scope.md` — always start from it and keep every heading.
 
-1. Project Context — client, business unit, objective, discovery status, last updated, maturity (Draft/Emerging/Reviewed/Frozen)
-2. Source Material Summary — `| Source | Type | Processed Status | Key Contribution |`
-3. Current-State Workflows — name, trigger, actors, steps, systems, inputs, outputs, pain points, source refs
-4. Pain Points & Operational Gaps — `| Pain Point | Impact | Frequency | Source | Confidence |`
-5. Future-State / AI-Reimagined Workflows — trigger, system actions, AI actions, human review points, exception handling, output, source refs
-6. Functional Scope — `| Module | Capability | Description | Priority | Source | Status |`
-7. Business Rules — `| Rule ID | Rule | Applies To | Source | Confidence | Open Questions |`
-8. Data Requirements — `| Entity | Data Needed | Source System | Used For | Sensitivity | Open Questions |`
-9. Integrations — `| System | Purpose | Direction | Data Exchanged | Dependency | Risk |`
-10. Roles & Permissions — `| Role | Capabilities | Restrictions | Approval Rights |`
-11. Reports, Dashboards & Notifications — `| Item | Audience | Trigger/Frequency | Purpose | Source |`
-12. Examples Captured — `| Example ID | Scenario | Source | Workflow | Why It Matters |`
-13. Edge Cases & Exceptions — `| Scenario | Expected Handling | Source | Clarification Needed |`
-14. Non-Functional Requirements — security, performance, auditability, availability, compliance, logging, retention, scalability
-15. Assumptions — `| Assumption | Reason | Risk | Validation Needed |`
-16. Out of Scope — `| Item | Reason | Future Phase? |`
-17. Acceptance Criteria — `| Capability | Acceptance Criteria | Validation Method |`
-18. Clarification Questions — grouped by workflow / business rules / data / integration / security / reporting / timeline / commercial
-19. Change History — `| Date | Intake Run | Summary of Changes |`
+Structure (do not reorder, do not drop headings):
+
+1. **Cover block** — Project, Client, Version, Date, Status (Draft / In Review / Approved).
+2. **§1 Scope Statement** — one or two sentences defining the delivery boundary.
+3. **§2 Module Breakdown** — `| Module | One-line purpose | Specified in §3? |`. Decompose the business into modules (typical set: Intake, Processing, Validation, Approval, System Updates, Exception Handling, Reporting, Admin, Integrations).
+4. **§3 Module Requirements** — one `### 3.x Module: <Name>` sub-section **per module**, each with all nine sub-headings, even if "None":
+   - 3.x.1 Current → Future State (current = actors/triggers/systems/manual steps/pain points; future = AI/deterministic/human split) — cite sources.
+   - 3.x.2 In Scope / Out of Scope.
+   - 3.x.3 Functional Requirements table → `| ID | Requirement | Resp. | Pri. | Acceptance criteria |`.
+   - 3.x.4 AI / Automation Responsibilities (AI does · confidence threshold & fallback · human-in-the-loop).
+   - 3.x.5 Business Rules.
+   - 3.x.6 Data Fields → `| Field | Type | Req. | Source / validation |`.
+   - 3.x.7 Integrations.
+   - 3.x.8 Exception Handling → `| Exception | Handling |`.
+   - 3.x.9 Acceptance Criteria (tie to the requirement IDs above).
+5. **§4 AI vs. Deterministic Responsibility Split** — the engagement-wide dividing line.
+6. **§5 User Roles & Permissions** — `| Role | Description | Key permissions |`.
+7. **§6 Global Out-of-Scope** — cross-cutting exclusions.
+8. **§7 Assumptions & Dependencies** — **reference the RAID Register; do not duplicate.** Assumptions and dependencies are owned there.
+9. **§8 Approval & Scope Freeze** — 8.1 Exclusions Acknowledgement · 8.2 Change-Control Note · 8.3 Client Sign-off table. Draft now; completed at scope-freeze (status → Frozen).
+
+### Scope-document conventions (must match the template)
+
+- **Responsibility (`Resp.`)** controlled values: `AI` (AI capability) · `DET` (deterministic logic) · `HUM` (human action).
+- **Priority (`Pri.`)** controlled values (MoSCoW): `M` (Must) · `S` (Should) · `C` (Could) · `W` (Won't-this-phase).
+- **Requirement IDs** are module-prefixed: `<MODULE>-<FR|AI|DET|HUM>-<NN>` (e.g. `INTK-AI-02`, `VALD-DET-01`). The module prefix is a short uppercase abbreviation; `NN` is sequential within the module. These IDs are the canonical requirement IDs used in `requirement-register.md`.
+- **"Ask the client" cues**: every open question in the scope is also logged in `clarification-log.md` (and feeds RAID Open Questions `Q-##`).
+- Keep capability-level only — detailed testable specs are deferred to the SRS.
+
+### Assembling the module-centric scope from the registers
+
+The registers are your flat working memory; the scope is the assembled deliverable. To build §3:
+- Group `requirement-register` rows and `workflow-register` rows by module → one §3.x block each.
+- Pull the module's business rules from `business-rule-register`, data fields from `data-register`, integrations from `integration-register`, exceptions from edge-case extractions.
+- Route **assumptions** → RAID Assumptions (`A-##`, fed by `assumption-register.md`); **dependencies** → RAID Dependencies (`D-##`); **open questions / "Ask the client"** → RAID Open Questions (`Q-##`, fed by `clarification-log.md`); **risks/contradictions** → RAID Risks (`R-##`). §7 of the scope only *references* these.
+
+Track scope evolution in `change-log.md` (not inside the deliverable), and bump the cover-block **Version** as maturity advances (Draft → In Review → Approved, mapped from frontmatter `status`: Draft/Emerging/Reviewed/Frozen).
 
 ## Supporting registers (`ba-output/`)
 
@@ -69,11 +87,10 @@ Each register is a Markdown file with frontmatter + a table. Suggested columns:
 | `assumption-register.md` | ASM ID, Assumption, Reason, Risk, Validation Needed |
 | `clarification-log.md` | CLR ID, Question, Category, Raised By Run, Status, Answer |
 | `contradiction-log.md` | CON ID, Conflicting Statements, Sources, Impact, Resolution Status |
-| `artifact-map.md` | SRC ID, Source, Type, File Count, Size, Usage Mode, Agent Decision |
-| `artifact-ledger.md` | File, SRC, Status, Version/Hash, Modified Date, Processing Status |
-| `source-classification.md` | SRC ID, Usage Mode, Reason, Action Taken |
 | `change-log.md` | Date, Intake Run, Summary of Changes |
 | `indexing-assistance-needed.md` | Item, Why, Recommended Usage Mode, Status |
+
+> Source tracking (what used to be `artifact-map` / `artifact-ledger` / `source-classification`) now lives in the **`intake.index.md` registry** — see `ba-classification`. Don't recreate those files.
 
 ## Shared-context files (`shared-context/`)
 
