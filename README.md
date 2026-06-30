@@ -18,14 +18,41 @@ This repository is distributed once across the org. Teams add it as a marketplac
 
 ## Install (individual user)
 
+Pick **one** way to add the marketplace, then install the plugins. The marketplace name is `techjays-delivery-os` (from `.claude-plugin/marketplace.json`), so all `install` lines reference that name regardless of how you added it.
+
+**Option A — from the published GitHub repo** (tracks the `main` branch):
+
 ```text
-/plugin marketplace add techjays/claude-delivery-os
+/plugin marketplace add Techjays-Build-With-AI/claude-delivery-os
+```
+
+**Option B — from a feature branch** (test changes before they're merged to `main`):
+
+```text
+/plugin marketplace add Techjays-Build-With-AI/claude-delivery-os@feat/your-branch-name
+```
+
+**Option C — from a local folder** (test your own working copy, no push needed) — point it at the repo root, which contains `.claude-plugin/marketplace.json`:
+
+```text
+/plugin marketplace add D:\Projects\Tools\claude-delivery-os
+```
+
+Then install the plugins (same for all options):
+
+```text
 /plugin install delivery-os@techjays-delivery-os
 /plugin install ba@techjays-delivery-os
 /plugin install tl@techjays-delivery-os
 ```
 
-(Replace `techjays/claude-delivery-os` with the actual git host/repo once published.)
+After editing files (local) or pushing new commits (GitHub), refresh without re-adding:
+
+```text
+/plugin marketplace update techjays-delivery-os
+```
+
+> **Switching sources** (e.g. from a branch or local folder to published `main`): remove first, then re-add — `/plugin marketplace remove techjays-delivery-os` then the Option-A line above. Verify installed commands anytime with `/help`.
 
 > 📦 **Full step-by-step setup — install + `/delivery-os:init` — lives in [docs/SETUP.md](docs/SETUP.md).** It's the shared guide every plugin README links to, so the steps stay in one place.
 
