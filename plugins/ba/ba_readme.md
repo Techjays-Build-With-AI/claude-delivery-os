@@ -27,10 +27,12 @@ For every feature/module in the scope, the agent judges **coverage depth** acros
 | 3 | Functional requirements | Capabilities enumerated with responsibility (AI/DET/HUM) and MoSCoW priority |
 | 4 | AI / Automation responsibilities | What the AI does, its confidence threshold + fallback, and the human-in-the-loop |
 | 5 | Business rules | The rules, thresholds, and decision logic the feature enforces |
-| 6 | Data fields | Entities/fields with types, required-ness, source/validation |
-| 7 | Integrations | External systems, direction, data exchanged, dependency/owner |
-| 8 | Exception handling | The unhappy paths — invalid input, failure, timeout, duplicate, conflict |
-| 9 | Acceptance criteria | Testable criteria tied to the feature's requirement IDs |
+| 6 | Information & data | What information the feature captures/uses/produces, at a business level (not field types or schema) |
+| 7 | Integrations | Which external systems it touches and what business data flows, and who owns the dependency (not API contracts) |
+| 8 | Exceptions & edge cases | The business unhappy paths — invalid request, missing approval, duplicate, dispute — and who handles them |
+| 9 | Acceptance criteria | Capability-level "done" the client and team agree on (not detailed test cases) |
+
+> **It's a business review, not a technical one.** The scope review judges *what the business wants* and deliberately leaves *how it's built* to the TL's `tl-spec-review`. It will **not** flag — and never penalises the scope for omitting — system design, database/schema, field data types, API contracts/protocols, auth mechanisms, infrastructure, or tech-stack choices. A scope that leaves those open is correct. The litmus test for every question it raises: *is this a decision the client/business makes, or one the engineers make?* Only the former belong here.
 
 It also runs an **example check** per feature against the client's `example-register` (the scenarios they actually shared): **Pass** (scope satisfies the example), **Partial** (some implied path/field is missing), **Conflict** (the example contradicts the scope — e.g. an example shows Google sign-in but the scope says email/password only, citing the `EX-###` id), or **No-examples**. A scope that can't satisfy a real example the client handed you has a citable gap, not a nicety.
 
@@ -122,8 +124,8 @@ Open the Login feature and you see why it's a 2 — eight of nine dimensions are
 |----|------|---------|----------|--------------------------|
 | SQ-004 | Blocker | AUTH | Which auth methods are in scope — email/password, social (Google/Apple/Microsoft), OTP/passwordless, magic link, or enterprise SSO? | In §3.1.3 list the methods with Resp./Pri.; reconcile with EX-004 (Google sign-in) |
 | SQ-005 | Major | AUTH | Are registration, password reset, and profile management in scope, or out? | State each explicitly in §3.1.2 In/Out of scope |
-| SQ-006 | Major | AUTH | Session length, lockout after N failures, and MFA — required, optional, or none? | Add session + security rules to §3.1.5 |
-| SQ-011 | Blocker | CRM | Which CRM, and is it read/write/bidirectional, real-time or batch? | Name the system + API style + direction in §3.2.7 |
+| SQ-006 | Major | AUTH | What are the account-access policies the business wants — email verification, lockout after repeated failures, MFA (required/optional/none)? | Add the access policies to §3.1.5 (the *what*, not the technical controls) |
+| SQ-011 | Blocker | CRM | Which CRM system, and do we read from it, write to it, or both? | Name the system and direction + the business data exchanged in §3.2.7 |
 
 The **example check** is what turns "this feels thin" into a citable gap: `EX-004` shows a user signing in with Google, but the scope mentions only email/password — a **Conflict**, surfaced against the Login feature.
 

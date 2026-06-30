@@ -65,7 +65,7 @@ This is the JSON injected into `assets/report.html` at the `__REVIEW_DATA__` tok
       "feature": "AUTH",
       "dimension": "functional_reqs",
       "question": "Which authentication methods are in scope — email/password, social (Google/Apple/Microsoft), OTP/passwordless, magic link, or enterprise SSO (SAML/OIDC)?",
-      "whyItMatters": "Auth method swings the estimate, the data model, the integrations list, and the security review. Unspecified, the price is a guess — and it conflicts with EX-004 (Google sign-in).",
+      "whyItMatters": "The auth method is a business decision that swings the estimate and the integrations list. Unspecified, the price is a guess — and it conflicts with EX-004 (Google sign-in).",
       "suggestedScope": "In §3.1.3 list the supported methods with Resp./Pri.; if email/password, add verification + password policy + lockout; reconcile with EX-004.",
       "status": "Open",
       "authorResponse": null,
@@ -154,7 +154,7 @@ round: 1
 > Repeat this block per feature. Keep assessments to a few sentences; push specifics into the question register.
 
 ### <n>. <Feature name> — <score>/10  ·  examples: <Pass/Partial/Conflict/No-examples>
-**Coverage.** Current→Future <C/P/A> · In/Out scope <C/P/A> · Functional reqs <C/P/A> · AI/Automation <C/P/A> · Business rules <C/P/A> · Data fields <C/P/A> · Integrations <C/P/A> · Exceptions <C/P/A> · Acceptance <C/P/A>
+**Coverage.** Current→Future <C/P/A> · In/Out scope <C/P/A> · Functional reqs <C/P/A> · AI/Automation <C/P/A> · Business rules <C/P/A> · Information & data <C/P/A> · Integrations <C/P/A> · Exceptions & edge cases <C/P/A> · Acceptance <C/P/A>
 **Assessment.** <What the scope does and doesn't cover for this feature, and why it lands at this score.>
 **Example check.** <Pass / or cite the EX id and the conflict/partial gap.>
 **Questions.** <SQ-0XX, SQ-0XX — or "None; well scoped.">
