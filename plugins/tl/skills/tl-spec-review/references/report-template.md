@@ -16,6 +16,9 @@ This is the JSON injected into `assets/report.html` at the `__REVIEW_DATA__` tok
   "documentReviewed": "examples/.../support-copilot-spec.md",
   "documentVersion": "0.3 (2026-06-20)",
   "reviewDate": "2026-06-25 14:30",
+  "reviewId": "2026-06-25-143012",
+  "round": 1,
+  "priorReview": null,
   "system": {
     "isAI": true,
     "aiNote": "RAG over help-center + tickets, GPT-4o for generation",
@@ -44,7 +47,13 @@ This is the JSON injected into `assets/report.html` at the `__REVIEW_DATA__` tok
   ],
   "findings": [
     { "id": "FND-001", "severity": "Blocker", "area": "CMP",
-      "finding": "What's wrong/missing and its consequence.", "fix": "How to close it." }
+      "finding": "What's wrong/missing and its consequence.", "fix": "How to close it.",
+      "status": "Open",
+      "authorResponse": null,
+      "adjudication": null,
+      "followUps": [],
+      "resolvedOn": null,
+      "decisionId": null }
   ],
   "questions": ["Things that may simply be undocumented — ask before assuming."],
   "nextActions": ["Highest-leverage fix first, usually the Blockers."]
@@ -53,6 +62,8 @@ This is the JSON injected into `assets/report.html` at the `__REVIEW_DATA__` tok
 
 Field rules:
 - `reviewDate` is the human-readable run time (date, plus time of day so two same-day runs are distinguishable) — it's shown in the report header/footer and should match the `<timestamp>` in the filename.
+- `reviewId` is the filename `<timestamp>` (`YYYY-MM-DD-HHMMSS`) — the join key the resolution loop uses to match a responses file back to its review. The HTML "Export responses" button reads it to name its download. `round` starts at 1 for the initial review; `/tl:resolve` increments it. `priorReview` is the `reviewId` of the report this round resolves (null for round 1). See `resolution-loop.md`.
+- The per-finding **resolution fields** (`status`, `authorResponse`, `adjudication`, `followUps`, `resolvedOn`, `decisionId`) start at `Open`/null in round 1 and are filled by `/tl:resolve` in later rounds. `status` uses the controlled values in `resolution-loop.md`; `followUps` is a list of verification questions when `status` is `Needs-verification`.
 - `score` is a **number 0–10**, or the string `"N/A"` for non-applicable areas (the HTML draws no bar and excludes it visually). Don't include N/A areas in the overall average.
 - `band` is the band label for the score (`Excellent`/`Good`/`Adequate`/`Weak`/`Stub`/`Absent`/`N/A`).
 - `group` drives the section dividers in the scorecard — use the four group names: `Architecture & Design`, `Engineering Contracts`, `Applied AI / LLM Engineering`, `Delivery & Operations`. Keep areas in order so each group's rows are contiguous.
@@ -63,6 +74,8 @@ Field rules:
 ## 2. Injecting into the HTML
 
 Read `assets/report.html`, replace the literal token `__REVIEW_DATA__` (it sits between `<script id="review-data" type="application/json">` and `</script>`) with the JSON object above, and write to the timestamped output path `spec-review-<timestamp>.html` (see SKILL.md step 6). Touch nothing else. Validate the JSON — a trailing comma or unescaped quote makes the page render its empty-state notice instead of the report.
+
+**Also write the same JSON object to `spec-review-<timestamp>.json`** alongside the HTML and Markdown. This sidecar is the machine-readable state the resolution loop reads: `/tl:resolve` loads it (matched by `reviewId`) to carry findings forward without re-parsing HTML or prose. It's the single data object you already built — just persisted to disk.
 
 ---
 
@@ -136,14 +149,23 @@ document_version: "<version/date of the reviewed doc, or 'unversioned'>"
 
 ## Findings register
 
-> Sorted by severity (Blockers first). Every deducted point traces to a finding here; every finding has a suggested fix. `Area` is the area code (OVR/ARC/FLW/DAT/API/LIB/OBS/EVL/FBK/CMP/INF/CICD/CST).
+> Sorted by severity (Blockers first). Every deducted point traces to a finding here; every finding has a suggested fix. `Area` is the area code (OVR/ARC/FLW/DAT/API/LIB/OBS/EVL/FBK/CMP/INF/CICD/CST). `Status` is the lifecycle state (`Open` in round 1; updated by `/tl:resolve`).
 
-| ID | Sev. | Area | Finding | Suggested fix |
-|----|------|------|---------|---------------|
-| FND-001 | Blocker | <CODE> | <what's wrong/missing and its consequence> | <how to close it> |
-| FND-002 | Major | <CODE> | <…> | <…> |
-| FND-003 | Minor | <CODE> | <…> | <…> |
-| FND-004 | Nit | <CODE> | <…> | <…> |
+| ID | Sev. | Status | Area | Finding | Suggested fix |
+|----|------|--------|------|---------|---------------|
+| FND-001 | Blocker | <Open/Resolved/Needs-verification/Accepted-risk/Won't-fix> | <CODE> | <what's wrong/missing and its consequence> | <how to close it> |
+| FND-002 | Major | <…> | <CODE> | <…> | <…> |
+| FND-003 | Minor | <…> | <CODE> | <…> | <…> |
+| FND-004 | Nit | <…> | <CODE> | <…> | <…> |
+
+**Resolution rounds (round 2+).** For each finding that received a response, add a short thread under the register so the closure is auditable — the author's response, the agent's adjudication, any follow-up questions, and the `DEC-###` id if logged:
+
+```markdown
+#### FND-018 — Resolved (round 2)
+- **Author response:** Azure AI Foundry, West Europe, enterprise DPA, modified abuse monitoring approved (zero retention); legal basis = contract.
+- **Adjudication:** Addresses data-use, residency, and retention with verifiable specifics. Spec edit applied to §10. Closed.
+- **Decision:** DEC-007
+```
 
 ## Clarifying questions for the author
 

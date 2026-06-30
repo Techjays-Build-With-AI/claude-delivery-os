@@ -9,9 +9,9 @@ This repository is distributed once across the org. Teams add it as a marketplac
 | Plugin | Namespace | Status | Provides |
 |--------|-----------|--------|----------|
 | `delivery-os` (core) | `/delivery-os:` | ✅ MVP | Project scaffolding, the cross-agent document contract, shared vocabulary, canonical templates. **Install first.** |
-| `ba` | `/ba:` | ✅ MVP | Business Analyst Agent — discovery intake, classification, living scope, registers. `/ba:intake` |
+| `ba` | `/ba:` | ✅ MVP | Business Analyst Agent — discovery intake, classification, living scope, registers; plus a paranoid feature-by-feature **scope review** (coverage scoring + example validation) with a question-resolution loop. `/ba:intake` · `/ba:review` · `/ba:resolve`. See [plugins/ba/ba_readme.md](plugins/ba/ba_readme.md). |
 | `doc` | `/doc:` | 🔜 Phase 2 | Doc Agent — proposal, walkthrough, SRS, SoW, executive summary |
-| `tl` | `/tl:` | ✅ MVP | TL Agent — scored technical-spec review for applied AI systems (architecture, system/feature flows, data schema, API contracts, libraries, AI observability/evals/feedback/compliance, infra, CI/CD, cost). `/tl:review` |
+| `tl` | `/tl:` | ✅ MVP | TL Agent — scored technical-spec review for applied AI systems (architecture, system/feature flows, data schema, API contracts, libraries, AI observability/evals/feedback/compliance, infra, CI/CD, cost), plus a finding-resolution loop. `/tl:review` · `/tl:resolve` |
 | `qa` | `/qa:` | 🔜 Phase 4 | QA Agent |
 
 > **Why separate plugins?** In Claude Code a command's namespace comes from the plugin name. Splitting by domain is what gives the spec's exact commands — `/ba:intake`, `/tl:review`, `/doc:proposal` — while still shipping as one installable bundle.
@@ -56,12 +56,15 @@ For **org-wide enforcement**, an admin can pin approved marketplaces via managed
 /delivery-os:init my-client-project     # scaffold ONE container folder (no rigid sub-folders)
 /ba:intake add "transcripts in <folder/link>, requirements in <folder/link>, archive in <folder> for reference only"
 /ba:intake mode=incremental             # re-run as new material arrives
+/ba:review                              # paranoid scope review of ba-output/scope.md; writes a dashboard to ba-output/scope-reviews/
 /tl:review docs/tech-spec.md            # score a technical spec; writes a timestamped report to tl-output/
 ```
 
 You don't pre-sort files. Tell intake where your originals live; it **references them in place** (never copies/moves), summarizes each into `artifacts/`, registers them in `intake.index.md`, and builds the scope. `/ba:intake` modes: `auto` (default) · `incremental` · `full-refresh` · `dry-run` · `index-only` · `classify-only`.
 
-**Reviewing a technical spec** is independent of intake — point `/tl:review` at any spec / architecture / HLD / SRS doc (`.md`, `.docx`, `.pdf`) and it produces an interactive HTML report plus a Markdown artifact, scoring each area out of 10 with findings and fixes. Each run is timestamped, so re-reviews never overwrite earlier ones. See [plugins/tl/tl_readme.md](plugins/tl/tl_readme.md) for the full guide and a worked example.
+**Reviewing the scope** before it goes out for estimate: `/ba:review` reads `ba-output/scope.md` (or any scope file you point it at), breaks it into features, and — like a paranoid BA — interrogates every thin line into concrete questions, scores each feature out of 10 on coverage depth across the nine D&D dimensions, and validates each against the client's shared examples. It writes an interactive HTML dashboard to `ba-output/scope-reviews/`; you then respond to the questions inside it, *Export responses*, and run `/ba:resolve` to close them and fold the answers back into the scope. Full guide: [plugins/ba/ba_readme.md](plugins/ba/ba_readme.md).
+
+**Reviewing a technical spec** is independent of intake — point `/tl:review` at any spec / architecture / HLD / SRS doc (`.md`, `.docx`, `.pdf`) and it produces an interactive HTML report plus a Markdown artifact, scoring each area out of 10 with findings and fixes. You then **close the findings**: respond to each one inside the HTML report, click *Export responses*, and run `/tl:resolve` on the downloaded file — the agent adjudicates each response, recomputes the verdict, logs decisions, and writes the next round. Each run is timestamped, so re-reviews never overwrite earlier ones. See [plugins/tl/tl_readme.md](plugins/tl/tl_readme.md) for the full guide and a worked example.
 
 > 🧭 **New to the plugin? Read [ONBOARDING.md](ONBOARDING.md)** — it explains the three stages (install → init → intake), what each does to your repo, and walks through a first run. Key point: **installing the plugin does not create anything in your project** — folders appear only when you run `/delivery-os:init`.
 
