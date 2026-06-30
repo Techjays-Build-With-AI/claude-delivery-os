@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Technical Specification Review</title>
+<title>Scope Review</title>
 <!--
-  Interactive review report for the Techjays TL Agent (tl-spec-review skill).
+  Interactive scope-review dashboard for the Techjays BA Agent (ba-scope-review skill).
   Self-contained: no external CSS/JS/fonts — opens offline in any browser.
   The agent injects the review JSON into the #review-data script tag below
   (the placeholder token there is the only thing to replace). All rendering is
   done client-side from that single data object, so the HTML and the companion
-  spec-review.md stay in sync (both derive from the same JSON).
+  scope-review.md stay in sync (both derive from the same JSON).
 -->
 <style>
   :root {
@@ -19,6 +19,7 @@
     --excellent: #1a7f37; --good: #2da44e; --adequate: #bf8700;
     --weak: #e16f24; --stub: #cf222e; --absent: #a40e26; --na: #8c959f;
     --blocker: #cf222e; --major: #e16f24; --minor: #bf8700; --nit: #6e7781;
+    --covered: #1a7f37; --partial: #bf8700; --gap: #cf222e;
     --shadow: 0 1px 3px rgba(31,35,40,.08), 0 1px 2px rgba(31,35,40,.06);
     --radius: 10px;
   }
@@ -29,6 +30,7 @@
       --excellent: #3fb950; --good: #56d364; --adequate: #d29922;
       --weak: #db6d28; --stub: #f85149; --absent: #ff7b72; --na: #6e7781;
       --blocker: #f85149; --major: #db6d28; --minor: #d29922; --nit: #8b949e;
+      --covered: #3fb950; --partial: #d29922; --gap: #f85149;
       --shadow: none;
     }
   }
@@ -66,7 +68,6 @@
   .chip { background: var(--surface); border: 1px solid var(--border); border-radius: 999px;
     padding: 5px 12px; font-size: 13px; color: var(--muted); }
   .chip b { color: var(--text); font-weight: 600; }
-  .chip.yes b { color: var(--good); } .chip.no b { color: var(--muted); }
 
   .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
     box-shadow: var(--shadow); padding: 20px 22px; margin: 16px 0; }
@@ -75,6 +76,10 @@
     color: var(--muted); font-weight: 700; margin: 28px 0 6px; }
 
   .summary-text { margin: 0 0 14px; }
+  .kb-note { margin: 0; color: var(--muted); font-size: 13px; }
+  .kb-regs { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 0; }
+  .kb-reg { font-family: ui-monospace, monospace; font-size: 12px; padding: 2px 8px; border-radius: 6px;
+    background: var(--surface-2); border: 1px solid var(--border); color: var(--muted); }
   .gating { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
   .gating li { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px;
     background: var(--surface-2); border-radius: 8px; border-left: 3px solid var(--blocker); }
@@ -91,15 +96,19 @@
   .grp-row td { background: var(--surface-2); font-weight: 700; font-size: 12px;
     text-transform: uppercase; letter-spacing: .04em; color: var(--muted); padding: 6px 8px; }
   .areacode { color: var(--muted); font-size: 12px; font-family: ui-monospace, monospace; }
+  .kindtag { display: inline-block; font-size: 11px; color: var(--muted); background: var(--surface-2);
+    border: 1px solid var(--border); border-radius: 999px; padding: 1px 8px; margin-left: 4px; }
   .bar { position: relative; height: 8px; border-radius: 4px; background: var(--surface-2);
     overflow: hidden; min-width: 90px; }
   .bar > span { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px; }
   .scorenum { font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .statuslbl { font-size: 12px; font-weight: 700; }
+  .exbadge { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 11px;
+    font-weight: 800; color: #fff; white-space: nowrap; }
   tr.total-row td { border-top: 2px solid var(--border); border-bottom: none;
     font-weight: 800; font-size: 16px; padding-top: 14px; }
 
-  /* Area detail accordion */
+  /* Feature detail accordion */
   .toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 8px 0 0; }
   .btn { background: var(--surface); border: 1px solid var(--border); color: var(--text);
     border-radius: 7px; padding: 6px 12px; font-size: 13px; cursor: pointer; font-weight: 600; }
@@ -118,13 +127,24 @@
   .area-body { padding: 4px 18px 18px 36px; border-top: 1px solid var(--border); }
   .area-body h4 { margin: 14px 0 4px; font-size: 12px; text-transform: uppercase;
     letter-spacing: .03em; color: var(--muted); }
+
+  /* Coverage matrix */
+  .covgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 6px 0 2px; }
+  .covcell { display: flex; align-items: center; gap: 7px; padding: 6px 9px; border-radius: 7px;
+    background: var(--surface-2); border: 1px solid var(--border); font-size: 12.5px; }
+  .covdot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+  .covcell .cstate { margin-left: auto; font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .02em; }
+  .exline { margin: 8px 0 2px; font-size: 13.5px; }
+  .exline .exbadge { margin-right: 8px; }
+
   .fnd-chiprow { display: flex; flex-wrap: wrap; gap: 6px; }
   .fnd-chip { font-family: ui-monospace, monospace; font-size: 12px; padding: 3px 8px;
     border-radius: 6px; background: var(--surface-2); border: 1px solid var(--border);
     cursor: pointer; font-weight: 600; }
   .fnd-chip:hover { border-color: var(--accent); }
 
-  /* Findings register */
+  /* Question register */
   .sevfilter { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 14px; }
   .sevbtn { border: 1px solid var(--border); background: var(--surface); cursor: pointer;
     border-radius: 999px; padding: 5px 13px; font-size: 13px; font-weight: 700; color: var(--text); }
@@ -142,6 +162,7 @@
   .fid:target, tr.flash > td { animation: flash 1.6s ease; }
   @keyframes flash { 0%,40% { background: rgba(255,196,0,.28); } 100% { background: transparent; } }
   .areatag { font-family: ui-monospace, monospace; font-size: 12px; color: var(--muted); }
+  .why-line { display: block; margin-top: 5px; font-size: 13px; color: var(--muted); }
 
   ol.actions, ul.qs { padding-left: 20px; margin: 6px 0; } ol.actions li, ul.qs li { margin: 6px 0; }
   .strength-list { margin: 6px 0; padding-left: 20px; } .strength-list li { margin: 4px 0; }
@@ -188,6 +209,7 @@
   @media (max-width: 640px) {
     table.scorecard .col-bar { display: none; }
     .area-body { padding-left: 18px; }
+    .covgrid { grid-template-columns: repeat(2, 1fr); }
   }
 </style>
 </head>
@@ -197,7 +219,7 @@
 <header class="topbar">
   <div class="topbar-inner">
     <div class="scoreball"><span class="num" id="tb-score">–</span><span class="den">/10</span></div>
-    <h1 class="title" id="tb-title">Technical Specification Review<small id="tb-sub"></small></h1>
+    <h1 class="title" id="tb-title">Scope Review<small id="tb-sub"></small></h1>
     <span class="verdict-badge" id="tb-verdict">—</span>
   </div>
 </header>
@@ -213,34 +235,33 @@
     <div id="strengths-wrap"></div>
   </div>
 
-  <div class="section-label">Scorecard</div>
+  <div id="kb-wrap"></div>
+
+  <div class="section-label">Feature scorecard</div>
   <div class="card"><table class="scorecard"><thead><tr>
-    <th>#</th><th>Area</th><th class="col-bar">Score</th><th>/10</th><th>Status</th>
+    <th>#</th><th>Feature</th><th class="col-bar">Coverage</th><th>/10</th><th>Status</th><th>Examples</th>
   </tr></thead><tbody id="scorecard-body"></tbody></table></div>
 
-  <div class="section-label">Area detail</div>
+  <div class="section-label">Feature detail</div>
   <div class="toolbar">
     <button class="btn" id="expandAll">Expand all</button>
     <button class="btn" id="collapseAll">Collapse all</button>
   </div>
   <div id="areas"></div>
 
-  <div class="section-label">Findings register</div>
+  <div class="section-label">Scope questions &amp; gaps</div>
   <div class="sevfilter" id="sevfilter"></div>
   <div class="card"><table class="findings"><thead><tr>
-    <th>ID</th><th>Sev.</th><th>Status</th><th>Area</th><th>Finding</th><th>Suggested fix</th>
+    <th>ID</th><th>Sev.</th><th>Status</th><th>Feature</th><th>Question</th><th>Suggested scope addition</th>
   </tr></thead><tbody id="findings-body"></tbody></table></div>
 
-  <div class="section-label">Open items — respond &amp; export</div>
-  <p class="progress-line" style="margin:4px 0 0">Type a response under each open finding, choose an intent, then <b>Export responses</b> — the page downloads a Markdown file named for this review. Save it in <code>tl-output/</code> and run <code>/tl:resolve</code> on it to have the agent adjudicate and close items.</p>
+  <div class="section-label">Open questions — respond &amp; export</div>
+  <p class="progress-line" style="margin:4px 0 0">Type an answer under each open question, choose an intent, then <b>Export responses</b> — the page downloads a Markdown file named for this review. Save it in <code>ba-output/scope-reviews/</code> and run <code>/ba:resolve</code> on it to have the agent adjudicate, close items, and fold the answers back into the scope.</p>
   <div id="respond-list"></div>
   <div class="respond-actions">
     <button class="btn primary" id="exportBtn">Export responses</button>
     <span id="export-note"></span>
   </div>
-
-  <div class="section-label">Clarifying questions for the author</div>
-  <div class="card"><ul class="qs" id="questions"></ul></div>
 
   <div class="section-label">Recommended next actions</div>
   <div class="card"><ol class="actions" id="actions"></ol></div>
@@ -258,9 +279,20 @@
   var SEV_ORDER = ["Blocker", "Major", "Minor", "Nit"];
   var STATUS = {
     "Open": "var(--muted)", "Needs-verification": "var(--minor)", "Responded": "var(--accent)",
-    "Resolved": "var(--excellent)", "Accepted-risk": "var(--accent)", "Won't-fix": "var(--stub)"
+    "Resolved": "var(--excellent)", "Accepted-assumption": "var(--accent)", "Won't-fix": "var(--stub)"
   };
-  var TERMINAL = { "Resolved": 1, "Accepted-risk": 1, "Won't-fix": 1 };
+  var TERMINAL = { "Resolved": 1, "Accepted-assumption": 1, "Won't-fix": 1 };
+  var EXAMPLE = {
+    "Pass": "var(--covered)", "Partial": "var(--partial)", "Conflict": "var(--gap)", "No-examples": "var(--na)"
+  };
+  var COV = { "Covered": "var(--covered)", "Partial": "var(--partial)", "Absent": "var(--gap)" };
+  var COV_DIMS = [
+    ["current_future", "Current→Future"], ["in_out_scope", "In/Out scope"],
+    ["functional_reqs", "Functional reqs"], ["ai_automation", "AI / Automation"],
+    ["business_rules", "Business rules"], ["data_fields", "Data fields"],
+    ["integrations", "Integrations"], ["exceptions", "Exception handling"],
+    ["acceptance", "Acceptance criteria"]
+  ];
   function statusOf(f) { return f.status || "Open"; }
   function statusColor(s) { return STATUS[s] || "var(--muted)"; }
 
@@ -284,9 +316,9 @@
   }
   function verdictColor(v) {
     v = (v || "").toLowerCase();
-    if (v.indexOf("ready to build") === 0) return "var(--excellent)";
+    if (v.indexOf("scope-ready") === 0 || v.indexOf("estimate with confidence") >= 0) return "var(--excellent)";
     if (v.indexOf("caveat") >= 0) return "var(--adequate)";
-    if (v.indexOf("not ready") >= 0 || v.indexOf("major rework") >= 0) return "var(--absent)";
+    if (v.indexOf("not scope-ready") >= 0 || v.indexOf("discovery") >= 0) return "var(--absent)";
     return "var(--weak)"; // "significant gaps"
   }
 
@@ -295,42 +327,42 @@
   catch (e) {
     document.getElementById("root").innerHTML =
       '<div class="card"><h2>No review data</h2><p class="empty">This template has not been populated yet. ' +
-      'The TL agent injects the review JSON into the <code>#review-data</code> block.</p></div>';
+      'The BA agent injects the review JSON into the <code>#review-data</code> block.</p></div>';
     return;
   }
 
   // ---- Header ----
   document.getElementById("tb-score").textContent = (data.overallScore != null ? data.overallScore : "–");
   document.getElementById("tb-score").style.color = scoreColor(Math.round(data.overallScore));
-  document.getElementById("tb-title").firstChild.textContent = (data.project || "Technical Specification") + " — Review";
-  document.getElementById("tb-sub").textContent = data.documentVersion ? ("v" + data.documentVersion) : "";
+  document.getElementById("tb-title").firstChild.textContent = (data.project || "Scope") + " — Scope Review";
+  document.getElementById("tb-sub").textContent = data.documentVersion ? (data.documentVersion) : "";
   var vb = document.getElementById("tb-verdict");
   vb.textContent = data.verdict || ""; vb.style.background = verdictColor(data.verdict);
 
   // ---- Meta chips ----
-  var sys = data.system || {};
+  var kb = data.knowledgeBase || {};
   var meta = document.getElementById("meta");
-  function chip(label, val, cls) { return el("span", { class: "chip " + (cls || "") },
+  function chip(label, val) { return el("span", { class: "chip" },
     [document.createTextNode(label + " "), el("b", { text: val })]); }
   if (data.documentReviewed) meta.appendChild(chip("Document:", data.documentReviewed));
   meta.appendChild(chip("Reviewed:", data.reviewDate || "—"));
-  meta.appendChild(chip("AI / LLM system?", sys.isAI ? "Yes" : "No", sys.isAI ? "yes" : "no"));
-  meta.appendChild(chip("Multiple systems?", sys.multiSystem ? "Yes" : "No", sys.multiSystem ? "yes" : "no"));
+  if (kb.examplesChecked != null) meta.appendChild(chip("Examples checked:", String(kb.examplesChecked)));
+  meta.appendChild(chip("Features:", String((data.features || []).length)));
 
   // ---- Executive summary ----
   document.getElementById("exec-summary").textContent = data.executiveSummary || "";
-  var findingById = {}; (data.findings || []).forEach(function (f) { findingById[f.id] = f; });
-  var gating = (data.gatingFindings || []).map(function (id) { return findingById[id]; }).filter(Boolean);
+  var qById = {}; (data.questions || []).forEach(function (f) { qById[f.id] = f; });
+  var gating = (data.gatingQuestions || []).map(function (id) { return qById[id]; }).filter(Boolean);
   if (gating.length) {
     var gw = document.getElementById("gating-wrap");
-    gw.appendChild(el("h4", { class: "section-label", text: "Gating findings", style: "margin-top:6px" }));
+    gw.appendChild(el("h4", { class: "section-label", text: "Gating questions", style: "margin-top:6px" }));
     var ul = el("ul", { class: "gating" });
     gating.forEach(function (f) {
       ul.appendChild(el("li", { style: "border-left-color:" + SEV[f.severity].c }, [
         el("a", { href: "#" + f.id, class: "fid", text: f.id }),
         el("span", {}, [el("span", { class: "sevtag", style: "background:" + SEV[f.severity].c, text: f.severity }),
-          document.createTextNode(" " + f.finding + " "),
-          el("span", { class: "fix", text: "→ " + f.fix })])
+          document.createTextNode(" " + (f.question || "") + " "),
+          el("span", { class: "fix", text: "→ " + (f.suggestedScope || "") })])
       ]));
     });
     gw.appendChild(ul);
@@ -343,26 +375,43 @@
     sw.appendChild(sl);
   }
 
+  // ---- Knowledge-base panel ----
+  if (kb.note || (kb.registersChecked && kb.registersChecked.length)) {
+    var kbWrap = document.getElementById("kb-wrap");
+    kbWrap.appendChild(el("div", { class: "section-label", text: "Knowledge base reviewed" }));
+    var kbCard = el("div", { class: "card" });
+    if (kb.note) kbCard.appendChild(el("p", { class: "kb-note", text: kb.note }));
+    if (kb.registersChecked && kb.registersChecked.length) {
+      var rr = el("div", { class: "kb-regs" });
+      kb.registersChecked.forEach(function (r) { rr.appendChild(el("span", { class: "kb-reg", text: r })); });
+      kbCard.appendChild(rr);
+    }
+    kbWrap.appendChild(kbCard);
+  }
+
   // ---- Scorecard ----
   var body = document.getElementById("scorecard-body");
   var lastGroup = null;
-  (data.areas || []).forEach(function (a) {
+  (data.features || []).forEach(function (a) {
     if (a.group && a.group !== lastGroup) {
       lastGroup = a.group;
-      var gr = el("tr", { class: "grp-row" }); gr.appendChild(el("td", { colspan: "5", text: a.group }));
+      var gr = el("tr", { class: "grp-row" }); gr.appendChild(el("td", { colspan: "6", text: a.group }));
       body.appendChild(gr);
     }
-    var isNA = (a.score === "N/A" || a.score == null);
     var col = scoreColor(a.score);
     var bar = el("div", { class: "bar" });
-    if (!isNA) bar.appendChild(el("span", { style: "width:" + (a.score * 10) + "%;background:" + col }));
+    bar.appendChild(el("span", { style: "width:" + ((+a.score || 0) * 10) + "%;background:" + col }));
     var tr = el("tr", { class: "area-row", "data-area": a.code });
     tr.appendChild(el("td", { class: "areacode", text: a.num }));
-    tr.appendChild(el("td", {}, [el("span", { text: a.name }), document.createTextNode("  "),
-      el("span", { class: "areacode", text: a.code })]));
+    var nameCell = el("td", {}, [el("span", { text: a.name }), document.createTextNode("  "),
+      el("span", { class: "areacode", text: a.code })]);
+    if (a.kind) nameCell.appendChild(el("span", { class: "kindtag", text: a.kind }));
+    tr.appendChild(nameCell);
     tr.appendChild(el("td", { class: "col-bar" }, [bar]));
-    tr.appendChild(el("td", { class: "scorenum", style: "color:" + col, text: isNA ? "N/A" : a.score }));
+    tr.appendChild(el("td", { class: "scorenum", style: "color:" + col, text: a.score }));
     tr.appendChild(el("td", {}, [el("span", { class: "statuslbl", style: "color:" + col, text: a.band || "" })]));
+    var ex = a.exampleCompliance;
+    tr.appendChild(el("td", {}, ex ? [el("span", { class: "exbadge", style: "background:" + (EXAMPLE[ex] || "var(--na)"), text: ex })] : [document.createTextNode("—")]));
     tr.addEventListener("click", function () {
       var d = document.getElementById("area-" + a.code);
       if (d) { d.open = true; d.scrollIntoView({ behavior: "smooth", block: "start" }); }
@@ -371,40 +420,65 @@
   });
   var totColor = scoreColor(Math.round(data.overallScore));
   var totr = el("tr", { class: "total-row" });
-  totr.appendChild(el("td", { colspan: "3", text: "Overall (avg of applicable)" }));
+  totr.appendChild(el("td", { colspan: "3", text: "Overall (avg of features)" }));
   totr.appendChild(el("td", { class: "scorenum", style: "color:" + totColor, text: data.overallScore }));
-  totr.appendChild(el("td", {}, [el("span", { class: "statuslbl", style: "color:" + totColor, text: data.verdict || "" })]));
+  totr.appendChild(el("td", { colspan: "2" }, [el("span", { class: "statuslbl", style: "color:" + totColor, text: data.verdict || "" })]));
   body.appendChild(totr);
 
-  // ---- Area detail ----
+  // ---- Feature detail ----
   var areasWrap = document.getElementById("areas");
-  (data.areas || []).forEach(function (a) {
-    var isNA = (a.score === "N/A" || a.score == null);
+  (data.features || []).forEach(function (a) {
     var col = scoreColor(a.score);
     var d = el("details", { class: "area", id: "area-" + a.code });
-    if (!isNA && +a.score < 5) d.open = true; // surface the weak areas by default
+    if (+a.score < 5) d.open = true; // surface the weak features by default
     var sum = el("summary", {}, [
       el("span", { class: "swatch", style: "background:" + col }),
       el("span", { class: "aname", text: a.num + ". " + a.name }),
       el("span", { class: "areacode", text: a.code }),
-      el("span", { class: "ascore", style: "color:" + col, text: isNA ? "N/A" : (a.score + "/10") })
+      el("span", { class: "ascore", style: "color:" + col, text: (a.score + "/10") })
     ]);
     var b = el("div", { class: "area-body" });
+
+    // Coverage matrix
+    b.appendChild(el("h4", { text: "Coverage across the nine scope dimensions" }));
+    var cov = a.coverage || {};
+    var grid = el("div", { class: "covgrid" });
+    COV_DIMS.forEach(function (pair) {
+      var state = cov[pair[0]] || "Absent";
+      grid.appendChild(el("div", { class: "covcell" }, [
+        el("span", { class: "covdot", style: "background:" + (COV[state] || "var(--gap)") }),
+        el("span", { text: pair[1] }),
+        el("span", { class: "cstate", style: "color:" + (COV[state] || "var(--gap)"), text: state })
+      ]));
+    });
+    b.appendChild(grid);
+
+    // Example compliance
+    if (a.exampleCompliance) {
+      var exl = el("div", { class: "exline" }, [
+        el("span", { class: "exbadge", style: "background:" + (EXAMPLE[a.exampleCompliance] || "var(--na)"), text: "Examples: " + a.exampleCompliance })
+      ]);
+      if (a.exampleNote) exl.appendChild(document.createTextNode(" " + a.exampleNote));
+      b.appendChild(exl);
+    }
+
     b.appendChild(el("h4", { text: "Assessment" }));
     b.appendChild(el("p", { text: a.assessment || "—" }));
-    b.appendChild(el("h4", { text: "Findings" }));
-    if (a.findingIds && a.findingIds.length) {
+
+    b.appendChild(el("h4", { text: "Questions" }));
+    if (a.questionIds && a.questionIds.length) {
       var cr = el("div", { class: "fnd-chiprow" });
-      a.findingIds.forEach(function (id) {
-        var f = findingById[id];
-        var chip = el("span", { class: "fnd-chip", title: f ? (f.severity + ": " + f.finding) : "",
+      a.questionIds.forEach(function (id) {
+        var f = qById[id];
+        var chip = el("span", { class: "fnd-chip", title: f ? (f.severity + ": " + f.question) : "",
           style: f ? ("border-left:3px solid " + SEV[f.severity].c) : "", text: id });
         chip.addEventListener("click", function () { jumpTo(id); });
         cr.appendChild(chip);
       });
       b.appendChild(cr);
-    } else { b.appendChild(el("p", { class: "empty", text: "None — covered well." })); }
-    if (a.suggestions) { b.appendChild(el("h4", { text: "Suggestions" })); b.appendChild(el("p", { text: a.suggestions })); }
+    } else { b.appendChild(el("p", { class: "empty", text: "None — well scoped." })); }
+
+    if (a.suggestions) { b.appendChild(el("h4", { text: "Suggested scope additions" })); b.appendChild(el("p", { text: a.suggestions })); }
     if (a.strengths) { b.appendChild(el("h4", { text: "Strengths" })); b.appendChild(el("p", { text: a.strengths })); }
     d.appendChild(sum); d.appendChild(b); areasWrap.appendChild(d);
   });
@@ -413,14 +487,14 @@
   document.getElementById("collapseAll").addEventListener("click", function () {
     document.querySelectorAll("details.area").forEach(function (d) { d.open = false; }); });
 
-  // ---- Findings register + severity filter ----
+  // ---- Question register + severity filter ----
   var counts = { Blocker: 0, Major: 0, Minor: 0, Nit: 0 };
-  (data.findings || []).forEach(function (f) { if (counts[f.severity] != null) counts[f.severity]++; });
+  (data.questions || []).forEach(function (f) { if (counts[f.severity] != null) counts[f.severity]++; });
   var fbody = document.getElementById("findings-body");
-  var sorted = (data.findings || []).slice().sort(function (x, y) {
+  var sorted = (data.questions || []).slice().sort(function (x, y) {
     return SEV_ORDER.indexOf(x.severity) - SEV_ORDER.indexOf(y.severity) || x.id.localeCompare(y.id);
   });
-  if (!sorted.length) { fbody.appendChild(el("tr", {}, [el("td", { colspan: "6", class: "empty", text: "No findings logged." })])); }
+  if (!sorted.length) { fbody.appendChild(el("tr", {}, [el("td", { colspan: "6", class: "empty", text: "No questions logged." })])); }
   sorted.forEach(function (f) {
     var st = statusOf(f);
     var tr = el("tr", { id: f.id, "data-sev": f.severity });
@@ -428,12 +502,14 @@
     tr.appendChild(el("td", {}, [el("span", { class: "fid", text: f.id })]));
     tr.appendChild(el("td", {}, [el("span", { class: "sevtag", style: "background:" + SEV[f.severity].c, text: f.severity })]));
     tr.appendChild(el("td", {}, [el("span", { class: "statustag", style: "background:" + statusColor(st), text: st })]));
-    tr.appendChild(el("td", {}, [el("span", { class: "areatag", text: f.area || "" })]));
-    var fcell = el("td", {}, [document.createTextNode(f.finding || "")]);
+    tr.appendChild(el("td", {}, [el("span", { class: "areatag", text: f.feature || "" })]));
+    var fcell = el("td", {}, [document.createTextNode(f.question || "")]);
+    if (f.whyItMatters) fcell.appendChild(el("span", { class: "why-line" },
+      [el("b", { text: "Why it matters: " }), document.createTextNode(f.whyItMatters)]));
     if (f.adjudication) fcell.appendChild(el("span", { class: "reso-line" },
       [el("b", { text: "↳ " + st + ": " }), document.createTextNode(f.adjudication)]));
     tr.appendChild(fcell);
-    tr.appendChild(el("td", { text: f.fix || "" }));
+    tr.appendChild(el("td", { text: f.suggestedScope || "" }));
     fbody.appendChild(tr);
   });
 
@@ -454,7 +530,7 @@
     });
     return b;
   }
-  sf.appendChild(mkSev("All", (data.findings || []).length, null));
+  sf.appendChild(mkSev("All", (data.questions || []).length, null));
   SEV_ORDER.forEach(function (s) { sf.appendChild(mkSev(s, counts[s], SEV[s].c)); });
 
   function jumpTo(id) {
@@ -468,21 +544,21 @@
   var rbWrap = document.getElementById("round-banner");
   if (data.round && data.round > 1) {
     var rb = el("div", { class: "round-banner" }, [el("span", { class: "pill", text: "Round " + data.round })]);
-    if (data.priorReview) rb.appendChild(el("span", { class: "progress-line", text: "resolves spec-review-" + data.priorReview }));
-    var fsAll = data.findings || [];
+    if (data.priorReview) rb.appendChild(el("span", { class: "progress-line", text: "resolves scope-review-" + data.priorReview }));
+    var fsAll = data.questions || [];
     var closedN = fsAll.filter(function (f) { return TERMINAL[statusOf(f)]; }).length;
     if (fsAll.length) rb.appendChild(el("span", { class: "progress-line",
-      text: "· " + closedN + " of " + fsAll.length + " findings closed" + (closedN < fsAll.length ? ", " + (fsAll.length - closedN) + " still open" : " — all resolved") }));
+      text: "· " + closedN + " of " + fsAll.length + " questions closed" + (closedN < fsAll.length ? ", " + (fsAll.length - closedN) + " still open" : " — all resolved") }));
     rbWrap.appendChild(rb);
   }
 
   // ---- Open items: respond & export ----
-  var openItems = (data.findings || []).filter(function (f) { return !TERMINAL[statusOf(f)]; });
+  var openItems = (data.questions || []).filter(function (f) { return !TERMINAL[statusOf(f)]; });
   var rl = document.getElementById("respond-list");
   var exportBtn = document.getElementById("exportBtn");
   var exportNote = document.getElementById("export-note");
   if (!openItems.length) {
-    rl.appendChild(el("p", { class: "empty", text: "All findings are closed — nothing to respond to." }));
+    rl.appendChild(el("p", { class: "empty", text: "All questions are closed — nothing to respond to." }));
     if (exportBtn) exportBtn.style.display = "none";
   } else {
     openItems.forEach(function (f) {
@@ -492,21 +568,21 @@
         el("span", { class: "fid", text: f.id }),
         el("span", { class: "sevtag", style: "background:" + SEV[f.severity].c, text: f.severity }),
         el("span", { class: "statustag", style: "background:" + statusColor(st), text: st }),
-        el("span", { class: "areatag", text: f.area || "" })
+        el("span", { class: "areatag", text: f.feature || "" })
       ]));
-      card.appendChild(el("div", { class: "rc-finding", text: f.finding || "" }));
+      card.appendChild(el("div", { class: "rc-finding", text: f.question || "" }));
       if (f.followUps && f.followUps.length) {
         var fu = el("div", { class: "followups" }, [el("b", { text: "Please address:" })]);
         var ul = el("ul"); f.followUps.forEach(function (qq) { ul.appendChild(el("li", { text: qq })); });
         fu.appendChild(ul); card.appendChild(fu);
       }
-      card.appendChild(el("label", { class: "fld", text: "Your response" }));
-      var ta = el("textarea", { "data-fid": f.id, placeholder: "Explain how this is handled, or why it's accepted / declined…" });
+      card.appendChild(el("label", { class: "fld", text: "Your answer" }));
+      var ta = el("textarea", { "data-fid": f.id, placeholder: "Answer the question with specifics, or state the assumption to proceed on…" });
       if (f.authorResponse) ta.value = f.authorResponse;
       card.appendChild(ta);
       card.appendChild(el("label", { class: "fld", text: "Intent" }));
       var sel = el("select", { "data-fid": f.id });
-      ["resolve", "accept-risk", "need-info", "wont-fix"].forEach(function (opt) {
+      ["resolve", "accept-assumption", "need-info", "wont-fix"].forEach(function (opt) {
         sel.appendChild(el("option", { value: opt, text: opt }));
       });
       card.appendChild(sel);
@@ -516,17 +592,17 @@
 
   if (exportBtn) exportBtn.addEventListener("click", function () {
     var reviewId = data.reviewId || "review";
-    var L = ["---", "doc_type: spec-review-responses", "source_review: " + reviewId,
-      "spec: " + (data.documentReviewed || ""), "exported_from: html-report", "---", "",
-      "# Responses to spec-review-" + reviewId, "",
-      "> Each section is one finding. Edit the response and intent, then run `/tl:resolve` on this file.", ""];
+    var L = ["---", "doc_type: scope-review-responses", "source_review: " + reviewId,
+      "scope: " + (data.documentReviewed || ""), "exported_from: html-report", "---", "",
+      "# Responses to scope-review-" + reviewId, "",
+      "> Each section is one scope question. Edit the answer and intent, then run `/ba:resolve` on this file.", ""];
     var answered = 0;
     rl.querySelectorAll(".respond-card").forEach(function (card) {
       var fid = card.getAttribute("data-fid");
-      var f = findingById[fid] || {};
+      var f = qById[fid] || {};
       var resp = (card.querySelector("textarea").value || "").trim();
       var intent = card.querySelector("select").value;
-      L.push("## " + fid + " — [" + (f.severity || "") + " · " + (f.area || "") + "] " + (f.finding || ""));
+      L.push("## " + fid + " — [" + (f.severity || "") + " · " + (f.feature || "") + "] " + (f.question || ""));
       L.push("**Intent:** " + intent);
       L.push("**Response:**");
       L.push(resp || "(no response yet)");
@@ -535,22 +611,20 @@
     });
     var blob = new Blob([L.join("\n")], { type: "text/markdown;charset=utf-8" });
     var url = URL.createObjectURL(blob);
-    var a = el("a", { href: url, download: "spec-review-" + reviewId + "-responses.md" });
+    var a = el("a", { href: url, download: "scope-review-" + reviewId + "-responses.md" });
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     setTimeout(function () { URL.revokeObjectURL(url); }, 1500);
     if (exportNote) exportNote.textContent = answered
-      ? "Downloaded spec-review-" + reviewId + "-responses.md (" + answered + " answered) — save it in tl-output/ and run /tl:resolve on it."
-      : "Downloaded, but no responses were filled in yet — add some and export again.";
+      ? "Downloaded scope-review-" + reviewId + "-responses.md (" + answered + " answered) — save it in ba-output/scope-reviews/ and run /ba:resolve on it."
+      : "Downloaded, but no answers were filled in yet — add some and export again.";
   });
 
-  // ---- Questions / actions / footer ----
-  var q = document.getElementById("questions");
-  (data.questions || []).forEach(function (t) { q.appendChild(el("li", { text: t })); });
-  if (!(data.questions || []).length) q.appendChild(el("li", { class: "empty", text: "None raised." }));
+  // ---- Actions / footer ----
   var ac = document.getElementById("actions");
   (data.nextActions || []).forEach(function (t) { ac.appendChild(el("li", { text: t })); });
+  if (!(data.nextActions || []).length) ac.appendChild(el("li", { class: "empty", text: "None." }));
   document.getElementById("footer").textContent =
-    "Generated by the Techjays TL Agent · tl-spec-review · " + (data.reviewDate || "");
+    "Generated by the Techjays BA Agent · ba-scope-review · " + (data.reviewDate || "");
 })();
 </script>
 </body>

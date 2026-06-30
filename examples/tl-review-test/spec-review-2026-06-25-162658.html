@@ -148,7 +148,39 @@
   footer { color: var(--muted); font-size: 12px; text-align: center; margin-top: 30px; }
   .empty { color: var(--muted); font-style: italic; }
 
+  /* Resolution loop */
+  .round-banner { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; margin: 16px 0 0;
+    padding: 10px 14px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); }
+  .round-banner .pill { background: var(--surface); border: 1px solid var(--border); border-radius: 999px;
+    padding: 3px 11px; font-size: 12px; font-weight: 800; }
+  .progress-line { font-size: 13px; color: var(--muted); }
+  .statustag { display: inline-block; padding: 2px 9px; border-radius: 999px; color: #fff; font-size: 11px;
+    font-weight: 800; text-transform: uppercase; letter-spacing: .03em; white-space: nowrap; }
+  table.findings tr.terminal td { opacity: .6; }
+  .reso-line { display: block; margin-top: 6px; font-size: 13px; color: var(--muted); }
+  .reso-line b { color: var(--text); font-weight: 600; }
+  .respond-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 14px 16px; margin: 10px 0; }
+  .respond-card .rc-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+  .respond-card .rc-finding { color: var(--muted); font-size: 13px; margin: 2px 0 10px; }
+  .respond-card .followups { background: var(--surface-2); border-left: 3px solid var(--minor); border-radius: 0 6px 6px 0;
+    padding: 8px 12px; margin: 0 0 10px; font-size: 13px; }
+  .respond-card .followups ul { margin: 4px 0 0; padding-left: 18px; }
+  .respond-card label.fld { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: .03em;
+    color: var(--muted); font-weight: 700; margin: 8px 0 4px; }
+  .respond-card textarea { width: 100%; min-height: 64px; resize: vertical; padding: 8px 10px; font: inherit;
+    font-size: 14px; color: var(--text); background: var(--surface-2); border: 1px solid var(--border); border-radius: 7px; }
+  .respond-card textarea:focus, .respond-card select:focus { outline: none; border-color: var(--accent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent); }
+  .respond-card select { font: inherit; font-size: 13px; padding: 5px 8px; color: var(--text);
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 7px; }
+  .respond-actions { display: flex; align-items: center; gap: 12px; margin: 14px 0 0; flex-wrap: wrap; }
+  .btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .btn.primary:hover { filter: brightness(1.08); background: var(--accent); }
+  #export-note { font-size: 12px; color: var(--muted); }
+
   @media print {
+    .respond-card, .respond-actions { display: none; }
     header.topbar { position: static; box-shadow: none; }
     details.area { break-inside: avoid; } details.area[open] > summary::after { content: ""; }
     .toolbar, .sevfilter { display: none; } .card { break-inside: avoid; box-shadow: none; }
@@ -165,6 +197,9 @@
   "documentReviewed": "support-copilot-spec.md",
   "documentVersion": "0.3 (2026-06-20)",
   "reviewDate": "2026-06-25 16:26",
+  "reviewId": "2026-06-25-162658",
+  "round": 1,
+  "priorReview": null,
   "system": {
     "isAI": true,
     "aiNote": "RAG over help-center articles + resolved tickets, GPT-4o for generation, text-embedding-3-small",
@@ -310,6 +345,7 @@
 
 <div class="wrap" id="root">
   <div class="meta" id="meta"></div>
+  <div id="round-banner"></div>
 
   <div class="card" id="exec">
     <h2>Executive summary</h2>
@@ -333,8 +369,16 @@
   <div class="section-label">Findings register</div>
   <div class="sevfilter" id="sevfilter"></div>
   <div class="card"><table class="findings"><thead><tr>
-    <th>ID</th><th>Sev.</th><th>Area</th><th>Finding</th><th>Suggested fix</th>
+    <th>ID</th><th>Sev.</th><th>Status</th><th>Area</th><th>Finding</th><th>Suggested fix</th>
   </tr></thead><tbody id="findings-body"></tbody></table></div>
+
+  <div class="section-label">Open items — respond &amp; export</div>
+  <p class="progress-line" style="margin:4px 0 0">Type a response under each open finding, choose an intent, then <b>Export responses</b> — the page downloads a Markdown file named for this review. Save it in <code>tl-output/</code> and run <code>/tl:resolve</code> on it to have the agent adjudicate and close items.</p>
+  <div id="respond-list"></div>
+  <div class="respond-actions">
+    <button class="btn primary" id="exportBtn">Export responses</button>
+    <span id="export-note"></span>
+  </div>
 
   <div class="section-label">Clarifying questions for the author</div>
   <div class="card"><ul class="qs" id="questions"></ul></div>
@@ -353,6 +397,13 @@
     Minor: { c: "var(--minor)" }, Nit: { c: "var(--nit)" }
   };
   var SEV_ORDER = ["Blocker", "Major", "Minor", "Nit"];
+  var STATUS = {
+    "Open": "var(--muted)", "Needs-verification": "var(--minor)", "Responded": "var(--accent)",
+    "Resolved": "var(--excellent)", "Accepted-risk": "var(--accent)", "Won't-fix": "var(--stub)"
+  };
+  var TERMINAL = { "Resolved": 1, "Accepted-risk": 1, "Won't-fix": 1 };
+  function statusOf(f) { return f.status || "Open"; }
+  function statusColor(s) { return STATUS[s] || "var(--muted)"; }
 
   function el(tag, attrs, kids) {
     var n = document.createElement(tag);
@@ -510,13 +561,19 @@
   var sorted = (data.findings || []).slice().sort(function (x, y) {
     return SEV_ORDER.indexOf(x.severity) - SEV_ORDER.indexOf(y.severity) || x.id.localeCompare(y.id);
   });
-  if (!sorted.length) { fbody.appendChild(el("tr", {}, [el("td", { colspan: "5", class: "empty", text: "No findings logged." })])); }
+  if (!sorted.length) { fbody.appendChild(el("tr", {}, [el("td", { colspan: "6", class: "empty", text: "No findings logged." })])); }
   sorted.forEach(function (f) {
+    var st = statusOf(f);
     var tr = el("tr", { id: f.id, "data-sev": f.severity });
+    if (TERMINAL[st]) tr.className = "terminal";
     tr.appendChild(el("td", {}, [el("span", { class: "fid", text: f.id })]));
     tr.appendChild(el("td", {}, [el("span", { class: "sevtag", style: "background:" + SEV[f.severity].c, text: f.severity })]));
+    tr.appendChild(el("td", {}, [el("span", { class: "statustag", style: "background:" + statusColor(st), text: st })]));
     tr.appendChild(el("td", {}, [el("span", { class: "areatag", text: f.area || "" })]));
-    tr.appendChild(el("td", { text: f.finding || "" }));
+    var fcell = el("td", {}, [document.createTextNode(f.finding || "")]);
+    if (f.adjudication) fcell.appendChild(el("span", { class: "reso-line" },
+      [el("b", { text: "↳ " + st + ": " }), document.createTextNode(f.adjudication)]));
+    tr.appendChild(fcell);
     tr.appendChild(el("td", { text: f.fix || "" }));
     fbody.appendChild(tr);
   });
@@ -547,6 +604,85 @@
     if (row) { row.hidden = false; row.scrollIntoView({ behavior: "smooth", block: "center" });
       row.classList.add("flash"); setTimeout(function () { row.classList.remove("flash"); }, 1700); }
   }
+
+  // ---- Round banner + progress ----
+  var rbWrap = document.getElementById("round-banner");
+  if (data.round && data.round > 1) {
+    var rb = el("div", { class: "round-banner" }, [el("span", { class: "pill", text: "Round " + data.round })]);
+    if (data.priorReview) rb.appendChild(el("span", { class: "progress-line", text: "resolves spec-review-" + data.priorReview }));
+    var fsAll = data.findings || [];
+    var closedN = fsAll.filter(function (f) { return TERMINAL[statusOf(f)]; }).length;
+    if (fsAll.length) rb.appendChild(el("span", { class: "progress-line",
+      text: "· " + closedN + " of " + fsAll.length + " findings closed" + (closedN < fsAll.length ? ", " + (fsAll.length - closedN) + " still open" : " — all resolved") }));
+    rbWrap.appendChild(rb);
+  }
+
+  // ---- Open items: respond & export ----
+  var openItems = (data.findings || []).filter(function (f) { return !TERMINAL[statusOf(f)]; });
+  var rl = document.getElementById("respond-list");
+  var exportBtn = document.getElementById("exportBtn");
+  var exportNote = document.getElementById("export-note");
+  if (!openItems.length) {
+    rl.appendChild(el("p", { class: "empty", text: "All findings are closed — nothing to respond to." }));
+    if (exportBtn) exportBtn.style.display = "none";
+  } else {
+    openItems.forEach(function (f) {
+      var st = statusOf(f);
+      var card = el("div", { class: "respond-card", "data-fid": f.id });
+      card.appendChild(el("div", { class: "rc-head" }, [
+        el("span", { class: "fid", text: f.id }),
+        el("span", { class: "sevtag", style: "background:" + SEV[f.severity].c, text: f.severity }),
+        el("span", { class: "statustag", style: "background:" + statusColor(st), text: st }),
+        el("span", { class: "areatag", text: f.area || "" })
+      ]));
+      card.appendChild(el("div", { class: "rc-finding", text: f.finding || "" }));
+      if (f.followUps && f.followUps.length) {
+        var fu = el("div", { class: "followups" }, [el("b", { text: "Please address:" })]);
+        var ul = el("ul"); f.followUps.forEach(function (qq) { ul.appendChild(el("li", { text: qq })); });
+        fu.appendChild(ul); card.appendChild(fu);
+      }
+      card.appendChild(el("label", { class: "fld", text: "Your response" }));
+      var ta = el("textarea", { "data-fid": f.id, placeholder: "Explain how this is handled, or why it's accepted / declined…" });
+      if (f.authorResponse) ta.value = f.authorResponse;
+      card.appendChild(ta);
+      card.appendChild(el("label", { class: "fld", text: "Intent" }));
+      var sel = el("select", { "data-fid": f.id });
+      ["resolve", "accept-risk", "need-info", "wont-fix"].forEach(function (opt) {
+        sel.appendChild(el("option", { value: opt, text: opt }));
+      });
+      card.appendChild(sel);
+      rl.appendChild(card);
+    });
+  }
+
+  if (exportBtn) exportBtn.addEventListener("click", function () {
+    var reviewId = data.reviewId || "review";
+    var L = ["---", "doc_type: spec-review-responses", "source_review: " + reviewId,
+      "spec: " + (data.documentReviewed || ""), "exported_from: html-report", "---", "",
+      "# Responses to spec-review-" + reviewId, "",
+      "> Each section is one finding. Edit the response and intent, then run `/tl:resolve` on this file.", ""];
+    var answered = 0;
+    rl.querySelectorAll(".respond-card").forEach(function (card) {
+      var fid = card.getAttribute("data-fid");
+      var f = findingById[fid] || {};
+      var resp = (card.querySelector("textarea").value || "").trim();
+      var intent = card.querySelector("select").value;
+      L.push("## " + fid + " — [" + (f.severity || "") + " · " + (f.area || "") + "] " + (f.finding || ""));
+      L.push("**Intent:** " + intent);
+      L.push("**Response:**");
+      L.push(resp || "(no response yet)");
+      L.push("");
+      if (resp) answered++;
+    });
+    var blob = new Blob([L.join("\n")], { type: "text/markdown;charset=utf-8" });
+    var url = URL.createObjectURL(blob);
+    var a = el("a", { href: url, download: "spec-review-" + reviewId + "-responses.md" });
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1500);
+    if (exportNote) exportNote.textContent = answered
+      ? "Downloaded spec-review-" + reviewId + "-responses.md (" + answered + " answered) — save it in tl-output/ and run /tl:resolve on it."
+      : "Downloaded, but no responses were filled in yet — add some and export again.";
+  });
 
   // ---- Questions / actions / footer ----
   var q = document.getElementById("questions");

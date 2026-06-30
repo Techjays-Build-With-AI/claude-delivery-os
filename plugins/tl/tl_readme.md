@@ -5,9 +5,9 @@ The **Technical Lead Agent** reviews a technical specification for an applied AI
 | | |
 |---|---|
 | **Namespace** | `/tl:` |
-| **Command** | `/tl:review <doc> [out=<prefix>]` |
+| **Commands** | `/tl:review <doc> [out=<prefix>]` · `/tl:resolve <responses-file>` |
 | **Input** | A tech spec / architecture / system-design / HLD / SRS document (`.md`, `.docx`, or `.pdf`) |
-| **Output** | `tl-output/spec-review-<timestamp>.html` (interactive) + `…​.md` (artifact) |
+| **Output** | `tl-output/spec-review-<timestamp>.{html, md, json}` — interactive report + Markdown artifact + data sidecar |
 | **Skill** | `tl-spec-review` |
 
 ---
@@ -40,17 +40,28 @@ Findings carry a severity — `Blocker` · `Major` · `Minor` · `Nit` — and a
 
 ---
 
-## Install
+## Setup
 
-The TL plugin builds on the shared core, so install that first:
+Installation and workspace setup are the same across all Delivery OS plugins, so they live in one shared guide: **[docs/SETUP.md](../../docs/SETUP.md)**. The short version for `tl`:
 
-```text
-/plugin marketplace add techjays/claude-delivery-os
-/plugin install delivery-os@techjays-delivery-os
-/plugin install tl@techjays-delivery-os
-```
+1. **Install** the core, then the TL plugin (see [docs/SETUP.md → Step 1–2](../../docs/SETUP.md#step-1--add-the-marketplace-and-install-the-core)):
+   ```text
+   /plugin marketplace add techjays/claude-delivery-os
+   /plugin install delivery-os@techjays-delivery-os
+   /plugin install tl@techjays-delivery-os
+   ```
+2. **A workspace is optional for `tl`.** Unlike `/ba:intake`, the TL agent can review any document standalone — you don't have to run `/delivery-os:init` first.
 
-You don't need the `ba` plugin to run a review — but if a Delivery OS workspace exists (with `ba-output/scope.md` and `shared-context/`), the TL agent will use it as context.
+### Do I need `/delivery-os:init`?
+
+`/delivery-os:init <project-name>` scaffolds the standard Delivery OS workspace (see [docs/SETUP.md → Step 3](../../docs/SETUP.md#step-3--initialize-a-project-workspace-delivery-osinit)). For the TL agent it's **optional**, and it only changes two things:
+
+| | With a workspace (`init` was run) | Standalone (no workspace) |
+|---|---|---|
+| **Report location** | `tl-output/spec-review-<timestamp>.{html,md}` (the agent creates `tl-output/` on first run) | written **beside the reviewed document**, with a note that no workspace was found |
+| **Input context** | also reads `ba-output/scope.md` and `shared-context/` if present, to ground the review | reviews only the document you point it at |
+
+So: run `/delivery-os:init` if you want the review filed inside a project workspace and cross-referenced with BA discovery; skip it for a quick one-off review of any spec.
 
 ---
 
@@ -129,7 +140,29 @@ A populated sample report ships in this repo: [`examples/tl-review-test/`](../..
 - **Clickable area↔finding links** — finding chips inside an area jump to and flash-highlight the row in the register.
 - **Dark mode** (follows your OS) and a **print-friendly** layout.
 
-The Markdown twin (`spec-review-<timestamp>.md`) is the same content as a clean Delivery OS document — frontmatter, stable IDs, greppable and diff-friendly. Both are rendered from one structured data object, so they never disagree.
+The Markdown twin (`spec-review-<timestamp>.md`) is the same content as a clean Delivery OS document — frontmatter, stable IDs, greppable and diff-friendly. A `spec-review-<timestamp>.json` sidecar holds the structured data the resolution loop reads. All three are rendered from one data object, so they never disagree.
+
+---
+
+## Closing findings — the resolution loop (`/tl:resolve`)
+
+A review *raises* findings; the loop *closes* them. Each finding is an open item the author answers, the agent judges whether the answer actually resolves the concern (or pushes back), and closed items are recorded as decisions — so the review converges from "here are the gaps" to "here's what was decided and why," with an audit trail.
+
+**The flow:**
+
+1. **Respond in the report.** Open `spec-review-<timestamp>.html`, scroll to **Open items**, and under each finding type your response and pick an intent (`resolve` / `accept-risk` / `need-info` / `wont-fix`).
+2. **Export.** Click **Export responses**. The page downloads `spec-review-<timestamp>-responses.md` — named with the **same timestamp** as the review, which is the key that ties responses back to it. (Browsers can't write to disk, so it lands in your Downloads — move it into `tl-output/`.)
+3. **Resolve.** Run `/tl:resolve tl-output/spec-review-<timestamp>-responses.md`. The agent matches the timestamp to the review's `.json`, then **adjudicates each response**:
+   - **Resolved** — the answer addresses the concern with verifiable specifics; it records the rationale and, where relevant, the exact spec edit to bake the answer into the document.
+   - **Accepted-risk** — you explicitly accept a valid, unfixed concern; the residual risk is noted.
+   - **Needs-verification** — plausible but thin; it asks 1–3 targeted follow-up questions and keeps the item open.
+   - **Won't-fix / still Open** — declined or unaddressed, with a note on why.
+4. **New round.** It writes a fresh timestamped report (`round` 2, `priorReview` linking back) where findings carry forward by their stable `FND-###` IDs with updated **Status** badges, the resolution thread, and a **recomputed score and verdict** — a resolved Blocker lifts the readiness cap. Closed items are also appended as `DEC-###` rows to `shared-context/decision-log.md` (in a workspace), so the decisions persist for the rest of Delivery OS.
+5. **Repeat** until no open items remain — answer any follow-ups in the new report and export again.
+
+**Worked example (continuing SupportCopilot):** you respond to FND-018 with *"Azure AI Foundry, West Europe, enterprise DPA, modified abuse monitoring approved (zero retention), legal basis = contract"* and export. `/tl:resolve` judges that this answers the data-use/residency/retention concern with specifics → marks **FND-018 Resolved**, suggests the §10 spec edit, logs **DEC-007**, and — with that Blocker cleared — lifts the verdict from *Not ready* toward *Build with caveats*. A vaguer *"we'll secure it"* would instead come back as **Needs-verification** with pointed questions.
+
+> Why a separate step rather than editing the report in place? The timestamped rounds keep the **full history** — you can see what was open at review time, what the author said, and how each item was closed.
 
 ---
 
@@ -149,4 +182,8 @@ See the shared [`delivery-os-conventions`](../delivery-os-core/skills/delivery-o
 
 **It scored my non-AI service's "Evals" as N/A — is that right?** Yes. When no LLM is involved, the four Applied-AI areas are marked N/A and excluded from the average. The report says why.
 
-**Why did one Blocker drag down an otherwise-good score?** By design. A single must-fix issue (e.g. PII to a third-party model under training terms) means a team can't safely start building, so the verdict is capped regardless of the average. The executive summary names which Blocker drove the cap.
+**Why did one Blocker drag down an otherwise-good score?** By design. A single must-fix issue (e.g. PII to a third-party model under training terms) means a team can't safely start building, so the verdict is capped regardless of the average. The executive summary names which Blocker drove the cap — and resolving it via `/tl:resolve` lifts the cap.
+
+**Do I have to use the HTML to respond?** No — the responses file is plain Markdown. The HTML's *Export responses* just generates it for you with the right name and finding headers. You can also hand-write or edit `spec-review-<timestamp>-responses.md` and run `/tl:resolve` on it.
+
+**The agent marked my response "Needs-verification" — why?** It judged the answer plausible but missing specifics it can verify (a region, a config state, an approval status, a number). Answer its follow-up questions in the new report and export again; vague assurances are deliberately not enough to close a finding.

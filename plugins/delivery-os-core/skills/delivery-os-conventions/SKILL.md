@@ -49,6 +49,9 @@ Every Delivery OS project lives under a **single named container folder** (so th
 └── final/                       # approved, client-facing deliverables
 ```
 
+### Output-folder creation rule
+`/delivery-os:init` seeds only the BA-phase essentials — `shared-context/` and `ba-output/` — because the Business Analyst runs immediately after init. Every **downstream** agent creates its own output folder the first time it produces something: `tl-output/` on the first `/tl:review`, `doc-output/` on the first Doc run, `qa-output/` later. This is deliberate — it keeps a fresh workspace minimal and avoids empty, speculative folders for agents a given project may never use. An agent must therefore create its output folder if absent, never assume `init` made it.
+
 ### Source handling — reference, never copy or move
 Original source files (local folders/files, Google Drive, etc.) **stay where they are**. The workspace never copies, moves, or deletes a user's originals. Intake only:
 1. **records** each source in `intake.index.md` (its real location + classification + status), and

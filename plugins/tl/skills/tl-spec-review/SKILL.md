@@ -17,7 +17,7 @@ If there is no Delivery OS workspace (no `tl-output/` and no `intake.index.md` n
 
 The review is delivered in **two forms from one source**: an **interactive HTML report** (`spec-review-<timestamp>.html`) for a human to browse, and a **Markdown artifact** (`spec-review-<timestamp>.md`) that stays a clean Delivery OS document (frontmatter, IDs, greppable/diffable). Both are rendered from the same structured **review data object** you build during the review, so they never drift, and both carry a run timestamp so repeated reviews never overwrite each other (see step 6).
 
-For the **detailed per-area checklists, red flags, and scoring guidance**, read `references/review-rubric.md`. For the **review data schema and the exact Markdown structure**, read `references/report-template.md`. Read both before writing your first review — they hold the substance that keeps reviews consistent across documents and reviewers.
+For the **detailed per-area checklists, red flags, and scoring guidance**, read `references/review-rubric.md`. For the **review data schema and the exact Markdown structure**, read `references/report-template.md`. Read both before writing your first review — they hold the substance that keeps reviews consistent across documents and reviewers. For the **finding-resolution loop** (responding to findings, adjudicating, closing them with documented decisions), read `references/resolution-loop.md` — used by `/tl:resolve`.
 
 ## Workflow
 
@@ -86,20 +86,33 @@ Don't grade-inflate to be nice and don't crater every score to look rigorous —
 ### 5. Build the review data object
 Capture the whole review as one structured JSON object — this is the single source both outputs render from. Its schema is defined in `references/report-template.md` (project/system profile, overall score + verdict, executive summary, gating findings, strengths, the `areas` array with score/band/assessment/findings/suggestions, the `findings` array with stable `FND-###` IDs + severity, clarifying questions, next actions). Give every finding a stable `FND-###` ID (zero-padded, append-only, per the conventions). Build this object first so the two renders can't disagree.
 
-### 6. Render both outputs (timestamped — never overwrite a prior review)
+### 6. Render the outputs (timestamped — never overwrite a prior review)
 First get a **run timestamp** so repeated reviews of the same document accumulate instead of clobbering each other. Read the current local time at review time and format it `YYYY-MM-DD-HHMMSS` (no colons — Windows-safe):
 - Bash: `date +%Y-%m-%d-%H%M%S`
 - PowerShell: `Get-Date -Format 'yyyy-MM-dd-HHmmss'`
 
-The report **basename is `spec-review-<timestamp>`** and both files share it, so a folder naturally holds a history of reviews (`spec-review-2026-06-25-143012.html`, `spec-review-2026-07-02-091540.html`, …). Put the same human-readable timestamp in the data object's `reviewDate` (e.g. `2026-06-25 14:30`) so the report itself shows when it was run.
+The report **basename is `spec-review-<timestamp>`** and all files share it, so a folder naturally holds a history of reviews. Set the data object's `reviewId` to this `<timestamp>` (the resolution loop's join key), its `round` to `1`, `priorReview` to `null`, and put the human-readable time in `reviewDate` (e.g. `2026-06-25 14:30`) so the report shows when it ran.
 
-- **Interactive HTML** — `tl-output/spec-review-<timestamp>.html`: read the bundled template `assets/report.html`, replace the single token `__REVIEW_DATA__` (inside the `<script id="review-data">` block) with your JSON object, and write the result. Change **nothing else** in the template — all styling and interactivity (scorecard, expand/collapse areas, live severity filtering, area↔finding links) are already wired and render client-side from your data. Make sure the JSON is valid (no trailing commas, properly escaped strings) or the page will show a "no data" notice.
+Write **three files** with that basename:
+- **Interactive HTML** — `tl-output/spec-review-<timestamp>.html`: read the bundled template `assets/report.html`, replace the single token `__REVIEW_DATA__` (inside the `<script id="review-data">` block) with your JSON object, and write the result. Change **nothing else** in the template — all styling and interactivity (scorecard, expand/collapse areas, live severity filtering, area↔finding links, **and the per-finding response boxes + "Export responses" button**) are already wired and render client-side from your data. Make sure the JSON is valid (no trailing commas, properly escaped strings) or the page will show a "no data" notice.
 - **Markdown artifact** — `tl-output/spec-review-<timestamp>.md`: assemble from `references/report-template.md` (frontmatter, executive summary, scorecard table, per-area detail, the severity-sorted findings register, clarifying questions). Same content as the data object, in document form.
+- **JSON sidecar** — `tl-output/spec-review-<timestamp>.json`: the exact data object you built. This is the machine-readable state `/tl:resolve` reads to carry findings forward — write it verbatim.
 
-Write the HTML and Markdown side by side. The `out=` argument overrides the **prefix/location** (e.g. `out=reports/acme` → `reports/acme-<timestamp>.{html,md}`); the timestamp is always appended so conflicts are impossible. Default prefix is `tl-output/spec-review`, or `<doc-dir>/spec-review` beside the reviewed doc when there's no workspace.
+The `out=` argument overrides the **prefix/location** (e.g. `out=reports/acme` → `reports/acme-<timestamp>.{html,md,json}`); the timestamp is always appended so conflicts are impossible. Default prefix is `tl-output/spec-review`, or `<doc-dir>/spec-review` beside the reviewed doc when there's no workspace.
 
 ### 7. Summarize in chat
-Give the user the headline: overall score, readiness verdict, the scorecard table, and the top 3–5 findings that matter most. Link to **both** files and point out that `spec-review.html` is the interactive one to open in a browser. Keep it tight — the detail lives in the files.
+Give the user the headline: overall score, readiness verdict, the scorecard table, and the top 3–5 findings that matter most. Link to the files and point out that `spec-review-<timestamp>.html` is the interactive one to open in a browser — and that they can **respond to findings inside it and click "Export responses"** to drive the resolution loop below. Keep it tight — the detail lives in the files.
+
+## Resolution loop (`/tl:resolve`)
+
+A review raises findings; the loop **closes** them. Findings are open items the author answers, the agent adjudicates each answer (accept, accept-as-risk, or ask for verification), and closed items are documented — so the review converges from "here are the gaps" to "here's what was decided and why." The full method (lifecycle states, adjudication rules, re-scoring, decision-log export) is in **`references/resolution-loop.md`** — read it before running a resolve round.
+
+In brief: the author opens the HTML report, types a response per finding, and clicks **Export responses** → the page downloads `spec-review-<reviewId>-responses.md` (named with the review's timestamp). They save it in `tl-output/` and run `/tl:resolve <that-file>`. You then:
+1. Read the responses file's `source_review` (the `reviewId`) and load the matching `spec-review-<reviewId>.json` — the authoritative prior state.
+2. **Adjudicate** each responded finding → `Resolved` / `Accepted-risk` / `Needs-verification` (with follow-up questions) / `Won't-fix` / still `Open`, with a one-line rationale each. Be skeptical: require specifics, don't close on vague assurances. Where a resolution implies a spec change, give the exact edit so the answer lives in the document.
+3. **Recompute** area scores and the overall verdict (a resolved Blocker lifts the cap), carrying findings forward by their stable `FND-###` IDs.
+4. Append a **`DEC-###`** row to `shared-context/decision-log.md` for each terminal finding (if a workspace exists).
+5. Write a **new round** as a fresh timestamped `.html`/`.md`/`.json` (incremented `round`, `priorReview` = the resolved review's id) and summarize the movement (resolved / awaiting-verification / open, score+verdict change). Repeat until no open items remain.
 
 ## Principles
 
