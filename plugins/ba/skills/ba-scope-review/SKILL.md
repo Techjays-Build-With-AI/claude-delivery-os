@@ -1,6 +1,6 @@
 ---
 name: ba-scope-review
-description: Review a BA scope document (and the supporting scope knowledge base) the way a paranoid Business Analyst would before it goes out for estimate or sign-off. Use whenever the user asks to review, critique, audit, score, sanity-check, or "poke holes in" a scope document, scope of work, requirements scope, or feature scope — especially a Techjays D&D module-centric scope. Classifies every feature/module, then interrogates each one for under-specification (e.g. "create a login screen" → what auth method? email vs social vs OTP vs SSO? personal vs corporate email? verification? lockout? MFA?), checks in-scope/out-of-scope boundaries and assumptions, validates the scope against the examples the client shared, and scores each feature on coverage depth out of 10 with a scope-readiness verdict. Produces an interactive single-page HTML dashboard plus a Markdown artifact and JSON sidecar. Trigger even if the user only says "review the scope" without naming every dimension.
+description: Review a BA scope document (and the supporting scope knowledge base) the way a paranoid Business Analyst would before it goes out for estimate or sign-off. Use whenever the user asks to review, critique, audit, score, sanity-check, or "poke holes in" a scope document, scope of work, requirements scope, or feature scope — especially a Techjays D&D module-centric scope. Classifies every feature/module, then interrogates each one for under-specification (e.g. "create a login screen" → what auth method? email vs social vs OTP vs SSO? personal vs corporate email? verification? lockout? MFA?), checks in-scope/out-of-scope boundaries and assumptions, validates the scope against the examples the client shared, and scores each feature on coverage depth out of 10 with a scope-readiness verdict. This is a strictly **business-level** review: it judges what the business wants, and deliberately leaves implementation detail — system design, database/schema, field data types, API contracts, auth mechanisms, infrastructure — to the TL technical-spec review, never penalising the scope for omitting it. Produces an interactive single-page HTML dashboard plus a Markdown artifact and JSON sidecar. Trigger even if the user only says "review the scope" without naming every dimension.
 ---
 
 # BA Scope Review (paranoid scope interrogation)
@@ -46,10 +46,12 @@ For every feature, judge **coverage depth** across the Techjays D&D nine sub-hea
 3. **Functional requirements** — are the capabilities enumerated with responsibility (AI/DET/HUM) and priority (MoSCoW), or is it one vague sentence?
 4. **AI / Automation responsibilities** — what the AI does, the confidence threshold and fallback, and the human-in-the-loop — or is "AI will handle it" hand-waved?
 5. **Business rules** — the rules, thresholds, and decision logic, or none stated where the feature obviously needs them?
-6. **Data fields** — the entities/fields, types, required-ness, source/validation — or just a feature name?
-7. **Integrations** — external systems, direction, data exchanged, dependency — named or assumed?
-8. **Exception handling** — what happens on the unhappy paths, or only the happy path?
-9. **Acceptance criteria** — testable criteria tied to requirement IDs, or "it should work"?
+6. **Information & data** — at a *business* level: what information the feature captures, uses, or produces (e.g. "customer name, email, order history") and conceptually where it comes from. **Not** field data types, schema, validation logic, keys/indexes, or storage — those are the SRS/technical spec's job.
+7. **Integrations** — which external systems/products the feature touches and what business information flows between them, in which direction, and who owns the dependency. **Not** API protocols, contracts, auth mechanisms, or rate limits — those belong to the technical spec.
+8. **Exceptions & edge cases** — the *business* unhappy paths: what should happen when a business condition fails (invalid request, missing approval, duplicate, dispute) and who handles it. **Not** technical errors, timeouts, or retry mechanics.
+9. **Acceptance criteria** — capability-level criteria that say what "done" means for the business, tied to the feature's requirements — not detailed test specs.
+
+**Stay at the business/scope level — this is not a technical review.** Judge whether the *business intent* is complete and unambiguous, not how it will be built. Do **not** raise gaps about system design, architecture, database/schema, field data types or constraints, indexing, API contracts/protocols, authentication mechanisms, hashing/encryption, infrastructure, CI/CD, or tech-stack choices — those are deliberately absent from a scope document and belong to the TL technical-spec review (`tl-spec-review`). A scope that omits them is **correct, not deficient**; never lower a feature's score for missing implementation detail. If a business decision genuinely needs a technical follow-up, note it once as a hand-off to the TL — don't score it as a scope gap.
 
 Consult `references/review-rubric.md` for what "Covered" looks like per dimension, the **per-feature paranoid questioning playbook** (worked examples — including the login example — that show how to drill from a one-liner down to the questions that matter), and the red flags. For each feature produce: a **score /10**, the **coverage** map across the nine dimensions, an **example-compliance** judgement (see step 5), a short **assessment**, the **scope questions/gaps** (each with a severity), the concrete **scope additions** that would close them, and any **strengths** worth keeping.
 
@@ -77,7 +79,7 @@ Score the **scope's treatment of each feature** — how completely and unambiguo
 The **Band** label is what goes in the scorecard's `Status` column.
 
 Assign each scope question/gap a **severity** (controlled values, with the RAID Open-Question mapping the BA Agent already uses):
-- `Blocker` — **must close before estimate**. The answer materially swings effort, architecture, data model, integrations, security, or cost (e.g. unknown auth method, unknown integration partner, undefined volume).
+- `Blocker` — **must close before estimate**. The answer materially swings effort, scope, the integrations list, compliance obligations, or cost (e.g. unknown auth method, unknown integration partner, undefined volume).
 - `Major` — significant gap; close before build. *Proceed-with-assumption* territory — workable only if an explicit assumption is logged and accepted.
 - `Minor` — a real but contained gap; an implementation detail that won't move the estimate much.
 - `Nit` — polish, wording, or a question safely deferred to a later phase.
@@ -120,6 +122,7 @@ In brief: the author opens the HTML report, types a response per question, and c
 
 ## Principles
 
+- **Stay on the business side of the line.** You review the *scope* — the business intent, boundaries, and the client's needs — not the *technical spec*. Implementation choices (system design, database/schema, field types, API contracts, auth mechanisms, infrastructure) are the TL's `tl-spec-review`, and a scope document is *supposed* to leave them open. Never raise them as scope gaps; if one truly needs flagging, hand it to the TL rather than scoring it.
 - **Review the scope that exists, not the one you'd have written.** Judge whether *this* scope lets a team estimate and build the right thing; don't deduct for a different-but-valid decomposition.
 - **Be paranoid on the client's behalf, not pedantic.** The questions worth raising are the ones that change the estimate, the architecture, or what the client receives — not stylistic nits dressed up as gaps. Weight by consequence: an undefined auth method outranks a missing field label.
 - **Tie every deduction to a question, every question to a scope addition.** A low score with no questions is noise; a question with no suggested scope edit is a complaint.

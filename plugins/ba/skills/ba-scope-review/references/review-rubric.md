@@ -4,6 +4,15 @@ This is the detailed knowledge behind the feature-by-feature review in `SKILL.md
 
 Don't treat any list as a checkbox quota. A feature can score 9/10 without every dimension if it genuinely doesn't need it (a static "About" page needs no integrations or business rules); conversely, ticking every dimension shallowly isn't an 8. Judge whether a team could **estimate and build the right thing** from what's written, and whether it's consistent with the examples the client shared.
 
+> ### This is a BUSINESS scope review — stay on the business side of the line
+> You review **what the business wants**, not **how it will be built**. The scope document is *supposed* to leave implementation open, so its absence is correct — never raise it as a gap or let it lower a score. If a question is really about how it's built, it's the **TL's `tl-spec-review`**, not yours.
+>
+> **Do NOT review or raise (hand to the TL):** system design & architecture · database/schema design · field data types, lengths, constraints, keys, indexes · API/endpoint contracts, protocols (REST/SOAP/GraphQL) · authentication mechanisms, token/session strategy, password hashing/encryption · technical error handling, timeouts, retries, idempotency · infrastructure, hosting, scaling, CI/CD · library/framework/tech-stack choices · performance/throughput engineering.
+>
+> **DO review (the business questions):** what the feature is for and who uses it · what's in and out of scope · the business capabilities and rules · which auth *method/policy* the client wants (not how it's secured) · what *information* the feature deals with (not its schema) · which external *systems* it touches and what business data flows (not the contract) · the business exceptions and edge cases · what the client considers "done" · whether it satisfies the client's examples.
+>
+> Litmus test: **"Is this a decision the client/business makes, or a decision the engineers make?"** If it's the engineers', leave it to the TL.
+
 ---
 
 ## A — The nine coverage dimensions
@@ -30,21 +39,28 @@ For each feature, mark every dimension **Covered** / **Partial** / **Absent**. T
 **Covered:** the rules, thresholds, validations, and decision logic the feature enforces, each traceable to a source.
 **Red flags:** a feature that obviously encodes rules (eligibility, pricing, routing, approval limits) with none stated; rules implied inside an example but never lifted into the scope.
 
-### 6. Data fields (`data_fields`)
-**Covered:** the entities/fields the feature reads or writes, with types, required-ness, and source/validation.
-**Red flags:** a data-entry or data-display feature with no fields listed; "captures user details" with no field list; PII handled with no sensitivity note.
+### 6. Information & data (`data_fields`)
+**Business level only.** What *information* the feature captures, uses, or produces — described the way a business person would ("captures the customer's name, email, and order history; produces an approval decision"), plus where that information conceptually comes from and any data the client clearly cares about being present.
+**Covered:** the business reader can tell what information the feature deals with and whether anything important is missing.
+**Red flags:** a data-entry or data-display feature with no mention of *what* it captures/shows; "captures user details" with no hint of which details matter to the business; clearly-sensitive information (health, payment, ID) handled with no acknowledgement that it's sensitive.
+**Out of scope for this review (hand to the TL):** field data types, lengths, nullability, schema, keys/indexes, validation rules, and how/where it's stored. A scope that omits these is correct — do **not** raise them.
 
 ### 7. Integrations (`integrations`)
-**Covered:** the external systems involved, the direction of data flow, what's exchanged, and the dependency/owner. "None" is a valid, explicit answer.
-**Red flags:** an integration implied ("syncs with the CRM", "sends to the payment provider") with no named system, direction, or contract; a third-party dependency with no owner or fallback.
+**Business level only.** Which external systems/products the feature touches and what business information flows between them, in which direction, and who owns the dependency.
+**Covered:** the named systems, the direction (we read from / write to / both), the business data exchanged, and the dependency owner. "None" is a valid, explicit answer.
+**Red flags:** an integration implied ("syncs with the CRM", "sends to the payment provider") with no **named system**, no direction, or no owner; a third-party dependency the client must provide (a sandbox, credentials, an account) that isn't called out.
+**Out of scope for this review (hand to the TL):** API style/protocol (REST/SOAP/GraphQL), endpoints, contracts/schemas, auth mechanisms, rate limits, and retry/idempotency. Do **not** raise these.
 
-### 8. Exception handling (`exceptions`)
-**Covered:** the unhappy paths — what happens on invalid input, failure, timeout, partial completion, duplicate, or conflict — and who is notified.
-**Red flags:** only the happy path; "handle errors gracefully" with no specifics; no statement of what the user/system does when the AI or an integration fails.
+### 8. Exceptions & edge cases (`exceptions`)
+**Business level only.** The *business* unhappy paths and edge cases — what should happen when a business condition fails or is unusual (invalid request, missing approval, duplicate, dispute, an item that doesn't fit the normal flow) and who handles it.
+**Covered:** the notable business exceptions are named with the intended handling (auto-reject, route to a human, notify someone), not just the happy path.
+**Red flags:** only the happy path; "handle errors gracefully" with no business specifics; a feature with obvious edge cases (partial data, exceptions to a rule, an unhappy customer) that the scope is silent on.
+**Out of scope for this review (hand to the TL):** technical errors, timeouts, retries, failure modes of a service or integration. Do **not** raise these.
 
 ### 9. Acceptance criteria (`acceptance`)
-**Covered:** testable criteria tied to the feature's requirement IDs — the definition of done a QA agent could later turn into tests.
-**Red flags:** "it should work"; criteria that restate the requirement instead of making it verifiable; no link back to requirement IDs.
+**Covered:** capability-level criteria that state what "done" means for the business, tied to the feature's requirements — enough that the client and team agree on what success looks like.
+**Red flags:** "it should work"; criteria that restate the requirement instead of saying how you'd know it's met; no link back to the feature's requirements.
+**Out of scope for this review (hand to the TL/QA):** detailed test cases, test data, and step-by-step test scripts — capability-level is the bar here, not a test plan.
 
 ---
 
@@ -53,51 +69,51 @@ For each feature, mark every dimension **Covered** / **Partial** / **Absent**. T
 This is the core skill: take a thin feature line and generate the questions that change the estimate. The pattern is always the same — **name the decision the scope left implicit, then branch into the sub-decisions each answer forces.** Below are worked examples; reuse the *shape* of the questioning for any feature of the same kind.
 
 ### Worked example — "The system will have a login screen" (UI / auth feature)
-A single sentence. The estimator cannot price it, the TL cannot design the data model, and the security reviewer has nothing to review. Interrogate:
+A single sentence. The estimator cannot price it and the client hasn't actually decided what they want. Interrogate the **business decisions** (not how it's built):
 
-- **Auth method (Blocker).** Email + password? Social login (Google / Apple / Microsoft / Facebook — which exactly)? OTP / passwordless (SMS or email)? Magic link? Enterprise SSO (SAML / OIDC — which IdP)? More than one? *This one answer swings effort, the data model, the integrations list, and the security review — it is almost always a Blocker.*
-- **If email/password:** personal addresses, or **corporate-domain-restricted**? Is the email **verified** before access? Password policy (length, complexity, rotation, breach-check)? Where are credentials stored / which hashing? Account **lockout** after N failed attempts, and unlock path?
-- **If social/SSO:** which providers exactly, and is there a fallback for users without them? What profile data is pulled, and is it stored or just used for auth? Just-in-time provisioning, or pre-created accounts? What happens when the IdP is down?
-- **MFA:** required, optional, or none? Which factors (TOTP, SMS, email, passkey)? Enforced for all users or by role?
-- **Adjacent scope, often silently assumed (In/Out of scope).** Does "login" include **registration / sign-up**? **Forgot-password / reset**? **Profile management**? **Logout**? If those are out of scope, the scope must say so.
-- **Session & security.** Session length and idle timeout? Concurrent sessions allowed? "Remember me"? Token strategy? Brute-force / rate-limit protection?
-- **Roles (Permissions).** Does login branch by role (admin vs user vs …), or one user type? Where do roles come from?
-- **Data & compliance.** What PII is captured at login, under which regime (GDPR/etc.)? Audit log of sign-in attempts?
-- **Acceptance.** What defines "login works"? Successful sign-in, failed sign-in, locked account, reset flow — each needs a criterion.
+- **Auth method (Blocker).** Email + password? Social login (Google / Apple / Microsoft — which exactly)? OTP / passwordless? Magic link? Enterprise SSO? More than one? *This is a business decision that swings the estimate and the integrations list — almost always a Blocker.*
+- **If email/password:** personal addresses, or **corporate-domain-restricted**? Is the email **verified** before access? Is there an account **lockout** policy after repeated failed attempts? *(These are business policies. Password hashing, token strategy, credential storage, brute-force protection are the TL's — don't ask them here.)*
+- **If social/SSO:** which providers exactly, and is there a fallback for users without them? *(How provisioning works technically is the TL's.)*
+- **MFA:** required, optional, or none — and for all users or only some roles? *(A business policy; the factors/mechanism are the TL's.)*
+- **Adjacent scope, often silently assumed (In/Out of scope).** Does "login" include **registration / sign-up**? **Forgot-password / reset**? **Profile management**? **Logout**? If those are out of scope, the scope must say so — this is where scope disputes are born.
+- **Roles (Permissions).** Does login branch by role (admin vs user vs …), or one user type?
+- **Sensitive data & compliance.** What personal information is captured at sign-in, and is the client subject to a regime (GDPR/etc.) that the scope should acknowledge? *(The business obligation — not the technical controls.)*
+- **Acceptance.** What does the client consider "login works"? Successful sign-in, a rejected bad login, a locked account, the reset flow — each needs a business-level criterion.
 - **Example check.** If an EX-### shows a user signing in with Google, an email/password-only scope is a **Conflict**, not a detail.
 
-That is one scope line → ~a dozen questions, two or three of them Blockers. That is the standard you hold every feature to.
+That is one scope line → ~a dozen *business* questions, two or three of them Blockers — without ever touching schema, tokens, or hashing. That is the standard you hold every feature to.
 
 ### Worked example — "Integrate with the client's CRM" (integration feature)
-- **Which system and version (Blocker)?** Salesforce / Dynamics / HubSpot / a bespoke CRM — named, with API style (REST/SOAP/GraphQL/file)?
-- **Direction & trigger:** read, write, or bidirectional? Real-time, batch, or event-driven? Who initiates?
-- **Data contract:** which objects/fields, mapped to which local entities? Volume and frequency?
-- **Auth & access:** who provides credentials/sandbox? Rate limits?
-- **Failure modes (Exception handling):** what happens when the CRM is down, rejects a record, or returns a duplicate? Retry / dead-letter / manual reconciliation?
-- **Ownership:** who owns the CRM side, and is a sandbox available for build/test? (Dependency for RAID.)
+*(Business decisions only — the protocol, contracts, auth, and rate limits are the TL's.)*
+- **Which system (Blocker)?** Salesforce / Dynamics / HubSpot / a bespoke CRM — *named*. The choice swings the estimate, so an unnamed CRM is a Blocker.
+- **Direction & trigger:** do we read from it, write to it, or both? Roughly real-time or periodic, from the business's point of view?
+- **What business information flows:** which records/information move (customers, orders, contacts)? Roughly how much/how often, if that affects feasibility?
+- **Business exceptions:** what should happen, *for the business*, when a record can't be synced — who notices and what do they do?
+- **Ownership (Dependency for RAID):** who owns the CRM side, and must the client provide access or a sandbox? Call it out as a dependency.
 
 ### Worked example — "Reporting dashboard" (data/reporting feature)
-- **Which reports/metrics exactly**, for **which roles**? Real-time or periodic? Drill-down or summary only?
-- **Data source & definitions:** where does each number come from, and is each metric's definition agreed (the classic "what counts as an active user")?
-- **Export / scheduling:** CSV/PDF export? Scheduled email? Out of scope if not stated.
-- **Volume & history:** how much data, what retention/time range?
-- **Acceptance:** what makes a report "correct"?
+- **Which reports/metrics exactly**, for **which roles**? Periodic or up-to-date? Drill-down or summary only?
+- **Metric definitions:** is each metric's *business* definition agreed (the classic "what counts as an active user")? *(Where the number is computed technically is the TL's.)*
+- **Export / distribution:** export to CSV/PDF? Emailed on a schedule? Out of scope if not stated.
+- **History:** what time range / how far back does the business need?
+- **Acceptance:** what makes a report "right" in the client's eyes?
 
 ### Worked example — "AI will categorise incoming requests" (AI/automation feature)
-- **Categories:** fixed taxonomy or open? Who defines/maintains it?
-- **Confidence & fallback (Blocker for AI features):** what accuracy is acceptable, what's the confidence threshold, and what happens **below** it — queue for a human, default category, reject?
-- **Human-in-the-loop:** does a person review all / sampled / low-confidence items? Can they correct, and does the correction feed back?
-- **Training/grounding data:** what does the model see? Any PII, and is sending it to the provider allowed?
-- **Volume & cost:** items/day → drives both feasibility and running cost.
-- **Exception handling:** unparseable input, multi-category items, the model/endpoint being down.
+- **Categories:** fixed list or open? Who defines/maintains it?
+- **Confidence & fallback (Blocker for AI features):** what accuracy does the business accept, and what happens when the AI is unsure — queue for a human, default category, reject? *(A business policy; the threshold mechanism is the TL's.)*
+- **Human-in-the-loop:** does a person review all / sampled / low-confidence items, and can they correct it?
+- **Sensitive data:** does the information being categorised include personal/sensitive data the client must be careful with? *(The business/compliance angle — not the model plumbing.)*
+- **Volume:** roughly how many items/day, since it affects feasibility and cost?
+- **Business edge cases:** an item that fits no category, or fits several — what should happen?
 
 ### Questioning heuristics (apply to any feature)
-- **For every verb in the feature line, ask "how, exactly?"** — "manage", "process", "handle", "sync", "notify", "validate" each hide a decision.
-- **For every noun, ask "which, and what's stored?"** — "users", "requests", "documents", "payments".
+- **For every verb in the feature line, ask "what does the business mean by that, exactly?"** — "manage", "process", "handle", "sync", "notify", "approve" each hide a business decision.
+- **For every noun, ask "which, and what information matters?"** — "users", "requests", "documents", "payments" — at the business level, not the schema level.
 - **Always probe the boundary** — "what's explicitly *not* in this?" — because the unstated exclusion is the future dispute.
-- **Always probe the unhappy path** — the happy path is the cheap 20%; the exceptions are where the estimate lives.
+- **Always probe the business unhappy path** — what happens when the normal flow doesn't apply, and who deals with it.
 - **Always probe roles & permissions** — "who can do this, and who can't?"
 - **Cross-check the examples** — does each EX-### the client shared actually work under this scope?
+- **Stop at the business line.** If a question is really about *how it's built* (schema, protocol, framework, infrastructure), it's the TL's — don't raise it as a scope gap.
 
 ---
 
