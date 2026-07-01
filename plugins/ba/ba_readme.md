@@ -34,6 +34,17 @@ For every feature/module in the scope, the agent judges **coverage depth** acros
 
 > **It's a business review, not a technical one.** The scope review judges *what the business wants* and deliberately leaves *how it's built* to the TL's `tl-spec-review`. It will **not** flag — and never penalises the scope for omitting — system design, database/schema, field data types, API contracts/protocols, auth mechanisms, infrastructure, or tech-stack choices. A scope that leaves those open is correct. The litmus test for every question it raises: *is this a decision the client/business makes, or one the engineers make?* Only the former belong here.
 
+### The bounding layer (the heart of the review)
+
+Knowing *what a feature does* is not knowing *its boundary* — and an unbounded feature is where estimates blow up and scope disputes start. So before scoring the nine dimensions, the review **bounds every feature**, demanding four things:
+
+1. **Categories / buckets — enumerated and closed.** *Which* things does it operate on? "Classify the invoice" → which 4–5 invoice types? What about anything not in that list?
+2. **Definitions / identifying criteria.** How is each category *defined* — the business data points used to decide a document *is* an invoice (vs a PO or receipt), and what puts it in one bucket vs another? A category name with no criteria is a label, not a boundary.
+3. **Covered vs explicitly excluded — per bucket, in words.** e.g. "documents that aren't one of the 5 invoice types are not processed; non-invoice emails are ignored." The exclusion must be written, not implied.
+4. **Mandatory vs optional fields.** Which business data points must be processed, which are mandatory vs optional, and what happens when a mandatory one is missing.
+
+Each feature gets a **boundedness** verdict — **Bounded**, **Partially-bounded**, or **Unbounded** — shown as a badge in the report. It's not just a label: an **Unbounded** feature is **capped at 4/10** and a **Partially-bounded** one at **6/10**, no matter how clearly its purpose is written, because a team can't bound the estimate. So "read the email, classify the invoice, process it" — clear function, no defined types/definitions/exclusions — scores as Weak with Blocker questions until the buckets, the classification logic, and the in/out boundary are pinned down. This is what stops the review from staying high-level.
+
 It also runs an **example check** per feature against the client's `example-register` (the scenarios they actually shared): **Pass** (scope satisfies the example), **Partial** (some implied path/field is missing), **Conflict** (the example contradicts the scope — e.g. an example shows Google sign-in but the scope says email/password only, citing the `EX-###` id), or **No-examples**. A scope that can't satisfy a real example the client handed you has a citable gap, not a nicety.
 
 ### Scoring & verdict
@@ -111,12 +122,12 @@ The agent reads `ba-output/scope.md`, loads the example-register and the other r
 
 The feature scorecard:
 
-| # | Feature | Kind | Score | Status | Examples |
-|---|---------|------|:-----:|--------|----------|
-| 1 | Login & Authentication | UI / auth | 2/10 | Stub | Conflict |
-| 2 | CRM Integration | integration | 3/10 | Weak | No-examples |
-| 3 | Reporting Dashboard | data/reporting | 7/10 | Good | Pass |
-| | **Overall** | | **3.4/10** | **Significant gaps — clarify before estimate** | |
+| # | Feature | Kind | Score | Status | Boundedness | Examples |
+|---|---------|------|:-----:|--------|-------------|----------|
+| 1 | Login & Authentication | UI / auth | 2/10 | Stub | Unbounded | Conflict |
+| 2 | CRM Integration | integration | 3/10 | Weak | Partially-bounded | No-examples |
+| 3 | Reporting Dashboard | data/reporting | 7/10 | Good | Bounded | Pass |
+| | **Overall** | | **3.4/10** | **Significant gaps — clarify before estimate** | | |
 
 Open the Login feature and you see why it's a 2 — eight of nine dimensions are **Absent** — and the questions the agent raised from that single "login screen" line:
 
