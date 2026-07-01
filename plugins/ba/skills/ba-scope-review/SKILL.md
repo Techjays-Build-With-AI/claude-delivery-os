@@ -38,8 +38,18 @@ Record which registers you actually consulted (and how many examples you checked
 ### 3. Decompose the scope into features and classify them
 Work out the feature/module breakdown. Prefer the scope's own §2 Module Breakdown / §3.x modules as your unit of review; where the scope is a flat list, group requirements into coherent features yourself and say you did. For each feature, classify what kind it is (UI screen, workflow/process, integration, data/reporting, admin, AI/automation, cross-cutting) — the *kind* drives which questions are most likely to bite (an integration feature lives or dies on contracts and failure modes; a UI feature on states, validation, and roles).
 
-### 4. Interrogate each feature against the nine coverage dimensions
-For every feature, judge **coverage depth** across the Techjays D&D nine sub-headings, and for each dimension mark it **Covered** / **Partial** / **Absent**:
+### 4. Bound each feature, then interrogate it against the nine coverage dimensions
+
+**First — bound the feature (do this before scoring anything).** Knowing what a feature *does* is not knowing its *boundary*. The most common scope failure is a feature whose function is clear but whose boundary is undefined — "classify the invoice", "process the request", "match the record" — with no statement of *which* things, defined *how*, and what falls *outside*. For **every** feature, force these four before you look at the nine dimensions (see `references/review-rubric.md` §A — the bounding layer):
+
+- **Categories / buckets — enumerated and closed.** Does the feature name the finite set of things it operates on? ("Classifies invoices" → *which* 4–5 invoice types? "Handles requests" → which types?) An open-ended set with no enumeration and no "anything else" policy is **unbounded**.
+- **Definitions / identifying criteria.** Is each category/entity *defined* by the business data points or signals used to identify it and to place it in one bucket vs another? (How do we decide a document is an invoice vs a PO? What makes it type-A not type-B?) A category name with no criteria is a label, not a boundary.
+- **Covered vs explicitly excluded — per bucket.** For each bucket, what's covered, and — in words — what falls outside the defined set and is therefore out of scope ("documents that aren't one of the 5 invoice types are not processed").
+- **Completeness — mandatory vs optional.** For processing/extraction features, which business data points must be handled, which are **mandatory vs optional**, and what happens when a mandatory one is missing.
+
+Record each feature's **boundedness** — `Bounded` / `Partially-bounded` / `Unbounded` — with a one-line note. This is not optional colour: an **Unbounded** feature scores **≤ 4** and a **Partially-bounded** one **≤ 6**, however clearly its purpose is written, and the missing boundary becomes a `Blocker` (when it drives what/how-much gets processed) or `Major`. Boundedness expresses itself through three of the nine dimensions below — **In/Out of scope** (exclusions), **Business rules** (definitions & classification logic), **Information & data** (mandatory/optional) — so mark those Covered only when the feature is actually bounded, not merely mentioned.
+
+**Then judge coverage depth** across the Techjays D&D nine sub-headings, marking each **Covered** / **Partial** / **Absent**:
 
 1. **Current → Future state** — is today's process (actors, triggers, systems, manual steps, pain points) and the future split (AI / deterministic / human) actually described?
 2. **In scope / Out of scope** — is the boundary explicit, or is "out of scope" silent (the most expensive kind of silence)?
@@ -53,7 +63,7 @@ For every feature, judge **coverage depth** across the Techjays D&D nine sub-hea
 
 **Stay at the business/scope level — this is not a technical review.** Judge whether the *business intent* is complete and unambiguous, not how it will be built. Do **not** raise gaps about system design, architecture, database/schema, field data types or constraints, indexing, API contracts/protocols, authentication mechanisms, hashing/encryption, infrastructure, CI/CD, or tech-stack choices — those are deliberately absent from a scope document and belong to the TL technical-spec review (`tl-spec-review`). A scope that omits them is **correct, not deficient**; never lower a feature's score for missing implementation detail. If a business decision genuinely needs a technical follow-up, note it once as a hand-off to the TL — don't score it as a scope gap.
 
-Consult `references/review-rubric.md` for what "Covered" looks like per dimension, the **per-feature paranoid questioning playbook** (worked examples — including the login example — that show how to drill from a one-liner down to the questions that matter), and the red flags. For each feature produce: a **score /10**, the **coverage** map across the nine dimensions, an **example-compliance** judgement (see step 5), a short **assessment**, the **scope questions/gaps** (each with a severity), the concrete **scope additions** that would close them, and any **strengths** worth keeping.
+Consult `references/review-rubric.md` for what "Covered" looks like per dimension, the **per-feature paranoid questioning playbook** (worked examples — including the login example — that show how to drill from a one-liner down to the questions that matter), and the red flags. For each feature produce: a **score /10**, the **boundedness** verdict (Bounded/Partially-bounded/Unbounded) with its note, the **coverage** map across the nine dimensions, an **example-compliance** judgement (see step 5), a short **assessment**, the **scope questions/gaps** (each with a severity), the concrete **scope additions** that would close them, and any **strengths** worth keeping.
 
 ### 5. Validate each feature against the client's examples
 For every feature, check the relevant **examples (EX-###)** from the example-register and judge `exampleCompliance`:
@@ -98,7 +108,7 @@ The Blocker override is a hard floor: **any unresolved Blocker caps the verdict 
 Don't grade-inflate to be agreeable and don't crater every feature to look thorough — a calibrated 6 is more useful than a reflexive 3. If a feature is genuinely well-scoped, say so.
 
 ### 7. Build the review data object, then render (timestamped — never overwrite)
-Capture the whole review as one structured JSON object — the single source all three outputs render from. Its schema is in `references/report-template.md` (project/knowledge-base panel, overall score + verdict, executive summary, gating questions, strengths, the `features` array with score/band/coverage/exampleCompliance/assessment, and the `questions` array — the scope-gap register — with stable `SQ-###` IDs + severity + the suggested scope addition). Give every question a stable `SQ-###` ID (zero-padded, append-only, per the conventions). Build this object first so the renders can't disagree.
+Capture the whole review as one structured JSON object — the single source all three outputs render from. Its schema is in `references/report-template.md` (project/knowledge-base panel, overall score + verdict, executive summary, gating questions, strengths, the `features` array with score/band/boundedness/coverage/exampleCompliance/assessment, and the `questions` array — the scope-gap register — with stable `SQ-###` IDs + severity + the suggested scope addition). Give every question a stable `SQ-###` ID (zero-padded, append-only, per the conventions). Build this object first so the renders can't disagree.
 
 Get a **run timestamp** so repeated reviews accumulate. Read the current local time and format it `YYYY-MM-DD-HHMMSS` (no colons — Windows-safe):
 - Bash: `date +%Y-%m-%d-%H%M%S`
@@ -122,6 +132,7 @@ In brief: the author opens the HTML report, types a response per question, and c
 
 ## Principles
 
+- **Bound every feature — this is the point of the review.** Turning "we know what the feature does" into "we know exactly what it covers, how each case is defined, and what's excluded" is the single most valuable thing you do. A clearly-worded but unbounded feature ("classify invoices") is not a good scope — it's a well-phrased risk. Always demand the categories, the identifying definitions, the explicit exclusions, and the mandatory/optional fields before rating a feature as anything but weak.
 - **Stay on the business side of the line.** You review the *scope* — the business intent, boundaries, and the client's needs — not the *technical spec*. Implementation choices (system design, database/schema, field types, API contracts, auth mechanisms, infrastructure) are the TL's `tl-spec-review`, and a scope document is *supposed* to leave them open. Never raise them as scope gaps; if one truly needs flagging, hand it to the TL rather than scoring it.
 - **Review the scope that exists, not the one you'd have written.** Judge whether *this* scope lets a team estimate and build the right thing; don't deduct for a different-but-valid decomposition.
 - **Be paranoid on the client's behalf, not pedantic.** The questions worth raising are the ones that change the estimate, the architecture, or what the client receives — not stylistic nits dressed up as gaps. Weight by consequence: an undefined auth method outranks a missing field label.

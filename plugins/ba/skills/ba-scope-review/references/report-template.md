@@ -39,9 +39,11 @@ This is the JSON injected into `assets/report.html` at the `__REVIEW_DATA__` tok
       "kind": "UI / auth",
       "score": 2,
       "band": "Stub",
+      "boundedness": "Unbounded",
+      "boundednessNote": "No auth methods enumerated, no in/out boundary, no adjacent-flow (registration/reset) scope — function stated, boundary undefined.",
       "coverage": {
         "current_future": "Absent",
-        "in_out_scope": "Partial",
+        "in_out_scope": "Absent",
         "functional_reqs": "Partial",
         "ai_automation": "Absent",
         "business_rules": "Absent",
@@ -52,9 +54,9 @@ This is the JSON injected into `assets/report.html` at the `__REVIEW_DATA__` tok
       },
       "exampleCompliance": "Conflict",
       "exampleNote": "EX-004 shows a user signing in with Google, but the scope mentions only email/password — the scope can't satisfy the example.",
-      "assessment": "The scope says only 'the system will have a login screen'. The auth method, adjacent flows (registration, reset), session rules, and roles are all unstated, and it conflicts with EX-004.",
+      "assessment": "Unbounded: the scope says only 'the system will have a login screen'. The auth methods aren't enumerated, the in/out boundary and adjacent flows (registration, reset) are unstated, and it conflicts with EX-004 — so it's capped at Weak.",
       "questionIds": ["SQ-001", "SQ-002", "SQ-003", "SQ-004"],
-      "suggestions": "Enumerate auth methods and mark each In/Out of scope; state whether registration, password reset, and profile are in scope; define session, lockout, and the PII captured.",
+      "suggestions": "Enumerate the supported auth methods and mark each In/Out of scope; state whether registration, password reset, and profile are in scope; add the account-access policies (verification, lockout, MFA).",
       "strengths": ""
     }
   ],
@@ -85,6 +87,7 @@ Field rules:
 - The per-question **resolution fields** (`status`, `authorResponse`, `adjudication`, `followUps`, `resolvedOn`, `decisionId`) start at `Open`/null in round 1 and are filled by `/ba:resolve`. `status` uses the controlled values in `resolution-loop.md`; `followUps` is a list of verification questions when `status` is `Needs-verification`.
 - `score` is a **number 0–10** (the HTML draws a bar and a band). Keep all features in the `features` array so the scorecard is complete.
 - `band` is the band label (`Excellent`/`Good`/`Adequate`/`Weak`/`Stub`/`Absent`).
+- `boundedness` is one of `"Bounded"` / `"Partially-bounded"` / `"Unbounded"`; `boundednessNote` (one line) says what's undefined. **These cap the score** — `Unbounded` ≤ 4, `Partially-bounded` ≤ 6 (see `review-rubric.md` §A). The HTML shows a boundedness badge on the feature.
 - `coverage` has exactly the nine keys above, each valued `"Covered"` / `"Partial"` / `"Absent"` (the HTML renders the matrix and colours each cell). Use `"Covered"` with an assessment note when a dimension is genuinely not-needed for that feature.
 - `exampleCompliance` is one of `"Pass"` / `"Partial"` / `"Conflict"` / `"No-examples"`; `exampleNote` explains it (cite the EX id for Partial/Conflict).
 - `group` drives the section dividers in the scorecard — use your own module-group names (e.g. `Core Modules`, `Supporting Modules`, `Cross-cutting`). Keep features in order so each group's rows are contiguous.
@@ -143,17 +146,18 @@ round: 1
 
 ## Feature scorecard
 
-| # | Feature | Kind | Score | Status | Examples |
-|---|---------|------|:-----:|--------|----------|
-| 1 | Login & Authentication | UI / auth | <n>/10 | <Excellent/Good/Adequate/Weak/Stub/Absent> | <Pass/Partial/Conflict/No-examples> |
-| 2 | … | … | <n>/10 | <…> | <…> |
-| | **Overall (avg)** | | **<X.X>/10** | **<Verdict>** | |
+| # | Feature | Kind | Score | Status | Boundedness | Examples |
+|---|---------|------|:-----:|--------|-------------|----------|
+| 1 | Login & Authentication | UI / auth | <n>/10 | <Excellent/Good/Adequate/Weak/Stub/Absent> | <Bounded/Partially-bounded/Unbounded> | <Pass/Partial/Conflict/No-examples> |
+| 2 | … | … | <n>/10 | <…> | <…> | <…> |
+| | **Overall (avg)** | | **<X.X>/10** | **<Verdict>** | | |
 
 ## Feature detail
 
 > Repeat this block per feature. Keep assessments to a few sentences; push specifics into the question register.
 
-### <n>. <Feature name> — <score>/10  ·  examples: <Pass/Partial/Conflict/No-examples>
+### <n>. <Feature name> — <score>/10  ·  boundedness: <Bounded/Partially-bounded/Unbounded>  ·  examples: <Pass/Partial/Conflict/No-examples>
+**Bounding.** Categories <enumerated & closed? / open> · Definitions/criteria <stated? how X vs Y is decided> · Exclusions <what's explicitly out> · Mandatory vs optional fields <clear? / missing>. <One line on what's undefined.>
 **Coverage.** Current→Future <C/P/A> · In/Out scope <C/P/A> · Functional reqs <C/P/A> · AI/Automation <C/P/A> · Business rules <C/P/A> · Information & data <C/P/A> · Integrations <C/P/A> · Exceptions & edge cases <C/P/A> · Acceptance <C/P/A>
 **Assessment.** <What the scope does and doesn't cover for this feature, and why it lands at this score.>
 **Example check.** <Pass / or cite the EX id and the conflict/partial gap.>

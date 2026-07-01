@@ -239,7 +239,7 @@
 
   <div class="section-label">Feature scorecard</div>
   <div class="card"><table class="scorecard"><thead><tr>
-    <th>#</th><th>Feature</th><th class="col-bar">Coverage</th><th>/10</th><th>Status</th><th>Examples</th>
+    <th>#</th><th>Feature</th><th class="col-bar">Coverage</th><th>/10</th><th>Status</th><th>Bounded</th><th>Examples</th>
   </tr></thead><tbody id="scorecard-body"></tbody></table></div>
 
   <div class="section-label">Feature detail</div>
@@ -284,6 +284,9 @@
   var TERMINAL = { "Resolved": 1, "Accepted-assumption": 1, "Won't-fix": 1 };
   var EXAMPLE = {
     "Pass": "var(--covered)", "Partial": "var(--partial)", "Conflict": "var(--gap)", "No-examples": "var(--na)"
+  };
+  var BOUND = {
+    "Bounded": "var(--covered)", "Partially-bounded": "var(--partial)", "Unbounded": "var(--gap)"
   };
   var COV = { "Covered": "var(--covered)", "Partial": "var(--partial)", "Absent": "var(--gap)" };
   var COV_DIMS = [
@@ -395,7 +398,7 @@
   (data.features || []).forEach(function (a) {
     if (a.group && a.group !== lastGroup) {
       lastGroup = a.group;
-      var gr = el("tr", { class: "grp-row" }); gr.appendChild(el("td", { colspan: "6", text: a.group }));
+      var gr = el("tr", { class: "grp-row" }); gr.appendChild(el("td", { colspan: "7", text: a.group }));
       body.appendChild(gr);
     }
     var col = scoreColor(a.score);
@@ -410,6 +413,8 @@
     tr.appendChild(el("td", { class: "col-bar" }, [bar]));
     tr.appendChild(el("td", { class: "scorenum", style: "color:" + col, text: a.score }));
     tr.appendChild(el("td", {}, [el("span", { class: "statuslbl", style: "color:" + col, text: a.band || "" })]));
+    var bnd = a.boundedness;
+    tr.appendChild(el("td", {}, bnd ? [el("span", { class: "exbadge", style: "background:" + (BOUND[bnd] || "var(--na)"), text: bnd })] : [document.createTextNode("—")]));
     var ex = a.exampleCompliance;
     tr.appendChild(el("td", {}, ex ? [el("span", { class: "exbadge", style: "background:" + (EXAMPLE[ex] || "var(--na)"), text: ex })] : [document.createTextNode("—")]));
     tr.addEventListener("click", function () {
@@ -422,7 +427,7 @@
   var totr = el("tr", { class: "total-row" });
   totr.appendChild(el("td", { colspan: "3", text: "Overall (avg of features)" }));
   totr.appendChild(el("td", { class: "scorenum", style: "color:" + totColor, text: data.overallScore }));
-  totr.appendChild(el("td", { colspan: "2" }, [el("span", { class: "statuslbl", style: "color:" + totColor, text: data.verdict || "" })]));
+  totr.appendChild(el("td", { colspan: "3" }, [el("span", { class: "statuslbl", style: "color:" + totColor, text: data.verdict || "" })]));
   body.appendChild(totr);
 
   // ---- Feature detail ----
@@ -438,6 +443,15 @@
       el("span", { class: "ascore", style: "color:" + col, text: (a.score + "/10") })
     ]);
     var b = el("div", { class: "area-body" });
+
+    // Boundedness (the bounding layer — shown first)
+    if (a.boundedness) {
+      var bl = el("div", { class: "exline" }, [
+        el("span", { class: "exbadge", style: "background:" + (BOUND[a.boundedness] || "var(--na)"), text: "Boundedness: " + a.boundedness })
+      ]);
+      if (a.boundednessNote) bl.appendChild(document.createTextNode(" " + a.boundednessNote));
+      b.appendChild(bl);
+    }
 
     // Coverage matrix
     b.appendChild(el("h4", { text: "Coverage across the nine scope dimensions" }));
