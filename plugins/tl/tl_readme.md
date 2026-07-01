@@ -50,7 +50,7 @@ Installation and workspace setup are the same across all Delivery OS plugins, so
    /plugin install delivery-os@techjays-delivery-os
    /plugin install tl@techjays-delivery-os
    ```
-2. **A workspace is optional for `tl`.** Unlike `/ba:intake`, the TL agent can review any document standalone — you don't have to run `/delivery-os:init` first.
+2. **A workspace is optional for `tl`.** Unlike `/ba:scope`, the TL agent can review any document standalone — you don't have to run `/delivery-os:init` first.
 
 ### Do I need `/delivery-os:init`?
 

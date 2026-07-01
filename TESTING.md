@@ -34,7 +34,7 @@ Inside a Claude Code session, add this repo as a marketplace by path, then insta
 
 ```text
 /plugin        →  Installed tab shows delivery-os + ba; check the Errors tab is empty
-/help          →  /delivery-os:init and /ba:intake appear
+/help          →  /delivery-os:init and /ba:scope appear
 /agents        →  ba-agent is listed
 ```
 
@@ -43,11 +43,11 @@ Inside a Claude Code session, add this repo as a marketplace by path, then insta
 A ready-to-run fixture lives at `examples/sample-project/` — a workspace already initialized in the dynamic-intake model, with four sources pre-registered in `intake.index.md` (referencing files under `source-files/`). Open that folder as the working directory, then:
 
 ```text
-/ba:intake
+/ba:scope
 ```
 
 > To test the **conversational ingest** instead, run `/delivery-os:init demo` in an empty folder and then
-> `/ba:intake add "requirements in <path>, transcripts in <path>, archive in <path> for reference only"`.
+> `/ba:scope add "requirements in <path>, transcripts in <path>, archive in <path> for reference only"`.
 > To test **scaffolding**, run `/delivery-os:init my-test` and confirm it creates ONE container folder (README + intake.index + artifacts/ + shared-context/ + ba-output/ + final/) — nothing dumped in the root, no `raw-artifacts/` taxonomy.
 
 ### What a correct run should produce
@@ -69,15 +69,15 @@ A ready-to-run fixture lives at `examples/sample-project/` — a workspace alrea
 | Test | How | Pass = |
 |------|-----|--------|
 | Reference-only | After a run, inspect `source-files/` | unchanged — nothing moved, copied, or deleted |
-| Add a source | `/ba:intake add "a note at .\source-files\extra-note.md"` (create that file first) | new SRC row + summary; existing sources untouched |
-| Incremental | edit one source, `/ba:intake mode=incremental` | only the changed source re-summarized; scope updated, not rebuilt |
-| Dry run | `/ba:intake mode=dry-run` | reports intended changes, writes nothing |
-| Classify only | `/ba:intake mode=classify-only` | registry rows classified; no summaries, no analysis |
+| Add a source | `/ba:scope add "a note at .\source-files\extra-note.md"` (create that file first) | new SRC row + summary; existing sources untouched |
+| Incremental | edit one source, `/ba:scope mode=incremental` | only the changed source re-summarized; scope updated, not rebuilt |
+| Dry run | `/ba:scope mode=dry-run` | reports intended changes, writes nothing |
+| Classify only | `/ba:scope mode=classify-only` | registry rows classified; no summaries, no analysis |
 | Traceability | open `requirement-register.md` | every row cites `[SRC-… › <original location>]` |
 
 ## 4. Iterate after edits
 
-After editing a command/agent/skill/template, pick up changes by reloading plugins if your build supports it (`/reload-plugins`), or restart the session and re-run `/ba:intake`. Skills generally refresh within the session; agent/manifest changes may need a reload/restart.
+After editing a command/agent/skill/template, pick up changes by reloading plugins if your build supports it (`/reload-plugins`), or restart the session and re-run `/ba:scope`. Skills generally refresh within the session; agent/manifest changes may need a reload/restart.
 
 ## 5. Clean up between runs
 

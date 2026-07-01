@@ -14,7 +14,12 @@
     {
       "name": "ba",
       "source": "./plugins/ba",
-      "description": "Business Analyst Agent — discovery artifact intake, source classification, living scope maintenance, and supporting registers. Provides /ba:intake."
+      "description": "Business Analyst Agent — builds and continuously updates a living scope document from client material (folders/Google Drive), raises a client-ready questions list and folds answers back in, and runs a paranoid feature-by-feature scope review with a question-resolution loop. Provides /ba:scope, /ba:review, and /ba:resolve."
+    },
+    {
+      "name": "doc",
+      "source": "./plugins/doc",
+      "description": "Documentation Agent — standardizes client-facing artifacts (proposals, workflow docs, walkthrough boards) to the Techjays standard and style system. The client proposal is a single-file, print-to-PDF HTML deck branded with the client's logo (from their domain) and accent, auto-drafted from the BA scope; the magic board is a self-contained, Miro-style infinite-canvas HTML board with a guided next/next fly-through tour; the workflow document is an interactive phased SVG swimlane walkthrough of the scope with hover tooltips, a before/after value panel showing the efficiency gain, and KPI cards. Provides /doc:proposal, /doc:magic-board, and /doc:workflow."
     },
     {
       "name": "tl",

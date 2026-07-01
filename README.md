@@ -9,12 +9,12 @@ This repository is distributed once across the org. Teams add it as a marketplac
 | Plugin | Namespace | Status | Provides |
 |--------|-----------|--------|----------|
 | `delivery-os` (core) | `/delivery-os:` | ✅ MVP | Project scaffolding, the cross-agent document contract, shared vocabulary, canonical templates. **Install first.** |
-| `ba` | `/ba:` | ✅ MVP | Business Analyst Agent — discovery intake, classification, living scope, registers; plus a paranoid feature-by-feature **scope review** (coverage scoring + example validation) with a question-resolution loop. `/ba:intake` · `/ba:review` · `/ba:resolve`. See [plugins/ba/ba_readme.md](plugins/ba/ba_readme.md). |
-| `doc` | `/doc:` | 🔜 Phase 2 | Doc Agent — proposal, walkthrough, SRS, SoW, executive summary |
+| `ba` | `/ba:` | ✅ MVP | Business Analyst Agent — discovery intake, classification, living scope, registers; plus a paranoid feature-by-feature **scope review** (coverage scoring + example validation) with a question-resolution loop. `/ba:scope` · `/ba:review` · `/ba:resolve`. See [plugins/ba/ba_readme.md](plugins/ba/ba_readme.md). |
+| `doc` | `/doc:` | ✅ MVP (proposal) | Documentation Agent — standardizes client-facing artifacts to the Techjays standard + style system. Shipping now: the client **proposal** (single-file, print-to-PDF HTML deck, branded from the client's domain, auto-drafted from the BA scope) the **magic board** (a Miro-style infinite-canvas walkthrough with a guided fly-through tour), and the **workflow document** (an interactive phased swimlane of the scope with hover tooltips, before/after value panels, and efficiency KPIs). `/doc:proposal` · `/doc:magic-board` · `/doc:workflow`. SRS, SoW, executive summary to follow. |
 | `tl` | `/tl:` | ✅ MVP | TL Agent — scored technical-spec review for applied AI systems (architecture, system/feature flows, data schema, API contracts, libraries, AI observability/evals/feedback/compliance, infra, CI/CD, cost), plus a finding-resolution loop. `/tl:review` · `/tl:resolve` |
 | `qa` | `/qa:` | 🔜 Phase 4 | QA Agent |
 
-> **Why separate plugins?** In Claude Code a command's namespace comes from the plugin name. Splitting by domain is what gives the spec's exact commands — `/ba:intake`, `/tl:review`, `/doc:proposal` — while still shipping as one installable bundle.
+> **Why separate plugins?** In Claude Code a command's namespace comes from the plugin name. Splitting by domain is what gives the spec's exact commands — `/ba:scope`, `/tl:review`, `/doc:proposal` — while still shipping as one installable bundle.
 
 ## Install (individual user)
 
@@ -43,6 +43,7 @@ Then install the plugins (same for all options):
 ```text
 /plugin install delivery-os@techjays-delivery-os
 /plugin install ba@techjays-delivery-os
+/plugin install doc@techjays-delivery-os
 /plugin install tl@techjays-delivery-os
 ```
 
@@ -70,6 +71,7 @@ Commit `examples/team-settings.json` (below) into a project's `.claude/settings.
   "enabledPlugins": {
     "delivery-os@techjays-delivery-os": true,
     "ba@techjays-delivery-os": true,
+    "doc@techjays-delivery-os": true,
     "tl@techjays-delivery-os": true
   }
 }
@@ -81,15 +83,20 @@ For **org-wide enforcement**, an admin can pin approved marketplaces via managed
 
 ```text
 /delivery-os:init my-client-project     # scaffold ONE container folder (no rigid sub-folders)
-/ba:intake add "transcripts in <folder/link>, requirements in <folder/link>, archive in <folder> for reference only"
-/ba:intake mode=incremental             # re-run as new material arrives
+/ba:scope add "transcripts in <folder/link>, requirements in <folder/link>, archive in <folder> for reference only"
+/ba:scope mode=incremental             # re-run as new material arrives
 /ba:review                              # paranoid scope review of ba-output/scope.md; writes a dashboard to ba-output/scope-reviews/
+/doc:proposal client="Acme" domain=acme.com   # branded, print-to-PDF proposal deck → doc-output/
+/doc:magic-board topic="Acme invoice workflow"  # Miro-style walkthrough board with a guided tour → doc-output/
+/doc:workflow project="Acme Onboarding"         # phased swimlane workflow doc (hover, before/after, KPIs) → doc-output/
 /tl:review docs/tech-spec.md            # score a technical spec; writes a timestamped report to tl-output/
 ```
 
-You don't pre-sort files. Tell intake where your originals live; it **references them in place** (never copies/moves), summarizes each into `artifacts/`, registers them in `intake.index.md`, and builds the scope. `/ba:intake` modes: `auto` (default) · `incremental` · `full-refresh` · `dry-run` · `index-only` · `classify-only`.
+You don't pre-sort files. Tell intake where your originals live; it **references them in place** (never copies/moves), summarizes each into `artifacts/`, registers them in `intake.index.md`, and builds the scope. `/ba:scope` modes: `auto` (default) · `incremental` · `full-refresh` · `dry-run` · `index-only` · `classify-only`.
 
 **Reviewing the scope** before it goes out for estimate: `/ba:review` reads `ba-output/scope.md` (or any scope file you point it at), breaks it into features, and — like a paranoid BA — interrogates every thin line into concrete questions, scores each feature out of 10 on coverage depth across the nine D&D dimensions, and validates each against the client's shared examples. It writes an interactive HTML dashboard to `ba-output/scope-reviews/`; you then respond to the questions inside it, *Export responses*, and run `/ba:resolve` to close them and fold the answers back into the scope. Full guide: [plugins/ba/ba_readme.md](plugins/ba/ba_readme.md).
+
+**Generating a client proposal:** `/doc:proposal client="Acme" domain=acme.com` produces a single-file, print-to-PDF HTML deck built to the Techjays proposal standard and style system. It pulls the client's logo from their domain and samples their brand accent, auto-drafts the problem/solution/value from `ba-output/scope.md` when a workspace exists (using the client's real numbers), and writes `doc-output/proposal-<client>-<timestamp>.html` — open it in Chrome/Edge and Save as PDF. Add free-text custom rules to tailor it (extra sections, tone, pricing, lean form). For a spatial walkthrough of a workflow or system, `/doc:magic-board topic="…"` builds a Miro-style infinite-canvas board with a guided next/next fly-through tour (drag to pan, scroll to zoom, `O` for overview), drafted from the BA scope when present. And `/doc:workflow project="…"` produces an interactive phased swimlane document of the scope — hover-over tooltips on each step, a per-phase before/after value panel (current pain → AI solution + hours saved), and efficiency KPIs. Full guide: [plugins/doc/doc_readme.md](plugins/doc/doc_readme.md).
 
 **Reviewing a technical spec** is independent of intake — point `/tl:review` at any spec / architecture / HLD / SRS doc (`.md`, `.docx`, `.pdf`) and it produces an interactive HTML report plus a Markdown artifact, scoring each area out of 10 with findings and fixes. You then **close the findings**: respond to each one inside the HTML report, click *Export responses*, and run `/tl:resolve` on the downloaded file — the agent adjudicates each response, recomputes the verdict, logs decisions, and writes the next round. Each run is timestamped, so re-reviews never overwrite earlier ones. See [plugins/tl/tl_readme.md](plugins/tl/tl_readme.md) for the full guide and a worked example.
 
@@ -113,7 +120,8 @@ plugins/
   delivery-os-core/                  # name: "delivery-os" — contract + templates + /delivery-os:init
     templates/                       #   workspace-readme, intake.index registry, scope.md, registers,
     templates/d&d/scope-document/    #   the bundled branded Scope Document .docx (versioned)
-  ba/                                # name: "ba" — /ba:intake + ba-agent + skills
+  ba/                                # name: "ba" — /ba:scope + ba-agent + skills
+  doc/                               # name: "doc" — /doc:proposal + doc-agent + doc-proposal skill (standard, style guide, HTML template)
   tl/                                # name: "tl" — /tl:review + tl-agent + tl-spec-review skill (HTML report template)
 examples/sample-project/             # ready-to-run test workspace (see TESTING.md)
 examples/tl-review-test/             # sample spec + generated interactive review report

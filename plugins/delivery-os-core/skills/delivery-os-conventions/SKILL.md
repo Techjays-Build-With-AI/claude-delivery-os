@@ -18,7 +18,7 @@ Every Delivery OS project lives under a **single named container folder** (so th
 ```text
 <project-name>/                  # the one container — everything Delivery OS owns lives here
 ├── README.md                    # what init created + how to use it (the workspace manifest)
-├── intake.index.md              # LIVING source registry — maintained by /ba:intake (human-editable)
+├── intake.index.md              # LIVING source registry — maintained by /ba:scope (human-editable)
 ├── artifacts/                   # generated normalized summaries — categories created on demand
 │   ├── <category>/              # emergent (e.g. meeting-transcripts/, requirements/) — NOT pre-made
 │   │   └── <name>.summary.md    # markdown summary of one source doc (traces to the original)
@@ -31,6 +31,7 @@ Every Delivery OS project lives under a **single named container folder** (so th
 │   └── decision-log.md
 ├── ba-output/                   # Business Analyst Agent outputs
 │   ├── scope.md                 # the living scope document (primary handoff)
+│   ├── client-questions.md      # clean, handover-ready open questions for the client
 │   ├── requirement-register.md
 │   ├── workflow-register.md
 │   ├── business-rule-register.md
@@ -59,7 +60,7 @@ Original source files (local folders/files, Google Drive, etc.) **stay where the
 So the workspace holds only the **index + generated summaries** — it is a knowledge layer *over* the user's files, not a copy of them.
 
 ### `intake.index.md` is the single source registry
-It is **agent-maintained** (the user can still hand-edit it) and folds together what were previously separate artifact-map / artifact-ledger / source-classification files: each source's description, original location, detected category, usage mode (the classification + reason), summary path, content hash, and status all live in one registry. Add sources conversationally via `/ba:intake add "..."` — the agent classifies, summarizes, and registers them.
+It is **agent-maintained** (the user can still hand-edit it) and folds together what were previously separate artifact-map / artifact-ledger / source-classification files: each source's description, original location, detected category, usage mode (the classification + reason), summary path, content hash, and status all live in one registry. Add sources conversationally via `/ba:scope add "..."` — the agent classifies, summarizes, and registers them.
 
 **Handoff rule:** an agent reads another agent's **published** files (`ba-output/`, `shared-context/`, `artifacts/`); it never reaches into another agent's working notes. `shared-context/` and `ba-output/scope.md` are the primary handoff surfaces.
 

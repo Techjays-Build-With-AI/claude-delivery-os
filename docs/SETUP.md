@@ -31,7 +31,7 @@ This downloads the plugins into Claude Code's **own cache** (`~/.claude/plugins/
 Add whichever domain agents you want. Each is an independent install on top of the core:
 
 ```text
-/plugin install ba@techjays-delivery-os      # Business Analyst — /ba:intake
+/plugin install ba@techjays-delivery-os      # Business Analyst — /ba:scope
 /plugin install tl@techjays-delivery-os      # Technical Lead    — /tl:review
 ```
 
@@ -56,7 +56,7 @@ my-client-project/
 ├── artifacts/           ← empty — generated summaries land here, in categories created on demand
 ├── shared-context/      ← seeded starter files (project-profile, glossary, stakeholder-map,
 │                          system-landscape, decision-log) that every agent reads
-├── ba-output/           ← BA deliverables; register files appear on the first /ba:intake
+├── ba-output/           ← BA deliverables; register files appear on the first /ba:scope
 │   └── intake-runs/
 └── final/               ← approved, client-facing deliverables
 ```
@@ -75,7 +75,7 @@ It depends on the plugin:
 
 | Plugin | Needs a workspace? |
 |--------|--------------------|
-| `ba` (`/ba:intake`) | **Yes** — intake reads/writes `intake.index.md` and the `ba-output/` deliverables. Run `init` first. |
+| `ba` (`/ba:scope`) | **Yes** — intake reads/writes `intake.index.md` and the `ba-output/` deliverables. Run `init` first. |
 | `tl` (`/tl:review`) | **Optional** — it can review any document standalone. With a workspace it writes to `tl-output/` and uses `ba-output/scope.md` + `shared-context/` as context; without one it writes the report beside the reviewed document. |
 
 Check the individual plugin's README for which mode applies.
@@ -99,5 +99,5 @@ PLUGIN CACHE (read-only)        YOUR ORIGINALS (untouched)      THE WORKSPACE (c
 
 ## Next steps
 
-- **Business Analyst:** point intake at your material — `/ba:intake add "transcripts in <folder/link>, requirements in <folder/link>"`. See [ONBOARDING.md](../ONBOARDING.md) for the full first-run walkthrough.
+- **Business Analyst:** point intake at your material — `/ba:scope add "transcripts in <folder/link>, requirements in <folder/link>"`. See [ONBOARDING.md](../ONBOARDING.md) for the full first-run walkthrough.
 - **Technical Lead:** review a spec — `/tl:review docs/tech-spec.md`. See [plugins/tl/tl_readme.md](../plugins/tl/tl_readme.md).

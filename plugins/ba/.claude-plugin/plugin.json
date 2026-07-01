@@ -1,7 +1,7 @@
 {
   "name": "ba",
   "version": "0.1.0",
-  "description": "Business Analyst Agent for Techjays Delivery OS. Processes discovery artifacts, classifies sources safely, maintains a living scope document and supporting registers, and prepares shared context for downstream Doc and TL agents. Also reviews the scope document like a paranoid BA — breaking it down feature by feature, scoring each on coverage depth across the nine D&D dimensions, interrogating under-specified points into concrete questions, and validating against the client's shared examples — then closes the questions through a response/adjudication loop that folds answers back into the scope. Provides /ba:intake, /ba:review, and /ba:resolve.",
+  "description": "Business Analyst Agent for Techjays Delivery OS. Processes discovery artifacts, classifies sources safely, maintains a living scope document and supporting registers, and prepares shared context for downstream Doc and TL agents. Also reviews the scope document like a paranoid BA — breaking it down feature by feature, scoring each on coverage depth across the nine D&D dimensions, interrogating under-specified points into concrete questions, and validating against the client's shared examples — then closes the questions through a response/adjudication loop that folds answers back into the scope. Provides /ba:scope, /ba:review, and /ba:resolve.",
   "author": {
     "name": "Techjays",
     "email": "delivery@techjays.com"

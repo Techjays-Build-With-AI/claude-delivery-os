@@ -1,6 +1,6 @@
 ---
 name: ba-extraction
-description: What the BA Agent extracts from eligible artifacts and how it records the results. Read before extracting BA intelligence during /ba:intake. Lists the 20 extraction categories, the living scope document structure, and the schema of every supporting register and shared-context file.
+description: What the BA Agent extracts from eligible artifacts and how it records the results. Read before extracting BA intelligence during /ba:scope. Lists the 20 extraction categories, the living scope document structure, and the schema of every supporting register and shared-context file.
 ---
 
 # BA intelligence extraction
@@ -91,6 +91,22 @@ Each register is a Markdown file with frontmatter + a table. Suggested columns:
 | `indexing-assistance-needed.md` | Item, Why, Recommended Usage Mode, Status |
 
 > Source tracking (what used to be `artifact-map` / `artifact-ledger` / `source-classification`) now lives in the **`intake.index.md` registry** — see `ba-classification`. Don't recreate those files.
+
+**`clarification-log.md` is the round-trip ledger.** The `Status` values are `Open` · `Answered` · `Closed` (or `Superseded`), and `Answer` holds the client's response once it arrives. `client-questions.md` (below) is generated *from* the `Open` rows; when an answer is folded in, set `Status`/`Answer` here and the question drops off the client deliverable.
+
+## Client-facing questions deliverable (`ba-output/client-questions.md`)
+
+A clean, **handover-ready** document generated every run from the **open** clarifications — the thing the team literally takes to the client. It is *not* the raw `clarification-log.md`; it's grouped, prioritized, and has space for answers. Frontmatter `doc_type: client-questions`, `produced_by: ba`, plus `generated_at` and a count of open questions.
+
+Structure:
+- A one-line intro telling the reader to fill in answers and return the file (or share meeting notes), then run `/ba:scope add "answers in <path>"` to fold them back in.
+- **Grouped by module / topic.** Under each group, one entry per open `CLR`:
+  - `### CLR-### — <the question>  ·  Priority: <RAID class>` where the RAID class is one of *Must close before estimate · Proceed with assumption · Minor implementation detail · Future phase*.
+  - **Why it matters:** one line on the scope/estimate impact.
+  - **Answer:** _(blank for the client to fill)_.
+- Order groups/questions so the **Must-close-before-estimate** items come first.
+
+Only `Open` clarifications appear. When the answer round-trip closes a `CLR`, it disappears from the next regeneration (optionally list recently-closed ones in a short "Recently answered" section for continuity). Keep it self-contained and jargon-light — a client, not just the delivery team, may read it.
 
 ## Shared-context files (`shared-context/`)
 

@@ -21,7 +21,7 @@ When you install the plugin, Claude Code downloads it into its **own cache** (`~
 ```
 
 **What this does:**
-- Registers the commands so `/ba:intake` and `/delivery-os:init` appear when you type `/`.
+- Registers the commands so `/ba:scope` and `/delivery-os:init` appear when you type `/`.
 - Registers the `ba-agent` and its skills.
 
 **What this does NOT do:**
@@ -57,7 +57,7 @@ There is **no `raw-artifacts/` taxonomy to sort into** — you keep your files w
 Tell intake where your material is, in one line — no pre-sorting:
 
 ```text
-/ba:intake add "meeting transcripts in D:\acme\meetings, client requirements at <drive-link>, invoice archive in D:\acme\invoices for reference only"
+/ba:scope add "meeting transcripts in D:\acme\meetings, client requirements at <drive-link>, invoice archive in D:\acme\invoices for reference only"
 ```
 
 This **invokes the agent**, which:
@@ -71,8 +71,8 @@ This **invokes the agent**, which:
 Add more material or re-run any time — it processes only what's new or changed:
 
 ```text
-/ba:intake add "new requirements doc at D:\acme\reqs-v2.docx"
-/ba:intake mode=incremental
+/ba:scope add "new requirements doc at D:\acme\reqs-v2.docx"
+/ba:scope mode=incremental
 ```
 
 ---
@@ -102,10 +102,10 @@ Because the agent only writes to standard workspace paths, the documents are **s
 3. **Scaffold:** `/delivery-os:init my-client-project` (Stage 2) — creates the container.
 4. **Point intake at your material** (wherever it already is) and let it organize:
    ```text
-   /ba:intake add "transcripts in <folder/link>, requirements in <folder/link>, big archive in <folder> for reference only"
+   /ba:scope add "transcripts in <folder/link>, requirements in <folder/link>, big archive in <folder> for reference only"
    ```
 5. **Review:** read the run summary in `ba-output/intake-runs/run-001.md`, then open `ba-output/scope.md`.
-6. **Iterate:** as new material arrives, `/ba:intake add "…"` or `/ba:intake mode=incremental`.
+6. **Iterate:** as new material arrives, `/ba:scope add "…"` or `/ba:scope mode=incremental`.
 
 ---
 

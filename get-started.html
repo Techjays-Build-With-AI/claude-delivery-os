@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Techjays Delivery OS — Get Started</title>
+<!-- Self-contained get-started guide. No external CSS/JS/fonts — deploy anywhere, open offline. -->
+<style>
+  :root {
+    --bg: #f6f8fa; --surface: #ffffff; --surface-2: #eef1f4; --border: #d7dde3;
+    --text: #1f2328; --muted: #5b6570; --accent: #4f46e5; --accent-2: #0969da;
+    --code-bg: #0d1117; --code-text: #e6edf3; --code-border: #30363d;
+    --ok: #1a7f37; --warn: #bf6b00; --pill: #eef0ff; --pill-text: #4338ca;
+    --shadow: 0 1px 3px rgba(31,35,40,.08), 0 8px 24px rgba(31,35,40,.05);
+    --radius: 12px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0b0e14; --surface: #12161f; --surface-2: #1a1f2b; --border: #262c3a;
+      --text: #e6edf3; --muted: #9aa4b2; --accent: #8b87ff; --accent-2: #4493f8;
+      --code-bg: #0a0d13; --code-text: #e6edf3; --code-border: #262c3a;
+      --ok: #3fb950; --warn: #e3a008; --pill: #1e1b3a; --pill-text: #b7b2ff;
+      --shadow: none;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.6; font-size: 15.5px; -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent-2); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    background: var(--surface-2); padding: .12em .42em; border-radius: 6px; font-size: .87em; }
+  h1,h2,h3,h4 { line-height: 1.25; }
+
+  /* Hero */
+  .hero { background: linear-gradient(135deg, var(--accent) 0%, #6d28d9 55%, #0969da 100%);
+    color: #fff; padding: 48px 20px 40px; }
+  .hero-inner { max-width: 960px; margin: 0 auto; }
+  .hero .eyebrow { text-transform: uppercase; letter-spacing: .14em; font-size: 12px; font-weight: 700;
+    opacity: .85; margin: 0 0 10px; }
+  .hero h1 { font-size: 34px; margin: 0 0 12px; font-weight: 800; letter-spacing: -.01em; }
+  .hero p { font-size: 17px; margin: 0; max-width: 680px; opacity: .95; }
+  .hero .badges { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+  .hero .badge { background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.28);
+    border-radius: 999px; padding: 5px 13px; font-size: 13px; font-weight: 600; }
+
+  /* Tabs */
+  .tabbar-wrap { position: sticky; top: 0; z-index: 30; background: var(--surface);
+    border-bottom: 1px solid var(--border); box-shadow: var(--shadow); }
+  .tabbar { max-width: 960px; margin: 0 auto; display: flex; gap: 4px; overflow-x: auto;
+    padding: 8px 12px; scrollbar-width: thin; }
+  .tab-btn { flex: none; background: transparent; border: none; color: var(--muted); cursor: pointer;
+    font: inherit; font-weight: 650; font-size: 14px; padding: 9px 15px; border-radius: 9px; white-space: nowrap; }
+  .tab-btn:hover { background: var(--surface-2); color: var(--text); }
+  .tab-btn[aria-selected="true"] { background: var(--accent); color: #fff; }
+  .tab-btn .ns { font-family: ui-monospace, monospace; font-size: 12px; opacity: .8; margin-left: 5px; }
+  .tab-btn[aria-selected="true"] .ns { opacity: .9; }
+
+  /* Layout */
+  .wrap { max-width: 960px; margin: 0 auto; padding: 32px 20px 80px; }
+  .panel { display: none; animation: fade .25s ease; }
+  .panel.active { display: block; }
+  @keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+  h2.section { font-size: 25px; margin: 4px 0 6px; letter-spacing: -.01em; }
+  .lead { color: var(--muted); font-size: 16px; margin: 0 0 22px; }
+  h3.step { font-size: 18px; margin: 30px 0 8px; display: flex; align-items: center; gap: 10px; }
+  .stepnum { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px;
+    background: var(--accent); color: #fff; border-radius: 50%; font-size: 13px; font-weight: 800; flex: none; }
+  h4.sub { font-size: 15px; margin: 22px 0 6px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 20px 22px; margin: 16px 0; }
+
+  /* Code block with copy */
+  .code { position: relative; margin: 12px 0; }
+  .code pre { background: var(--code-bg); color: var(--code-text); border: 1px solid var(--code-border);
+    border-radius: 10px; padding: 15px 16px; overflow-x: auto; margin: 0; font-size: 13.5px; line-height: 1.7; }
+  .code pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+  .code .cmt { color: #8b98a9; }
+  .code .copy { position: absolute; top: 9px; right: 9px; background: rgba(255,255,255,.08); color: #cdd6e2;
+    border: 1px solid rgba(255,255,255,.16); border-radius: 7px; padding: 4px 10px; font-size: 12px;
+    font-weight: 650; cursor: pointer; opacity: 0; transition: opacity .15s; }
+  .code:hover .copy { opacity: 1; }
+  .code .copy:hover { background: rgba(255,255,255,.16); }
+  .code .copy.done { color: #6ee7a8; border-color: #2ea56b; }
+
+  /* Callouts */
+  .note { border-left: 4px solid var(--accent-2); background: var(--surface-2); border-radius: 0 10px 10px 0;
+    padding: 12px 16px; margin: 16px 0; font-size: 14.5px; }
+  .note.warn { border-left-color: var(--warn); }
+  .note.tip { border-left-color: var(--ok); }
+  .note b { color: var(--text); }
+
+  /* Command pills */
+  .cmds { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 8px; }
+  .cmd-pill { background: var(--pill); color: var(--pill-text); border-radius: 999px; padding: 5px 13px;
+    font-family: ui-monospace, monospace; font-size: 13px; font-weight: 700; }
+
+  /* Tables */
+  table.tbl { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 14.5px; }
+  table.tbl th, table.tbl td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border);
+    vertical-align: top; }
+  table.tbl th { font-size: 12px; text-transform: uppercase; letter-spacing: .03em; color: var(--muted); }
+  table.tbl td code { white-space: nowrap; }
+
+  /* Feature/step grid */
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; margin: 16px 0; }
+  .mini { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 15px 16px; }
+  .mini h4 { margin: 0 0 6px; font-size: 15px; }
+  .mini p { margin: 0; color: var(--muted); font-size: 14px; }
+
+  ul.clean { padding-left: 20px; margin: 10px 0; } ul.clean li { margin: 7px 0; }
+  ol.flow { padding-left: 22px; margin: 10px 0; } ol.flow li { margin: 9px 0; }
+
+  .pill-tag { display: inline-block; font-size: 11px; font-weight: 800; text-transform: uppercase;
+    letter-spacing: .03em; padding: 2px 9px; border-radius: 999px; color: #fff; }
+  .tag-mvp { background: var(--ok); } .tag-soon { background: var(--muted); }
+
+  footer { border-top: 1px solid var(--border); margin-top: 40px; padding: 24px 20px; text-align: center;
+    color: var(--muted); font-size: 13px; }
+
+  @media (max-width: 640px) {
+    .hero h1 { font-size: 27px; } .hero { padding: 34px 18px 28px; }
+    .wrap { padding: 24px 16px 60px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <p class="eyebrow">Techjays Delivery OS</p>
+    <h1>Get Started</h1>
+    <p>An internal Claude Code plugin marketplace that standardizes how we run delivery — from raw client inputs to structured, reviewed delivery documents. Install it once, then run the agents you need.</p>
+    <div class="badges">
+      <span class="badge">Marketplace: techjays-delivery-os</span>
+      <span class="badge">delivery-os · ba · tl</span>
+      <span class="badge">Runs in Claude Code</span>
+    </div>
+  </div>
+</header>
+
+<div class="tabbar-wrap">
+  <nav class="tabbar" role="tablist" aria-label="Sections">
+    <button class="tab-btn" role="tab" aria-selected="true"  data-tab="general">Get Started</button>
+    <button class="tab-btn" role="tab" aria-selected="false" data-tab="core">Core <span class="ns">/delivery-os</span></button>
+    <button class="tab-btn" role="tab" aria-selected="false" data-tab="ba">BA Agent <span class="ns">/ba</span></button>
+    <button class="tab-btn" role="tab" aria-selected="false" data-tab="doc">Doc Agent <span class="ns">/doc</span></button>
+    <button class="tab-btn" role="tab" aria-selected="false" data-tab="tl">TL Agent <span class="ns">/tl</span></button>
+    <button class="tab-btn" role="tab" aria-selected="false" data-tab="next">What's Next</button>
+  </nav>
+</div>
+
+<main class="wrap">
+
+  <!-- ============ GENERAL ============ -->
+  <section class="panel active" id="general" role="tabpanel">
+    <h2 class="section">Get started</h2>
+    <p class="lead">Everything ships as one marketplace. You add the marketplace once (from GitHub or a local folder), install the plugins, and you're ready. Each agent lives under its own command namespace, so you get exact commands like <code>/ba:scope</code>, <code>/tl:review</code>, and <code>/delivery-os:init</code>.</p>
+
+    <h4 class="sub">The plugins at a glance</h4>
+    <table class="tbl">
+      <thead><tr><th>Plugin</th><th>Namespace</th><th>Status</th><th>What it provides</th></tr></thead>
+      <tbody>
+        <tr><td><b>delivery-os</b> (core)</td><td><code>/delivery-os:</code></td><td><span class="pill-tag tag-mvp">MVP</span></td><td>Project scaffolding, the cross-agent document contract, shared vocabulary, templates. <b>Install first.</b></td></tr>
+        <tr><td><b>ba</b></td><td><code>/ba:</code></td><td><span class="pill-tag tag-mvp">MVP</span></td><td>Business Analyst — builds &amp; maintains the living scope, plus a paranoid scope review.</td></tr>
+        <tr><td><b>doc</b></td><td><code>/doc:</code></td><td><span class="pill-tag tag-mvp">MVP</span></td><td>Documentation — standardized client artifacts: the client proposal, the magic board (Miro-style walkthrough), and the workflow document (phased swimlane).</td></tr>
+        <tr><td><b>tl</b></td><td><code>/tl:</code></td><td><span class="pill-tag tag-mvp">MVP</span></td><td>Technical Lead — scored technical-spec review for applied-AI systems.</td></tr>
+        <tr><td><b>qa</b></td><td><code>/qa:</code></td><td><span class="pill-tag tag-soon">Soon</span></td><td>QA agent — later phase.</td></tr>
+      </tbody>
+    </table>
+
+    <div class="note"><b>Prerequisite:</b> <a href="https://code.claude.com" target="_blank" rel="noopener">Claude Code</a> installed, and access to the <code>Techjays-Build-With-AI/claude-delivery-os</code> repository (or a local clone). All commands below are typed inside the Claude Code prompt.</div>
+
+    <h3 class="step"><span class="stepnum">1</span> Add the marketplace</h3>
+    <p>Pick <b>one</b> way to add the marketplace. The marketplace is named <code>techjays-delivery-os</code> (from its <code>marketplace.json</code>), so every install/update command references that name regardless of how you added it.</p>
+
+    <h4 class="sub">From the published GitHub repo (tracks <code>main</code>)</h4>
+    <div class="code"><button class="copy">Copy</button><pre><code>/plugin marketplace add Techjays-Build-With-AI/claude-delivery-os</code></pre></div>
+
+    
+    <h3 class="step"><span class="stepnum">2</span> Install the plugins</h3>
+    <p>Same for all options above. Install the core first, then the agents you need.</p>
+    <div class="code"><button class="copy">Copy</button><pre><code>/plugin install delivery-os@techjays-delivery-os
+/plugin install ba@techjays-delivery-os
+/plugin install doc@techjays-delivery-os
+/plugin install tl@techjays-delivery-os</code></pre></div>
+
+    <h3 class="step"><span class="stepnum">3</span> Verify</h3>
+    <p>Reload if prompted, then run <code>/help</code>. You should see the new commands:</p>
+    <div class="cmds">
+      <span class="cmd-pill">/delivery-os:init</span>
+      <span class="cmd-pill">/ba:scope</span>
+      <span class="cmd-pill">/ba:review</span>
+      <span class="cmd-pill">/ba:resolve</span>
+      <span class="cmd-pill">/doc:proposal</span>
+      <span class="cmd-pill">/doc:magic-board</span>
+      <span class="cmd-pill">/doc:workflow</span>
+      <span class="cmd-pill">/tl:review</span>
+      <span class="cmd-pill">/tl:resolve</span>
+    </div>
+
+    <h3 class="step"><span class="stepnum">4</span> Keep it up to date</h3>
+    <p>After new commits are pushed (GitHub) or you edit files (local), refresh without re-adding:</p>
+    <div class="code"><button class="copy">Copy</button><pre><code>/plugin marketplace update techjays-delivery-os</code></pre></div>
+    <div class="note warn"><b>Switching sources</b> (e.g. from a branch or local folder back to published <code>main</code>): remove first, then re-add. <br><code>/plugin marketplace remove techjays-delivery-os</code> → then the Option-A line above.</div>
+
+    
+    <h3 class="step"><span class="stepnum">5</span> Initialize a project workspace</h3>
+    <p>Before running the BA agent, scaffold a workspace (once per project). See the <b>Core</b> tab for details.</p>
+    <div class="code"><button class="copy">Copy</button><pre><code>/delivery-os:init my-client-project</code></pre></div>
+
+    <div class="note tip"><b>How the review loops work (common to BA &amp; TL):</b> a review writes an interactive HTML report. You open it, type a response under each finding/question, click <b>Export responses</b>, save the downloaded file, and run the agent's <code>:resolve</code> command on it. The agent adjudicates each answer, recomputes the score, and writes the next round. Details are on each agent's tab.</div>
+  </section>
+
+  <!-- ============ CORE ============ -->
+  <section class="panel" id="core" role="tabpanel">
+    <h2 class="section">Core — <code>delivery-os</code></h2>
+    <p class="lead">The shared foundation every other plugin depends on. It scaffolds the project workspace, defines the cross-agent document contract (frontmatter, stable IDs, shared vocabulary), and ships the canonical Techjays templates. Install this first.</p>
+
+    <h4 class="sub">Commands</h4>
+    <div class="cmds"><span class="cmd-pill">/delivery-os:init &lt;project-name&gt;</span></div>
+
+    <h4 class="sub">What it does</h4>
+    <p>Creates <b>one named container folder</b> for the project so everything Delivery OS owns is visible in a single place (and a single folder to delete for a clean slate). It does <i>not</i> pre-create a rigid raw-files taxonomy — sources are added later via <code>/ba:scope</code>.</p>
+
+    <h4 class="sub">Run it</h4>
+    <div class="code"><button class="copy">Copy</button><pre><code>/delivery-os:init acme-invoice-processing</code></pre></div>
+
+    <p>It scaffolds:</p>
+    <div class="code"><button class="copy">Copy</button><pre><code>acme-invoice-processing/
+├── README.md            <span class="cmt"># workspace manifest</span>
+├── intake.index.md      <span class="cmt"># living source registry (maintained by /ba:scope)</span>
+├── artifacts/           <span class="cmt"># generated source summaries (categories created on demand)</span>
+├── shared-context/      <span class="cmt"># project profile, glossary, stakeholders, systems, decisions</span>
+├── ba-output/           <span class="cmt"># BA deliverables: scope.md, registers, scope-reviews/</span>
+│   └── intake-runs/
+└── final/               <span class="cmt"># approved, client-facing deliverables</span></code></pre></div>
+
+    <div class="note"><b>Why it matters:</b> all agents read and write only within this contract, so the BA's output is reliably consumed by the TL (and later Doc/QA) agents. Downstream agents create their own output folders (<code>tl-output/</code>, etc.) on first use.</div>
+
+    <div class="note tip"><b>Tip:</b> if you give no name, the command asks for one rather than scaffolding into your current directory.</div>
+  </section>
+
+  <!-- ============ BA AGENT ============ -->
+  <section class="panel" id="ba" role="tabpanel">
+    <h2 class="section">BA Agent — <code>/ba</code></h2>
+    <p class="lead">The Business Analyst has two jobs: during discovery it's the project's <b>author &amp; memory</b> (processes client artifacts into a living scope and registers); once a scope exists it becomes its <b>paranoid critic</b> (breaks the scope down feature by feature, bounds each one, validates it against the client's examples, and scores how estimate-ready it is).</p>
+
+    <h4 class="sub">Commands</h4>
+    <div class="cmds">
+      <span class="cmd-pill">/ba:scope</span>
+      <span class="cmd-pill">/ba:review</span>
+      <span class="cmd-pill">/ba:resolve</span>
+    </div>
+
+    <h3 class="step" style="margin-top:26px">Build the living scope — <code>/ba:scope</code></h3>
+    <p>Point it at your client material — folders or Google Drive. It <b>references originals in place</b> (never copies or moves them), maps everything into summaries under <code>artifacts/</code>, and writes the module-centric scope document (<code>ba-output/scope.md</code>) in the Techjays template. Run it again whenever new material arrives — it updates the same living document.</p>
+    <div class="code"><button class="copy">Copy</button><pre><code><span class="cmt"># build the scope from the first batch of material</span>
+/ba:scope add "transcripts in D:\acme\meetings, requirements at &lt;drive-link&gt;, invoice archive in D:\acme\invoices for reference only"
+
+<span class="cmt"># later — fold in new notes or a client-answers doc</span>
+/ba:scope add "answers in D:\acme\client-answers.md"
+/ba:scope mode=incremental</code></pre></div>
+    <p><b>Modes:</b> <code>auto</code> (default) · <code>incremental</code> (only new/changed) · <code>full-refresh</code> · <code>dry-run</code> (report, write nothing) · <code>index-only</code> · <code>classify-only</code>.</p>
+
+    <div class="grid">
+      <div class="mini"><h4>Raises the open questions</h4><p>Every run regenerates <code>ba-output/client-questions.md</code> — a clean, prioritized list you hand straight to the client, with space for answers.</p></div>
+      <div class="mini"><h4>Folds answers back in</h4><p>Point <code>/ba:scope</code> at the filled-in answers (or new meeting notes); it matches each to its question, closes it, and updates the scope.</p></div>
+    </div>
+    <div class="note tip"><b>The living-scope loop:</b> <code>/ba:scope</code> to build → hand <code>client-questions.md</code> to the client → <code>/ba:scope add "answers…"</code> to fold responses in and close questions → repeat. One scope document that keeps getting sharper.</div>
+
+    <h3 class="step">Scope review — <code>/ba:review</code></h3>
+    <p>Reviews the scope like a paranoid BA before it goes out for estimate. Defaults to <code>ba-output/scope.md</code>; you can also point it at any scope file.</p>
+    <div class="code"><button class="copy">Copy</button><pre><code><span class="cmt"># review the living scope in the workspace</span>
+/ba:review
+
+<span class="cmt"># or review a specific document</span>
+/ba:review docs/acme-scope.docx</code></pre></div>
+
+    <h4 class="sub">What the review does</h4>
+    <div class="grid">
+      <div class="mini"><h4>Bounds every feature</h4><p>Enumerates the categories/buckets, the definitions used to classify them, what's covered vs excluded, and mandatory vs optional fields.</p></div>
+      <div class="mini"><h4>Scores coverage /10</h4><p>Judges nine business dimensions (in/out scope, business rules, info &amp; data, exceptions, acceptance, …) per feature.</p></div>
+      <div class="mini"><h4>Validates examples</h4><p>Checks each feature against the client's shared examples: Pass / Partial / Conflict / No-examples.</p></div>
+      <div class="mini"><h4>Business, not technical</h4><p>Judges what the business wants; leaves schema, APIs, and system design to the TL review.</p></div>
+    </div>
+    <div class="note"><b>Boundedness caps the score:</b> a feature whose function is clear but whose boundary is undefined ("classify the invoice" with no defined types) is capped at Weak until the buckets, classification logic, and exclusions are pinned down. Each feature is tagged <b>Bounded / Partially-bounded / Unbounded</b>.</div>
+    <p>Output lands in <code>ba-output/scope-reviews/scope-review-&lt;timestamp&gt;.{html, md, json}</code> — open the <b>.html</b> as an interactive dashboard.</p>
+
+    <h3 class="step">Respond &amp; close — <code>/ba:resolve</code></h3>
+    <p>The review raises scope questions; this loop closes them and folds the answers back into the scope.</p>
+    <ol class="flow">
+      <li>Open <code>scope-review-&lt;timestamp&gt;.html</code> in a browser and go to <b>Open questions</b>.</li>
+      <li>Type an answer under each and pick an intent (<code>resolve</code> / <code>accept-assumption</code> / <code>need-info</code> / <code>wont-fix</code>).</li>
+      <li>Click <b>Export responses</b> → save the downloaded <code>scope-review-&lt;timestamp&gt;-responses.md</code> into <code>ba-output/scope-reviews/</code>.</li>
+      <li>Run resolve on it:</li>
+    </ol>
+    <div class="code"><button class="copy">Copy</button><pre><code>/ba:resolve ba-output/scope-reviews/scope-review-&lt;timestamp&gt;-responses.md</code></pre></div>
+    <p>The agent adjudicates each answer, gives the exact scope edit, promotes confirmed answers into the scope and registers (decisions, assumptions, clarifications), recomputes the feature scores and verdict, and writes a new round. Repeat until no questions remain.</p>
+
+    <div class="note tip"><b>Verdicts:</b> Scope-ready → Estimate with caveats → Significant gaps (clarify before estimate) → Not scope-ready. Any unresolved <b>Blocker</b> caps the verdict — resolving it lifts the cap.</div>
+  </section>
+
+  <!-- ============ DOC AGENT ============ -->
+  <section class="panel" id="doc" role="tabpanel">
+    <h2 class="section">Doc Agent — <code>/doc</code></h2>
+    <p class="lead">The Documentation agent standardizes how the org produces client-facing artifacts, so every document looks and reads like it came from one company. Phase 1 ships the <b>client proposal</b>: a single-file, print-to-PDF HTML deck built to the Techjays proposal standard and style system.</p>
+
+    <h4 class="sub">Commands</h4>
+    <div class="cmds"><span class="cmd-pill">/doc:proposal</span><span class="cmd-pill">/doc:magic-board</span><span class="cmd-pill">/doc:workflow</span></div>
+
+    <h3 class="step" style="margin-top:26px">Generate a proposal — <code>/doc:proposal</code></h3>
+    <p>Pass the client name and their domain. The agent pulls the client's logo from the domain, samples their brand accent, and (when a Delivery OS workspace exists) auto-drafts the problem, solution, and value from <code>ba-output/scope.md</code> using the client's real numbers.</p>
+    <div class="code"><button class="copy">Copy</button><pre><code><span class="cmt"># minimal — logo + accent from the domain, content from the scope if present</span>
+/doc:proposal client="Harry Grodsky &amp; Co." domain=grodsky.com
+
+<span class="cmt"># with a title and custom rules</span>
+/doc:proposal client="Acme" domain=acme.com title="AI-Powered Estimating" "lean 7-section form; add a data-security section; Phase 1 fixed at $50k"</code></pre></div>
+
+    <div class="grid">
+      <div class="mini"><h4>Branded from the domain</h4><p>Client logo (via <code>logo.clearbit.com</code>, favicon fallback) on the title pair + closing, and their brand color as the accent.</p></div>
+      <div class="mini"><h4>Auto-drafted from the scope</h4><p>Problem, solution workflow, and value numbers pulled from the BA scope. Never fabricates metrics — unknowns become <code>[[NEEDS: …]]</code> placeholders.</p></div>
+      <div class="mini"><h4>Print-to-PDF, always</h4><p>Breakpoints scoped to screen, <code>@page</code> rules, dark→white invert, and a Print / Save PDF button. Save-as-PDF just works.</p></div>
+      <div class="mini"><h4>Your custom rules</h4><p>Add sections, set tone, fix pricing, pick the lean form — passed in free text and layered on the standard.</p></div>
+    </div>
+
+    <h4 class="sub">What you pass</h4>
+    <ul class="clean">
+      <li><code>client="&lt;Name&gt;"</code> — required.</li>
+      <li><code>domain=&lt;client.com&gt;</code> — strongly recommended (drives the logo and accent color).</li>
+      <li><code>title="…"</code> — optional; drafted from the scope if omitted.</li>
+      <li>Any free text — treated as custom rules and layered on the standard.</li>
+    </ul>
+
+    <div class="note tip"><b>Export to PDF:</b> the deck writes to <code>doc-output/proposal-&lt;client&gt;-&lt;timestamp&gt;.html</code>. Open it in Chrome/Edge, choose <b>Print → Save as PDF</b>, and enable "Background graphics" so the accent borders and fills render. For an offline-portable file to email or archive, ask the agent to base64-embed the client logo.</div>
+    <div class="note"><b>Voice rules are enforced:</b> no em-dashes, no "not X but Y" phrasing, the client is addressed by name, and the Value page carries the client's real numbers. Full guide: <code>plugins/doc/doc_readme.md</code>.</div>
+
+    <h3 class="step">Present a workflow — <code>/doc:magic-board</code></h3>
+    <p>A <b>magic board</b> is a self-contained, Miro-style infinite-canvas HTML file: cards laid out in space with pan (drag), zoom (scroll), and a guided fly-through tour that frames each card full-screen as you click next / next / next. The best way to <i>show</i> a workflow or your understanding of a system to a client or team.</p>
+    <div class="code"><button class="copy">Copy</button><pre><code><span class="cmt"># a workflow board, drafted from the BA scope when present</span>
+/doc:magic-board topic="Acme invoice-processing workflow" kind=workflow
+
+<span class="cmt"># a system deep-dive with custom emphasis</span>
+/doc:magic-board topic="Our understanding of the claims system" kind=system "feature the fraud-check subsystem; ~10 cards"</code></pre></div>
+    <ul class="clean">
+      <li><code>topic="…"</code> — what the board is about (required or inferred from the scope).</li>
+      <li><code>kind=…</code> — the arc: <code>workflow</code> (default) · <code>journey</code> · <code>system</code> · <code>concept</code> · <code>strategy</code> · <code>roadmap</code>.</li>
+      <li>Free text — extra source material or rules (which systems to feature, card count, brand accent).</li>
+    </ul>
+    <div class="note tip"><b>Presenting:</b> open <code>doc-output/board-&lt;topic&gt;-&lt;timestamp&gt;.html</code> in any browser. Walk the tour with the on-screen next/prev or arrow keys, drag to pan, scroll to zoom, and press <code>O</code> for the overview. It's one self-contained file that opens offline.</div>
+
+    <h3 class="step">Walk through the scope — <code>/doc:workflow</code></h3>
+    <p>An <b>interactive workflow document</b>: a Techjays-standard HTML page with a fixed sidebar and a <b>phased SVG swimlane</b> (phases as rows, actors as columns) with hover-over tooltips on every step. Each phase gets a before/after value panel (current pain → AI solution + hours saved) and there are KPI cards and a systems retained/retired grid.</p>
+    <div class="code"><button class="copy">Copy</button><pre><code><span class="cmt"># drafts phases, actors, and value panels from the BA scope when present</span>
+/doc:workflow project="Acme Corp — Employee Onboarding"
+
+<span class="cmt"># with source material / emphasis</span>
+/doc:workflow project="Claims Intake" client="Acme" "actors: Agent, AI Platform, Adjuster; feature the fraud-check exception"</code></pre></div>
+    <div class="grid">
+      <div class="mini"><h4>Phased swimlane, hover detail</h4><p>Vertical swimlane of the scope; hover any step for its bullets, hover a KPI for the math.</p></div>
+      <div class="mini"><h4>Before / after + efficiency</h4><p>Per-phase value panel: current pain → AI solution, with the hours saved called out.</p></div>
+    </div>
+    <div class="note tip"><b>Viewing:</b> open <code>doc-output/[CLIENT]-[TOPIC]-[date].html</code>; the sidebar jumps to each phase. Drafted from <code>ba-output/scope.md</code> + <code>workflow-register.md</code> when a workspace exists; real numbers only, unknowns flagged as placeholders.</div>
+  </section>
+
+  <!-- ============ TL AGENT ============ -->
+  <section class="panel" id="tl" role="tabpanel">
+    <h2 class="section">TL Agent — <code>/tl</code></h2>
+    <p class="lead">The Technical Lead reviews a technical specification for an applied-AI system the way a seasoned TL would before a team commits to building it. It reads the whole document, scores each build-readiness area out of 10 with concrete findings and fixes, and closes findings through a resolution loop.</p>
+
+    <h4 class="sub">Commands</h4>
+    <div class="cmds">
+      <span class="cmd-pill">/tl:review</span>
+      <span class="cmd-pill">/tl:resolve</span>
+    </div>
+
+    <h3 class="step" style="margin-top:26px">Review a spec — <code>/tl:review</code></h3>
+    <p>Point it at any spec / architecture / HLD / SRS document (<code>.md</code>, <code>.docx</code>, or <code>.pdf</code>). A workspace is optional — it works standalone.</p>
+    <div class="code"><button class="copy">Copy</button><pre><code>/tl:review docs/support-copilot-spec.md</code></pre></div>
+
+    <h4 class="sub">What it scores (out of 10 each)</h4>
+    <table class="tbl">
+      <thead><tr><th>Group</th><th>Areas</th></tr></thead>
+      <tbody>
+        <tr><td>Architecture &amp; Design</td><td>Overview &amp; problem framing · Architecture &amp; system design · Feature flows &amp; system sequencing</td></tr>
+        <tr><td>Engineering Contracts</td><td>Data schema &amp; modeling · API contracts · Libraries &amp; tech stack</td></tr>
+        <tr><td>Applied AI / LLM <span style="color:var(--muted)">(if an LLM is involved)</span></td><td>Observability &amp; traceability · Evaluation strategy · Feedback loops · AI compliance &amp; safety</td></tr>
+        <tr><td>Delivery &amp; Operations</td><td>Infrastructure setup · CI/CD &amp; release management · Cost projection (infra + LLM/API + third-party)</td></tr>
+      </tbody>
+    </table>
+    <div class="note"><b>Verdict:</b> the overall score (average of applicable areas) maps to <b>Ready to build → Build with caveats → Significant gaps → Not ready</b>. Non-AI systems mark the Applied-AI areas N/A. Any unresolved <b>Blocker</b> caps the verdict. Findings carry a severity (Blocker / Major / Minor / Nit) and a stable <code>FND-###</code> ID.</div>
+    <p>Output lands in <code>tl-output/spec-review-&lt;timestamp&gt;.{html, md, json}</code> — open the <b>.html</b> for the interactive report.</p>
+
+    <h3 class="step">Respond &amp; close — <code>/tl:resolve</code></h3>
+    <ol class="flow">
+      <li>Open <code>spec-review-&lt;timestamp&gt;.html</code> and go to <b>Open items</b>.</li>
+      <li>Type a response under each finding and pick an intent (<code>resolve</code> / <code>accept-risk</code> / <code>need-info</code> / <code>wont-fix</code>).</li>
+      <li>Click <b>Export responses</b> → save the downloaded <code>spec-review-&lt;timestamp&gt;-responses.md</code> into <code>tl-output/</code>.</li>
+      <li>Run resolve on it:</li>
+    </ol>
+    <div class="code"><button class="copy">Copy</button><pre><code>/tl:resolve tl-output/spec-review-&lt;timestamp&gt;-responses.md</code></pre></div>
+    <p>The agent adjudicates each response (Resolved / Accepted-risk / Needs-verification / Won't-fix), recomputes the score and verdict, logs decisions, and writes a new round. A resolved Blocker lifts the verdict cap.</p>
+
+    <div class="note tip"><b>Standalone or workspace:</b> with a Delivery OS workspace it also reads <code>ba-output/scope.md</code> and <code>shared-context/</code> for grounding; without one it writes the report beside the reviewed document.</div>
+  </section>
+
+  <!-- ============ NEXT ============ -->
+  <section class="panel" id="next" role="tabpanel">
+    <h2 class="section">What's next</h2>
+    <p class="lead">Delivery OS is built in phases. The core, BA, and TL agents are live; these are on the roadmap.</p>
+    <div class="grid">
+      <div class="mini"><h4>Doc Agent <span class="pill-tag tag-mvp">Proposal live</span></h4><p>The client proposal ships now (<code>/doc:proposal</code>). Next on the same standard: workflow/architecture documents, walkthrough boards, executive summary, SRS, SoW.</p></div>
+      <div class="mini"><h4>QA Agent <span class="pill-tag tag-soon">Soon</span></h4><p>Test strategy and quality validation over the delivery documents.</p></div>
+    </div>
+    <div class="note">All agents share the same <b>document contract</b>, so each new agent consumes the previous one's output without re-doing the analysis. When Doc and QA land, they'll appear as new tabs here with their own commands.</div>
+    <h4 class="sub">Resources</h4>
+    <ul class="clean">
+      <li>Repo: <code>Techjays-Build-With-AI/claude-delivery-os</code></li>
+      <li>BA guide: <code>plugins/ba/ba_readme.md</code> · TL guide: <code>plugins/tl/tl_readme.md</code></li>
+      <li>Document contract: <code>plugins/delivery-os-core/skills/delivery-os-conventions/</code></li>
+    </ul>
+  </section>
+
+</main>
+
+<footer>
+  Techjays Delivery OS · Get Started guide · runs in Claude Code
+</footer>
+
+<script>
+(function () {
+  "use strict";
+  // Tabs
+  var btns = Array.prototype.slice.call(document.querySelectorAll(".tab-btn"));
+  var panels = Array.prototype.slice.call(document.querySelectorAll(".panel"));
+  function show(id) {
+    btns.forEach(function (b) { b.setAttribute("aria-selected", b.dataset.tab === id ? "true" : "false"); });
+    panels.forEach(function (p) { p.classList.toggle("active", p.id === id); });
+    if (history.replaceState) history.replaceState(null, "", "#" + id);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+  btns.forEach(function (b) { b.addEventListener("click", function () { show(b.dataset.tab); }); });
+  var initial = (location.hash || "").replace("#", "");
+  if (initial && document.getElementById(initial)) show(initial);
+
+  // Copy buttons
+  document.querySelectorAll(".code .copy").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var code = btn.parentNode.querySelector("pre").innerText;
+      navigator.clipboard.writeText(code).then(function () {
+        btn.textContent = "Copied"; btn.classList.add("done");
+        setTimeout(function () { btn.textContent = "Copy"; btn.classList.remove("done"); }, 1600);
+      }).catch(function () {
+        btn.textContent = "Press Ctrl+C";
+        setTimeout(function () { btn.textContent = "Copy"; }, 1600);
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>

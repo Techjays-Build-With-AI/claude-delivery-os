@@ -8,8 +8,8 @@ This folder is a **Techjays Delivery OS** project workspace. Everything here was
 
 | Path | What it is | Who maintains it |
 |------|------------|------------------|
-| `intake.index.md` | The **source registry** — every source you've added, where it really lives, how it was classified, and its summary + status. | `/ba:intake` (you can edit it too) |
-| `artifacts/` | Generated **markdown summaries** of your sources, grouped into categories that are created on demand. | `/ba:intake` |
+| `intake.index.md` | The **source registry** — every source you've added, where it really lives, how it was classified, and its summary + status. | `/ba:scope` (you can edit it too) |
+| `artifacts/` | Generated **markdown summaries** of your sources, grouped into categories that are created on demand. | `/ba:scope` |
 | `shared-context/` | Project profile, glossary, stakeholders, systems, decisions — shared with future Doc/TL/QA agents. | BA agent |
 | `ba-output/` | The **living scope document** and supporting registers (requirements, business rules, etc.). | BA agent |
 | `ba-output/intake-runs/` | One summary per intake run. | BA agent |
@@ -19,14 +19,14 @@ This folder is a **Techjays Delivery OS** project workspace. Everything here was
 
 1. **Add your sources in one line** (no need to pre-sort anything):
    ```text
-   /ba:intake add "meeting transcripts in <folder or Drive link>, client requirements in <folder or Drive link>, historical invoices in <folder> for reference only"
+   /ba:scope add "meeting transcripts in <folder or Drive link>, client requirements in <folder or Drive link>, historical invoices in <folder> for reference only"
    ```
    Intake classifies each source, generates a summary under `artifacts/`, and registers it in `intake.index.md`.
 2. **Build / refresh the scope:**
    ```text
-   /ba:intake
+   /ba:scope
    ```
    Re-run it any time you add more material — it processes only what's new or changed.
 
 ## Modes
-`/ba:intake` · `/ba:intake add "…"` · `mode=incremental` · `mode=dry-run` · `mode=index-only` · `mode=classify-only`
+`/ba:scope` · `/ba:scope add "…"` · `mode=incremental` · `mode=dry-run` · `mode=index-only` · `mode=classify-only`

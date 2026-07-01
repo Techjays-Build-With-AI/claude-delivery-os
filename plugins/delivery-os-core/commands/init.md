@@ -1,5 +1,5 @@
 ---
-description: Scaffold a new Techjays Delivery OS project workspace — creates ONE named container folder with a README manifest, a living intake.index.md source registry, and the shared-context/ba-output/final structure. Does NOT create a rigid raw-artifacts taxonomy; sources are added later via /ba:intake.
+description: Scaffold a new Techjays Delivery OS project workspace — creates ONE named container folder with a README manifest, a living intake.index.md source registry, and the shared-context/ba-output/final structure. Does NOT create a rigid raw-artifacts taxonomy; sources are added later via /ba:scope.
 argument-hint: "<project-name>"
 ---
 
@@ -43,7 +43,7 @@ You are scaffolding a new Delivery OS project. **Everything goes under one named
 
 4. **Report.** Print the exact tree you created, note that **original source files are never moved or copied** (Delivery OS only indexes and summarizes them), and give the next step:
    > Add your sources in one line, e.g.:
-   > `/ba:intake add "meeting transcripts in <folder or Drive link>, client requirements in <folder or Drive link>, historical invoices in <folder> for reference only"`
+   > `/ba:scope add "meeting transcripts in <folder or Drive link>, client requirements in <folder or Drive link>, historical invoices in <folder> for reference only"`
    > The agent will classify each, generate summaries under `artifacts/`, register them in `intake.index.md`, and build the scope.
 
 Keep it idempotent — re-running must never clobber existing work.

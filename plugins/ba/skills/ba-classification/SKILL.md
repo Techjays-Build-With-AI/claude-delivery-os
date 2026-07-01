@@ -1,13 +1,13 @@
 ---
 name: ba-classification
-description: How the BA Agent ingests, classifies, and normalizes artifact sources during /ba:intake. Read before scanning sources. Covers turning a conversational "add" declaration into registered sources, the six usage modes, the reference-only handling rule (never copy/move originals), the large-folder safeguards, and how each mode produces a normalized summary.
+description: How the BA Agent ingests, classifies, and normalizes artifact sources during /ba:scope. Read before scanning sources. Covers turning a conversational "add" declaration into registered sources, the six usage modes, the reference-only handling rule (never copy/move originals), the large-folder safeguards, and how each mode produces a normalized summary.
 ---
 
 # BA source ingest, classification & safety
 
 ## Ingesting declared sources (the `add` payload)
 
-`/ba:intake add "<free text>"` gives you sources by **intent**, e.g. *"transcripts in D:\acme\meetings, requirements at &lt;drive-link&gt;, invoice archive in D:\acme\invoices for reference only."* For each source you parse out:
+`/ba:scope add "<free text>"` gives you sources by **intent**, e.g. *"transcripts in D:\acme\meetings, requirements at &lt;drive-link&gt;, invoice archive in D:\acme\invoices for reference only."* For each source you parse out:
 
 1. **Locate** — resolve the path or Drive link. For Drive, check connector access; if absent, mark `Access Required` and add to `indexing-assistance-needed.md` (never fabricate access).
 2. **Detect** — type (folder/file/Drive/repo), rough file count + size + file types (cheaply: listing + sampling, not full reads).

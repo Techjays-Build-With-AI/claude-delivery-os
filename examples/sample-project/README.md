@@ -12,12 +12,12 @@ sample-project/
     └── sample-data/README.txt        (a "reference only" archive stand-in)
 ```
 
-`artifacts/`, `shared-context/`, and `ba-output/` are intentionally absent — `/ba:intake` creates them.
+`artifacts/`, `shared-context/`, and `ba-output/` are intentionally absent — `/ba:scope` creates them.
 
 ## Run it
 Open this folder as the working directory, then:
 ```text
-/ba:intake
+/ba:scope
 ```
 The agent summarizes the sources into `artifacts/`, then builds `ba-output/scope.md` (module-centric, conforming to the Techjays Scope Document Template) plus the registers.
 

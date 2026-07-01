@@ -1,0 +1,10 @@
+{
+  "name": "doc",
+  "version": "0.1.0",
+  "description": "Documentation Agent for Techjays Delivery OS. Standardizes how the org produces client-facing artifacts — proposals, workflow documents, and walkthrough boards — so every document follows the same Techjays standard and style system. Provides the client proposal (a single-file, print-to-PDF HTML deck branded with the client's logo pulled from their domain, auto-drafted from the BA scope) and the magic board (a self-contained, Miro-style infinite-canvas HTML board with a guided next/next fly-through tour, for presenting a workflow or system understanding). It also generates the workflow document (an interactive, phased SVG swimlane walkthrough of the project scope with hover tooltips, a per-phase before/after value panel showing the efficiency gain, KPI cards, and a systems retained/retired grid). All outputs are single self-contained HTML files that open offline. Provides /doc:proposal, /doc:magic-board, and /doc:workflow.",
+  "author": {
+    "name": "Techjays",
+    "email": "delivery@techjays.com"
+  },
+  "keywords": ["documentation", "proposal", "client-deck", "pdf", "techjays", "walkthrough"]
+}

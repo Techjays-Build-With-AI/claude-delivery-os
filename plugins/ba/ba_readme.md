@@ -1,16 +1,36 @@
 # BA Agent — Discovery & Scope Review
 
-The **Business Analyst Agent** has two jobs. During discovery it is the project's **author and memory** — `/ba:intake` processes client artifacts into a living scope document and registers. Once a scope exists, it becomes its **paranoid critic** — `/ba:review` breaks the scope down feature by feature, interrogates every under-specified line, validates it against the client's own examples, and scores how estimate-ready it is, then `/ba:resolve` closes the open questions and folds the answers back into the scope.
+The **Business Analyst Agent** has two jobs. During discovery it is the project's **author and memory** — `/ba:scope` processes client artifacts into a living scope document and registers. Once a scope exists, it becomes its **paranoid critic** — `/ba:review` breaks the scope down feature by feature, interrogates every under-specified line, validates it against the client's own examples, and scores how estimate-ready it is, then `/ba:resolve` closes the open questions and folds the answers back into the scope.
 
-This guide focuses on the **scope review** (`/ba:review` · `/ba:resolve`). For discovery intake, see [`commands/intake.md`](commands/intake.md).
+This guide covers both: **building the living scope** (`/ba:scope`, below) and the **scope review** (`/ba:review` · `/ba:resolve`).
+
+## Building the living scope — `/ba:scope`
+
+`/ba:scope` is the living-scope engine. You point it at client material — folders or Google Drive — and it references the originals in place, maps everything out into markdown summaries, and writes the module-centric **scope document** in the Techjays template (`ba-output/scope.md`). It's built to be run again and again: as new meeting notes, documents, examples, or client answers arrive, it updates the same living document rather than starting over.
+
+```text
+# build the scope from the first batch of material
+/ba:scope add "transcripts in D:\acme\meetings, requirements at <drive-link>, invoice archive in D:\acme\invoices for reference only"
+
+# later — fold in new notes or a client-answers doc, incrementally
+/ba:scope add "answers in D:\acme\client-answers.md"
+/ba:scope mode=incremental
+```
+
+Two things happen on every run:
+
+- **It raises every open item.** All ambiguities, open questions, and assumptions become clarifications / assumptions, and it (re)generates **`ba-output/client-questions.md`** — a clean, handover-ready list grouped by module and prioritized (*Must close before estimate → Future phase*), with a blank space for each answer. Hand it to the client as-is.
+- **It folds client answers back in (the answer round-trip).** Point it at a filled-in `client-questions.md`, a client-answers document, or fresh meeting notes, and it matches each answer to its open question by `CLR` id, closes it, applies the resulting edit to the scope, logs the decision or assumption, and drops the question off `client-questions.md`.
+
+So the loop is: **`/ba:scope` to build → hand `client-questions.md` to the client → `/ba:scope add "answers…"` to fold responses in and close questions → repeat.** One living scope document that keeps getting sharper. Modes: `auto` (default) · `incremental` · `full-refresh` · `dry-run` · `index-only` · `classify-only`. When you want a scored critique of how estimate-ready the scope is, run `/ba:review` (below).
 
 | | |
 |---|---|
 | **Namespace** | `/ba:` |
-| **Commands** | `/ba:intake …` · `/ba:review [<scope-doc>] [out=<prefix>]` · `/ba:resolve <responses-file>` |
+| **Commands** | `/ba:scope …` · `/ba:review [<scope-doc>] [out=<prefix>]` · `/ba:resolve <responses-file>` |
 | **Review input** | A scope document (`.md`, `.docx`, `.pdf`) — defaults to `ba-output/scope.md` — plus the scope knowledge base (registers, examples, shared-context) when a workspace exists |
 | **Review output** | `ba-output/scope-reviews/scope-review-<timestamp>.{html, md, json}` — interactive dashboard + Markdown artifact + data sidecar |
-| **Skills** | `ba-classification` · `ba-extraction` (intake) · `ba-scope-review` (review) |
+| **Skills** | `ba-classification` · `ba-extraction` (scope build) · `ba-scope-review` (review) |
 
 ---
 
@@ -83,7 +103,7 @@ Installation and workspace setup are shared across all Delivery OS plugins — s
 
 A workspace is **recommended but optional** for `/ba:review`:
 
-| | With a workspace (`init` + `/ba:intake` were run) | Standalone (no workspace) |
+| | With a workspace (`init` + `/ba:scope` were run) | Standalone (no workspace) |
 |---|---|---|
 | **Default input** | `ba-output/scope.md` if you give no path | you must point it at a scope file |
 | **Knowledge base** | also reads `example-register.md` + the other registers, `clarification-log.md`, `contradiction-log.md`, `shared-context/` — so it can validate against examples and detect register↔scope drift | reviews only the document you point it at; example-compliance is limited to what's in that file |
@@ -181,7 +201,7 @@ A review *raises* scope questions; the loop *closes* them — and, uniquely for 
 
 ## How it fits Delivery OS
 
-The scope review is the BA reviewing **its own deliverable** before handoff — distinct from the TL agent's `tl-spec-review`, which is a *technical* review of a spec/architecture and consumes `ba-output/scope.md` as input. The review writes only to `ba-output/scope-reviews/` (and, on resolve, the registers/decision-log it promotes into); it never silently edits the living scope — it *recommends* the exact edits, which a subsequent `/ba:intake` or a manual edit applies. All outputs carry standard frontmatter (`doc_type: scope-review`, `produced_by: ba`).
+The scope review is the BA reviewing **its own deliverable** before handoff — distinct from the TL agent's `tl-spec-review`, which is a *technical* review of a spec/architecture and consumes `ba-output/scope.md` as input. The review writes only to `ba-output/scope-reviews/` (and, on resolve, the registers/decision-log it promotes into); it never silently edits the living scope — it *recommends* the exact edits, which a subsequent `/ba:scope` or a manual edit applies. All outputs carry standard frontmatter (`doc_type: scope-review`, `produced_by: ba`).
 
 See the shared [`delivery-os-conventions`](../delivery-os-core/skills/delivery-os-conventions/SKILL.md) skill for the full document contract.
 
@@ -189,7 +209,7 @@ See the shared [`delivery-os-conventions`](../delivery-os-core/skills/delivery-o
 
 ## FAQ
 
-**Does it need a scope produced by `/ba:intake`?** No — it'll review any scope file you point it at. But inside a workspace it's much stronger, because it can validate against the client's `example-register` and detect drift between the registers and the scope.
+**Does it need a scope produced by `/ba:scope`?** No — it'll review any scope file you point it at. But inside a workspace it's much stronger, because it can validate against the client's `example-register` and detect drift between the registers and the scope.
 
 **What if there's no example-register?** It still reviews coverage, but says so — a scope with no examples to validate against is itself a noted limitation (you're validating against air).
 

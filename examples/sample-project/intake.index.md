@@ -8,10 +8,10 @@ generated_at: 2026-06-18
 
 # Project Intake Index
 
-> Pre-registered sample workspace (new dynamic-intake model). The sources below are **referenced in place** under `./source-files/` — running `/ba:intake` will summarize them into `artifacts/` and build the scope. Originals are never copied or moved.
+> Pre-registered sample workspace (new dynamic-intake model). The sources below are **referenced in place** under `./source-files/` — running `/ba:scope` will summarize them into `artifacts/` and build the scope. Originals are never copied or moved.
 >
 > To test the conversational flow instead, start a fresh workspace with `/delivery-os:init` and run:
-> `/ba:intake add "requirements in ./source-files/client-requirements, transcripts in ./source-files/meeting-transcripts, invoice archive in ./source-files/sample-data for reference only"`
+> `/ba:scope add "requirements in ./source-files/client-requirements, transcripts in ./source-files/meeting-transcripts, invoice archive in ./source-files/sample-data for reference only"`
 
 ## Project
 - Client: Acme Components Ltd
