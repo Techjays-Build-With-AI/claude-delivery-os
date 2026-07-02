@@ -14,7 +14,7 @@
     {
       "name": "ba",
       "source": "./plugins/ba",
-      "description": "Business Analyst Agent — builds and continuously updates a living scope document from client material (folders/Google Drive), raises a client-ready questions list and folds answers back in, and runs a paranoid feature-by-feature scope review with a question-resolution loop. Provides /ba:scope, /ba:review, and /ba:resolve."
+      "description": "Business Analyst Agent — builds and continuously updates a living scope document from client material (folders/Google Drive), raises a client-ready questions list and folds answers back in, runs a paranoid feature-by-feature scope review with a question-resolution loop, and breaks an approved scope into an implementation-ready feature breakdown (a folder per feature plus a feature index under context/features/). Provides /ba:scope, /ba:review, /ba:resolve, and /ba:features."
     },
     {
       "name": "doc",
