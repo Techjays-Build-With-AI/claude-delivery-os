@@ -24,7 +24,7 @@
     {
       "name": "tl",
       "source": "./plugins/tl",
-      "description": "Technical Lead Agent — reviews technical specification documents for applied AI systems (architecture, system/feature flows, data schema, API contracts, libraries, AI observability/evals/feedback/compliance, infrastructure, CI/CD, release management, and cost projection), produces a scored interactive review report, and closes findings through a response/adjudication loop. Provides /tl:review and /tl:resolve."
+      "description": "Technical Lead Agent — authors and reviews technical design. Feature planning maps each BA feature to its frontend pages, backend endpoints, and database entities, reusing shared units and wiring them into a bidirectionally linked context graph under context/frontend|backend|database. Spec review scores technical specification documents for applied AI systems (architecture, system/feature flows, data schema, API contracts, libraries, AI observability/evals/feedback/compliance, infrastructure, CI/CD, release management, and cost projection) into an interactive report, and closes findings through a response/adjudication loop. Provides /tl:plan, /tl:review, and /tl:resolve."
     }
   ]
 }

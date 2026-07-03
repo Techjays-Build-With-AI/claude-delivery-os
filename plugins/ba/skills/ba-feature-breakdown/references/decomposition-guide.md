@@ -81,9 +81,9 @@ A feature can have a primary kind and a secondary one (an approval *workflow* wi
 **Rule 3 — Link, do not duplicate.** Reference pages, APIs, data entities, workflows, and integrations that live in other context files; don't copy their contracts or schemas into the feature folder once those files exist. For example:
 
 ```md
-Related Page:   ../../frontend/pages/suppliers/supplier-details.md
-Related API:    ../../backend/domains/suppliers/endpoints/create-supplier.md
-Related Entity: ../../data/tables/suppliers.md
+Related Page:   ../../frontend/pages/supplier/supplier-details.md
+Related API:    ../../backend/domains/supplier/endpoints/create-supplier.md
+Related Entity: ../../database/entities/suppliers.md
 ```
 
 **Rule 4 — Mark uncertainty explicitly.** Use the labels **Confirmed · Assumption · Open Question · Dependency · Risk · Out of Scope · Future Phase**. Never turn an assumption into a confirmed requirement.

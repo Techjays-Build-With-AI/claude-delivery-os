@@ -45,10 +45,25 @@ Every Delivery OS project lives under a **single named container folder** (so th
 │   ├── change-log.md
 │   └── intake-runs/
 │       └── run-001.md ...
+├── context/                     # shared implementation context (the whole build team reads)
+│   ├── features/                # BA feature breakdown (ba-feature-breakdown)
+│   │   ├── feature-index.md
+│   │   └── <feature-slug>/ …
+│   ├── frontend/                # TL feature planning (tl-feature-planning)
+│   │   ├── page-index.md
+│   │   └── pages/<area>/<page-slug>.md          # PAGE-<AREA>-NN
+│   ├── backend/
+│   │   ├── endpoint-index.md
+│   │   └── domains/<domain>/endpoints/<slug>.md # EP-<AREA>-NN
+│   └── database/
+│       ├── entity-index.md
+│       └── entities/<entity-slug>.md            # ENT-<AREA>-NN → DATA-###
 ├── doc-output/                  # Doc Agent outputs (Phase 2) — created on demand
 ├── tl-output/                   # TL Agent outputs (Phase 3) — created on demand
 └── final/                       # approved, client-facing deliverables
 ```
+
+The `context/` tree is the shared implementation-context layer, distinct from each agent's private `*-output/`. The BA writes `context/features/`; the TL's `tl-feature-planning` skill writes the `frontend/`, `backend/`, and `database/` sub-trees and links them into a bidirectional graph (page → endpoint → entity, and back). It is created on demand by the first skill that writes to it — `init` does not pre-make it.
 
 ### Output-folder creation rule
 `/delivery-os:init` seeds only the BA-phase essentials — `shared-context/` and `ba-output/` — because the Business Analyst runs immediately after init. Every **downstream** agent creates its own output folder the first time it produces something: `tl-output/` on the first `/tl:review`, `doc-output/` on the first Doc run, `qa-output/` later. This is deliberate — it keeps a fresh workspace minimal and avoids empty, speculative folders for agents a given project may never use. An agent must therefore create its output folder if absent, never assume `init` made it.
@@ -118,6 +133,12 @@ IDs are the threads that let one agent cite what another produced. They are **ap
 | Contradiction     | `CON`  | CON-001  | contradiction-log.md         |
 | Decision          | `DEC`  | DEC-001  | shared-context/decision-log.md |
 | Artifact source   | `SRC`  | SRC-001  | intake.index.md (registry)   |
+| Feature           | `FEAT-<AREA>` | FEAT-SUP-001 | context/features/ (ba)   |
+| Page              | `PAGE-<AREA>` | PAGE-SUP-01 | context/frontend/ (tl)    |
+| Endpoint          | `EP-<AREA>`   | EP-SUP-02   | context/backend/ (tl)     |
+| Entity            | `ENT-<AREA>`  | ENT-SUP-01  | context/database/ (tl) — realises a `DATA-###` |
+
+The `context/` graph IDs (`FEAT-`/`PAGE-`/`EP-`/`ENT-`) carry a short uppercase **area** token and a sequence within that area/layer (`PAGE-SUP-01`, `EP-SUP-02`). A database entity **cites the BA `DATA-###`** it realises rather than inventing a parallel data ID; likewise endpoints cite `INT-###` for integrations. Never mint a `context/` ID that shadows a BA register ID.
 
 IDs are zero-padded to 3 digits (functional-requirement `NN` is 2 digits within its module, per the scope template). Cross-references are written inline as the bare ID (e.g. "validated by EX-014" or "see WF-002").
 
@@ -172,6 +193,8 @@ All agents use these exact values — no synonyms.
 | `ba-output/requirement-register.md`  | ba          | doc, tl, qa        |
 | `ba-output/integration-register.md`  | ba          | tl                 |
 | `ba-output/data-register.md`         | ba          | tl                 |
+| `context/features/*`                 | ba          | tl, doc, qa        |
+| `context/frontend/*` `context/backend/*` `context/database/*` | tl (feature-planning) | tl (spec-review), doc, qa, coding |
 | `doc-output/*`                       | doc         | human, final       |
 | `tl-output/*`                        | tl          | human, delivery    |
 

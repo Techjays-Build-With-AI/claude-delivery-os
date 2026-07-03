@@ -1,14 +1,22 @@
-# TL Agent — Technical Specification Review
+# TL Agent — Technical Design Authoring & Specification Review
 
-The **Technical Lead Agent** reviews a technical specification for an applied AI system the way a seasoned TL would before a team commits engineering time and budget to building from it. It reads the whole document, scores it across the dimensions that decide build-readiness, and hands back a **scored, actionable review** — an interactive HTML report plus a Markdown artifact.
+The **Technical Lead Agent** does two jobs a seasoned TL does. It **authors** the technical design context a team builds from — mapping each BA feature to its pages, endpoints, and database entities and wiring them into a linked graph (`/tl:plan`) — and it **reviews** a technical specification for an applied AI system before a team commits engineering time and budget, handing back a **scored, actionable review** (`/tl:review`, `/tl:resolve`).
 
 | | |
 |---|---|
 | **Namespace** | `/tl:` |
-| **Commands** | `/tl:review <doc> [out=<prefix>]` · `/tl:resolve <responses-file>` |
-| **Input** | A tech spec / architecture / system-design / HLD / SRS document (`.md`, `.docx`, or `.pdf`) |
-| **Output** | `tl-output/spec-review-<timestamp>.{html, md, json}` — interactive report + Markdown artifact + data sidecar |
-| **Skill** | `tl-spec-review` |
+| **Commands** | `/tl:plan <feature-or-features>` · `/tl:review <doc> [out=<prefix>]` · `/tl:resolve <responses-file>` |
+| **Input** | Feature planning: the BA feature breakdown under `context/features/`. Spec review: a tech spec / architecture / system-design / HLD / SRS document (`.md`, `.docx`, or `.pdf`) |
+| **Output** | Feature planning: the linked `context/frontend|backend|database` graph + three indexes. Spec review: `tl-output/spec-review-<timestamp>.{html, md, json}` |
+| **Skills** | `tl-feature-planning` · `tl-spec-review` |
+
+---
+
+## Feature planning (`/tl:plan`)
+
+Point it at one feature folder or the whole `context/features/` set. For each feature it maps the pages/APIs/data-entities the BA declared into real, linked unit files: **pages** (`context/frontend/pages/`), **endpoints** (`context/backend/domains/`), and **entities** (`context/database/entities/`). It **reuses** a unit and adds a back-link where its match key already exists (page route, endpoint `METHOD + path`, entity object name), and creates it — minting the next `PAGE-`/`EP-`/`ENT-<AREA>-NN` — where it doesn't, so shared units live once with many links rather than duplicated per feature.
+
+The result is a **bidirectional graph**: a page links to the endpoints it consumes, an endpoint to its callers and the entities it touches, an entity back to its consuming endpoints and to the BA `DATA-###` it realises. Database entities cite the BA data-register (not a parallel ID space), material design decisions are logged as `DEC-###`, genuine unknowns become open questions rather than invented contracts, and a **link-integrity check** flags any dangling reference, uncalled endpoint, or orphan entity. Backend-only features (jobs, events, webhooks, integrations) enter at endpoints, skipping the page layer.
 
 ---
 

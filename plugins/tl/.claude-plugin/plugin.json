@@ -1,10 +1,10 @@
 {
   "name": "tl",
   "version": "0.1.0",
-  "description": "Technical Lead Agent for Techjays Delivery OS. Reviews technical specification documents for applied AI systems — architecture and system design, feature/system sequence flows, data schema, API contracts, libraries; the applied-AI engineering concerns (observability, traceability, evals, feedback loops, compliance) when an LLM is involved; and delivery concerns (infrastructure, CI/CD, release management, and running-cost projection). Produces a scored, interactive review report, then closes findings through a response/adjudication loop. Provides /tl:review and /tl:resolve.",
+  "description": "Technical Lead Agent for Techjays Delivery OS. Authors and reviews technical design. Feature planning (/tl:plan) turns a BA feature breakdown into a linked technical context graph — mapping each feature to its frontend pages, backend endpoints, and database entities, reusing shared units and wiring them bidirectionally under context/frontend|backend|database. Spec review (/tl:review, /tl:resolve) reviews technical specification documents for applied AI systems — architecture and system design, feature/system sequence flows, data schema, API contracts, libraries; applied-AI concerns (observability, traceability, evals, feedback loops, compliance) when an LLM is involved; and delivery concerns (infrastructure, CI/CD, release management, running-cost projection) — producing a scored, interactive review report and closing findings through a response/adjudication loop.",
   "author": {
     "name": "Techjays",
     "email": "delivery@techjays.com"
   },
-  "keywords": ["technical-lead", "spec-review", "architecture", "applied-ai", "llm", "cost-projection"]
+  "keywords": ["technical-lead", "feature-planning", "context-graph", "spec-review", "architecture", "applied-ai", "llm", "cost-projection"]
 }

@@ -147,7 +147,7 @@ The current process requires operations teams to manually gather supplier inform
 ```
 
 Notes:
-- **Related APIs / Pages / Data Entities / Integrations** are *expectations implied by the scope*, not confirmed contracts. Where a context file already defines the real thing, link to it instead (Rule 3), e.g. `../../backend/domains/suppliers/endpoints/create-supplier.md`.
+- **Related APIs / Pages / Data Entities / Integrations** are *expectations implied by the scope*, not confirmed contracts. Where a context file already defines the real thing, link to it instead (Rule 3), e.g. `../../backend/domains/supplier/endpoints/create-supplier.md` — the units the TL's `tl-feature-planning` skill creates.
 - **Open Questions** here is a human-readable summary; the authoritative, owned list is `open-questions.md`.
 - **Source References** are required — every feature must trace to a scope §, a register ID, and/or a `[SRC-### › original]` citation.
 
