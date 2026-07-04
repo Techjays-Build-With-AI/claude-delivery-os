@@ -25,6 +25,11 @@
       "name": "tl",
       "source": "./plugins/tl",
       "description": "Technical Lead Agent — authors and reviews technical design. Feature planning maps each BA feature to its frontend pages, backend endpoints, and database entities, reusing shared units and wiring them into a bidirectionally linked context graph under context/frontend|backend|database. Spec review scores technical specification documents for applied AI systems (architecture, system/feature flows, data schema, API contracts, libraries, AI observability/evals/feedback/compliance, infrastructure, CI/CD, release management, and cost projection) into an interactive report, and closes findings through a response/adjudication loop. Provides /tl:plan, /tl:review, and /tl:resolve."
+    },
+    {
+      "name": "dev",
+      "source": "./plugins/dev",
+      "description": "Developer Agent — takes an approved, TL-planned feature and builds it through a controlled, state-driven delivery loop. It reads the BA feature breakdown (context/features) and the TL technical context graph (context/frontend|backend|database), validates feature readiness, analyses code-level impact, writes a technical plan, implements scoped changes with tests in an isolated branch/worktree, runs the validation suite and maps results to acceptance criteria, repairs actionable failures within bounded retry limits, self-reviews for quality and security, moves the feature through an explicit state model, updates delivery status and a cross-feature tracker, and prepares a pull-request handoff for human review. It escalates business, architecture, schema, security, dependency, and scope blockers instead of guessing, and never merges, deploys, modifies secrets, or expands scope without human approval. Provides /dev:build, /dev:validate, /dev:fix-review, and /dev:pr."
     }
   ]
 }

@@ -139,7 +139,7 @@
     <p>An internal Claude Code plugin marketplace that standardizes how we run delivery — from raw client inputs to structured, reviewed delivery documents. Install it once, then run the agents you need.</p>
     <div class="badges">
       <span class="badge">Marketplace: techjays-delivery-os</span>
-      <span class="badge">delivery-os · ba · tl</span>
+      <span class="badge">delivery-os · ba · doc · tl · dev</span>
       <span class="badge">Runs in Claude Code</span>
     </div>
   </div>
@@ -152,6 +152,7 @@
     <button class="tab-btn" role="tab" aria-selected="false" data-tab="ba">BA Agent <span class="ns">/ba</span></button>
     <button class="tab-btn" role="tab" aria-selected="false" data-tab="doc">Doc Agent <span class="ns">/doc</span></button>
     <button class="tab-btn" role="tab" aria-selected="false" data-tab="tl">TL Agent <span class="ns">/tl</span></button>
+    <button class="tab-btn" role="tab" aria-selected="false" data-tab="dev">Dev Agent <span class="ns">/dev</span></button>
     <button class="tab-btn" role="tab" aria-selected="false" data-tab="next">What's Next</button>
   </nav>
 </div>
@@ -170,7 +171,8 @@
         <tr><td><b>delivery-os</b> (core)</td><td><code>/delivery-os:</code></td><td><span class="pill-tag tag-mvp">MVP</span></td><td>Project scaffolding, the cross-agent document contract, shared vocabulary, templates. <b>Install first.</b></td></tr>
         <tr><td><b>ba</b></td><td><code>/ba:</code></td><td><span class="pill-tag tag-mvp">MVP</span></td><td>Business Analyst — builds &amp; maintains the living scope, plus a paranoid scope review.</td></tr>
         <tr><td><b>doc</b></td><td><code>/doc:</code></td><td><span class="pill-tag tag-mvp">MVP</span></td><td>Documentation — standardized client artifacts: the client proposal, the magic board (Miro-style walkthrough), and the workflow document (phased swimlane).</td></tr>
-        <tr><td><b>tl</b></td><td><code>/tl:</code></td><td><span class="pill-tag tag-mvp">MVP</span></td><td>Technical Lead — scored technical-spec review for applied-AI systems.</td></tr>
+        <tr><td><b>tl</b></td><td><code>/tl:</code></td><td><span class="pill-tag tag-mvp">MVP</span></td><td>Technical Lead — feature planning into a technical context graph, plus scored technical-spec review for applied-AI systems.</td></tr>
+        <tr><td><b>dev</b></td><td><code>/dev:</code></td><td><span class="pill-tag tag-mvp">MVP</span></td><td>Developer — builds an approved feature through a state-driven delivery loop: implement, validate against acceptance criteria, fix, track, and prepare a PR handoff.</td></tr>
         <tr><td><b>qa</b></td><td><code>/qa:</code></td><td><span class="pill-tag tag-soon">Soon</span></td><td>QA agent — later phase.</td></tr>
       </tbody>
     </table>
@@ -189,7 +191,8 @@
     <div class="code"><button class="copy">Copy</button><pre><code>/plugin install delivery-os@techjays-delivery-os
 /plugin install ba@techjays-delivery-os
 /plugin install doc@techjays-delivery-os
-/plugin install tl@techjays-delivery-os</code></pre></div>
+/plugin install tl@techjays-delivery-os
+/plugin install dev@techjays-delivery-os</code></pre></div>
 
     <h3 class="step"><span class="stepnum">3</span> Verify</h3>
     <p>Reload if prompted, then run <code>/help</code>. You should see the new commands:</p>
@@ -201,8 +204,13 @@
       <span class="cmd-pill">/doc:proposal</span>
       <span class="cmd-pill">/doc:magic-board</span>
       <span class="cmd-pill">/doc:workflow</span>
+      <span class="cmd-pill">/tl:plan</span>
       <span class="cmd-pill">/tl:review</span>
       <span class="cmd-pill">/tl:resolve</span>
+      <span class="cmd-pill">/dev:build</span>
+      <span class="cmd-pill">/dev:validate</span>
+      <span class="cmd-pill">/dev:fix-review</span>
+      <span class="cmd-pill">/dev:pr</span>
     </div>
 
     <h3 class="step"><span class="stepnum">4</span> Keep it up to date</h3>
@@ -410,19 +418,212 @@
     <div class="note tip"><b>Standalone or workspace:</b> with a Delivery OS workspace it also reads <code>ba-output/scope.md</code> and <code>shared-context/</code> for grounding; without one it writes the report beside the reviewed document.</div>
   </section>
 
+  <!-- ============ DEV AGENT ============ -->
+  <section class="panel" id="dev" role="tabpanel">
+    <h2 class="section">Dev Agent — <code>/dev</code></h2>
+    <p class="lead">The Developer agent takes an approved, TL-planned feature and <b>builds it</b> — through a controlled, state-driven loop rather than a one-shot code dump. It reads the BA feature context and the TL technical graph, validates readiness, plans, implements in an isolated branch, validates against the acceptance criteria, repairs actionable failures within retry limits, tracks state, and prepares a pull-request handoff. It escalates ambiguity, risk, and scope decisions instead of guessing, and it <b>never merges or deploys</b>.</p>
+
+    <h4 class="sub">Commands</h4>
+    <div class="cmds">
+      <span class="cmd-pill">/dev:build</span>
+      <span class="cmd-pill">/dev:validate</span>
+      <span class="cmd-pill">/dev:fix-review</span>
+      <span class="cmd-pill">/dev:pr</span>
+    </div>
+
+    <div class="note warn"><b>Needs the BA breakdown; plans TL for you.</b> The dev agent consumes the BA feature breakdown (<code>/ba:features</code>), so that must exist. TL planning is automatic: <code>/dev:build</code> opens with a <b>planning gate</b> that checks whether the feature is already split into pages/endpoints/entities and, if not, auto-plans it via <code>tl-feature-planning</code> before building. Run <code>/tl:plan</code> yourself first only if you want to review the technical design before any code is written.</div>
+
+    <h3 class="step" style="margin-top:26px">Build a feature — <code>/dev:build</code></h3>
+    <p>Pass a feature id/folder, or leave it blank to pick the next feature at <code>READY_FOR_DEV</code>. It runs the full loop and stops at <code>HUMAN_REVIEW</code> (or <code>BLOCKED</code>).</p>
+    <div class="code"><button class="copy">Copy</button><pre><code><span class="cmt"># build one feature end to end</span>
+/dev:build FEAT-SUP-001
+
+<span class="cmt"># or let it pick the next ready feature, against a specific repo</span>
+/dev:build repo=D:\acme\supplier-platform</code></pre></div>
+
+    <h4 class="sub">The loop it runs</h4>
+    <div class="code"><button class="copy">Copy</button><pre><code>Select feature (or next READY_FOR_DEV) → acquire lock
+→ Read BA + TL context, summarise → Validate readiness (gate)
+→ Analyse code-level impact → Write the technical plan
+→ Create isolated branch/worktree → Implement (scoped, with tests)
+→ Validate suite → Map results to acceptance criteria
+→ Repair actionable failures (bounded) → Self-review + security pass
+→ Update delivery status + feature tracker → Prepare PR handoff
+→ Hand off for HUMAN_REVIEW   (never merges or deploys)</code></pre></div>
+
+    <div class="grid">
+      <div class="mini"><h4>Real execution</h4><p>Creates the <code>feature/FEAT-…</code> branch, edits code, and runs lint/type/test/build in the shell against the real repo.</p></div>
+      <div class="mini"><h4>Acceptance = done</h4><p>Completion is a filled <b>acceptance map</b> — every criterion tied to a validation method and an evidence artifact. A green unit run alone is not enough.</p></div>
+      <div class="mini"><h4>Bounded repair loop</h4><p>3 focused fixes per failure, 2 broad validation cycles, 2 plans per feature — then it escalates instead of retrying blindly.</p></div>
+      <div class="mini"><h4>Escalates, never guesses</h4><p>Ambiguous rules, schema/data-loss risk, unclear authz, unavailable dependencies, and security concerns become a structured, decision-ready note.</p></div>
+    </div>
+
+    <h4 class="sub">The state model</h4>
+    <p>Each feature moves through explicit states — the fine-grained state lives in <code>dev/delivery-status.md</code> and is mirrored into the BA <code>feature-index.md</code>/<code>status.md</code>:</p>
+    <div class="code"><button class="copy">Copy</button><pre><code>BACKLOG → READY_FOR_DEV → IN_PLANNING → BLOCKED → IN_DEVELOPMENT
+        → TESTING → REVIEW_FIXES → READY_FOR_PR → HUMAN_REVIEW
+        → APPROVED → MERGED → RELEASED</code></pre></div>
+    <div class="note"><b>It stops at <code>HUMAN_REVIEW</code>.</b> The agent owns every transition up to the handoff; <code>APPROVED</code> / <code>MERGED</code> / <code>RELEASED</code> are human- or deploy-owned and it only records them. It never merges, deploys, deletes production data, modifies secrets, disables a security control, or expands scope without approval.</div>
+
+    <h3 class="step">Validate only — <code>/dev:validate</code></h3>
+    <p>Run the checks (lint, type, unit, integration, API-contract, build, migration, security, e2e) and map each result to the feature's acceptance criteria — no code changes.</p>
+    <div class="code"><button class="copy">Copy</button><pre><code>/dev:validate FEAT-SUP-001</code></pre></div>
+    <p>Reports the acceptance pass/fail table and flags each failure as <b>actionable</b> (fix via <code>/dev:build</code>) or <b>blocking</b> (escalate). Output lands in <code>context/features/&lt;slug&gt;/dev/acceptance-map.md</code>.</p>
+
+    <h3 class="step">Fold in review feedback — <code>/dev:fix-review</code></h3>
+    <p>Re-enters the loop at the review-fixes step with the reviewer's comments as the failure set, addresses actionable ones within the retry limits, re-validates, and refreshes the PR summary. Comments needing a product/architecture/security decision are escalated.</p>
+    <div class="code"><button class="copy">Copy</button><pre><code>/dev:fix-review FEAT-SUP-001 feedback=D:\acme\pr-42-comments.md</code></pre></div>
+
+    <h3 class="step">Prepare the PR handoff — <code>/dev:pr</code></h3>
+    <p>For a feature that's implemented and validated: verifies the completion criteria, then writes a review-ready summary (purpose, scope, technical approach, affected pages/APIs/services, tests run, acceptance status, risks, follow-ups, reviewer instructions) and moves the feature to <code>HUMAN_REVIEW</code>.</p>
+    <div class="code"><button class="copy">Copy</button><pre><code>/dev:pr FEAT-SUP-001</code></pre></div>
+    <div class="note tip"><b>Completion gate:</b> if a mandatory criterion isn't met (acceptance criteria not validated, tests/build failing, an unresolved blocker), it won't write a hopeful summary — it reports exactly what's missing and points you back to <code>/dev:build</code>.</div>
+
+    <h4 class="sub">What it writes (per feature)</h4>
+    <p>Alongside the BA's files, under a <code>dev/</code> subfolder so nothing collides — plus a cross-feature <code>dev-output/feature-tracker.md</code>:</p>
+    <table class="tbl">
+      <thead><tr><th>File</th><th>What</th></tr></thead>
+      <tbody>
+        <tr><td><code>dev/dev-plan.md</code></td><td>Technical implementation plan — ordered steps, files, API/schema changes, test strategy, rollback, risks</td></tr>
+        <tr><td><code>dev/impacted-components.md</code></td><td>Concrete code-level impact across 12 dimensions (frontend, backend, DB/migrations, authz, integrations, jobs, notifications, monitoring, tests, docs, flags, analytics)</td></tr>
+        <tr><td><code>dev/acceptance-map.md</code></td><td>Each acceptance criterion → validation method → result → evidence</td></tr>
+        <tr><td><code>dev/implementation-log.md</code></td><td>Dated log of steps, validation results, failures, repair attempts</td></tr>
+        <tr><td><code>dev/delivery-status.md</code></td><td>Loop state, owner lock, branch, validation status, blocker, next action</td></tr>
+        <tr><td><code>dev/decisions.md</code></td><td>Technical decisions (also appended as <code>DEC-###</code> to the shared decision-log)</td></tr>
+        <tr><td><code>dev/pr-summary.md</code></td><td>The review-ready PR handoff</td></tr>
+        <tr><td><code>dev/escalation-&lt;n&gt;.md</code></td><td>A structured blocker note when the feature goes <code>BLOCKED</code></td></tr>
+      </tbody>
+    </table>
+
+    <div class="note"><b>How it fits Delivery OS:</b> the dev agent is a <b>consumer</b> — it reads the BA feature folders, the TL <code>context/frontend|backend|database</code> graph, <code>shared-context/</code>, and the BA registers, and never re-runs BA discovery or TL planning. It writes <code>produced_by: dev</code> files and mirrors feature state into the BA index using the shared vocabulary. Full guide: <code>plugins/dev/dev_readme.md</code>.</div>
+  </section>
+
   <!-- ============ NEXT ============ -->
   <section class="panel" id="next" role="tabpanel">
     <h2 class="section">What's next</h2>
-    <p class="lead">Delivery OS is built in phases. The core, BA, and TL agents are live; these are on the roadmap.</p>
+    <p class="lead">Delivery OS is built in phases. The core, BA, Doc, TL, and Dev agents are live; these are on the roadmap.</p>
     <div class="grid">
-      <div class="mini"><h4>Doc Agent <span class="pill-tag tag-mvp">Proposal live</span></h4><p>The client proposal ships now (<code>/doc:proposal</code>). Next on the same standard: workflow/architecture documents, walkthrough boards, executive summary, SRS, SoW.</p></div>
-      <div class="mini"><h4>QA Agent <span class="pill-tag tag-soon">Soon</span></h4><p>Test strategy and quality validation over the delivery documents.</p></div>
+      <div class="mini"><h4>Doc Agent <span class="pill-tag tag-mvp">Proposal live</span></h4><p>The client proposal, magic board, and workflow document ship now. Next on the same standard: executive summary, SRS, SoW.</p></div>
+      <div class="mini"><h4>Dev Agent <span class="pill-tag tag-mvp">Live</span></h4><p>The feature delivery loop ships now (<code>/dev:build</code>). Next: parallel sub-agent execution, automated worktree management, and GitHub PR/CI integration.</p></div>
+      <div class="mini"><h4>QA Agent <span class="pill-tag tag-soon">Soon</span></h4><p>Test strategy and quality validation over the delivery documents and the delivered features.</p></div>
     </div>
-    <div class="note">All agents share the same <b>document contract</b>, so each new agent consumes the previous one's output without re-doing the analysis. When Doc and QA land, they'll appear as new tabs here with their own commands.</div>
+    <div class="note">All agents share the same <b>document contract</b>, so each new agent consumes the previous one's output without re-doing the analysis. When QA lands, it'll appear as a new tab here with its own commands.</div>
     <h4 class="sub">Resources</h4>
     <ul class="clean">
       <li>Repo: <code>Techjays-Build-With-AI/claude-delivery-os</code></li>
-      <li>BA guide: <code>plugins/ba/ba_readme.md</code> · TL guide: <code>plugins/tl/tl_readme.md</code></li>
+      <li>BA guide: <code>plugins/ba/ba_readme.md</code> · Doc guide: <code>plugins/doc/doc_readme.md</code> · TL guide: <code>plugins/tl/tl_readme.md</code> · Dev guide: <code>plugins/dev/dev_readme.md</code></li>
+      <li>Document contract: <code>plugins/delivery-os-core/skills/delivery-os-conventions/</code></li>
+    </ul>
+  </section>
+
+</main>
+
+<footer>
+  Techjays Delivery OS · Get Started guide · runs in Claude Code
+</footer>
+
+<script>
+(function () {
+  "use strict";
+  // Tabs
+  var btns = Array.prototype.slice.call(document.querySelectorAll(".tab-btn"));
+  var panels = Array.prototype.slice.call(document.querySelectorAll(".panel"));
+  function show(id) {
+    btns.forEach(function (b) { b.setAttribute("aria-selected", b.dataset.tab === id ? "true" : "false"); });
+    panels.forEach(function (p) { p.classList.toggle("active", p.id === id); });
+    if (history.replaceState) history.replaceState(null, "", "#" + id);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+  btns.forEach(function (b) { b.addEventListener("click", function () { show(b.dataset.tab); }); });
+  var initial = (location.hash || "").replace("#", "");
+  if (initial && document.getElementById(initial)) show(initial);
+
+  // Copy buttons
+  document.querySelectorAll(".code .copy").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var code = btn.parentNode.querySelector("pre").innerText;
+      navigator.clipboard.writeText(code).then(function () {
+        btn.textContent = "Copied"; btn.classList.add("done");
+        setTimeout(function () { btn.textContent = "Copy"; btn.classList.remove("done"); }, 1600);
+      }).catch(function () {
+        btn.textContent = "Press Ctrl+C";
+        setTimeout(function () { btn.textContent = "Copy"; }, 1600);
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>V) → acquire lock
+→ Read BA + TL context, summarise → Validate readiness (gate)
+→ Analyse code-level impact → Write the technical plan
+→ Create isolated branch/worktree → Implement (scoped, with tests)
+→ Validate suite → Map results to acceptance criteria
+→ Repair actionable failures (bounded) → Self-review + security pass
+→ Update delivery status + feature tracker → Prepare PR handoff
+→ Hand off for HUMAN_REVIEW   (never merges or deploys)</code></pre></div>
+
+    <div class="grid">
+      <div class="mini"><h4>Real execution</h4><p>Creates the <code>feature/FEAT-…</code> branch, edits code, and runs lint/type/test/build in the shell against the real repo.</p></div>
+      <div class="mini"><h4>Acceptance = done</h4><p>Completion is a filled <b>acceptance map</b> — every criterion tied to a validation method and an evidence artifact. A green unit run alone is not enough.</p></div>
+      <div class="mini"><h4>Bounded repair loop</h4><p>3 focused fixes per failure, 2 broad validation cycles, 2 plans per feature — then it escalates instead of retrying blindly.</p></div>
+      <div class="mini"><h4>Escalates, never guesses</h4><p>Ambiguous rules, schema/data-loss risk, unclear authz, unavailable dependencies, and security concerns become a structured, decision-ready note.</p></div>
+    </div>
+
+    <h4 class="sub">The state model</h4>
+    <p>Each feature moves through explicit states — the fine-grained state lives in <code>dev/delivery-status.md</code> and is mirrored into the BA <code>feature-index.md</code>/<code>status.md</code>:</p>
+    <div class="code"><button class="copy">Copy</button><pre><code>BACKLOG → READY_FOR_DEV → IN_PLANNING → BLOCKED → IN_DEVELOPMENT
+        → TESTING → REVIEW_FIXES → READY_FOR_PR → HUMAN_REVIEW
+        → APPROVED → MERGED → RELEASED</code></pre></div>
+    <div class="note"><b>It stops at <code>HUMAN_REVIEW</code>.</b> The agent owns every transition up to the handoff; <code>APPROVED</code> / <code>MERGED</code> / <code>RELEASED</code> are human- or deploy-owned and it only records them. It never merges, deploys, deletes production data, modifies secrets, disables a security control, or expands scope without approval.</div>
+
+    <h3 class="step">Validate only — <code>/dev:validate</code></h3>
+    <p>Run the checks (lint, type, unit, integration, API-contract, build, migration, security, e2e) and map each result to the feature's acceptance criteria — no code changes.</p>
+    <div class="code"><button class="copy">Copy</button><pre><code>/dev:validate FEAT-SUP-001</code></pre></div>
+    <p>Reports the acceptance pass/fail table and flags each failure as <b>actionable</b> (fix via <code>/dev:build</code>) or <b>blocking</b> (escalate). Output lands in <code>context/features/&lt;slug&gt;/dev/acceptance-map.md</code>.</p>
+
+    <h3 class="step">Fold in review feedback — <code>/dev:fix-review</code></h3>
+    <p>Re-enters the loop at the review-fixes step with the reviewer's comments as the failure set, addresses actionable ones within the retry limits, re-validates, and refreshes the PR summary. Comments needing a product/architecture/security decision are escalated.</p>
+    <div class="code"><button class="copy">Copy</button><pre><code>/dev:fix-review FEAT-SUP-001 feedback=D:\acme\pr-42-comments.md</code></pre></div>
+
+    <h3 class="step">Prepare the PR handoff — <code>/dev:pr</code></h3>
+    <p>For a feature that's implemented and validated: verifies the completion criteria, then writes a review-ready summary (purpose, scope, technical approach, affected pages/APIs/services, tests run, acceptance status, risks, follow-ups, reviewer instructions) and moves the feature to <code>HUMAN_REVIEW</code>.</p>
+    <div class="code"><button class="copy">Copy</button><pre><code>/dev:pr FEAT-SUP-001</code></pre></div>
+    <div class="note tip"><b>Completion gate:</b> if a mandatory criterion isn't met (acceptance criteria not validated, tests/build failing, an unresolved blocker), it won't write a hopeful summary — it reports exactly what's missing and points you back to <code>/dev:build</code>.</div>
+
+    <h4 class="sub">What it writes (per feature)</h4>
+    <p>Alongside the BA's files, under a <code>dev/</code> subfolder so nothing collides — plus a cross-feature <code>dev-output/feature-tracker.md</code>:</p>
+    <table class="tbl">
+      <thead><tr><th>File</th><th>What</th></tr></thead>
+      <tbody>
+        <tr><td><code>dev/dev-plan.md</code></td><td>Technical implementation plan — ordered steps, files, API/schema changes, test strategy, rollback, risks</td></tr>
+        <tr><td><code>dev/impacted-components.md</code></td><td>Concrete code-level impact across 12 dimensions (frontend, backend, DB/migrations, authz, integrations, jobs, notifications, monitoring, tests, docs, flags, analytics)</td></tr>
+        <tr><td><code>dev/acceptance-map.md</code></td><td>Each acceptance criterion → validation method → result → evidence</td></tr>
+        <tr><td><code>dev/implementation-log.md</code></td><td>Dated log of steps, validation results, failures, repair attempts</td></tr>
+        <tr><td><code>dev/delivery-status.md</code></td><td>Loop state, owner lock, branch, validation status, blocker, next action</td></tr>
+        <tr><td><code>dev/decisions.md</code></td><td>Technical decisions (also appended as <code>DEC-###</code> to the shared decision-log)</td></tr>
+        <tr><td><code>dev/pr-summary.md</code></td><td>The review-ready PR handoff</td></tr>
+        <tr><td><code>dev/escalation-&lt;n&gt;.md</code></td><td>A structured blocker note when the feature goes <code>BLOCKED</code></td></tr>
+      </tbody>
+    </table>
+
+    <div class="note"><b>How it fits Delivery OS:</b> the dev agent is a <b>consumer</b> — it reads the BA feature folders, the TL <code>context/frontend|backend|database</code> graph, <code>shared-context/</code>, and the BA registers, and never re-runs BA discovery or TL planning. It writes <code>produced_by: dev</code> files and mirrors feature state into the BA index using the shared vocabulary. Full guide: <code>plugins/dev/dev_readme.md</code>.</div>
+  </section>
+
+  <!-- ============ NEXT ============ -->
+  <section class="panel" id="next" role="tabpanel">
+    <h2 class="section">What's next</h2>
+    <p class="lead">Delivery OS is built in phases. The core, BA, Doc, TL, and Dev agents are live; these are on the roadmap.</p>
+    <div class="grid">
+      <div class="mini"><h4>Doc Agent <span class="pill-tag tag-mvp">Proposal live</span></h4><p>The client proposal, magic board, and workflow document ship now. Next on the same standard: executive summary, SRS, SoW.</p></div>
+      <div class="mini"><h4>Dev Agent <span class="pill-tag tag-mvp">Live</span></h4><p>The feature delivery loop ships now (<code>/dev:build</code>). Next: parallel sub-agent execution, automated worktree management, and GitHub PR/CI integration.</p></div>
+      <div class="mini"><h4>QA Agent <span class="pill-tag tag-soon">Soon</span></h4><p>Test strategy and quality validation over the delivery documents and the delivered features.</p></div>
+    </div>
+    <div class="note">All agents share the same <b>document contract</b>, so each new agent consumes the previous one's output without re-doing the analysis. When QA lands, it'll appear as a new tab here with its own commands.</div>
+    <h4 class="sub">Resources</h4>
+    <ul class="clean">
+      <li>Repo: <code>Techjays-Build-With-AI/claude-delivery-os</code></li>
+      <li>BA guide: <code>plugins/ba/ba_readme.md</code> · Doc guide: <code>plugins/doc/doc_readme.md</code> · TL guide: <code>plugins/tl/tl_readme.md</code> · Dev guide: <code>plugins/dev/dev_readme.md</code></li>
       <li>Document contract: <code>plugins/delivery-os-core/skills/delivery-os-conventions/</code></li>
     </ul>
   </section>
