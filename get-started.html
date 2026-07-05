@@ -139,7 +139,7 @@
     <p>An internal Claude Code plugin marketplace that standardizes how we run delivery — from raw client inputs to structured, reviewed delivery documents. Install it once, then run the agents you need.</p>
     <div class="badges">
       <span class="badge">Marketplace: techjays-delivery-os</span>
-      <span class="badge">delivery-os · ba · doc · tl · dev</span>
+      <span class="badge">delivery-os · ba · dev · qa · tl · doc</span>
       <span class="badge">Runs in Claude Code</span>
     </div>
   </div>
@@ -148,11 +148,13 @@
 <div class="tabbar-wrap">
   <nav class="tabbar" role="tablist" aria-label="Sections">
     <button class="tab-btn" role="tab" aria-selected="true"  data-tab="general">Get Started</button>
+    <button class="tab-btn" role="tab" aria-selected="false" data-tab="how">How It Works</button>
     <button class="tab-btn" role="tab" aria-selected="false" data-tab="core">Core <span class="ns">/delivery-os</span></button>
     <button class="tab-btn" role="tab" aria-selected="false" data-tab="ba">BA Agent <span class="ns">/ba</span></button>
-    <button class="tab-btn" role="tab" aria-selected="false" data-tab="doc">Doc Agent <span class="ns">/doc</span></button>
-    <button class="tab-btn" role="tab" aria-selected="false" data-tab="tl">TL Agent <span class="ns">/tl</span></button>
     <button class="tab-btn" role="tab" aria-selected="false" data-tab="dev">Dev Agent <span class="ns">/dev</span></button>
+    <button class="tab-btn" role="tab" aria-selected="false" data-tab="qa">QA Agent <span class="ns">/qa</span></button>
+    <button class="tab-btn" role="tab" aria-selected="false" data-tab="tl">TL Agent <span class="ns">/tl</span></button>
+    <button class="tab-btn" role="tab" aria-selected="false" data-tab="doc">Doc Agent <span class="ns">/doc</span></button>
     <button class="tab-btn" role="tab" aria-selected="false" data-tab="next">What's Next</button>
   </nav>
 </div>
@@ -162,18 +164,19 @@
   <!-- ============ GENERAL ============ -->
   <section class="panel active" id="general" role="tabpanel">
     <h2 class="section">Get started</h2>
-    <p class="lead">Everything ships as one marketplace. You add the marketplace once (from GitHub or a local folder), install the plugins, and you're ready. Each agent lives under its own command namespace, so you get exact commands like <code>/ba:scope</code>, <code>/tl:review</code>, and <code>/delivery-os:init</code>.</p>
+    <p class="lead">Everything ships as one marketplace. You add the marketplace once (from GitHub or a local folder), install the plugins, and you're ready. Each agent lives under its own command namespace, so you get exact commands like <code>/ba:scope</code>, <code>/dev:build</code>, and <code>/qa:audit</code>.</p>
 
     <h4 class="sub">The plugins at a glance</h4>
+    <p>Listed in the delivery order the tabs follow: scope it (BA), build it (Dev), make it verifiable (QA), design &amp; review it (TL), and present it (Doc).</p>
     <table class="tbl">
       <thead><tr><th>Plugin</th><th>Namespace</th><th>Status</th><th>What it provides</th></tr></thead>
       <tbody>
         <tr><td><b>delivery-os</b> (core)</td><td><code>/delivery-os:</code></td><td><span class="pill-tag tag-mvp">MVP</span></td><td>Project scaffolding, the cross-agent document contract, shared vocabulary, templates. <b>Install first.</b></td></tr>
         <tr><td><b>ba</b></td><td><code>/ba:</code></td><td><span class="pill-tag tag-mvp">MVP</span></td><td>Business Analyst — builds &amp; maintains the living scope, plus a paranoid scope review.</td></tr>
-        <tr><td><b>doc</b></td><td><code>/doc:</code></td><td><span class="pill-tag tag-mvp">MVP</span></td><td>Documentation — standardized client artifacts: the client proposal, the magic board (Miro-style walkthrough), and the workflow document (phased swimlane).</td></tr>
-        <tr><td><b>tl</b></td><td><code>/tl:</code></td><td><span class="pill-tag tag-mvp">MVP</span></td><td>Technical Lead — feature planning into a technical context graph, plus scored technical-spec review for applied-AI systems.</td></tr>
         <tr><td><b>dev</b></td><td><code>/dev:</code></td><td><span class="pill-tag tag-mvp">MVP</span></td><td>Developer — builds an approved feature through a state-driven delivery loop: implement, validate against acceptance criteria, fix, track, and prepare a PR handoff.</td></tr>
-        <tr><td><b>qa</b></td><td><code>/qa:</code></td><td><span class="pill-tag tag-soon">Soon</span></td><td>QA agent — later phase.</td></tr>
+        <tr><td><b>qa</b></td><td><code>/qa:</code></td><td><span class="pill-tag tag-mvp">MVP</span></td><td>Quality Assurance — makes a repo properly testable and defines the quality-gate contract the Dev loop verifies against: audit the setup, plan it, stand up the harness, keep it healthy.</td></tr>
+        <tr><td><b>tl</b></td><td><code>/tl:</code></td><td><span class="pill-tag tag-mvp">MVP</span></td><td>Technical Lead — feature planning into a technical context graph, scored technical-spec review for applied-AI systems, and project scaffold.</td></tr>
+        <tr><td><b>doc</b></td><td><code>/doc:</code></td><td><span class="pill-tag tag-mvp">MVP</span></td><td>Documentation — standardized client artifacts: the client proposal, the magic board (Miro-style walkthrough), and the workflow document (phased swimlane).</td></tr>
       </tbody>
     </table>
 
@@ -185,14 +188,16 @@
     <h4 class="sub">From the published GitHub repo (tracks <code>main</code>)</h4>
     <div class="code"><button class="copy">Copy</button><pre><code>/plugin marketplace add Techjays-Build-With-AI/claude-delivery-os</code></pre></div>
 
-    
+
     <h3 class="step"><span class="stepnum">2</span> Install the plugins</h3>
-    <p>Same for all options above. Install the core first, then the agents you need.</p>
+    <p>Same for all options above. Install the core first, then the agents you need (order shown follows the delivery flow).</p>
     <div class="code"><button class="copy">Copy</button><pre><code>/plugin install delivery-os@techjays-delivery-os
 /plugin install ba@techjays-delivery-os
-/plugin install doc@techjays-delivery-os
+/plugin install dev@techjays-delivery-os
+/plugin install qa@techjays-delivery-os
 /plugin install tl@techjays-delivery-os
-/plugin install dev@techjays-delivery-os</code></pre></div>
+/plugin install doc@techjays-delivery-os</code></pre></div>
+    <div class="note"><b>Dev + QA + TL work together:</b> the Dev loop auto-plans features via TL and verifies them against QA's quality gates, so install all three when you're building.</div>
 
     <h3 class="step"><span class="stepnum">3</span> Verify</h3>
     <p>Reload if prompted, then run <code>/help</code>. You should see the new commands:</p>
@@ -201,16 +206,23 @@
       <span class="cmd-pill">/ba:scope</span>
       <span class="cmd-pill">/ba:review</span>
       <span class="cmd-pill">/ba:resolve</span>
-      <span class="cmd-pill">/doc:proposal</span>
-      <span class="cmd-pill">/doc:magic-board</span>
-      <span class="cmd-pill">/doc:workflow</span>
-      <span class="cmd-pill">/tl:plan</span>
-      <span class="cmd-pill">/tl:review</span>
-      <span class="cmd-pill">/tl:resolve</span>
+      <span class="cmd-pill">/dev:bootstrap</span>
       <span class="cmd-pill">/dev:build</span>
       <span class="cmd-pill">/dev:validate</span>
       <span class="cmd-pill">/dev:fix-review</span>
       <span class="cmd-pill">/dev:pr</span>
+      <span class="cmd-pill">/qa:audit</span>
+      <span class="cmd-pill">/qa:plan</span>
+      <span class="cmd-pill">/qa:setup</span>
+      <span class="cmd-pill">/qa:health</span>
+      <span class="cmd-pill">/tl:plan</span>
+      <span class="cmd-pill">/tl:review</span>
+      <span class="cmd-pill">/tl:resolve</span>
+      <span class="cmd-pill">/tl:scaffold</span>
+      <span class="cmd-pill">/tl:map</span>
+      <span class="cmd-pill">/doc:proposal</span>
+      <span class="cmd-pill">/doc:magic-board</span>
+      <span class="cmd-pill">/doc:workflow</span>
     </div>
 
     <h3 class="step"><span class="stepnum">4</span> Keep it up to date</h3>
@@ -218,12 +230,107 @@
     <div class="code"><button class="copy">Copy</button><pre><code>/plugin marketplace update techjays-delivery-os</code></pre></div>
     <div class="note warn"><b>Switching sources</b> (e.g. from a branch or local folder back to published <code>main</code>): remove first, then re-add. <br><code>/plugin marketplace remove techjays-delivery-os</code> → then the Option-A line above.</div>
 
-    
+
     <h3 class="step"><span class="stepnum">5</span> Initialize a project workspace</h3>
     <p>Before running the BA agent, scaffold a workspace (once per project). See the <b>Core</b> tab for details.</p>
     <div class="code"><button class="copy">Copy</button><pre><code>/delivery-os:init my-client-project</code></pre></div>
 
-    <div class="note tip"><b>How the review loops work (common to BA &amp; TL):</b> a review writes an interactive HTML report. You open it, type a response under each finding/question, click <b>Export responses</b>, save the downloaded file, and run the agent's <code>:resolve</code> command on it. The agent adjudicates each answer, recomputes the score, and writes the next round. Details are on each agent's tab.</div>
+    <div class="note tip"><b>How the review loops work (common to BA &amp; TL &amp; QA):</b> a review writes an interactive HTML report. You open it, respond under each finding/question (or approve each recommendation), click <b>Export</b>, save the downloaded file, and run the agent's follow-up command on it (<code>:resolve</code> for BA/TL, <code>:plan</code> for QA). The agent adjudicates each answer and writes the next step. Details are on each agent's tab.</div>
+  </section>
+
+  <!-- ============ HOW IT WORKS ============ -->
+  <section class="panel" id="how" role="tabpanel">
+    <h2 class="section">How it works</h2>
+    <p class="lead">Delivery OS is a relay. Each agent does its part and hands off to the next — not by passing a file around, but by writing to a shared <b>workspace</b> that the next agent reads. You scaffold that workspace once with <code>/delivery-os:init</code>; from there the folders <i>are</i> the handoff. Below is who does what, who starts first, and how the baton passes — for a greenfield project (no code yet) and a brownfield one (an existing codebase).</p>
+
+    <h4 class="sub">The cast — five roles, one workspace</h4>
+    <div class="grid">
+      <div class="mini"><h4>Business Analyst <span style="color:var(--muted)">/ba</span></h4><p>Starts every project. Turns raw client material into a living <b>scope</b>, then breaks it into an implementation-ready <b>feature</b> set.</p></div>
+      <div class="mini"><h4>Technical Lead <span style="color:var(--muted)">/tl</span></h4><p>Turns features into a technical <b>context graph</b> (pages, endpoints, entities), reviews specs, and — on greenfield — <b>scaffolds</b> the initial repo.</p></div>
+      <div class="mini"><h4>Quality Assurance <span style="color:var(--muted)">/qa</span></h4><p>Makes the repo <b>testable</b>: stands up the test harness and publishes the <b>quality-gate contract</b> the Dev loop verifies against.</p></div>
+      <div class="mini"><h4>Developer <span style="color:var(--muted)">/dev</span></h4><p><b>Builds</b> each feature through a state-driven loop, validates it against the acceptance criteria and QA's gates, and prepares a PR for human review.</p></div>
+      <div class="mini"><h4>Documentation <span style="color:var(--muted)">/doc</span></h4><p>Runs alongside — produces client-facing artifacts (proposal, workflow walkthrough, magic board) from the BA scope, mainly during discovery/sales.</p></div>
+    </div>
+
+    <div class="note"><b>The golden rule:</b> an agent only reads another agent's <b>published</b> output, never its working notes. The BA writes <code>ba-output/</code> and <code>context/features/</code>; the TL writes the <code>context/frontend|backend|database</code> graph; QA writes <code>qa-output/quality-gates.md</code>; Dev writes each feature's <code>dev/</code> folder and the PR summary. Because it's all in the workspace (and the repo), any agent — or teammate — can pick up where the last left off.</div>
+
+    <!-- GREENFIELD -->
+    <h3 class="step" style="margin-top:30px"><span class="stepnum">A</span> Greenfield — a brand-new project with no code yet</h3>
+    <p>Nobody has written a line of application code. The job is to go from client material all the way to built, validated features. The order matters because each step needs the previous one's output.</p>
+
+    <ol class="flow">
+      <li><b>Set up the workspace (once).</b> Anyone runs <code>/delivery-os:init my-project</code> — this creates the single container folder every agent reads and writes within.</li>
+      <li><b>BA scopes the work.</b> The Business Analyst runs <code>/ba:scope add "…PRDs, FRDs, meeting notes…"</code> to build the living <code>scope.md</code>, then tightens it with the <code>/ba:review</code> → <code>/ba:resolve</code> loop. <i>(The Doc agent can draft the client proposal from this scope in parallel.)</i></li>
+      <li><b>BA breaks scope into features.</b> <code>/ba:features initiative=&lt;name&gt;</code> decomposes the scope into one folder per feature under <code>context/features/</code>, each with acceptance criteria, dependencies, and open questions — and stamps them all with the initiative name. <b>This is the handoff to the build team.</b></li>
+      <li><b>TL stands up the repo.</b> Because there's no codebase and the stack is an architecture decision, the Technical Lead runs <code>/tl:scaffold</code> (or the Dev agent routes there automatically via <code>/dev:bootstrap</code>). It asks for any undecided stack choice with a recommendation, then produces a real repo with a <b>green base build</b>.</li>
+      <li><b>QA makes it testable.</b> On the fresh repo, QA runs <code>/qa:audit</code> → <code>/qa:plan</code> → <code>/qa:setup</code> to stand up the test harness (frameworks, CI, coverage, e2e) and publish <code>qa-output/quality-gates.md</code> — the contract that defines what "verified" means here.</li>
+      <li><b>TL plans the features.</b> <code>/tl:plan initiative=&lt;name&gt;</code> maps each feature to its pages, endpoints, and entities in the technical context graph. <i>(You can skip running this yourself — the Dev loop auto-plans a feature via the TL if it isn't planned.)</i></li>
+      <li><b>Dev builds each feature.</b> <code>/dev:build initiative=&lt;name&gt;</code> picks up a ready feature, implements it in an isolated branch, validates it against the acceptance criteria and QA's gates, repairs actionable failures, and stops at <code>HUMAN_REVIEW</code> with a PR summary. <b>It never merges.</b></li>
+      <li><b>A human reviews and merges.</b> Then Dev moves to the next feature. Repeat until the initiative is done.</li>
+    </ol>
+
+    <div class="code"><button class="copy">Copy</button><pre><code>GREENFIELD — the relay
+
+  init   /delivery-os:init                       →  workspace created
+   │
+  BA     /ba:scope → /ba:review → /ba:resolve     →  ba-output/scope.md   ──▶ (Doc: /doc:proposal)
+  BA     /ba:features initiative=payments-v2      →  context/features/*
+   │
+  TL     /tl:scaffold   (or /dev:bootstrap)       →  real repo + green base build
+  QA     /qa:audit → /qa:plan → /qa:setup         →  qa-output/quality-gates.md
+  TL     /tl:plan initiative=payments-v2          →  context/frontend|backend|database
+   │
+  DEV    /dev:build initiative=payments-v2        →  feature branch + PR at HUMAN_REVIEW
+   │
+  YOU    review &amp; merge                           →  repeat per feature</code></pre></div>
+
+    <div class="note tip"><b>You don't have to memorize the order.</b> <code>/dev:build</code> has three gates that route you: no repo → bootstrap (TL scaffold); no test harness → QA setup; feature not planned → TL auto-plan. If something upstream is missing, it tells you exactly which command to run.</div>
+
+    <!-- BROWNFIELD -->
+    <h3 class="step" style="margin-top:30px"><span class="stepnum">B</span> Brownfield — an existing codebase you're adding to</h3>
+    <p>The app already exists and (often) some scope with it. You're adding an increment, usually with several developers working in parallel. Two steps from greenfield drop away — you don't scaffold a repo, and you don't re-scope what's already built — and the <b>initiative</b> becomes the tool that keeps each developer focused on their own batch.</p>
+
+    <ol class="flow">
+      <li><b>BA scopes only the increment.</b> Run <code>/ba:scope add "…just the new material…"</code> to update the living scope, or point <code>/ba:features</code> straight at an existing scope document. Keeping the scope to the new work is the cleanest way to avoid regenerating features you've already shipped.</li>
+      <li><b>BA breaks it down under a new initiative.</b> <code>/ba:features initiative=&lt;new-batch&gt;</code> creates folders for just the new features and tags them. If your scope covers the whole system, mark already-shipped features <code>Released</code> in the index so only the new ones flow downstream. Each developer uses their own initiative name, so the shared <code>context/features/</code> stays sortable.</li>
+      <li><b>TL maps the existing code into the context graph.</b> Run <code>/tl:map repo=&lt;path&gt;</code> once to reverse-engineer the repo — deriving the frontend pages, backend endpoints, and database entities and their relationships that are already there, as an <b>as-built</b> graph. This is the brownfield equivalent of greenfield's scaffold step: it gives the build team the technical context the code already embodies, so planning the new increment reuses it.</li>
+      <li><b>QA checks the existing setup.</b> <code>/qa:audit</code> on the real repo shows what testing already exists and where the gaps are; <code>/qa:setup</code> fills only what's missing and updates the quality-gate contract. (No need to start from scratch if a harness is already there.)</li>
+      <li><b>TL plans just the new batch.</b> <code>/tl:plan initiative=&lt;new-batch&gt;</code> plans only that developer's features, ignoring everyone else's in-flight work.</li>
+      <li><b>Dev builds into the existing repo.</b> <code>/dev:build initiative=&lt;new-batch&gt; repo=D:\path\to\app</code> — the repository gate sees a real repo and treats it as brownfield, so there's <b>no scaffolding step</b>. It builds, validates against the gates, and hands off a PR.</li>
+      <li><b>Human reviews and merges</b>, same as greenfield.</li>
+    </ol>
+
+    <div class="code"><button class="copy">Copy</button><pre><code>BROWNFIELD — what changes
+
+  BA     /ba:scope add "just the new increment"        →  updates ba-output/scope.md
+  BA     /ba:features initiative=reporting-v2          →  new feature folders only
+         (mark already-shipped features Released)
+  TL     /tl:map repo=<path>                           →  as-built context graph from the code
+  QA     /qa:audit → /qa:setup   (on the existing repo) →  fills test-setup gaps
+  TL     /tl:plan  initiative=reporting-v2             →  plans this batch (reuses mapped units)
+  DEV    /dev:build initiative=reporting-v2 repo=<path> →  builds into the existing repo
+         (no /tl:scaffold — the repo already exists; /tl:map replaces it)</code></pre></div>
+
+    <div class="note warn"><b>Multiple developers, one repo.</b> Because <code>context/features/</code> lives in the repo, everyone's in-flight features share it. The <b>initiative</b> is what keeps a developer focused on their own batch: <code>/ba:features</code> stamps it, and <code>/tl:plan</code> and <code>/dev:build</code> filter by it, so Dev B never trips over Dev A's four unfinished features. Pair it with per-initiative branches for clean merges.</div>
+
+    <!-- HANDOFFS -->
+    <h4 class="sub">How the baton passes — every handoff</h4>
+    <p>Each arrow in the relay is one agent's published output becoming the next agent's input:</p>
+    <table class="tbl">
+      <thead><tr><th>From → To</th><th>Handoff surface (in the workspace)</th></tr></thead>
+      <tbody>
+        <tr><td>BA → TL, QA, Dev</td><td><code>context/features/</code> — one folder per feature (feature, acceptance criteria, dependencies, open questions) + the feature-index</td></tr>
+        <tr><td>BA → Doc</td><td><code>ba-output/scope.md</code> — the living scope the proposal/workflow docs draft from</td></tr>
+        <tr><td>TL → Dev</td><td><code>context/frontend|backend|database</code> — the pages/endpoints/entities graph the feature maps to</td></tr>
+        <tr><td>TL → Dev (greenfield)</td><td>The scaffolded repo + <code>context/project/{architecture, technology-stack, coding-standards}.md</code></td></tr>
+        <tr><td>Code → TL graph (brownfield)</td><td><code>/tl:map</code> reads the existing repo → the same <code>context/frontend|backend|database</code> units, marked as-built, that <code>/tl:plan</code> then reuses</td></tr>
+        <tr><td>QA → Dev</td><td><code>qa-output/quality-gates.md</code> — the checks, commands, and thresholds that define "verified"</td></tr>
+        <tr><td>Dev → Human</td><td><code>dev/pr-summary.md</code> + the feature branch at <code>HUMAN_REVIEW</code></td></tr>
+        <tr><td>Everyone → Everyone</td><td><code>shared-context/</code> (actors, glossary, decisions) and the <code>DEC-###</code> decision log</td></tr>
+      </tbody>
+    </table>
+
+    <div class="note tip"><b>The short version:</b> BA answers <i>what</i>, TL answers <i>which pages/APIs/entities</i>, QA answers <i>what "verified" means</i>, Dev answers <i>the working, validated code</i>, and Doc presents it to the client. Each consumes the previous one's output and never re-does it. Greenfield adds a one-time TL scaffold + QA setup; brownfield skips the scaffold and leans on the initiative to keep parallel work separate.</div>
   </section>
 
   <!-- ============ CORE ============ -->
@@ -250,7 +357,7 @@
 │   └── intake-runs/
 └── final/               <span class="cmt"># approved, client-facing deliverables</span></code></pre></div>
 
-    <div class="note"><b>Why it matters:</b> all agents read and write only within this contract, so the BA's output is reliably consumed by the TL (and later Doc/QA) agents. Downstream agents create their own output folders (<code>tl-output/</code>, etc.) on first use.</div>
+    <div class="note"><b>Why it matters:</b> all agents read and write only within this contract, so the BA's output is reliably consumed by the Dev, QA, TL (and Doc) agents. Downstream agents create their own output folders (<code>dev-output/</code>, <code>qa-output/</code>, <code>tl-output/</code>, …) on first use.</div>
 
     <div class="note tip"><b>Tip:</b> if you give no name, the command asks for one rather than scaffolding into your current directory.</div>
   </section>
@@ -315,6 +422,223 @@
     <div class="note tip"><b>Verdicts:</b> Scope-ready → Estimate with caveats → Significant gaps (clarify before estimate) → Not scope-ready. Any unresolved <b>Blocker</b> caps the verdict — resolving it lifts the cap.</div>
   </section>
 
+  <!-- ============ DEV AGENT ============ -->
+  <section class="panel" id="dev" role="tabpanel">
+    <h2 class="section">Dev Agent — <code>/dev</code></h2>
+    <p class="lead">The Developer agent takes an approved, TL-planned feature and <b>builds it</b> — through a controlled, state-driven loop rather than a one-shot code dump. It reads the BA feature context and the TL technical graph, validates readiness, plans, implements in an isolated branch, validates against the acceptance criteria, repairs actionable failures within retry limits, tracks state, and prepares a pull-request handoff. It escalates ambiguity, risk, and scope decisions instead of guessing, and it <b>never merges or deploys</b>.</p>
+
+    <h4 class="sub">Commands</h4>
+    <div class="cmds">
+      <span class="cmd-pill">/dev:bootstrap</span>
+      <span class="cmd-pill">/dev:build</span>
+      <span class="cmd-pill">/dev:validate</span>
+      <span class="cmd-pill">/dev:fix-review</span>
+      <span class="cmd-pill">/dev:pr</span>
+    </div>
+
+    <div class="note warn"><b>Needs the BA breakdown; plans TL for you; verifies against QA's gates.</b> The dev agent consumes the BA feature breakdown (<code>/ba:features</code>), so that must exist. TL planning is automatic: <code>/dev:build</code> opens with a <b>planning gate</b> that checks whether the feature is already split into pages/endpoints/entities and, if not, auto-plans it via <code>tl-feature-planning</code> before building. Its <b>test-harness gate</b> reads QA's <code>qa-output/quality-gates.md</code> to know how to verify — and routes to <code>/qa:audit → /qa:setup</code> if no harness exists yet (see the QA tab).</div>
+
+    <h3 class="step" style="margin-top:26px">Greenfield? Bootstrap once — <code>/dev:bootstrap</code></h3>
+    <p>The dev loop builds <i>into</i> a repository. On a brand-new (design-only) workspace there isn't one — and the agent won't scaffold on a guessed stack. So <code>/dev:build</code> has a <b>repository gate</b>: on project-zero it routes to bootstrap instead of dead-ending. Run this once at the start of a greenfield project.</p>
+    <div class="code"><button class="copy">Copy</button><pre><code><span class="cmt"># stand up the initial repo (delegates to the TL scaffold)</span>
+/dev:bootstrap
+
+<span class="cmt"># already have a repo? point at it — bootstrap isn't needed</span>
+/dev:build FEAT-USR-02 repo=D:\acme\supplier-platform</code></pre></div>
+    <div class="note"><b>How it works:</b> bootstrap delegates to the TL's <code>tl-project-scaffold</code> — it reads the architecture, <b>asks you (with a recommendation) for any missing stack decision</b>, scaffolds the skeleton + tooling + <code>coding-standards.md</code> + a green base build, and logs each choice as a <code>DEC-###</code>. If the <code>tl</code> plugin isn't installed it blocks and asks you to run <code>/tl:scaffold</code> — it never guesses the stack. Once done, <code>/dev:build</code> proceeds normally.</div>
+
+    <h3 class="step">Build a feature — <code>/dev:build</code></h3>
+    <p>Pass a feature id/folder, or leave it blank to pick the next feature at <code>READY_FOR_DEV</code>. It runs the full loop and stops at <code>HUMAN_REVIEW</code> (or <code>BLOCKED</code>).</p>
+    <div class="code"><button class="copy">Copy</button><pre><code><span class="cmt"># build one feature end to end</span>
+/dev:build FEAT-SUP-001
+
+<span class="cmt"># or let it pick the next ready feature, against a specific repo</span>
+/dev:build repo=D:\acme\supplier-platform</code></pre></div>
+
+    <h4 class="sub">The loop it runs</h4>
+    <div class="code"><button class="copy">Copy</button><pre><code>Select feature (or next READY_FOR_DEV) → acquire lock
+→ Read BA + TL context, summarise → Validate readiness (gate)
+→ Analyse code-level impact → Write the technical plan
+→ Create isolated branch/worktree → Implement (scoped, with tests)
+→ Validate suite → Map results to acceptance criteria
+→ Repair actionable failures (bounded) → Self-review + security pass
+→ Update delivery status + feature tracker → Prepare PR handoff
+→ Hand off for HUMAN_REVIEW   (never merges or deploys)</code></pre></div>
+
+    <div class="note tip"><b>It reports as it goes.</b> The loop broadcasts each state transition in chat (e.g. <code>IN_DEVELOPMENT → TESTING</code>) with a short heartbeat on long phases, and surfaces a blocker as an explicit inline error block — so you can watch where it is without opening any markdown.</div>
+
+    <div class="grid">
+      <div class="mini"><h4>Real execution</h4><p>Creates the <code>feature/FEAT-…</code> branch, edits code, and runs lint/type/test/build in the shell against the real repo.</p></div>
+      <div class="mini"><h4>Acceptance = done</h4><p>Completion is a filled <b>acceptance map</b> — every criterion tied to a validation method and an evidence artifact. A green unit run alone is not enough.</p></div>
+      <div class="mini"><h4>Bounded repair loop</h4><p>3 focused fixes per failure, 2 broad validation cycles, 2 plans per feature — then it escalates instead of retrying blindly.</p></div>
+      <div class="mini"><h4>Escalates, never guesses</h4><p>Ambiguous rules, schema/data-loss risk, unclear authz, unavailable dependencies, and security concerns become a structured, decision-ready note.</p></div>
+    </div>
+
+    <h4 class="sub">The state model</h4>
+    <p>Each feature moves through explicit states — the fine-grained state lives in <code>dev/delivery-status.md</code> and is mirrored into the BA <code>feature-index.md</code>/<code>status.md</code>:</p>
+    <div class="code"><button class="copy">Copy</button><pre><code>BACKLOG → READY_FOR_DEV → IN_PLANNING → BLOCKED → IN_DEVELOPMENT
+        → TESTING → REVIEW_FIXES → READY_FOR_PR → HUMAN_REVIEW
+        → APPROVED → MERGED → RELEASED</code></pre></div>
+    <div class="note"><b>It stops at <code>HUMAN_REVIEW</code>.</b> The agent owns every transition up to the handoff; <code>APPROVED</code> / <code>MERGED</code> / <code>RELEASED</code> are human- or deploy-owned and it only records them. It never merges, deploys, deletes production data, modifies secrets, disables a security control, or expands scope without approval.</div>
+
+    <h3 class="step">Validate only — <code>/dev:validate</code></h3>
+    <p>Run the checks (lint, type, unit, integration, API-contract, build, migration, security, e2e) and map each result to the feature's acceptance criteria — no code changes. When QA's quality-gate contract is present, it runs the Required gates that contract defines.</p>
+    <div class="code"><button class="copy">Copy</button><pre><code>/dev:validate FEAT-SUP-001</code></pre></div>
+    <p>Reports the acceptance pass/fail table and flags each failure as <b>actionable</b> (fix via <code>/dev:build</code>) or <b>blocking</b> (escalate). Output lands in <code>context/features/&lt;slug&gt;/dev/acceptance-map.md</code>.</p>
+
+    <h3 class="step">Fold in review feedback — <code>/dev:fix-review</code></h3>
+    <p>Re-enters the loop at the review-fixes step with the reviewer's comments as the failure set, addresses actionable ones within the retry limits, re-validates, and refreshes the PR summary. Comments needing a product/architecture/security decision are escalated.</p>
+    <div class="code"><button class="copy">Copy</button><pre><code>/dev:fix-review FEAT-SUP-001 feedback=D:\acme\pr-42-comments.md</code></pre></div>
+
+    <h3 class="step">Prepare the PR handoff — <code>/dev:pr</code></h3>
+    <p>For a feature that's implemented and validated: verifies the completion criteria, then writes a review-ready summary (purpose, scope, technical approach, affected pages/APIs/services, tests run, acceptance status, risks, follow-ups, reviewer instructions) and moves the feature to <code>HUMAN_REVIEW</code>.</p>
+    <div class="code"><button class="copy">Copy</button><pre><code>/dev:pr FEAT-SUP-001</code></pre></div>
+    <div class="note tip"><b>Completion gate:</b> if a mandatory criterion isn't met (acceptance criteria not validated, tests/build failing, an unresolved blocker), it won't write a hopeful summary — it reports exactly what's missing and points you back to <code>/dev:build</code>.</div>
+
+    <h4 class="sub">What it writes (per feature)</h4>
+    <p>Alongside the BA's files, under a <code>dev/</code> subfolder so nothing collides — plus a cross-feature <code>dev-output/feature-tracker.md</code>:</p>
+    <table class="tbl">
+      <thead><tr><th>File</th><th>What</th></tr></thead>
+      <tbody>
+        <tr><td><code>dev/dev-plan.md</code></td><td>Technical implementation plan — ordered steps, files, API/schema changes, test strategy, rollback, risks</td></tr>
+        <tr><td><code>dev/impacted-components.md</code></td><td>Concrete code-level impact across 12 dimensions (frontend, backend, DB/migrations, authz, integrations, jobs, notifications, monitoring, tests, docs, flags, analytics)</td></tr>
+        <tr><td><code>dev/acceptance-map.md</code></td><td>Each acceptance criterion → validation method → result → evidence</td></tr>
+        <tr><td><code>dev/implementation-log.md</code></td><td>Dated log of steps, validation results, failures, repair attempts</td></tr>
+        <tr><td><code>dev/delivery-status.md</code></td><td>Loop state, owner lock, branch, validation status, blocker, next action</td></tr>
+        <tr><td><code>dev/decisions.md</code></td><td>Technical decisions (also appended as <code>DEC-###</code> to the shared decision-log)</td></tr>
+        <tr><td><code>dev/pr-summary.md</code></td><td>The review-ready PR handoff</td></tr>
+        <tr><td><code>dev/escalation-&lt;n&gt;.md</code></td><td>A structured blocker note when the feature goes <code>BLOCKED</code></td></tr>
+      </tbody>
+    </table>
+
+    <div class="note"><b>How it fits Delivery OS:</b> the dev agent is a <b>consumer</b> — it reads the BA feature folders, the TL <code>context/frontend|backend|database</code> graph, <code>shared-context/</code>, the BA registers, and QA's <code>quality-gates.md</code>, and never re-runs BA discovery or TL planning. It writes <code>produced_by: dev</code> files and mirrors feature state into the BA index using the shared vocabulary. Full guide: <code>plugins/dev/dev_readme.md</code>.</div>
+  </section>
+
+  <!-- ============ QA AGENT ============ -->
+  <section class="panel" id="qa" role="tabpanel">
+    <h2 class="section">QA Agent — <code>/qa</code></h2>
+    <p class="lead">The Quality Assurance agent makes a repository <b>properly testable</b> and defines, in a machine-readable contract, exactly what "verified" means for it — so the Dev delivery loop validates features against a real, agreed bar instead of whatever tooling happens to exist. It audits the current test setup, recommends what's missing for you to approve, stands up the harness, proves it green, and publishes the quality-gate contract the Dev loop reads.</p>
+
+    <h4 class="sub">Commands</h4>
+    <div class="cmds">
+      <span class="cmd-pill">/qa:audit</span>
+      <span class="cmd-pill">/qa:plan</span>
+      <span class="cmd-pill">/qa:setup</span>
+      <span class="cmd-pill">/qa:health</span>
+    </div>
+
+    <div class="note warn"><b>The one boundary that defines it:</b> QA owns the test <b>harness and strategy</b> — frameworks, config, CI wiring, coverage thresholds, the e2e harness (e.g. Playwright config + a page-object/fixtures skeleton), test-data factories, mocking, conventions, and the quality-gate contract. The <b>Dev agent writes the per-feature tests</b> inside that harness, and <code>/dev:validate</code> runs them. QA builds the kitchen; Dev cooks each dish. QA never writes a feature's tests and never weakens a check to go green.</div>
+
+    <h3 class="step" style="margin-top:26px">Audit the setup — <code>/qa:audit</code></h3>
+    <p>Read-only. Point it at a repo (or use the current workspace). It detects the stack and scores the test setup across 12 areas — unit, integration, e2e, coverage, lint, format, type-check, CI, fixtures, mocking, contract testing, conventions — recording every gap as a stable <code>QAF-###</code> finding with a severity and a recommended fix. It changes nothing in the repo.</p>
+    <div class="code"><button class="copy">Copy</button><pre><code><span class="cmt"># assess an existing repo</span>
+/qa:audit repo=D:\acme\supplier-platform
+
+<span class="cmt"># or the current workspace</span>
+/qa:audit</code></pre></div>
+    <div class="grid">
+      <div class="mini"><h4>Scores 12 areas /10</h4><p>Verdict bands: Not testable → Major gaps → Workable → Solid. Any Blocker caps it.</p></div>
+      <div class="mini"><h4>A decision surface</h4><p>Each <code>QAF-###</code> recommendation carries a recommended option; you approve, skip, or defer it — QA acts only on what you approve.</p></div>
+    </div>
+    <p>Output lands in <code>qa-output/test-audit-&lt;timestamp&gt;.{html, md, json}</code> — open the <b>.html</b> for the interactive report. Set <b>Adopt / Skip / Defer</b> per recommendation, then <b>Export approvals</b>.</p>
+
+    <h3 class="step">Plan the setup — <code>/qa:plan</code></h3>
+    <p>Feed it the approvals file exported from the report. It reloads the audit, plans <b>only</b> the recommendations you approved, and drafts the quality-gate contract.</p>
+    <div class="code"><button class="copy">Copy</button><pre><code>/qa:plan qa-output/test-audit-&lt;timestamp&gt;-approvals.md</code></pre></div>
+    <p>Writes <code>qa-output/test-setup-plan.md</code> (ordered steps, tools, CI changes, thresholds) plus a draft <code>qa-output/quality-gates.md</code>.</p>
+
+    <h3 class="step">Build the harness — <code>/qa:setup</code></h3>
+    <p>Implements the plan in an isolated branch: installs and configures frameworks, wires CI, adds fixtures/mocks and coverage thresholds, scaffolds the e2e harness, writes the testing conventions — and proves a <b>green smoke run</b>. Then it finalizes the quality-gate contract.</p>
+    <div class="code"><button class="copy">Copy</button><pre><code>/qa:setup</code></pre></div>
+    <div class="note"><b>Never green-by-weakening.</b> QA may not disable, skip, delete, or loosen a check or threshold to pass — that's an escalation with the trade-off named. Retry limits mirror the Dev loop (3 focused fixes per failing step, 2 broad smoke re-runs, 0 strategy guesses), and it <b>never merges or deploys</b> — the setup branch is handed off for human review.</div>
+
+    <h3 class="step">Keep it honest — <code>/qa:health</code></h3>
+    <p>Re-runs the Required gates against the current repo to catch drift — a disabled check, a dropped coverage floor, a broken e2e config — and reports the deltas. It won't "repair" by lowering a gate; a threshold change is a human <code>DEC-###</code>.</p>
+    <div class="code"><button class="copy">Copy</button><pre><code>/qa:health</code></pre></div>
+
+    <h4 class="sub">The flow</h4>
+    <div class="code"><button class="copy">Copy</button><pre><code>/qa:audit   → scored gap report (HTML + MD + JSON)
+   ↓  you review, set Adopt/Skip/Defer, export approvals
+/qa:plan    → test-setup-plan.md + draft quality-gates.md
+   ↓  you review the plan
+/qa:setup   → build the harness in a branch → prove a green smoke run
+   ↓            → finalize quality-gates.md (harness_status: Active)
+/qa:health  → re-check the live harness → report drift</code></pre></div>
+
+    <div class="note tip"><b>How it plugs into the Dev loop:</b> <code>qa-output/quality-gates.md</code> is the contract. The Dev <b>readiness gate</b> reads it to confirm a usable harness exists (and routes to <code>/qa:audit → /qa:setup</code> if not, the same way project-zero routes to <code>/dev:bootstrap</code>); <code>/dev:validate</code> reads it to know which checks are <b>Required</b>, the exact command for each, and the bar (coverage floor, when e2e/contract tests are mandatory). So the Dev loop stops guessing the tooling and verifies against a standard you set. Full guide: <code>plugins/qa/qa_readme.md</code>.</div>
+  </section>
+
+  <!-- ============ TL AGENT ============ -->
+  <section class="panel" id="tl" role="tabpanel">
+    <h2 class="section">TL Agent — <code>/tl</code></h2>
+    <p class="lead">The Technical Lead reviews a technical specification for an applied-AI system the way a seasoned TL would before a team commits to building it. It reads the whole document, scores each build-readiness area out of 10 with concrete findings and fixes, and closes findings through a resolution loop. It also plans features into a technical context graph and scaffolds the initial project repo.</p>
+
+    <h4 class="sub">Commands</h4>
+    <div class="cmds">
+      <span class="cmd-pill">/tl:plan</span>
+      <span class="cmd-pill">/tl:review</span>
+      <span class="cmd-pill">/tl:resolve</span>
+      <span class="cmd-pill">/tl:scaffold</span>
+      <span class="cmd-pill">/tl:map</span>
+    </div>
+
+    <h3 class="step" style="margin-top:26px">Review a spec — <code>/tl:review</code></h3>
+    <p>Point it at any spec / architecture / HLD / SRS document (<code>.md</code>, <code>.docx</code>, or <code>.pdf</code>). A workspace is optional — it works standalone.</p>
+    <div class="code"><button class="copy">Copy</button><pre><code>/tl:review docs/support-copilot-spec.md</code></pre></div>
+
+    <h4 class="sub">What it scores (out of 10 each)</h4>
+    <table class="tbl">
+      <thead><tr><th>Group</th><th>Areas</th></tr></thead>
+      <tbody>
+        <tr><td>Architecture &amp; Design</td><td>Overview &amp; problem framing · Architecture &amp; system design · Feature flows &amp; system sequencing</td></tr>
+        <tr><td>Engineering Contracts</td><td>Data schema &amp; modeling · API contracts · Libraries &amp; tech stack</td></tr>
+        <tr><td>Applied AI / LLM <span style="color:var(--muted)">(if an LLM is involved)</span></td><td>Observability &amp; traceability · Evaluation strategy · Feedback loops · AI compliance &amp; safety</td></tr>
+        <tr><td>Delivery &amp; Operations</td><td>Infrastructure setup · CI/CD &amp; release management · Cost projection (infra + LLM/API + third-party)</td></tr>
+      </tbody>
+    </table>
+    <div class="note"><b>Verdict:</b> the overall score (average of applicable areas) maps to <b>Ready to build → Build with caveats → Significant gaps → Not ready</b>. Non-AI systems mark the Applied-AI areas N/A. Any unresolved <b>Blocker</b> caps the verdict. Findings carry a severity (Blocker / Major / Minor / Nit) and a stable <code>FND-###</code> ID.</div>
+    <p>Output lands in <code>tl-output/spec-review-&lt;timestamp&gt;.{html, md, json}</code> — open the <b>.html</b> for the interactive report.</p>
+
+    <h3 class="step">Respond &amp; close — <code>/tl:resolve</code></h3>
+    <ol class="flow">
+      <li>Open <code>spec-review-&lt;timestamp&gt;.html</code> and go to <b>Open items</b>.</li>
+      <li>Type a response under each finding and pick an intent (<code>resolve</code> / <code>accept-risk</code> / <code>need-info</code> / <code>wont-fix</code>).</li>
+      <li>Click <b>Export responses</b> → save the downloaded <code>spec-review-&lt;timestamp&gt;-responses.md</code> into <code>tl-output/</code>.</li>
+      <li>Run resolve on it:</li>
+    </ol>
+    <div class="code"><button class="copy">Copy</button><pre><code>/tl:resolve tl-output/spec-review-&lt;timestamp&gt;-responses.md</code></pre></div>
+    <p>The agent adjudicates each response (Resolved / Accepted-risk / Needs-verification / Won't-fix), recomputes the score and verdict, logs decisions, and writes a new round. A resolved Blocker lifts the verdict cap.</p>
+
+    <div class="note tip"><b>Standalone or workspace:</b> with a Delivery OS workspace it also reads <code>ba-output/scope.md</code> and <code>shared-context/</code> for grounding; without one it writes the report beside the reviewed document.</div>
+
+    <h3 class="step">Scaffold the project — <code>/tl:scaffold</code></h3>
+    <p>On a greenfield project there's no codebase yet — and the dev agent won't scaffold on a guessed stack, because the stack is an architecture decision. <code>/tl:scaffold</code> is where that decision is made and executed. It reads the tech spec / architecture, and for any required stack choice the architecture doesn't pin down it <b>asks you with a recommendation</b> — then stands up the initial repo.</p>
+    <div class="code"><button class="copy">Copy</button><pre><code><span class="cmt"># scaffold from a spec, into a chosen repo path</span>
+/tl:scaffold docs/architecture.md repo=D:\acme\supplier-platform
+
+<span class="cmt"># or read context/project + shared-context, ask where needed</span>
+/tl:scaffold</code></pre></div>
+    <div class="grid">
+      <div class="mini"><h4>Executes a confirmed stack</h4><p>Follows what the architecture pins down; recommends-and-asks for the rest (framework, DB, hosting, layout). Never silently guesses a critical choice.</p></div>
+      <div class="mini"><h4>Green base build</h4><p>Skeleton + lint/format/type/test/build tooling + one passing test, verified <code>install → lint → type → test → build</code> — the exact readiness item dev checks.</p></div>
+    </div>
+    <div class="note tip"><b>Output:</b> a real, git-initialised repository plus <code>context/project/{technology-stack, architecture, coding-standards}.md</code>, with every stack choice logged as a <code>DEC-###</code>. Then <code>/dev:build &lt;feature&gt;</code> can run.</div>
+
+    <h3 class="step">Onboard an existing codebase — <code>/tl:map</code></h3>
+    <p>The brownfield counterpart to <code>/tl:plan</code>. Where planning builds the context graph <i>forward</i> from features, <code>/tl:map</code> builds it <i>backward</i> from the <b>real code</b>: it reads an existing repository and derives the frontend pages, backend endpoints, and database entities — and their relationships — that are already there. It writes the <b>same</b> <code>context/frontend|backend|database</code> unit files, so once the as-built graph exists a later <code>/tl:plan</code> <b>reuses</b> those units instead of duplicating them.</p>
+    <div class="code"><button class="copy">Copy</button><pre><code><span class="cmt"># map an existing repo into the context graph</span>
+/tl:map repo=D:\acme\legacy-portal
+
+<span class="cmt"># map just one layer, or a slice of a monorepo</span>
+/tl:map repo=D:\acme\legacy-portal layers=backend,database scope=services/billing</code></pre></div>
+    <div class="grid">
+      <div class="mini"><h4>Derived from code, not invented</h4><p>Pages from the router, endpoints from route handlers (with <code>METHOD + path</code>), entities from models/migrations — each unit cites the source file it was read from.</p></div>
+      <div class="mini"><h4>Honest confidence</h4><p>Every inferred link is marked <code>Confirmed</code> (static route/query) or <code>Assumed</code> (dynamic/opaque); genuinely unresolvable links become open questions, not fabrications.</p></div>
+    </div>
+    <div class="note"><b>Read-only on the code.</b> It's static analysis — it never modifies, refactors, or runs the repo, and it never authors BA features or product scope from the code (that stays the BA's). Units are stamped <code>origin: reverse-mapped</code>; when you later run <code>/tl:plan</code>, features link into these same units.</div>
+    <div class="note tip"><b>Brownfield onboarding, in order:</b> <code>/ba:scope</code> (scope from your existing docs) → <code>/ba:features initiative=&lt;batch&gt;</code> → <code>/tl:map repo=&lt;path&gt;</code> (build the as-built graph once) → <code>/qa:audit</code> → <code>/tl:plan initiative=&lt;batch&gt;</code> (reuses the mapped units) → <code>/dev:build initiative=&lt;batch&gt; repo=&lt;path&gt;</code>.</div>
+  </section>
+
   <!-- ============ DOC AGENT ============ -->
   <section class="panel" id="doc" role="tabpanel">
     <h2 class="section">Doc Agent — <code>/doc</code></h2>
@@ -377,253 +701,20 @@
     <div class="note tip"><b>Viewing:</b> open <code>doc-output/[CLIENT]-[TOPIC]-[date].html</code>; the sidebar jumps to each phase. Drafted from <code>ba-output/scope.md</code> + <code>workflow-register.md</code> when a workspace exists; real numbers only, unknowns flagged as placeholders.</div>
   </section>
 
-  <!-- ============ TL AGENT ============ -->
-  <section class="panel" id="tl" role="tabpanel">
-    <h2 class="section">TL Agent — <code>/tl</code></h2>
-    <p class="lead">The Technical Lead reviews a technical specification for an applied-AI system the way a seasoned TL would before a team commits to building it. It reads the whole document, scores each build-readiness area out of 10 with concrete findings and fixes, and closes findings through a resolution loop.</p>
-
-    <h4 class="sub">Commands</h4>
-    <div class="cmds">
-      <span class="cmd-pill">/tl:review</span>
-      <span class="cmd-pill">/tl:resolve</span>
-    </div>
-
-    <h3 class="step" style="margin-top:26px">Review a spec — <code>/tl:review</code></h3>
-    <p>Point it at any spec / architecture / HLD / SRS document (<code>.md</code>, <code>.docx</code>, or <code>.pdf</code>). A workspace is optional — it works standalone.</p>
-    <div class="code"><button class="copy">Copy</button><pre><code>/tl:review docs/support-copilot-spec.md</code></pre></div>
-
-    <h4 class="sub">What it scores (out of 10 each)</h4>
-    <table class="tbl">
-      <thead><tr><th>Group</th><th>Areas</th></tr></thead>
-      <tbody>
-        <tr><td>Architecture &amp; Design</td><td>Overview &amp; problem framing · Architecture &amp; system design · Feature flows &amp; system sequencing</td></tr>
-        <tr><td>Engineering Contracts</td><td>Data schema &amp; modeling · API contracts · Libraries &amp; tech stack</td></tr>
-        <tr><td>Applied AI / LLM <span style="color:var(--muted)">(if an LLM is involved)</span></td><td>Observability &amp; traceability · Evaluation strategy · Feedback loops · AI compliance &amp; safety</td></tr>
-        <tr><td>Delivery &amp; Operations</td><td>Infrastructure setup · CI/CD &amp; release management · Cost projection (infra + LLM/API + third-party)</td></tr>
-      </tbody>
-    </table>
-    <div class="note"><b>Verdict:</b> the overall score (average of applicable areas) maps to <b>Ready to build → Build with caveats → Significant gaps → Not ready</b>. Non-AI systems mark the Applied-AI areas N/A. Any unresolved <b>Blocker</b> caps the verdict. Findings carry a severity (Blocker / Major / Minor / Nit) and a stable <code>FND-###</code> ID.</div>
-    <p>Output lands in <code>tl-output/spec-review-&lt;timestamp&gt;.{html, md, json}</code> — open the <b>.html</b> for the interactive report.</p>
-
-    <h3 class="step">Respond &amp; close — <code>/tl:resolve</code></h3>
-    <ol class="flow">
-      <li>Open <code>spec-review-&lt;timestamp&gt;.html</code> and go to <b>Open items</b>.</li>
-      <li>Type a response under each finding and pick an intent (<code>resolve</code> / <code>accept-risk</code> / <code>need-info</code> / <code>wont-fix</code>).</li>
-      <li>Click <b>Export responses</b> → save the downloaded <code>spec-review-&lt;timestamp&gt;-responses.md</code> into <code>tl-output/</code>.</li>
-      <li>Run resolve on it:</li>
-    </ol>
-    <div class="code"><button class="copy">Copy</button><pre><code>/tl:resolve tl-output/spec-review-&lt;timestamp&gt;-responses.md</code></pre></div>
-    <p>The agent adjudicates each response (Resolved / Accepted-risk / Needs-verification / Won't-fix), recomputes the score and verdict, logs decisions, and writes a new round. A resolved Blocker lifts the verdict cap.</p>
-
-    <div class="note tip"><b>Standalone or workspace:</b> with a Delivery OS workspace it also reads <code>ba-output/scope.md</code> and <code>shared-context/</code> for grounding; without one it writes the report beside the reviewed document.</div>
-  </section>
-
-  <!-- ============ DEV AGENT ============ -->
-  <section class="panel" id="dev" role="tabpanel">
-    <h2 class="section">Dev Agent — <code>/dev</code></h2>
-    <p class="lead">The Developer agent takes an approved, TL-planned feature and <b>builds it</b> — through a controlled, state-driven loop rather than a one-shot code dump. It reads the BA feature context and the TL technical graph, validates readiness, plans, implements in an isolated branch, validates against the acceptance criteria, repairs actionable failures within retry limits, tracks state, and prepares a pull-request handoff. It escalates ambiguity, risk, and scope decisions instead of guessing, and it <b>never merges or deploys</b>.</p>
-
-    <h4 class="sub">Commands</h4>
-    <div class="cmds">
-      <span class="cmd-pill">/dev:build</span>
-      <span class="cmd-pill">/dev:validate</span>
-      <span class="cmd-pill">/dev:fix-review</span>
-      <span class="cmd-pill">/dev:pr</span>
-    </div>
-
-    <div class="note warn"><b>Needs the BA breakdown; plans TL for you.</b> The dev agent consumes the BA feature breakdown (<code>/ba:features</code>), so that must exist. TL planning is automatic: <code>/dev:build</code> opens with a <b>planning gate</b> that checks whether the feature is already split into pages/endpoints/entities and, if not, auto-plans it via <code>tl-feature-planning</code> before building. Run <code>/tl:plan</code> yourself first only if you want to review the technical design before any code is written.</div>
-
-    <h3 class="step" style="margin-top:26px">Build a feature — <code>/dev:build</code></h3>
-    <p>Pass a feature id/folder, or leave it blank to pick the next feature at <code>READY_FOR_DEV</code>. It runs the full loop and stops at <code>HUMAN_REVIEW</code> (or <code>BLOCKED</code>).</p>
-    <div class="code"><button class="copy">Copy</button><pre><code><span class="cmt"># build one feature end to end</span>
-/dev:build FEAT-SUP-001
-
-<span class="cmt"># or let it pick the next ready feature, against a specific repo</span>
-/dev:build repo=D:\acme\supplier-platform</code></pre></div>
-
-    <h4 class="sub">The loop it runs</h4>
-    <div class="code"><button class="copy">Copy</button><pre><code>Select feature (or next READY_FOR_DEV) → acquire lock
-→ Read BA + TL context, summarise → Validate readiness (gate)
-→ Analyse code-level impact → Write the technical plan
-→ Create isolated branch/worktree → Implement (scoped, with tests)
-→ Validate suite → Map results to acceptance criteria
-→ Repair actionable failures (bounded) → Self-review + security pass
-→ Update delivery status + feature tracker → Prepare PR handoff
-→ Hand off for HUMAN_REVIEW   (never merges or deploys)</code></pre></div>
-
-    <div class="grid">
-      <div class="mini"><h4>Real execution</h4><p>Creates the <code>feature/FEAT-…</code> branch, edits code, and runs lint/type/test/build in the shell against the real repo.</p></div>
-      <div class="mini"><h4>Acceptance = done</h4><p>Completion is a filled <b>acceptance map</b> — every criterion tied to a validation method and an evidence artifact. A green unit run alone is not enough.</p></div>
-      <div class="mini"><h4>Bounded repair loop</h4><p>3 focused fixes per failure, 2 broad validation cycles, 2 plans per feature — then it escalates instead of retrying blindly.</p></div>
-      <div class="mini"><h4>Escalates, never guesses</h4><p>Ambiguous rules, schema/data-loss risk, unclear authz, unavailable dependencies, and security concerns become a structured, decision-ready note.</p></div>
-    </div>
-
-    <h4 class="sub">The state model</h4>
-    <p>Each feature moves through explicit states — the fine-grained state lives in <code>dev/delivery-status.md</code> and is mirrored into the BA <code>feature-index.md</code>/<code>status.md</code>:</p>
-    <div class="code"><button class="copy">Copy</button><pre><code>BACKLOG → READY_FOR_DEV → IN_PLANNING → BLOCKED → IN_DEVELOPMENT
-        → TESTING → REVIEW_FIXES → READY_FOR_PR → HUMAN_REVIEW
-        → APPROVED → MERGED → RELEASED</code></pre></div>
-    <div class="note"><b>It stops at <code>HUMAN_REVIEW</code>.</b> The agent owns every transition up to the handoff; <code>APPROVED</code> / <code>MERGED</code> / <code>RELEASED</code> are human- or deploy-owned and it only records them. It never merges, deploys, deletes production data, modifies secrets, disables a security control, or expands scope without approval.</div>
-
-    <h3 class="step">Validate only — <code>/dev:validate</code></h3>
-    <p>Run the checks (lint, type, unit, integration, API-contract, build, migration, security, e2e) and map each result to the feature's acceptance criteria — no code changes.</p>
-    <div class="code"><button class="copy">Copy</button><pre><code>/dev:validate FEAT-SUP-001</code></pre></div>
-    <p>Reports the acceptance pass/fail table and flags each failure as <b>actionable</b> (fix via <code>/dev:build</code>) or <b>blocking</b> (escalate). Output lands in <code>context/features/&lt;slug&gt;/dev/acceptance-map.md</code>.</p>
-
-    <h3 class="step">Fold in review feedback — <code>/dev:fix-review</code></h3>
-    <p>Re-enters the loop at the review-fixes step with the reviewer's comments as the failure set, addresses actionable ones within the retry limits, re-validates, and refreshes the PR summary. Comments needing a product/architecture/security decision are escalated.</p>
-    <div class="code"><button class="copy">Copy</button><pre><code>/dev:fix-review FEAT-SUP-001 feedback=D:\acme\pr-42-comments.md</code></pre></div>
-
-    <h3 class="step">Prepare the PR handoff — <code>/dev:pr</code></h3>
-    <p>For a feature that's implemented and validated: verifies the completion criteria, then writes a review-ready summary (purpose, scope, technical approach, affected pages/APIs/services, tests run, acceptance status, risks, follow-ups, reviewer instructions) and moves the feature to <code>HUMAN_REVIEW</code>.</p>
-    <div class="code"><button class="copy">Copy</button><pre><code>/dev:pr FEAT-SUP-001</code></pre></div>
-    <div class="note tip"><b>Completion gate:</b> if a mandatory criterion isn't met (acceptance criteria not validated, tests/build failing, an unresolved blocker), it won't write a hopeful summary — it reports exactly what's missing and points you back to <code>/dev:build</code>.</div>
-
-    <h4 class="sub">What it writes (per feature)</h4>
-    <p>Alongside the BA's files, under a <code>dev/</code> subfolder so nothing collides — plus a cross-feature <code>dev-output/feature-tracker.md</code>:</p>
-    <table class="tbl">
-      <thead><tr><th>File</th><th>What</th></tr></thead>
-      <tbody>
-        <tr><td><code>dev/dev-plan.md</code></td><td>Technical implementation plan — ordered steps, files, API/schema changes, test strategy, rollback, risks</td></tr>
-        <tr><td><code>dev/impacted-components.md</code></td><td>Concrete code-level impact across 12 dimensions (frontend, backend, DB/migrations, authz, integrations, jobs, notifications, monitoring, tests, docs, flags, analytics)</td></tr>
-        <tr><td><code>dev/acceptance-map.md</code></td><td>Each acceptance criterion → validation method → result → evidence</td></tr>
-        <tr><td><code>dev/implementation-log.md</code></td><td>Dated log of steps, validation results, failures, repair attempts</td></tr>
-        <tr><td><code>dev/delivery-status.md</code></td><td>Loop state, owner lock, branch, validation status, blocker, next action</td></tr>
-        <tr><td><code>dev/decisions.md</code></td><td>Technical decisions (also appended as <code>DEC-###</code> to the shared decision-log)</td></tr>
-        <tr><td><code>dev/pr-summary.md</code></td><td>The review-ready PR handoff</td></tr>
-        <tr><td><code>dev/escalation-&lt;n&gt;.md</code></td><td>A structured blocker note when the feature goes <code>BLOCKED</code></td></tr>
-      </tbody>
-    </table>
-
-    <div class="note"><b>How it fits Delivery OS:</b> the dev agent is a <b>consumer</b> — it reads the BA feature folders, the TL <code>context/frontend|backend|database</code> graph, <code>shared-context/</code>, and the BA registers, and never re-runs BA discovery or TL planning. It writes <code>produced_by: dev</code> files and mirrors feature state into the BA index using the shared vocabulary. Full guide: <code>plugins/dev/dev_readme.md</code>.</div>
-  </section>
-
   <!-- ============ NEXT ============ -->
   <section class="panel" id="next" role="tabpanel">
     <h2 class="section">What's next</h2>
-    <p class="lead">Delivery OS is built in phases. The core, BA, Doc, TL, and Dev agents are live; these are on the roadmap.</p>
+    <p class="lead">Delivery OS is built in phases. The core, BA, Dev, QA, TL, and Doc agents are all live; these are on the roadmap.</p>
     <div class="grid">
-      <div class="mini"><h4>Doc Agent <span class="pill-tag tag-mvp">Proposal live</span></h4><p>The client proposal, magic board, and workflow document ship now. Next on the same standard: executive summary, SRS, SoW.</p></div>
       <div class="mini"><h4>Dev Agent <span class="pill-tag tag-mvp">Live</span></h4><p>The feature delivery loop ships now (<code>/dev:build</code>). Next: parallel sub-agent execution, automated worktree management, and GitHub PR/CI integration.</p></div>
-      <div class="mini"><h4>QA Agent <span class="pill-tag tag-soon">Soon</span></h4><p>Test strategy and quality validation over the delivery documents and the delivered features.</p></div>
+      <div class="mini"><h4>QA Agent <span class="pill-tag tag-mvp">Live</span></h4><p>Audit, plan, set up the harness, and keep it healthy ship now (<code>/qa:audit</code> → <code>/qa:setup</code>). Next: baseline-harness handoff from the TL scaffold and richer contract/security gates.</p></div>
+      <div class="mini"><h4>Doc Agent <span class="pill-tag tag-mvp">Proposal live</span></h4><p>The client proposal, magic board, and workflow document ship now. Next on the same standard: executive summary, SRS, SoW.</p></div>
     </div>
-    <div class="note">All agents share the same <b>document contract</b>, so each new agent consumes the previous one's output without re-doing the analysis. When QA lands, it'll appear as a new tab here with its own commands.</div>
+    <div class="note">All agents share the same <b>document contract</b>, so each new agent consumes the previous one's output without re-doing the analysis. New agents appear here as a new tab with their own commands.</div>
     <h4 class="sub">Resources</h4>
     <ul class="clean">
       <li>Repo: <code>Techjays-Build-With-AI/claude-delivery-os</code></li>
-      <li>BA guide: <code>plugins/ba/ba_readme.md</code> · Doc guide: <code>plugins/doc/doc_readme.md</code> · TL guide: <code>plugins/tl/tl_readme.md</code> · Dev guide: <code>plugins/dev/dev_readme.md</code></li>
-      <li>Document contract: <code>plugins/delivery-os-core/skills/delivery-os-conventions/</code></li>
-    </ul>
-  </section>
-
-</main>
-
-<footer>
-  Techjays Delivery OS · Get Started guide · runs in Claude Code
-</footer>
-
-<script>
-(function () {
-  "use strict";
-  // Tabs
-  var btns = Array.prototype.slice.call(document.querySelectorAll(".tab-btn"));
-  var panels = Array.prototype.slice.call(document.querySelectorAll(".panel"));
-  function show(id) {
-    btns.forEach(function (b) { b.setAttribute("aria-selected", b.dataset.tab === id ? "true" : "false"); });
-    panels.forEach(function (p) { p.classList.toggle("active", p.id === id); });
-    if (history.replaceState) history.replaceState(null, "", "#" + id);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }
-  btns.forEach(function (b) { b.addEventListener("click", function () { show(b.dataset.tab); }); });
-  var initial = (location.hash || "").replace("#", "");
-  if (initial && document.getElementById(initial)) show(initial);
-
-  // Copy buttons
-  document.querySelectorAll(".code .copy").forEach(function (btn) {
-    btn.addEventListener("click", function () {
-      var code = btn.parentNode.querySelector("pre").innerText;
-      navigator.clipboard.writeText(code).then(function () {
-        btn.textContent = "Copied"; btn.classList.add("done");
-        setTimeout(function () { btn.textContent = "Copy"; btn.classList.remove("done"); }, 1600);
-      }).catch(function () {
-        btn.textContent = "Press Ctrl+C";
-        setTimeout(function () { btn.textContent = "Copy"; }, 1600);
-      });
-    });
-  });
-})();
-</script>
-</body>
-</html>V) → acquire lock
-→ Read BA + TL context, summarise → Validate readiness (gate)
-→ Analyse code-level impact → Write the technical plan
-→ Create isolated branch/worktree → Implement (scoped, with tests)
-→ Validate suite → Map results to acceptance criteria
-→ Repair actionable failures (bounded) → Self-review + security pass
-→ Update delivery status + feature tracker → Prepare PR handoff
-→ Hand off for HUMAN_REVIEW   (never merges or deploys)</code></pre></div>
-
-    <div class="grid">
-      <div class="mini"><h4>Real execution</h4><p>Creates the <code>feature/FEAT-…</code> branch, edits code, and runs lint/type/test/build in the shell against the real repo.</p></div>
-      <div class="mini"><h4>Acceptance = done</h4><p>Completion is a filled <b>acceptance map</b> — every criterion tied to a validation method and an evidence artifact. A green unit run alone is not enough.</p></div>
-      <div class="mini"><h4>Bounded repair loop</h4><p>3 focused fixes per failure, 2 broad validation cycles, 2 plans per feature — then it escalates instead of retrying blindly.</p></div>
-      <div class="mini"><h4>Escalates, never guesses</h4><p>Ambiguous rules, schema/data-loss risk, unclear authz, unavailable dependencies, and security concerns become a structured, decision-ready note.</p></div>
-    </div>
-
-    <h4 class="sub">The state model</h4>
-    <p>Each feature moves through explicit states — the fine-grained state lives in <code>dev/delivery-status.md</code> and is mirrored into the BA <code>feature-index.md</code>/<code>status.md</code>:</p>
-    <div class="code"><button class="copy">Copy</button><pre><code>BACKLOG → READY_FOR_DEV → IN_PLANNING → BLOCKED → IN_DEVELOPMENT
-        → TESTING → REVIEW_FIXES → READY_FOR_PR → HUMAN_REVIEW
-        → APPROVED → MERGED → RELEASED</code></pre></div>
-    <div class="note"><b>It stops at <code>HUMAN_REVIEW</code>.</b> The agent owns every transition up to the handoff; <code>APPROVED</code> / <code>MERGED</code> / <code>RELEASED</code> are human- or deploy-owned and it only records them. It never merges, deploys, deletes production data, modifies secrets, disables a security control, or expands scope without approval.</div>
-
-    <h3 class="step">Validate only — <code>/dev:validate</code></h3>
-    <p>Run the checks (lint, type, unit, integration, API-contract, build, migration, security, e2e) and map each result to the feature's acceptance criteria — no code changes.</p>
-    <div class="code"><button class="copy">Copy</button><pre><code>/dev:validate FEAT-SUP-001</code></pre></div>
-    <p>Reports the acceptance pass/fail table and flags each failure as <b>actionable</b> (fix via <code>/dev:build</code>) or <b>blocking</b> (escalate). Output lands in <code>context/features/&lt;slug&gt;/dev/acceptance-map.md</code>.</p>
-
-    <h3 class="step">Fold in review feedback — <code>/dev:fix-review</code></h3>
-    <p>Re-enters the loop at the review-fixes step with the reviewer's comments as the failure set, addresses actionable ones within the retry limits, re-validates, and refreshes the PR summary. Comments needing a product/architecture/security decision are escalated.</p>
-    <div class="code"><button class="copy">Copy</button><pre><code>/dev:fix-review FEAT-SUP-001 feedback=D:\acme\pr-42-comments.md</code></pre></div>
-
-    <h3 class="step">Prepare the PR handoff — <code>/dev:pr</code></h3>
-    <p>For a feature that's implemented and validated: verifies the completion criteria, then writes a review-ready summary (purpose, scope, technical approach, affected pages/APIs/services, tests run, acceptance status, risks, follow-ups, reviewer instructions) and moves the feature to <code>HUMAN_REVIEW</code>.</p>
-    <div class="code"><button class="copy">Copy</button><pre><code>/dev:pr FEAT-SUP-001</code></pre></div>
-    <div class="note tip"><b>Completion gate:</b> if a mandatory criterion isn't met (acceptance criteria not validated, tests/build failing, an unresolved blocker), it won't write a hopeful summary — it reports exactly what's missing and points you back to <code>/dev:build</code>.</div>
-
-    <h4 class="sub">What it writes (per feature)</h4>
-    <p>Alongside the BA's files, under a <code>dev/</code> subfolder so nothing collides — plus a cross-feature <code>dev-output/feature-tracker.md</code>:</p>
-    <table class="tbl">
-      <thead><tr><th>File</th><th>What</th></tr></thead>
-      <tbody>
-        <tr><td><code>dev/dev-plan.md</code></td><td>Technical implementation plan — ordered steps, files, API/schema changes, test strategy, rollback, risks</td></tr>
-        <tr><td><code>dev/impacted-components.md</code></td><td>Concrete code-level impact across 12 dimensions (frontend, backend, DB/migrations, authz, integrations, jobs, notifications, monitoring, tests, docs, flags, analytics)</td></tr>
-        <tr><td><code>dev/acceptance-map.md</code></td><td>Each acceptance criterion → validation method → result → evidence</td></tr>
-        <tr><td><code>dev/implementation-log.md</code></td><td>Dated log of steps, validation results, failures, repair attempts</td></tr>
-        <tr><td><code>dev/delivery-status.md</code></td><td>Loop state, owner lock, branch, validation status, blocker, next action</td></tr>
-        <tr><td><code>dev/decisions.md</code></td><td>Technical decisions (also appended as <code>DEC-###</code> to the shared decision-log)</td></tr>
-        <tr><td><code>dev/pr-summary.md</code></td><td>The review-ready PR handoff</td></tr>
-        <tr><td><code>dev/escalation-&lt;n&gt;.md</code></td><td>A structured blocker note when the feature goes <code>BLOCKED</code></td></tr>
-      </tbody>
-    </table>
-
-    <div class="note"><b>How it fits Delivery OS:</b> the dev agent is a <b>consumer</b> — it reads the BA feature folders, the TL <code>context/frontend|backend|database</code> graph, <code>shared-context/</code>, and the BA registers, and never re-runs BA discovery or TL planning. It writes <code>produced_by: dev</code> files and mirrors feature state into the BA index using the shared vocabulary. Full guide: <code>plugins/dev/dev_readme.md</code>.</div>
-  </section>
-
-  <!-- ============ NEXT ============ -->
-  <section class="panel" id="next" role="tabpanel">
-    <h2 class="section">What's next</h2>
-    <p class="lead">Delivery OS is built in phases. The core, BA, Doc, TL, and Dev agents are live; these are on the roadmap.</p>
-    <div class="grid">
-      <div class="mini"><h4>Doc Agent <span class="pill-tag tag-mvp">Proposal live</span></h4><p>The client proposal, magic board, and workflow document ship now. Next on the same standard: executive summary, SRS, SoW.</p></div>
-      <div class="mini"><h4>Dev Agent <span class="pill-tag tag-mvp">Live</span></h4><p>The feature delivery loop ships now (<code>/dev:build</code>). Next: parallel sub-agent execution, automated worktree management, and GitHub PR/CI integration.</p></div>
-      <div class="mini"><h4>QA Agent <span class="pill-tag tag-soon">Soon</span></h4><p>Test strategy and quality validation over the delivery documents and the delivered features.</p></div>
-    </div>
-    <div class="note">All agents share the same <b>document contract</b>, so each new agent consumes the previous one's output without re-doing the analysis. When QA lands, it'll appear as a new tab here with its own commands.</div>
-    <h4 class="sub">Resources</h4>
-    <ul class="clean">
-      <li>Repo: <code>Techjays-Build-With-AI/claude-delivery-os</code></li>
-      <li>BA guide: <code>plugins/ba/ba_readme.md</code> · Doc guide: <code>plugins/doc/doc_readme.md</code> · TL guide: <code>plugins/tl/tl_readme.md</code> · Dev guide: <code>plugins/dev/dev_readme.md</code></li>
+      <li>BA guide: <code>plugins/ba/ba_readme.md</code> · Dev guide: <code>plugins/dev/dev_readme.md</code> · QA guide: <code>plugins/qa/qa_readme.md</code> · TL guide: <code>plugins/tl/tl_readme.md</code> · Doc guide: <code>plugins/doc/doc_readme.md</code></li>
       <li>Document contract: <code>plugins/delivery-os-core/skills/delivery-os-conventions/</code></li>
     </ul>
   </section>

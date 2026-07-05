@@ -92,6 +92,7 @@ schema_version: 1.0        # the contract version this file conforms to
 produced_by: ba            # ba | doc | tl | qa | delivery-os
 last_intake_run: run-003   # the run that last touched this file (omit if N/A)
 status: Emerging           # see §5 maturity values
+initiative: payments-v2    # OPTIONAL — the initiative/work-batch this file belongs to (feature files only; see §3)
 generated_at: 2026-06-18   # ISO date of last write
 ---
 ```
@@ -137,6 +138,13 @@ IDs are the threads that let one agent cite what another produced. They are **ap
 | Page              | `PAGE-<AREA>` | PAGE-SUP-01 | context/frontend/ (tl)    |
 | Endpoint          | `EP-<AREA>`   | EP-SUP-02   | context/backend/ (tl)     |
 | Entity            | `ENT-<AREA>`  | ENT-SUP-01  | context/database/ (tl) — realises a `DATA-###` |
+| QA finding        | `QAF`  | QAF-001  | qa-output/test-audit-*.md (qa)   |
+| Quality gate      | `QG`   | QG-001   | qa-output/quality-gates.md (qa)  |
+| Initiative        | *(human slug)* | payments-v2 | feature frontmatter + feature-index (ba) |
+
+### Initiative — grouping features by work batch (multi-developer)
+
+An **initiative** groups the features produced by one scoping effort so a developer can focus on just their batch even when many developers' in-flight features share `context/features/`. It is a **human-named, lowercase-kebab slug** (`payments-v2`, `supplier-portal`), not a numbered ID — chosen by the developer when they run `/ba:features initiative=<name>` (auto-generated as `intake-<YYYY-MM-DD>` if omitted). It is stamped into every feature the run creates/updates (`initiative:` in `feature.md`/`status.md` frontmatter and an `Initiative` column in `feature-index.md`), and it is the filter `/tl:plan initiative=<name>` and `/dev:build initiative=<name>` use to act on only that group. On a re-run, an existing feature **keeps** its initiative unless a new one is passed explicitly — so grouping is stable across merges. A feature with no initiative is treated as ungrouped (`unassigned`).
 
 The `context/` graph IDs (`FEAT-`/`PAGE-`/`EP-`/`ENT-`) carry a short uppercase **area** token and a sequence within that area/layer (`PAGE-SUP-01`, `EP-SUP-02`). A database entity **cites the BA `DATA-###`** it realises rather than inventing a parallel data ID; likewise endpoints cite `INT-###` for integrations. Never mint a `context/` ID that shadows a BA register ID.
 
@@ -194,9 +202,11 @@ All agents use these exact values — no synonyms.
 | `ba-output/integration-register.md`  | ba          | tl                 |
 | `ba-output/data-register.md`         | ba          | tl                 |
 | `context/features/*`                 | ba          | tl, doc, qa        |
-| `context/frontend/*` `context/backend/*` `context/database/*` | tl (feature-planning) | tl (spec-review), doc, qa, coding |
+| `context/frontend/*` `context/backend/*` `context/database/*` | tl (feature-planning forward, or codebase-map reverse for brownfield) | tl (spec-review), doc, qa, coding |
 | `doc-output/*`                       | doc         | human, final       |
 | `tl-output/*`                        | tl          | human, delivery    |
+| `qa-output/quality-gates.md`         | qa          | dev (readiness gate + dev-validation) |
+| `qa-output/test-audit-*` `qa-output/test-setup-plan.md` | qa | human, qa          |
 
 When a downstream agent (doc/tl/qa) runs, it should prefer `ba-output/scope.md` as its primary input and **not re-run BA analysis** unless explicitly asked.
 

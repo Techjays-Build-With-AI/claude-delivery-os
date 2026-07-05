@@ -1,0 +1,10 @@
+{
+  "name": "qa",
+  "version": "0.1.0",
+  "description": "Quality Assurance Agent for Techjays Delivery OS. Owns the test infrastructure, the testing strategy, and the quality-gate contract that the dev delivery loop verifies against — it does NOT write per-feature tests (the dev agent does) or run per-feature validation (dev-validation does). /qa:audit runs a read-only assessment of a repository's testing setup across unit, integration, end-to-end, coverage, linting, type-checking, CI, fixtures, mocking, and contract testing, and produces a scored, interactive gap report with recommendations the human reviews and approves. /qa:plan turns the approved recommendations into a concrete test-setup implementation plan and drafts the quality-gate contract. /qa:setup implements the harness (frameworks, config, CI wiring, fixtures, coverage thresholds, e2e scaffold) through a bounded implement→verify loop, proves a green smoke run, and finalizes qa-output/quality-gates.md — the machine-readable contract the dev readiness gate and dev-validation consume so the loop knows exactly what 'verified' means for this repo. /qa:health re-checks harness health for drift or regressions. Executes a human-approved setup — never weakens, skips, or deletes tests to go green, never touches product/business logic, and escalates strategy decisions (framework choice, coverage floor) instead of guessing.",
+  "author": {
+    "name": "Techjays",
+    "email": "delivery@techjays.com"
+  },
+  "keywords": ["quality-assurance", "qa", "test-infrastructure", "test-strategy", "quality-gates", "unit-testing", "e2e", "playwright", "coverage", "ci", "sdlc"]
+}

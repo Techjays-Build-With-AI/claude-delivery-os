@@ -53,7 +53,8 @@ Before any implementation, confirm each item. A failure on a **critical** item (
 | No blocking open question is still `Open` | `open-questions.md` (Impact = "Blocks…") | ✕-critical |
 | TL technical context exists for the feature's units | `context/frontend|backend|database` + indexes | ✕-critical → satisfied by the **planning gate (§0)**: auto-planned if missing; only escalates if TL is unavailable or planning can't complete |
 | Dependencies are available or explicitly mockable | `dependencies.md`, integration-register | ✕-critical |
-| Repository is in a usable state; base build is green | product repo (`git status`, build) | ✕-critical |
+| A usable product repository exists; base build is green | product repo (`git status`, build) | ✕-critical → **project-zero** routes to bootstrap (§1a), not a plain block |
+| A usable test harness exists; quality gates are defined | `qa-output/quality-gates.md` (`harness_status: Active`) | ✕-critical → **no harness** routes to QA (§1b), not a plain block |
 | Required env vars, credentials, tools are available | repo config / environment | ✕-critical |
 | Feature ownership is not locked by another agent | `dev/delivery-status.md` owner | ✕-critical |
 | Major workflow is unambiguous | `workflow.md` | non-critical → note assumption |
@@ -62,6 +63,31 @@ Before any implementation, confirm each item. A failure on a **critical** item (
 Non-critical gaps: record a marked **assumption** in `dev/dev-plan.md` and proceed. Critical gaps: escalate. Examples of critical missing information that must not be guessed past — no acceptance criteria, conflicting workflow definitions, unknown source of truth for data, missing API contract, missing authn/permission rules, an unresolved schema requirement, or a dependency on an unavailable external system.
 
 Passing readiness gate → set state `IN_DEVELOPMENT` (after planning) and continue.
+
+### 1a. Repository gate — brownfield vs project-zero
+
+The "usable product repository" check has two failure modes, and they are handled differently:
+
+- **Brownfield, but broken** — a repo exists yet its base build/lint/test is already red *before* your changes. This is a genuine escalation (you don't silently fix a pre-existing broken build). Set `BLOCKED` and escalate.
+- **Project-zero** — there is **no** product repository at all (no app skeleton, no package-manager files, no build/test tooling), because the workspace is design-only. This is **not** a per-feature bug — it blocks every feature — and the fix is to stand up the initial codebase, which is an architecture decision, not something to guess.
+
+For project-zero, **route to bootstrap rather than plain-blocking**:
+
+1. If a **confirmed architecture** exists (`context/project/architecture.md` / `technology-stack.md`, or a spec the user pointed at) and no stack decision is missing, the loop may **auto-bootstrap** — delegate to the TL `tl-project-scaffold` skill (the same work `/tl:scaffold` / `/dev:bootstrap` does) to stand up the repo and its green base, then re-check and continue.
+2. If required stack decisions are **missing** (framework, DB, hosting, …), scaffolding must ask the user — so **hand off to `/dev:bootstrap`** (which runs the TL scaffold's recommend-and-ask flow) instead of trying to answer architecture questions inside the feature loop. Report that the workspace is project-zero and needs a one-time bootstrap.
+3. If the **TL scaffold skill isn't available**, escalate: `BLOCKED`, tell the user to run `/tl:scaffold` (or install the tl plugin). Never scaffold with a guessed stack.
+
+The dev agent never chooses the stack itself — bootstrap executes a confirmed one and asks (with a recommendation) for the rest. Once the repo exists with a green base, the repository readiness check passes and the loop proceeds.
+
+### 1b. Test-harness gate — can the loop actually verify?
+
+A repo can build green yet have **no way to prove features** — no test runner, no coverage enforcement, no e2e harness. The dev loop's `TESTING` step then runs whatever tooling happens to exist and calls it "verified," which is exactly the visibility gap QA closes. So before implementing, confirm a usable test harness exists and the loop knows the bar:
+
+1. **Read `qa-output/quality-gates.md`.** If it exists with `harness_status: Active`, the harness is proven and the file tells `dev-validation` which checks are **Required**, their commands, and the thresholds (coverage floor, when e2e/contract tests are mandatory). Proceed — and carry the required gates into the acceptance-map step.
+2. **No contract, or `harness_status` is `Draft`/`Broken`** — there is no proven way to verify. This is not a per-feature bug (it blocks every feature) and the fix — which frameworks, what coverage floor — is a strategy decision, not something to guess. **Route to QA rather than plain-blocking:** tell the user to run `/qa:audit` → `/qa:plan` → `/qa:setup` (the QA plugin), analogous to how project-zero routes to `/dev:bootstrap`. If the **qa plugin isn't installed**, degrade gracefully: fall back to detecting the repo's own tooling for this run (as today) and note in the summary that no QA quality-gate contract was found, so verification used detected tooling rather than an agreed bar — recommend installing `qa` and running `/qa:setup`.
+3. **A `Broken` harness** (a Required gate is red before your changes) is a genuine escalation, like a broken base build — `BLOCKED`, tell the user to run `/qa:health` and fix the harness first; don't build features onto a broken test setup.
+
+The dev agent never designs the test strategy itself — QA owns that. When the contract is present, the loop simply verifies against it; when it's absent, it routes to QA or degrades to detected tooling, but never invents a quality bar and calls it agreed.
 
 ---
 

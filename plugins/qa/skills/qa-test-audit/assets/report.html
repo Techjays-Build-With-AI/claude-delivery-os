@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>QA Test-Readiness Audit</title>
+<style>
+  :root {
+    --bg:#0f1420; --panel:#161c2b; --panel2:#1d2436; --line:#2a3350;
+    --ink:#e8ecf6; --mut:#96a0b8; --acc:#5b8cff; --ok:#39d98a; --warn:#f5a623;
+    --blk:#ff5c6c; --maj:#f5a623; --min:#5b8cff; --nit:#96a0b8;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink);
+    font:15px/1.5 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; }
+  .wrap { max-width:980px; margin:0 auto; padding:32px 20px 80px; }
+  h1 { font-size:22px; margin:0 0 4px; }
+  .sub { color:var(--mut); margin:0 0 24px; font-size:13px; }
+  .hero { display:flex; gap:20px; align-items:center; background:var(--panel);
+    border:1px solid var(--line); border-radius:14px; padding:20px 24px; margin-bottom:22px; }
+  .score { font-size:44px; font-weight:700; line-height:1; }
+  .score small { font-size:16px; color:var(--mut); font-weight:400; }
+  .verdict { font-size:15px; font-weight:600; padding:4px 12px; border-radius:999px;
+    background:var(--panel2); border:1px solid var(--line); display:inline-block; }
+  .stack { color:var(--mut); font-size:13px; margin-top:6px; }
+  h2 { font-size:14px; text-transform:uppercase; letter-spacing:.06em; color:var(--mut);
+    margin:28px 0 12px; }
+  table { width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--line);
+    border-radius:12px; overflow:hidden; }
+  th,td { text-align:left; padding:10px 14px; border-bottom:1px solid var(--line); font-size:14px; }
+  th { color:var(--mut); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:.04em; }
+  tr:last-child td { border-bottom:none; }
+  .bar { height:7px; border-radius:4px; background:var(--panel2); overflow:hidden; width:120px; }
+  .bar > i { display:block; height:100%; background:var(--acc); }
+  .na { color:var(--mut); font-style:italic; }
+  .find { background:var(--panel); border:1px solid var(--line); border-radius:12px;
+    padding:16px 18px; margin-bottom:14px; }
+  .find.blocker { border-left:4px solid var(--blk); }
+  .find.major { border-left:4px solid var(--maj); }
+  .find.minor { border-left:4px solid var(--min); }
+  .find.nit { border-left:4px solid var(--nit); }
+  .fhead { display:flex; align-items:center; gap:10px; margin-bottom:8px; flex-wrap:wrap; }
+  .fid { font-family:ui-monospace,Menlo,monospace; font-size:12px; color:var(--mut); }
+  .sev { font-size:11px; font-weight:700; text-transform:uppercase; padding:2px 8px; border-radius:6px; }
+  .sev.blocker { background:rgba(255,92,108,.16); color:var(--blk); }
+  .sev.major { background:rgba(245,166,35,.16); color:var(--maj); }
+  .sev.minor { background:rgba(91,140,255,.16); color:var(--min); }
+  .sev.nit { background:rgba(150,160,184,.16); color:var(--nit); }
+  .farea { font-weight:600; }
+  .frow { margin:4px 0; font-size:14px; }
+  .frow b { color:var(--mut); font-weight:600; }
+  .rec { background:var(--panel2); border-radius:8px; padding:10px 12px; margin-top:8px; font-size:14px; }
+  .decide { display:flex; gap:8px; align-items:center; margin-top:12px; flex-wrap:wrap; }
+  .decide .opt { cursor:pointer; padding:5px 12px; border-radius:8px; border:1px solid var(--line);
+    background:var(--panel2); color:var(--ink); font-size:13px; }
+  .decide .opt.on-adopt { background:var(--ok); color:#06210f; border-color:var(--ok); }
+  .decide .opt.on-skip  { background:var(--nit); color:#111; border-color:var(--nit); }
+  .decide .opt.on-defer { background:var(--warn); color:#241a00; border-color:var(--warn); }
+  .decide input { flex:1; min-width:180px; background:var(--bg); border:1px solid var(--line);
+    color:var(--ink); border-radius:8px; padding:6px 10px; font-size:13px; }
+  .exportbar { position:sticky; bottom:0; margin-top:24px; padding:14px 18px; background:var(--panel);
+    border:1px solid var(--line); border-radius:12px; display:flex; align-items:center; gap:14px; }
+  .exportbar button { background:var(--acc); color:#fff; border:none; border-radius:9px;
+    padding:9px 18px; font-size:14px; font-weight:600; cursor:pointer; }
+  .exportbar .count { color:var(--mut); font-size:13px; }
+  .hint { color:var(--mut); font-size:12px; margin-top:6px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>QA Test-Readiness Audit</h1>
+  <p class="sub" id="meta"></p>
+
+  <div class="hero">
+    <div>
+      <div class="score" id="scoreVal"></div>
+    </div>
+    <div>
+      <span class="verdict" id="verdict"></span>
+      <div class="stack" id="stack"></div>
+    </div>
+  </div>
+
+  <h2>Scorecard</h2>
+  <table id="scorecard"><thead><tr><th>Area</th><th>Score</th><th>Note</th></tr></thead><tbody></tbody></table>
+
+  <h2>Findings &amp; recommendations</h2>
+  <div id="findings"></div>
+
+  <div class="exportbar">
+    <button onclick="exportApprovals()">Export approvals ↓</button>
+    <span class="count" id="count"></span>
+    <span class="hint">Set Adopt / Skip / Defer per finding, then export the approvals file and run <code>/qa:plan</code>.</span>
+  </div>
+</div>
+
+<script>
+const DATA = __AUDIT_DATA__;
+const findingState = {};
+
+function init() {
+  document.getElementById('meta').textContent =
+    `Audit ${DATA.auditId} · ${DATA.repo} · round ${DATA.round} · ${DATA.generatedAt}`;
+  document.getElementById('scoreVal').innerHTML = `${DATA.readinessScore.toFixed(1)}<small>/10</small>`;
+  document.getElementById('verdict').textContent = DATA.verdict;
+  const s = DATA.stack || {};
+  document.getElementById('stack').textContent =
+    [ (s.languages||[]).join(', '), (s.frameworks||[]).join(', '),
+      s.packageManager, 'tests: ' + ((s.existingTestTooling||[]).join(', ')||'none') ]
+      .filter(Boolean).join(' · ');
+
+  const sb = document.querySelector('#scorecard tbody');
+  (DATA.scorecard||[]).forEach(a => {
+    const tr = document.createElement('tr');
+    const pct = a.applicable ? Math.round((a.score/10)*100) : 0;
+    tr.innerHTML = `<td>${a.area}</td>
+      <td>${a.applicable ? `<div class="bar"><i style="width:${pct}%"></i></div> ${a.score}/10`
+                         : `<span class="na">N/A</span>`}</td>
+      <td>${a.note||''}</td>`;
+    sb.appendChild(tr);
+  });
+
+  const fc = document.getElementById('findings');
+  (DATA.findings||[]).forEach(f => {
+    findingState[f.id] = { decision: f.decision || f.proposedDecision || 'Adopt', note: f.note || '' };
+    const sev = (f.severity||'').toLowerCase();
+    const el = document.createElement('div');
+    el.className = 'find ' + sev;
+    el.innerHTML = `
+      <div class="fhead">
+        <span class="fid">${f.id}</span>
+        <span class="sev ${sev}">${f.severity}</span>
+        <span class="farea">${f.area}</span>
+      </div>
+      <div class="frow"><b>Missing:</b> ${f.whatsMissing}</div>
+      <div class="frow"><b>Why it matters:</b> ${f.whyItMatters}</div>
+      <div class="rec"><b>Recommend:</b> ${f.recommendation}
+        <div class="frow"><b>Preferred:</b> ${f.recommendedOption||'—'} · <b>Effort:</b> ${f.effort||'—'}</div>
+      </div>
+      <div class="decide" data-id="${f.id}">
+        <span class="opt" data-d="Adopt">Adopt</span>
+        <span class="opt" data-d="Skip">Skip</span>
+        <span class="opt" data-d="Defer">Defer</span>
+        <input placeholder="note (optional)" value="${(f.note||'').replace(/"/g,'&quot;')}" />
+      </div>`;
+    fc.appendChild(el);
+    const box = el.querySelector('.decide');
+    box.querySelectorAll('.opt').forEach(o => o.addEventListener('click', () => setDecision(f.id, o.dataset.d, box)));
+    box.querySelector('input').addEventListener('input', e => findingState[f.id].note = e.target.value);
+    paint(f.id, box);
+  });
+  updateCount();
+}
+
+function setDecision(id, d, box) { findingState[id].decision = d; paint(id, box); updateCount(); }
+function paint(id, box) {
+  const cur = findingState[id].decision;
+  box.querySelectorAll('.opt').forEach(o => {
+    o.className = 'opt' + (o.dataset.d === cur ? ' on-' + cur.toLowerCase() : '');
+  });
+}
+function updateCount() {
+  const vals = Object.values(findingState);
+  const a = vals.filter(v => v.decision === 'Adopt').length;
+  const s = vals.filter(v => v.decision === 'Skip').length;
+  const d = vals.filter(v => v.decision === 'Defer').length;
+  document.getElementById('count').textContent = `${a} adopt · ${d} defer · ${s} skip`;
+}
+function exportApprovals() {
+  let out = `---\ndoc_type: test-audit-approvals\nschema_version: 1.0\nproduced_by: qa\n`;
+  out += `source_audit: ${DATA.auditId}\ngenerated_at: ${DATA.generatedAt}\n---\n\n`;
+  (DATA.findings||[]).forEach(f => {
+    const st = findingState[f.id];
+    const opt = st.decision === 'Skip' ? '—' : (f.recommendedOption || '—');
+    out += `${f.id} · ${st.decision} · ${opt}${st.note ? ' · (note: ' + st.note + ')' : ''}\n`;
+  });
+  const blob = new Blob([out], { type: 'text/markdown' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url; link.download = `test-audit-${DATA.auditId}-approvals.md`;
+  link.click(); URL.revokeObjectURL(url);
+}
+init();
+</script>
+</body>
+</html>

@@ -13,7 +13,9 @@ Read **`delivery-os-conventions`** and the delivery loop's `references/dev-conte
 
 ## What you run
 
-Run the checks in `references/validation-suite.md` that **apply** to the change — mark the rest `N/A` rather than skipping silently. Order them cheap-to-expensive so failures surface fast: lint/format → type-check → unit → integration/API-contract → build → migration validation → security/dependency scan → end-to-end → feature-specific acceptance tests. Detect the toolchain from the repo (package scripts, Makefile, CI config) rather than assuming a command.
+**Read the QA quality-gate contract first.** If `qa-output/quality-gates.md` exists (`produced_by: qa`), it is the authority for what "verified" means in this repo: it lists the **Required** gates, the exact command for each, and the thresholds (coverage floor, when e2e/contract tests are mandatory). Run every Required gate's command, plus any Optional gate whose rule the feature triggers (e.g. a `user-journey` acceptance criterion → e2e; a changed `EP-<AREA>-NN` contract → contract test), and enforce the `coverage_floor` on the feature's changes. This is what lets you validate against an agreed bar rather than guessing the tooling. If the contract is **absent** (the qa plugin isn't in use), fall back to detecting the toolchain from the repo and note in the results that no quality-gate contract was found — verification used detected tooling, not an agreed bar.
+
+Run the checks in `references/validation-suite.md` that **apply** to the change — mark the rest `N/A` rather than skipping silently. Order them cheap-to-expensive so failures surface fast: lint/format → type-check → unit → integration/API-contract → build → migration validation → security/dependency scan → end-to-end → feature-specific acceptance tests. When the quality-gate contract is present, its commands and Required set take precedence over guessed ones; otherwise detect the toolchain from the repo (package scripts, Makefile, CI config).
 
 ## Workflow
 

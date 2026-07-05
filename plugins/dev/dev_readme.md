@@ -5,7 +5,7 @@ The **Developer Agent** takes an approved, TL-planned feature and **builds it** 
 | | |
 |---|---|
 | **Namespace** | `/dev:` |
-| **Commands** | `/dev:build <feature>` · `/dev:validate <feature>` · `/dev:fix-review <feature> feedback=<...>` · `/dev:pr <feature>` |
+| **Commands** | `/dev:bootstrap [spec]` · `/dev:build <feature>` · `/dev:validate <feature>` · `/dev:fix-review <feature> feedback=<...>` · `/dev:pr <feature>` |
 | **Input** | The BA feature breakdown (`context/features/<slug>/`), the TL context graph (`context/frontend|backend|database`), and the product repository |
 | **Output** | Working code on `feature/FEAT-<AREA>-NN-<slug>`, the `dev/` context files per feature, `dev-output/feature-tracker.md`, and a `dev/pr-summary.md` review handoff |
 | **Skills** | `feature-delivery-loop` · `dev-validation` · `dev-code-review` · `dev-pr-handoff` |
@@ -51,12 +51,21 @@ If the feature isn't planned (or is only partially planned), the agent **auto-pl
 
 It only stops on the planning step in two cases: the **TL plugin isn't installed** (it blocks and asks you to run `/tl:plan`), or **TL planning itself hits a genuine unknown** (a missing integration contract, an undecided auth model) — in which case it carries the TL's blocking open questions up as the escalation rather than building on a half-graph. Prefer to review the technical design before any code is written? Run `/tl:plan <feature>` yourself first; the gate will see it's already planned and go straight to building.
 
+### Greenfield — starting a project with no code yet
+
+The dev loop builds *into* a repository. On a brand-new (design-only) workspace there isn't one, and the agent won't scaffold on a guessed stack — the stack is an architecture decision. So `/dev:build` also has a **repository gate**: if it finds no product repo at all (project-zero), it routes to **bootstrap** instead of dead-ending.
+
+Run `/dev:bootstrap` once at the start of a greenfield project (or let `/dev:build` route you there). It delegates to the TL's `tl-project-scaffold`: reads the architecture / tech spec, **asks you — with a recommendation — for any required stack decision the architecture doesn't pin down** (framework, database, hosting, repo layout…), then scaffolds the skeleton, lint/format/type/test/build tooling, `coding-standards.md`, and a **green base build**, logging each stack choice as a `DEC-###`. Once it's done, the repository gate passes and `/dev:build <feature>` proceeds normally.
+
+If the **tl plugin isn't installed**, bootstrap blocks and asks you to run `/tl:scaffold` (or install it) — it will not scaffold with a guessed stack. Already have a repo? Point the dev agent at it (`repo=<path>`) and the gate treats it as brownfield — bootstrap isn't needed.
+
 ---
 
 ## Commands
 
 | Command | Does | Stops at |
 |---|---|---|
+| `/dev:bootstrap [spec]` | Greenfield — ensure a usable, green product repo exists (scaffolds via the TL on project-zero) | build-ready workspace |
 | `/dev:build <feature>` | The full loop — implement, validate, repair, track, prepare PR | `HUMAN_REVIEW` (or `BLOCKED`) |
 | `/dev:validate <feature>` | Runs the validation suite and maps results to acceptance criteria; no code changes | acceptance-map report |
 | `/dev:fix-review <feature> feedback=<path\|PR>` | Folds reviewer comments back in, re-validates, refreshes the PR summary | `HUMAN_REVIEW` (or `BLOCKED`) |
@@ -107,8 +116,10 @@ Installation and workspace setup are shared across all Delivery OS plugins — s
    /plugin marketplace add techjays/claude-delivery-os
    /plugin install delivery-os@techjays-delivery-os
    /plugin install dev@techjays-delivery-os
+   /plugin install tl@techjays-delivery-os   # needed for auto-planning and greenfield scaffold
    ```
 2. **Run the BA breakdown first; TL planning is automatic.** The dev agent consumes the BA feature breakdown (`/ba:features`), so that must exist. TL planning it will handle for you: `/dev:build` opens with a **planning gate** that checks whether the feature is already split into pages/endpoints/entities and, if not, auto-plans it via `tl-feature-planning` before building (see below). You can still run `/tl:plan` yourself beforehand if you want to review the technical design first.
+3. **Greenfield? Bootstrap once.** If the project has no application code yet, run `/dev:bootstrap` (or let `/dev:build` route you there) to scaffold the initial repo via the TL before building features — see [Greenfield](#greenfield--starting-a-project-with-no-code-yet) below. The `tl` plugin must be installed for this.
 
 ---
 

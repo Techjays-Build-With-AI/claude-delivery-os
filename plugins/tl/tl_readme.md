@@ -5,10 +5,10 @@ The **Technical Lead Agent** does two jobs a seasoned TL does. It **authors** th
 | | |
 |---|---|
 | **Namespace** | `/tl:` |
-| **Commands** | `/tl:plan <feature-or-features>` · `/tl:review <doc> [out=<prefix>]` · `/tl:resolve <responses-file>` |
-| **Input** | Feature planning: the BA feature breakdown under `context/features/`. Spec review: a tech spec / architecture / system-design / HLD / SRS document (`.md`, `.docx`, or `.pdf`) |
-| **Output** | Feature planning: the linked `context/frontend|backend|database` graph + three indexes. Spec review: `tl-output/spec-review-<timestamp>.{html, md, json}` |
-| **Skills** | `tl-feature-planning` · `tl-spec-review` |
+| **Commands** | `/tl:plan <feature-or-features>` · `/tl:review <doc> [out=<prefix>]` · `/tl:resolve <responses-file>` · `/tl:scaffold [spec] [repo=<path>]` |
+| **Input** | Feature planning: the BA feature breakdown under `context/features/`. Spec review: a tech spec / architecture / system-design / HLD / SRS document (`.md`, `.docx`, or `.pdf`). Scaffold: the confirmed architecture (spec / `context/project/`) + the context graph |
+| **Output** | Feature planning: the linked `context/frontend|backend|database` graph + three indexes. Spec review: `tl-output/spec-review-<timestamp>.{html, md, json}`. Scaffold: the initial application repository (skeleton + tooling + green base) and `context/project/{technology-stack, architecture, coding-standards}.md` |
+| **Skills** | `tl-feature-planning` · `tl-spec-review` · `tl-project-scaffold` |
 
 ---
 
@@ -17,6 +17,18 @@ The **Technical Lead Agent** does two jobs a seasoned TL does. It **authors** th
 Point it at one feature folder or the whole `context/features/` set. For each feature it maps the pages/APIs/data-entities the BA declared into real, linked unit files: **pages** (`context/frontend/pages/`), **endpoints** (`context/backend/domains/`), and **entities** (`context/database/entities/`). It **reuses** a unit and adds a back-link where its match key already exists (page route, endpoint `METHOD + path`, entity object name), and creates it — minting the next `PAGE-`/`EP-`/`ENT-<AREA>-NN` — where it doesn't, so shared units live once with many links rather than duplicated per feature.
 
 The result is a **bidirectional graph**: a page links to the endpoints it consumes, an endpoint to its callers and the entities it touches, an entity back to its consuming endpoints and to the BA `DATA-###` it realises. Database entities cite the BA data-register (not a parallel ID space), material design decisions are logged as `DEC-###`, genuine unknowns become open questions rather than invented contracts, and a **link-integrity check** flags any dangling reference, uncalled endpoint, or orphan entity. Backend-only features (jobs, events, webhooks, integrations) enter at endpoints, skipping the page layer.
+
+---
+
+## Project scaffold (`/tl:scaffold`)
+
+Feature planning and code both need a codebase to live in. On a **greenfield** project there isn't one yet — and the dev agent refuses to scaffold with a guessed stack, because the stack is an architecture decision. `/tl:scaffold` is where that decision gets made and executed, under the TL's architecture hat.
+
+Point it at the tech spec / architecture (or let it read `context/project/` + `shared-context/`). It extracts every stack choice the architecture **confirms**, and for every required choice it leaves **open** — application type, repo layout, frontend framework, backend language/framework, database, package manager, test framework — it **asks you with a recommended option and a one-line rationale** grounded in the project profile and the shape of the context graph. It never silently guesses a critical stack decision.
+
+Then it scaffolds: the idiomatic skeleton (preferring official generators like `create-vite`, `spring init`, `poetry new`), package-manager manifests, lint/format/type/test/build tooling, one trivial passing test, a README and `.gitignore`, and it writes `context/project/{technology-stack.md, architecture.md, coding-standards.md}`. Every stack decision — spec-confirmed or you-answered — is logged as a `DEC-###`. Before handing off it runs `install → lint → type-check → test → build` and confirms the **base build is green** — the exact readiness item the dev agent checks. It scaffolds the *foundation*, not features; the dev agent's `feature-delivery-loop` builds those into it.
+
+Once it's done, the workspace is build-ready: `/dev:build <feature>` (and the dev agent's `/dev:bootstrap` greenfield check) will pass.
 
 ---
 

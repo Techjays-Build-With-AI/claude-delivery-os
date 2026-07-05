@@ -1,0 +1,69 @@
+# Quality-gate contract — the schema dev reads
+
+`qa-output/quality-gates.md` is the single source of truth for what "verified" means in this repo. It must be **parseable and unambiguous** because two consumers depend on it:
+
+- The **dev readiness gate** (`feature-delivery-loop` → `readiness-and-planning.md` §1b) reads it to confirm a usable test harness exists before building a feature.
+- **`dev-validation`** reads it to know which checks are **Required**, the exact command for each, and the threshold each must clear — instead of guessing the repo's tooling.
+
+Keep the frontmatter and the gate table stable; consumers key off them.
+
+## Frontmatter
+
+```yaml
+---
+doc_type: quality-gates
+schema_version: 1.0
+produced_by: qa
+harness_status: Active        # Active (proven green) | Draft (planned, not yet proven) | Broken
+coverage_floor: 70            # percent; the enforced minimum, or null if not enforced
+source_audit: 2026-07-05-143210
+generated_at: 2026-07-05
+---
+```
+
+## Green-smoke sequence
+
+The single documented command sequence that proves the harness runs green end to end — the same one `qa-test-setup` verified. List it explicitly so anyone (or the dev loop) can reproduce it:
+
+```text
+1. <install cmd>
+2. <lint cmd>
+3. <format:check cmd>
+4. <typecheck cmd>
+5. <unit cmd>
+6. <coverage cmd + threshold enforcement>
+7. <build cmd>
+8. <e2e:smoke cmd>   # or N/A — headless service
+```
+
+## Gate table
+
+One row per gate. `Required` gates are what `dev-validation` must run and pass for a feature to advance; `Optional` gates apply where the feature/project calls for them.
+
+| Gate | Check | Required? | Command | Threshold / rule | Status |
+|---|---|---|---|---|---|
+| QG-001 | Lint | Required | `<lint cmd>` | zero errors (baseline: N warnings) | Passing |
+| QG-002 | Format | Required | `<format:check cmd>` | no diffs | Passing |
+| QG-003 | Type-check | Required | `<typecheck cmd>` | zero errors | Passing |
+| QG-004 | Unit | Required | `<unit cmd>` | all pass | Passing |
+| QG-005 | Coverage | Required | `<coverage cmd>` | ≥ coverage_floor | Passing |
+| QG-006 | Build | Required | `<build cmd>` | succeeds | Passing |
+| QG-007 | Integration | Required* | `<integration cmd>` | all pass | Passing |
+| QG-008 | E2E | Optional | `<e2e cmd>` | required for user-journey criteria | Passing |
+| QG-009 | Contract/API | Optional | `<contract cmd>` | required when EP-* contract changes | Not-configured |
+| QG-010 | Security scan | Optional | `<security cmd>` | no high/critical | Not-configured |
+
+- **Status** values: `Passing` · `Failing` · `Not-configured`. Never record `Passing` unproven.
+- **`Required*`** = required only if the applicable surface exists (e.g. integration required once there's a DB/service; contract required once an API surface exists). State the condition in the rule column.
+- **When e2e/contract is mandatory** — spell out the rule (e.g. "any acceptance criterion tagged `user-journey` requires an e2e; any change to an `EP-<AREA>-NN` contract requires a contract test") so the dev agent knows when an Optional gate becomes obligatory for a given feature.
+
+## Change rules
+
+- Adding, tightening, or **loosening** a gate or threshold is a `DEC-###` decision in `shared-context/decision-log.md` with a rationale — never a silent edit. Lowering `coverage_floor` especially must be justified and human-approved.
+- On any change, bump `generated_at`; if a required gate goes red, set `harness_status: Broken` and surface it (that's a dev readiness blocker until fixed).
+- `/qa:health` re-runs the Required gates and updates `Status` + `harness_status` from real results.
+
+## How dev consumes this (informative)
+
+- **Readiness gate:** `harness_status: Active` (and the runner/coverage gates present) → harness exists, proceed. `Draft`/`Broken` or file absent → route to QA (`/qa:audit` → `/qa:setup`), analogous to the project-zero → bootstrap route.
+- **dev-validation:** run every `Required` gate's command, plus any `Optional` gate whose rule the feature triggers; map results into the feature's `acceptance-map.md`. The `coverage_floor` is the enforced minimum for the feature's changes.

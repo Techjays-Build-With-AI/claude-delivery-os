@@ -6,6 +6,8 @@ Folder names are **lowercase kebab-case** (`supplier-onboarding`, `outlet-discov
 
 Feature IDs are stable and append-only: `FEAT-<AREA>-NN` where `<AREA>` is a short uppercase abbreviation for the capability area (Supplier → `SUP`, Sourcing → `SRC`, RFP → `RFP`) and `NN` is sequential within that area. New open questions minted here use `OQ-<AREA>-NN`; where a question is already tracked in the BA `clarification-log.md`, reuse its `CLR-###` id instead of minting a new one.
 
+Every feature also carries an **`initiative`** — the human-named work-batch slug (e.g. `payments-v2`) passed to `/ba:features initiative=<name>`, so a developer can later plan and build just the features from their own scoping effort even when the shared `context/features/` holds many developers' in-flight features (see `delivery-os-conventions` §3). It is written to the `initiative:` frontmatter of `feature.md` and `status.md`, and to the `Initiative` column of `feature-index.md`. On a re-run an existing feature **keeps** its initiative unless a new one is passed; a feature with none is `unassigned`.
+
 ---
 
 ## feature-index.md
@@ -23,15 +25,15 @@ generated_at: YYYY-MM-DD
 
 # Feature Index
 
-| Feature ID | Feature | Status | Priority | Dependencies | Folder |
-|---|---|---|---|---|---|
-| FEAT-SUP-001 | Supplier Onboarding | Ready for Planning | High | User Management, Document Storage | ./supplier-onboarding |
-| FEAT-SUP-002 | Supplier Approval Workflow | Proposed | High | Supplier Onboarding, Notification Service | ./supplier-approval |
-| FEAT-SRC-001 | Outlet Discovery | Proposed | High | Supplier Onboarding, Outlet Data | ./outlet-discovery |
-| FEAT-RFP-001 | RFP Generation | Proposed | Medium | Outlet Discovery, Notification Service | ./rfp-generation |
+| Feature ID | Feature | Initiative | Status | Priority | Dependencies | Folder |
+|---|---|---|---|---|---|---|
+| FEAT-SUP-001 | Supplier Onboarding | supplier-portal | Ready for Planning | High | User Management, Document Storage | ./supplier-onboarding |
+| FEAT-SUP-002 | Supplier Approval Workflow | supplier-portal | Proposed | High | Supplier Onboarding, Notification Service | ./supplier-approval |
+| FEAT-SRC-001 | Outlet Discovery | sourcing-mvp | Proposed | High | Supplier Onboarding, Outlet Data | ./outlet-discovery |
+| FEAT-RFP-001 | RFP Generation | sourcing-mvp | Proposed | Medium | Outlet Discovery, Notification Service | ./rfp-generation |
 ```
 
-**Status** (controlled values, shared with `feature.md` and `status.md`): `Proposed` · `Ready for Planning` · `In Development` · `In QA` · `UAT` · `Released` · `Blocked` (plus the retirement values above). **Priority**: `High` · `Medium` · `Low`.
+**Status** (controlled values, shared with `feature.md` and `status.md`): `Proposed` · `Ready for Planning` · `In Development` · `In QA` · `UAT` · `Released` · `Blocked` (plus the retirement values above). **Priority**: `High` · `Medium` · `Low`. **Initiative**: the human-named work-batch slug the feature was scoped under (`unassigned` if none) — the grouping `/tl:plan` and `/dev:build` filter by.
 
 ---
 
@@ -45,6 +47,7 @@ doc_type: feature
 schema_version: 1.0
 produced_by: ba
 feature_id: FEAT-SUP-001
+initiative: supplier-portal
 status: Ready for Planning
 generated_at: YYYY-MM-DD
 ---
@@ -53,6 +56,9 @@ generated_at: YYYY-MM-DD
 
 ## Feature ID
 FEAT-SUP-001
+
+## Initiative
+supplier-portal
 
 ## Status
 Proposed | Ready for Planning | In Development | In QA | UAT | Released | Blocked
@@ -466,6 +472,7 @@ doc_type: feature-status
 schema_version: 1.0
 produced_by: ba
 feature_id: FEAT-SUP-001
+initiative: supplier-portal
 generated_at: YYYY-MM-DD
 ---
 
