@@ -190,14 +190,14 @@
 
 
     <h3 class="step"><span class="stepnum">2</span> Install the plugins</h3>
-    <p>Same for all options above. Install the core first, then the agents you need (order shown follows the delivery flow).</p>
+    <p>Same for all options above. <b>We suggest installing all of them.</b> The agents are designed to work as one pipeline — each hands off to the next — so installing the full set gives you the complete flow and lets the Dev loop auto-plan via TL and verify against QA's gates without missing pieces. Install the core first; the order below follows the delivery flow.</p>
     <div class="code"><button class="copy">Copy</button><pre><code>/plugin install delivery-os@techjays-delivery-os
 /plugin install ba@techjays-delivery-os
 /plugin install dev@techjays-delivery-os
 /plugin install qa@techjays-delivery-os
 /plugin install tl@techjays-delivery-os
 /plugin install doc@techjays-delivery-os</code></pre></div>
-    <div class="note"><b>Dev + QA + TL work together:</b> the Dev loop auto-plans features via TL and verifies them against QA's quality gates, so install all three when you're building.</div>
+    <div class="note tip"><b>Recommended: install the whole suite.</b> The plugins are lightweight and only add commands you choose to run, so there's no downside to having them all — and several depend on each other at runtime (Dev auto-plans via TL and verifies against QA's quality gates). If you'd rather start minimal, <code>delivery-os</code> + <code>ba</code> is the smallest useful set, and you can add the rest anytime.</div>
 
     <h3 class="step"><span class="stepnum">3</span> Verify</h3>
     <p>Reload if prompted, then run <code>/help</code>. You should see the new commands:</p>
