@@ -37,7 +37,10 @@ attachment with the network unplugged.
   client's real numbers; never fabricate — mark unknowns as `[[NEEDS: …]]` and list them back.
 - **Write the output to `doc-output/`** (create it on first use), timestamped so runs never
   collide: `doc-output/board-<topic>-<timestamp>.html`. If there's no workspace, write beside
-  the working directory and note it.
+  the working directory and note it. **Save the HTML as UTF-8 (no BOM); don't route it through
+  a shell/editor that re-encodes it** — non-ASCII glyphs (§, ×, →, …) double-encode into
+  mojibake (`§`→`Â§`) on a Windows code page despite `<meta charset="utf-8">`. After writing,
+  verify the file has no `Â`/`â€`/`Ã` sequences before returning.
 - **Voice:** no em-dashes (—) in on-card text; no "not X but Y" contrastive negation; address
   the client by name where relevant. (En-dashes in ranges are fine.)
 

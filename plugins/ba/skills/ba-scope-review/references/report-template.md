@@ -1,6 +1,6 @@
 # Report Template — review data object + `scope-review.md`
 
-The review is produced once as a structured **data object**, then rendered into three files: the interactive `scope-review-<timestamp>.html` (inject the JSON into `assets/report.html`), the Markdown `scope-review-<timestamp>.md` (structure below), and the `scope-review-<timestamp>.json` sidecar (the data object verbatim). Build the data object first; all renders derive from it so they can't drift.
+The review is produced once as a structured **data object**, then rendered into three files: the `scope-review-<timestamp>.json` sidecar (the data object verbatim), the interactive `scope-review-<timestamp>.html` (generated from that sidecar with `assets/inject.js` — see §2), and the Markdown `scope-review-<timestamp>.md` (structure below). Build the data object first; all renders derive from it so they can't drift.
 
 Use the controlled severities (`Blocker` · `Major` · `Minor` · `Nit`) and a stable `SQ-###` ID (zero-padded, append-only) for every scope question, per `delivery-os-conventions`.
 
@@ -98,9 +98,15 @@ Field rules:
 
 ## 2. Injecting into the HTML
 
-Read `assets/report.html`, replace the literal token `__REVIEW_DATA__` (between `<script id="review-data" type="application/json">` and `</script>`) with the JSON object above, and write to the timestamped path `scope-review-<timestamp>.html` (SKILL.md step 7). Touch nothing else. Validate the JSON — a trailing comma or unescaped quote makes the page render its empty-state notice instead of the report.
+**Write `scope-review-<timestamp>.json` first**, then build the HTML from it with the bundled script — never hand-assemble the HTML. The report contains non-ASCII glyphs (`§`, `—`, `→`) both in the template chrome and in your review text; pasting the assembled HTML through a shell or editor on Windows double-encodes them into mojibake (`§`→`Â§`, `—`→`â€"`) even though `<meta charset="utf-8">` is present. The script sidesteps this by reading and writing UTF-8 explicitly:
 
-**Also write the same JSON object to `scope-review-<timestamp>.json`** alongside. This sidecar is the machine-readable state `/ba:resolve` reads (matched by `reviewId`) to carry questions forward without re-parsing HTML or prose.
+```
+node assets/inject.js assets/report.html scope-review-<timestamp>.json __REVIEW_DATA__ scope-review-<timestamp>.html
+```
+
+`inject.js` replaces the literal token `__REVIEW_DATA__` (between `<script id="review-data" type="application/json">` and `</script>`) with the JSON, touches nothing else, validates the JSON (a trailing comma or unescaped quote would make the page render its empty-state notice), and aborts if it detects mojibake. If Node is unavailable, do the replacement manually but save the output as **UTF-8 without a BOM** and verify the file shows `§`/`—`, not `Â§`/`â€"`, before moving on.
+
+The `scope-review-<timestamp>.json` sidecar is also the machine-readable state `/ba:resolve` reads (matched by `reviewId`) to carry questions forward without re-parsing HTML or prose.
 
 ---
 

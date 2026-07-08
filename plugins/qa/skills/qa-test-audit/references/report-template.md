@@ -69,7 +69,9 @@ Body sections, in order: **Summary** (readiness score, verdict, one-paragraph he
 
 ## Interactive HTML (`test-audit-<timestamp>.html`)
 
-Render by injecting the JSON object into `assets/report.html` at the `__AUDIT_DATA__` placeholder. The report lets the human, per finding, set **Adopt / Skip / Defer** and add a note, then **Export approvals** — which downloads `test-audit-<timestamp>-approvals.md` in the format `/qa:plan` reads.
+Write the `.json` sidecar first, then render by injecting it into `assets/report.html` at the `__AUDIT_DATA__` placeholder with the bundled script — `node assets/inject.js assets/report.html test-audit-<timestamp>.json __AUDIT_DATA__ test-audit-<timestamp>.html`. Never hand-assemble the HTML: the report carries non-ASCII glyphs (`§`, `—`, `→`) that a Windows code page double-encodes into mojibake (`§`→`Â§`, `—`→`â€"`) even with `<meta charset="utf-8">`. `inject.js` reads/writes UTF-8 deterministically, validates the JSON, and aborts on mojibake; if Node is unavailable, do the replacement manually but save as **UTF-8 without a BOM** and verify `§`/`—`, not `Â§`/`â€"`.
+
+The report lets the human, per finding, set **Adopt / Skip / Defer** and add a note, then **Export approvals** — which downloads `test-audit-<timestamp>-approvals.md` in the format `/qa:plan` reads.
 
 ## Approvals file (`test-audit-<timestamp>-approvals.md`) — the join back to `/qa:plan`
 

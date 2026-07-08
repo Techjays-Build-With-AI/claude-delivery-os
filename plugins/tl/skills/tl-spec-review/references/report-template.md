@@ -1,6 +1,6 @@
 # Report Template — review data object + `spec-review.md`
 
-The review is produced once as a structured **data object**, then rendered into two files: the interactive `spec-review.html` (inject the JSON into `assets/report.html`) and the Markdown `spec-review.md` (the structure below). Build the data object first; both renders derive from it so they can't drift.
+The review is produced once as a structured **data object**, then rendered: the `spec-review-<timestamp>.json` sidecar (the data object verbatim), the interactive `spec-review.html` (generated from that sidecar with `assets/inject.js` — see §2), and the Markdown `spec-review.md` (the structure below). Build the data object first; all renders derive from it so they can't drift.
 
 Use the controlled severities (`Blocker` · `Major` · `Minor` · `Nit`) and the `FND-###` ID convention (zero-padded, append-only) from `delivery-os-conventions`. Drop the Applied-AI areas (or mark `score: "N/A"`) when the system has no LLM.
 
@@ -73,9 +73,15 @@ Field rules:
 
 ## 2. Injecting into the HTML
 
-Read `assets/report.html`, replace the literal token `__REVIEW_DATA__` (it sits between `<script id="review-data" type="application/json">` and `</script>`) with the JSON object above, and write to the timestamped output path `spec-review-<timestamp>.html` (see SKILL.md step 6). Touch nothing else. Validate the JSON — a trailing comma or unescaped quote makes the page render its empty-state notice instead of the report.
+**Write `spec-review-<timestamp>.json` first**, then build the HTML from it with the bundled script — never hand-assemble the HTML. The report contains non-ASCII glyphs (`§`, `—`, `→`) both in the template chrome and in your findings; pasting the assembled HTML through a shell or editor on Windows double-encodes them into mojibake (`§`→`Â§`, `—`→`â€"`) even though `<meta charset="utf-8">` is present. The script sidesteps this by reading and writing UTF-8 explicitly:
 
-**Also write the same JSON object to `spec-review-<timestamp>.json`** alongside the HTML and Markdown. This sidecar is the machine-readable state the resolution loop reads: `/tl:resolve` loads it (matched by `reviewId`) to carry findings forward without re-parsing HTML or prose. It's the single data object you already built — just persisted to disk.
+```
+node assets/inject.js assets/report.html spec-review-<timestamp>.json __REVIEW_DATA__ spec-review-<timestamp>.html
+```
+
+`inject.js` replaces the literal token `__REVIEW_DATA__` (between `<script id="review-data" type="application/json">` and `</script>`) with the JSON, touches nothing else, validates the JSON (a trailing comma or unescaped quote would make the page render its empty-state notice), and aborts if it detects mojibake. If Node is unavailable, do the replacement manually but save the output as **UTF-8 without a BOM** and verify the file shows `§`/`—`, not `Â§`/`â€"`, before moving on.
+
+The `spec-review-<timestamp>.json` sidecar is also the machine-readable state the resolution loop reads: `/tl:resolve` loads it (matched by `reviewId`) to carry findings forward without re-parsing HTML or prose.
 
 ---
 

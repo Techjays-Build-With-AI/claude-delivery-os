@@ -93,10 +93,17 @@ First get a **run timestamp** so repeated reviews of the same document accumulat
 
 The report **basename is `spec-review-<timestamp>`** and all files share it, so a folder naturally holds a history of reviews. Set the data object's `reviewId` to this `<timestamp>` (the resolution loop's join key), its `round` to `1`, `priorReview` to `null`, and put the human-readable time in `reviewDate` (e.g. `2026-06-25 14:30`) so the report shows when it ran.
 
-Write **three files** with that basename:
-- **Interactive HTML** — `tl-output/spec-review-<timestamp>.html`: read the bundled template `assets/report.html`, replace the single token `__REVIEW_DATA__` (inside the `<script id="review-data">` block) with your JSON object, and write the result. Change **nothing else** in the template — all styling and interactivity (scorecard, expand/collapse areas, live severity filtering, area↔finding links, **and the per-finding response boxes + "Export responses" button**) are already wired and render client-side from your data. Make sure the JSON is valid (no trailing commas, properly escaped strings) or the page will show a "no data" notice.
+Write **three files** with that basename. **Write the JSON sidecar first, then generate the HTML from it — do not hand-assemble the HTML.**
+
+- **JSON sidecar** — `tl-output/spec-review-<timestamp>.json`: the exact data object you built (write it with the file-write tool so it is clean UTF-8). It is both the source for the HTML injection and the machine-readable state `/tl:resolve` reads to carry findings forward.
+- **Interactive HTML** — `tl-output/spec-review-<timestamp>.html`: generate it by injecting the sidecar into the bundled template with the bundled script — **do not paste the assembled HTML through a shell or editor**, because the report contains non-ASCII glyphs (§, —, →) that a Windows code page will double-encode into mojibake (`§`→`Â§`, `—`→`â€"`) even though `<meta charset="utf-8">` is present. Run:
+
+  ```
+  node assets/inject.js assets/report.html tl-output/spec-review-<timestamp>.json __REVIEW_DATA__ tl-output/spec-review-<timestamp>.html
+  ```
+
+  `inject.js` reads and writes UTF-8 deterministically, validates the JSON, and aborts if it detects mojibake. It replaces the single token `__REVIEW_DATA__` (inside the `<script id="review-data">` block) and changes **nothing else** — all styling and interactivity (scorecard, expand/collapse areas, live severity filtering, area↔finding links, **and the per-finding response boxes + "Export responses" button**) are already wired and render client-side from your data. (If Node is unavailable, do the same replacement but save the output as **UTF-8, no BOM**, then confirm the file shows `§`/`—` and not `Â§`/`â€"` before moving on.)
 - **Markdown artifact** — `tl-output/spec-review-<timestamp>.md`: assemble from `references/report-template.md` (frontmatter, executive summary, scorecard table, per-area detail, the severity-sorted findings register, clarifying questions). Same content as the data object, in document form.
-- **JSON sidecar** — `tl-output/spec-review-<timestamp>.json`: the exact data object you built. This is the machine-readable state `/tl:resolve` reads to carry findings forward — write it verbatim.
 
 The `out=` argument overrides the **prefix/location** (e.g. `out=reports/acme` → `reports/acme-<timestamp>.{html,md,json}`); the timestamp is always appended so conflicts are impossible. Default prefix is `tl-output/spec-review`, or `<doc-dir>/spec-review` beside the reviewed doc when there's no workspace.
 

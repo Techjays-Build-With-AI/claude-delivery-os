@@ -41,6 +41,10 @@ This skill is part of the Techjays **Documentation Agent**. It produces one
 - **Write the output to `doc-output/`** (create it on first use), keeping the
   naming convention below: `doc-output/[CLIENT]-[TOPIC]-[DDMonYYYY].html`. If
   there's no workspace, write beside the working directory and note it.
+  **Save the HTML as UTF-8 (no BOM); don't route it through a shell/editor that
+  re-encodes it** — non-ASCII glyphs (§, ×, →, …) double-encode into mojibake
+  (`§`→`Â§`) on a Windows code page despite `<meta charset="utf-8">`. After
+  writing, verify the file has no `Â`/`â€`/`Ã` sequences before returning.
 - **Voice:** no em-dashes (—) in on-page text; no "not X but Y" contrastive
   negation; address the client by name. (En-dashes in ranges are fine.)
 
