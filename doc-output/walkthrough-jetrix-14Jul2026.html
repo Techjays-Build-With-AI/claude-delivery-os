@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JETRIX &mdash; Spec Walkthrough</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  background: #f4f6f9; color: #1a1a2e; font-size: 15px; line-height: 1.55;
+  padding-left: 180px;
+}
+.content-wrap { max-width: 1240px; margin: 0 auto; padding: 0 32px; }
+.section { padding: 44px 0; scroll-margin-top: 20px; }
+.section + .section { border-top: 1px solid #dde3ec; }
+.eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: #c9a84c; margin-bottom: 8px; }
+.section-heading { font-size: 20px; font-weight: 700; color: #0d1b2a; margin-bottom: 6px; }
+.section-sub { font-size: 13px; color: #5a6a7a; margin-bottom: 24px; max-width: 820px; }
+.diagram-note { font-size: 12px; color: #5a6a7a; margin-top: 14px; }
+
+.site-header {
+  background: linear-gradient(160deg, #1a2a4a 0%, #243b6e 100%);
+  padding: 36px 48px; display: flex; justify-content: space-between; align-items: flex-start;
+  margin-left: -180px; padding-left: calc(180px + 48px);
+}
+.site-header .left { max-width: 820px; }
+.site-header .overline { font-size: 11px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: #c9a84c; margin-bottom: 10px; }
+.site-header h1 { font-size: 26px; font-weight: 700; color: #fff; line-height: 1.25; margin-bottom: 8px; }
+.site-header .subtitle { font-size: 14px; color: #9bb0c8; line-height: 1.5; }
+.site-header .meta-pills { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.site-header .meta-pill { background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.15); border-radius: 20px; padding: 3px 12px; font-size: 11.5px; color: rgba(255,255,255,.75); }
+.site-header .meta-pill strong { color: #c9a84c; }
+.site-header .right { font-size: 12px; color: #c9a84c; opacity: .85; text-align: right; white-space: nowrap; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+
+#side-nav {
+  position: fixed; left: 0; top: 50%; transform: translateY(-50%);
+  z-index: 500; display: flex; flex-direction: column; gap: 2px;
+  padding: 14px 0; background: #1a2a4a; border-radius: 0 12px 12px 0;
+  box-shadow: 2px 0 18px rgba(0,0,0,.22); width: 172px; max-height: 92vh; overflow-y: auto;
+}
+.nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 16px 9px 14px; cursor: pointer;
+  border-left: 3px solid transparent; transition: background .15s, border-color .15s, color .15s;
+  white-space: nowrap; text-decoration: none; color: rgba(255,255,255,.55); font-size: 12px; font-weight: 500; }
+.nav-item:hover { background: rgba(255,255,255,.08); color: rgba(255,255,255,.88); }
+.nav-item.active { border-left-color: #c9a84c; color: #fff; background: rgba(201,168,76,.14); font-weight: 700; }
+.nav-dot { width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,.25); flex-shrink: 0; transition: background .15s; }
+.nav-item.active .nav-dot { background: #c9a84c; }
+.nav-label { font-size: 12px; overflow: hidden; text-overflow: ellipsis; }
+
+.diagram-wrap { overflow-x: auto; width: 100%; background: #fff; border: 1px solid #dde3ec; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,.06); padding: 8px; }
+.diagram-wrap svg { display: block; }
+
+.state-legend { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 16px; font-size: 12px; color: #3a4a5a; }
+.state-legend .legend-item { display: flex; align-items: center; gap: 7px; }
+.legend-swatch { width: 15px; height: 12px; border-radius: 3px; display: inline-block; }
+
+.module-grid { display: grid; grid-template-columns: minmax(280px, .9fr) 1fr; gap: 24px; align-items: start; }
+.module-flow { background: #fff; border: 1px solid #dde3ec; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,.06); padding: 10px; overflow-x: auto; }
+.module-flow svg { display: block; margin: 0 auto; }
+.module-side { display: flex; flex-direction: column; gap: 18px; }
+.step-list { list-style: none; counter-reset: step; display: flex; flex-direction: column; gap: 8px; }
+.step-list li { position: relative; padding: 9px 12px 9px 42px; background: #fff; border: 1px solid #dde3ec; border-radius: 8px; font-size: 13.5px; }
+.step-list li::before { counter-increment: step; content: counter(step); position: absolute; left: 10px; top: 8px; width: 22px; height: 22px; border-radius: 50%; background: #1a2a4a; color: #fff; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.step-list li strong { color: #0d1b2a; }
+
+.example-card { background: linear-gradient(160deg, #fbfaf4 0%, #fff 60%); border: 1px solid #e7dcae; border-left: 4px solid #c9a84c; border-radius: 10px; padding: 16px 18px; }
+.example-card + .example-card { margin-top: 0; }
+.example-card .ex-label { font-size: 10.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #a5842f; margin-bottom: 8px; }
+.example-card .ex-figure { font-size: 24px; font-weight: 800; color: #c9a84c; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+.example-card code, .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 13px; color: #12314d; background: #eef2f8; padding: 1px 6px; border-radius: 4px; }
+.example-card .ex-row { display: flex; gap: 8px; align-items: baseline; margin-top: 6px; font-size: 13.5px; }
+.example-card .ex-row .k { color: #5a6a7a; min-width: 82px; flex: 0 0 auto; }
+
+.catalog-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
+.catalog-card { background: #fff; border: 1px solid #dde3ec; border-radius: 10px; padding: 14px 16px; }
+.catalog-card .cmd { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 13.5px; font-weight: 600; color: #12314d; }
+.catalog-card .desc { font-size: 12.5px; color: #5a6a7a; margin-top: 4px; }
+.criteria-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+.criteria-card { background: #fff; border: 1px solid #dde3ec; border-left: 4px solid #1e8449; border-radius: 10px; padding: 14px 16px; font-size: 13.5px; }
+.criteria-card .tick { color: #1e8449; font-weight: 800; margin-right: 6px; }
+
+.benefits { display: flex; flex-wrap: wrap; gap: 10px; }
+.benefit-chip { background: #eef2f8; border: 1px solid #d5deeb; border-radius: 20px; padding: 6px 14px; font-size: 13px; color: #234; }
+
+#node-tip { position: fixed; z-index: 900; max-width: 320px; background: #0d1b2a; color: #eaf1f8; border-radius: 8px; padding: 12px 14px; font-size: 12.5px; line-height: 1.5; box-shadow: 0 8px 24px rgba(0,0,0,.35); pointer-events: none; opacity: 0; transition: opacity .12s; }
+#node-tip.show { opacity: 1; }
+#node-tip .tip-title { font-weight: 700; color: #c9a84c; margin-bottom: 5px; font-size: 13px; }
+#node-tip ul { margin: 0; padding-left: 16px; }
+
+.state { cursor: pointer; }
+.state:hover rect, .state:hover polygon { stroke-width: 2.4; }
+.edge { transition: stroke .15s, stroke-width .15s, opacity .15s; }
+svg.has-sel .edge { opacity: .16; }
+svg.has-sel .edge.lit { opacity: 1; stroke: #c9a84c !important; stroke-width: 2.6; }
+svg.has-sel .state { opacity: .42; }
+svg.has-sel .state.sel, svg.has-sel .state.adj { opacity: 1; }
+.state.sel rect, .state.sel polygon { stroke: #c9a84c; stroke-width: 2.6; }
+
+.site-footer { background: linear-gradient(160deg, #1a2a4a 0%, #243b6e 100%); padding: 24px 48px; margin-top: 50px; margin-left: -180px; padding-left: calc(180px + 48px); }
+.site-footer p { font-size: 12px; color: #7d94b0; line-height: 1.7; }
+.site-footer .fine { color: #55708f; font-size: 11px; margin-top: 4px; }
+
+@media (max-width: 900px) { .module-grid { grid-template-columns: 1fr; } }
+@media (max-width: 720px) {
+  body { padding-left: 0; }
+  #side-nav { display: none; }
+  .site-header, .site-footer { margin-left: 0; padding-left: 24px; }
+}
+</style>
+</head>
+<body>
+
+<div id="node-tip"></div>
+
+<nav id="side-nav" aria-label="Sections">
+  <a class="nav-item active" data-target="sec-overview"><span class="nav-dot"></span><span class="nav-label">Overview</span></a>
+  <a class="nav-item" data-target="sec-mod-1"><span class="nav-dot"></span><span class="nav-label">Core Objects</span></a>
+  <a class="nav-item" data-target="sec-mod-2"><span class="nav-dot"></span><span class="nav-label">Brownfield Flow</span></a>
+  <a class="nav-item" data-target="sec-mod-3"><span class="nav-dot"></span><span class="nav-label">Greenfield Flow</span></a>
+  <a class="nav-item" data-target="sec-mod-4"><span class="nav-dot"></span><span class="nav-label">CI Reconciliation</span></a>
+  <a class="nav-item" data-target="sec-mod-5"><span class="nav-dot"></span><span class="nav-label">Env Promotion</span></a>
+  <a class="nav-item" data-target="sec-mod-6"><span class="nav-dot"></span><span class="nav-label">Feature Context</span></a>
+  <a class="nav-item" data-target="sec-catalog"><span class="nav-dot"></span><span class="nav-label">Commands</span></a>
+  <a class="nav-item" data-target="sec-criteria"><span class="nav-dot"></span><span class="nav-label">Success Criteria</span></a>
+</nav>
+
+<header class="site-header">
+  <div class="left">
+    <div class="overline">JETRIX</div>
+    <h1>Loop Engineering Platform &mdash; Spec Walkthrough</h1>
+    <p class="subtitle">A company-wide Loop Engineering methodology that standardizes AI-assisted software development, keeping code in Git and architecture context in JETRIX.</p>
+    <div class="meta-pills">
+      <span class="meta-pill"><strong>Version:</strong> 1.0 (Draft)</span>
+      <span class="meta-pill"><strong>Status:</strong> Product Specification</span>
+      <span class="meta-pill"><strong>Audience:</strong> Engineering, AI Platform, Architecture, DevOps</span>
+      <span class="meta-pill"><strong>Date:</strong> 14 Jul 2026</span>
+    </div>
+  </div>
+  <div class="right"><span>v1.0</span><span>Jul 2026</span></div>
+</header>
+
+<div class="content-wrap">
+
+  <!-- ===== OVERVIEW STATE DIAGRAM ===== -->
+  <section id="sec-overview" class="section">
+    <p class="eyebrow">The full picture</p>
+    <h2 class="section-heading">Feature Lifecycle &mdash; System State Overview</h2>
+    <p class="section-sub">Every scope becomes features, and each feature travels this loop from planning through verification, merge, CI reconciliation, and environment promotion before the context is available for the next feature. Hover a state for detail. Click a state to trace its transitions.</p>
+
+    <div class="state-legend">
+      <span class="legend-item"><span class="legend-swatch" style="background:#e6f7ed;border:1.5px solid #1e8449"></span>Automated by platform</span>
+      <span class="legend-item"><span class="legend-swatch" style="background:#e8f0fb;border:1.5px solid #2471a3"></span>Manual / developer step</span>
+      <span class="legend-item"><span class="legend-swatch" style="background:#0e7a4f;border:1.5px solid #0a5c38"></span>Entry / terminal</span>
+      <span class="legend-item"><span class="legend-swatch" style="background:#fdeaea;border:1.5px solid #c0392b;border-style:dashed"></span>Blocked / failure</span>
+    </div>
+
+    <div class="diagram-wrap">
+      <svg viewBox="0 0 2060 280" width="2060" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="ov-arr" markerWidth="9" markerHeight="9" refX="7.5" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L7.5,3 L0,6 Z" fill="#5a6a85"/></marker>
+          <marker id="ov-arr-g" markerWidth="9" markerHeight="9" refX="7.5" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L7.5,3 L0,6 Z" fill="#1e8449"/></marker>
+          <marker id="ov-arr-fail" markerWidth="9" markerHeight="9" refX="7.5" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L7.5,3 L0,6 Z" fill="#c0392b"/></marker>
+          <marker id="ov-arr-loop" markerWidth="9" markerHeight="9" refX="7.5" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L7.5,3 L0,6 Z" fill="#c9a84c"/></marker>
+          <filter id="ov-sh" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="1.5" stdDeviation="1.6" flood-opacity="0.16"/></filter>
+        </defs>
+
+        <!-- EDGES (drawn first so nodes sit on top) -->
+        <!-- happy path -->
+        <path class="edge" data-from="scope" data-to="feature" d="M160,117 H225" fill="none" stroke="#5a6a85" stroke-width="1.6" marker-end="url(#ov-arr)"/>
+        <path class="edge" data-from="feature" data-to="plan" d="M365,117 H430" fill="none" stroke="#5a6a85" stroke-width="1.6" marker-end="url(#ov-arr)"/>
+        <path class="edge" data-from="plan" data-to="development" d="M570,117 H635" fill="none" stroke="#5a6a85" stroke-width="1.6" marker-end="url(#ov-arr)"/>
+        <path class="edge" data-from="development" data-to="verify" d="M775,117 H840" fill="none" stroke="#5a6a85" stroke-width="1.6" marker-end="url(#ov-arr)"/>
+        <path class="edge edge-auto" data-from="verify" data-to="review" d="M980,117 H1045" fill="none" stroke="#1e8449" stroke-width="1.6" marker-end="url(#ov-arr-g)"/>
+        <path class="edge" data-from="review" data-to="merge" d="M1185,117 H1250" fill="none" stroke="#5a6a85" stroke-width="1.6" marker-end="url(#ov-arr)"/>
+        <path class="edge" data-from="merge" data-to="ci" d="M1390,117 H1455" fill="none" stroke="#5a6a85" stroke-width="1.6" marker-end="url(#ov-arr)"/>
+        <path class="edge edge-auto" data-from="ci" data-to="promotion" d="M1595,117 H1660" fill="none" stroke="#1e8449" stroke-width="1.6" marker-end="url(#ov-arr-g)"/>
+        <path class="edge edge-auto" data-from="promotion" data-to="available" d="M1800,117 H1865" fill="none" stroke="#1e8449" stroke-width="1.6" marker-end="url(#ov-arr-g)"/>
+        <!-- failure: CI down to Blocked -->
+        <path class="edge edge-fail" data-from="ci" data-to="blocked" d="M1525,144 V200" fill="none" stroke="#c0392b" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#ov-arr-fail)"/>
+        <!-- Blocked back to Development -->
+        <path class="edge edge-fail" data-from="blocked" data-to="development" d="M1455,222 H705 V144" fill="none" stroke="#c0392b" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#ov-arr-fail)"/>
+        <!-- loop: Available back to Feature (next feature) -->
+        <path class="edge edge-loop" data-from="available" data-to="feature" d="M1935,90 V44 H295 V90" fill="none" stroke="#c9a84c" stroke-width="1.6" marker-end="url(#ov-arr-loop)"/>
+
+        <!-- STATES -->
+        <g class="state" data-state="scope" data-title="Scope" data-desc="Business requirement supplied by the BA||The entry point of every feature loop">
+          <rect x="20" y="90" width="140" height="54" rx="26" fill="#0e7a4f" stroke="#0a5c38" stroke-width="1.5" filter="url(#ov-sh)"/>
+          <text x="90" y="121" text-anchor="middle" font-size="12.5" font-weight="700" fill="#ffffff">Scope</text>
+        </g>
+        <g class="state" data-state="feature" data-title="Feature" data-desc="Small independently deliverable capability||Owns its implementation plan||Example: FT-1024 Login with MFA">
+          <rect x="225" y="90" width="140" height="54" rx="9" fill="#e8f0fb" stroke="#2471a3" stroke-width="1.5" filter="url(#ov-sh)"/>
+          <text x="295" y="121" text-anchor="middle" font-size="12.5" font-weight="600" fill="#12314d">Feature</text>
+        </g>
+        <g class="state" data-state="plan" data-title="Implementation Plan" data-desc="Pages, APIs, DB changes, business rules||Acceptance criteria, test strategy||Loop verification checklist||Temporary until merged">
+          <rect x="430" y="90" width="140" height="54" rx="9" fill="#e8f0fb" stroke="#2471a3" stroke-width="1.5" filter="url(#ov-sh)"/>
+          <text x="500" y="114" text-anchor="middle" font-size="12" font-weight="600" fill="#12314d">Implementation</text>
+          <text x="500" y="130" text-anchor="middle" font-size="12" font-weight="600" fill="#12314d">Plan</text>
+        </g>
+        <g class="state" data-state="development" data-title="Development" data-desc="implement-feature creates branches and tasks||Implements code, runs loop engineering||Fixes failures, generates documentation">
+          <rect x="635" y="90" width="140" height="54" rx="9" fill="#e8f0fb" stroke="#2471a3" stroke-width="1.5" filter="url(#ov-sh)"/>
+          <text x="705" y="121" text-anchor="middle" font-size="12.5" font-weight="600" fill="#12314d">Development</text>
+        </g>
+        <g class="state" data-state="verify" data-title="Loop Verification" data-desc="Continuous verification of the implementation||Loop engineering fixes failures automatically">
+          <rect x="840" y="90" width="140" height="54" rx="9" fill="#e6f7ed" stroke="#1e8449" stroke-width="1.5" filter="url(#ov-sh)"/>
+          <text x="910" y="114" text-anchor="middle" font-size="12" font-weight="600" fill="#12402a">Loop</text>
+          <text x="910" y="130" text-anchor="middle" font-size="12" font-weight="600" fill="#12402a">Verification</text>
+        </g>
+        <g class="state" data-state="review" data-title="PR Review" data-desc="AI review of the feature (review-feature)||Prepares the change for merge">
+          <rect x="1045" y="90" width="140" height="54" rx="9" fill="#e8f0fb" stroke="#2471a3" stroke-width="1.5" filter="url(#ov-sh)"/>
+          <text x="1115" y="121" text-anchor="middle" font-size="12.5" font-weight="600" fill="#12314d">PR Review</text>
+        </g>
+        <g class="state" data-state="merge" data-title="Merge" data-desc="merge-to-dev prepares the merge||Status becomes Merged to DEV||CI executes reconciliation">
+          <rect x="1250" y="90" width="140" height="54" rx="9" fill="#e8f0fb" stroke="#2471a3" stroke-width="1.5" filter="url(#ov-sh)"/>
+          <text x="1320" y="121" text-anchor="middle" font-size="12.5" font-weight="600" fill="#12314d">Merge</text>
+        </g>
+        <g class="state" data-state="ci" data-title="CI Reconciliation" data-desc="Reads plan and merged code, compares both||Validates pages, APIs, DB, acceptance criteria, tests||Detects unexpected architecture">
+          <rect x="1455" y="90" width="140" height="54" rx="9" fill="#e6f7ed" stroke="#1e8449" stroke-width="1.5" filter="url(#ov-sh)"/>
+          <text x="1525" y="114" text-anchor="middle" font-size="12" font-weight="600" fill="#12402a">CI</text>
+          <text x="1525" y="130" text-anchor="middle" font-size="12" font-weight="600" fill="#12402a">Reconciliation</text>
+        </g>
+        <g class="state" data-state="blocked" data-title="Promotion Blocked" data-desc="Raised when plan and code do not match||Feature returns to development to be corrected">
+          <rect x="1455" y="200" width="140" height="46" rx="9" fill="#fdeaea" stroke="#c0392b" stroke-width="1.5" stroke-dasharray="5 3" filter="url(#ov-sh)"/>
+          <text x="1525" y="228" text-anchor="middle" font-size="12" font-weight="600" fill="#8a1a1a">Promotion Blocked</text>
+        </g>
+        <g class="state" data-state="promotion" data-title="Environment Promotion" data-desc="Updates the environment architecture context||MAIN, DEV, STAGING, QA, PRODUCTION||No manual documentation updates">
+          <rect x="1660" y="90" width="140" height="54" rx="9" fill="#e6f7ed" stroke="#1e8449" stroke-width="1.5" filter="url(#ov-sh)"/>
+          <text x="1730" y="114" text-anchor="middle" font-size="12" font-weight="600" fill="#12402a">Environment</text>
+          <text x="1730" y="130" text-anchor="middle" font-size="12" font-weight="600" fill="#12402a">Promotion</text>
+        </g>
+        <g class="state" data-state="available" data-title="Available for Next Feature" data-desc="Architecture context updated automatically||The loop is ready for the next feature">
+          <rect x="1865" y="90" width="140" height="54" rx="26" fill="#0e7a4f" stroke="#0a5c38" stroke-width="1.5" filter="url(#ov-sh)"/>
+          <text x="1935" y="114" text-anchor="middle" font-size="11.5" font-weight="700" fill="#ffffff">Available for</text>
+          <text x="1935" y="130" text-anchor="middle" font-size="11.5" font-weight="700" fill="#ffffff">Next Feature</text>
+        </g>
+
+        <!-- edge labels -->
+        <text x="1120" y="216" text-anchor="middle" font-size="10.5" fill="#8a1a1a" font-weight="600">mismatch &rarr; promotion blocked</text>
+        <text x="1115" y="38" text-anchor="middle" font-size="10.5" fill="#a5842f" font-weight="600">context updated &rarr; next feature</text>
+      </svg>
+    </div>
+    <p class="diagram-note">Promotion happens only after successful CI validation. If reconciliation detects a mismatch, promotion is blocked and the feature returns to development. Nothing modifies canonical architecture until CI passes.</p>
+  </section>
+
+  <!-- ===== MODULE 1: CORE OBJECTS ===== -->
+  <section id="sec-mod-1" class="section">
+    <p class="eyebrow">Module 01</p>
+    <h2 class="section-heading">Core Objects</h2>
+    <p class="section-sub">The four objects every piece of work flows through. A scope becomes features, each feature owns an implementation plan, and each plan generates the tasks that map to repositories and branches.</p>
+    <div class="module-grid">
+      <div class="module-flow">
+        <svg viewBox="0 0 260 384" width="240" xmlns="http://www.w3.org/2000/svg">
+          <defs><marker id="m1-arr" markerWidth="9" markerHeight="9" refX="7.5" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L7.5,3 L0,6 Z" fill="#5a6a85"/></marker></defs>
+          <g class="step" data-title="Scope" data-desc="Business requirement supplied by the BA">
+            <rect x="30" y="14" width="200" height="46" rx="8" fill="#e8f0fb" stroke="#2471a3" stroke-width="1.5"/>
+            <text x="130" y="42" text-anchor="middle" font-size="12.5" font-weight="600" fill="#12314d">Scope</text>
+          </g>
+          <line class="edge" x1="130" y1="60" x2="130" y2="102" stroke="#5a6a85" stroke-width="1.6" marker-end="url(#m1-arr)"/>
+          <g class="step" data-title="Feature" data-desc="Small independently deliverable capability||Example: FT-1024 Login with MFA">
+            <rect x="30" y="104" width="200" height="46" rx="8" fill="#e8f0fb" stroke="#2471a3" stroke-width="1.5"/>
+            <text x="130" y="132" text-anchor="middle" font-size="12.5" font-weight="600" fill="#12314d">Feature</text>
+          </g>
+          <line class="edge" x1="130" y1="150" x2="130" y2="192" stroke="#5a6a85" stroke-width="1.6" marker-end="url(#m1-arr)"/>
+          <g class="step" data-title="Implementation Plan" data-desc="Pages, APIs, DB changes, business rules||Acceptance criteria, test strategy, loop checklist">
+            <rect x="30" y="194" width="200" height="46" rx="8" fill="#e8f0fb" stroke="#2471a3" stroke-width="1.5"/>
+            <text x="130" y="222" text-anchor="middle" font-size="12.5" font-weight="600" fill="#12314d">Implementation Plan</text>
+          </g>
+          <line class="edge" x1="130" y1="240" x2="130" y2="282" stroke="#5a6a85" stroke-width="1.6" marker-end="url(#m1-arr)"/>
+          <g class="step" data-title="Tasks" data-desc="Generated automatically||Frontend, Backend, QA, Migration||Each task owns repository and branch mapping">
+            <rect x="30" y="284" width="200" height="46" rx="8" fill="#e6f7ed" stroke="#1e8449" stroke-width="1.5"/>
+            <text x="130" y="312" text-anchor="middle" font-size="12.5" font-weight="600" fill="#12402a">Tasks</text>
+          </g>
+        </svg>
+      </div>
+      <div class="module-side">
+        <ol class="step-list">
+          <li><strong>Scope.</strong> A business requirement supplied by the BA.</li>
+          <li><strong>Feature.</strong> A small independently deliverable capability with its own ID and title.</li>
+          <li><strong>Implementation Plan.</strong> Holds pages, APIs, database changes, business rules, acceptance criteria, test strategy, and a loop verification checklist. Temporary until merged.</li>
+          <li><strong>Tasks.</strong> Generated automatically across Frontend, Backend, QA, and Migration. Each task owns a repository and branch mapping.</li>
+        </ol>
+        <div class="example-card">
+          <div class="ex-label">Worked example</div>
+          <div class="ex-figure">FT-1024</div>
+          <div class="ex-row"><span class="k">Title</span><span>Login with MFA</span></div>
+          <div class="ex-row"><span class="k">Plan holds</span><span>Pages, APIs, DB changes, acceptance criteria, test strategy, loop checklist</span></div>
+          <div class="ex-row"><span class="k">Tasks</span><span>Frontend, Backend, QA, Migration &mdash; each mapped to a repo and branch</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== MODULE 2: BROWNFIELD ===== -->
+  <section id="sec-mod-2" class="section">
+    <p class="eyebrow">Module 02</p>
+    <h2 class="section-heading">Brownfield Workflow</h2>
+    <p class="section-sub">How an existing project moves a feature from scope to merged DEV context. Onboarding imports the current architecture once, then every feature runs the same loop.</p>
+    <div class="module-grid">
+      <div class="module-flow">
+        <svg viewBox="0 0 260 540" width="240" xmlns="http://www.w3.org/2000/svg">
+          <defs><marker id="m2-arr" markerWidth="9" markerHeight="9" refX="7.5" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L7.5,3 L0,6 Z" fill="#5a6a85"/></marker></defs>
+          <g class="step" data-title="Onboard project" data-desc="Import pages, APIs, database, entities, relationships, existing features||Canonical Architecture Context is created">
+            <rect x="30" y="14" width="200" height="46" rx="8" fill="#e6f7ed" stroke="#1e8449" stroke-width="1.5"/>
+            <text x="130" y="42" text-anchor="middle" font-size="12" font-weight="600" fill="#12402a">1 &middot; Onboard project</text>
+          </g>
+          <line class="edge" x1="130" y1="60" x2="130" y2="98" stroke="#5a6a85" stroke-width="1.6" marker-end="url(#m2-arr)"/>
+          <g class="step" data-title="scope-plan" data-desc="BA uploads scope||Scope breaks into features and feature IDs||Epics created in JETRIX">
+            <rect x="30" y="100" width="200" height="46" rx="8" fill="#e8f0fb" stroke="#2471a3" stroke-width="1.5"/>
+            <text x="130" y="128" text-anchor="middle" font-size="12" font-weight="600" fill="#12314d">2 &middot; scope-plan</text>
+          </g>
+          <line class="edge" x1="130" y1="146" x2="130" y2="184" stroke="#5a6a85" stroke-width="1.6" marker-end="url(#m2-arr)"/>
+          <g class="step" data-title="feature-plan FT-1024" data-desc="Loads DEV architecture, feature description, existing APIs, pages, DB||Produces the Implementation Plan||Stored against the feature; canonical architecture untouched">
+            <rect x="30" y="186" width="200" height="46" rx="8" fill="#e8f0fb" stroke="#2471a3" stroke-width="1.5"/>
+            <text x="130" y="214" text-anchor="middle" font-size="12" font-weight="600" fill="#12314d">3 &middot; feature-plan</text>
+          </g>
+          <line class="edge" x1="130" y1="232" x2="130" y2="270" stroke="#5a6a85" stroke-width="1.6" marker-end="url(#m2-arr)"/>
+          <g class="step" data-title="Generated plan" data-desc="New Login page, modify User endpoint, add MFA endpoint||DB: MFA Secret, Recovery Codes||Testing, acceptance criteria, security checklist, loop validation">
+            <rect x="30" y="272" width="200" height="46" rx="8" fill="#e8f0fb" stroke="#2471a3" stroke-width="1.5"/>
+            <text x="130" y="300" text-anchor="middle" font-size="12" font-weight="600" fill="#12314d">4 &middot; Generated plan</text>
+          </g>
+          <line class="edge" x1="130" y1="318" x2="130" y2="356" stroke="#5a6a85" stroke-width="1.6" marker-end="url(#m2-arr)"/>
+          <g class="step" data-title="implement-feature FT-1024" data-desc="Creates branches, updates tasks, implements code||Runs loop engineering, fixes failures, generates documentation||Status: Development">
+            <rect x="30" y="358" width="200" height="46" rx="8" fill="#e6f7ed" stroke="#1e8449" stroke-width="1.5"/>
+            <text x="130" y="386" text-anchor="middle" font-size="12" font-weight="600" fill="#12402a">5 &middot; implement-feature</text>
+          </g>
+          <line class="edge" x1="130" y1="404" x2="130" y2="442" stroke="#5a6a85" stroke-width="1.6" marker-end="url(#m2-arr)"/>
+          <g class="step" data-title="merge-to-dev" data-desc="Developer requests merge||Status: Merged to DEV||CI executes reconciliation">
+            <rect x="30" y="444" width="200" height="46" rx="8" fill="#e8f0fb" stroke="#2471a3" stroke-width="1.5"/>
+            <text x="130" y="472" text-anchor="middle" font-size="12" font-weight="600" fill="#12314d">6 &middot; merge-to-dev</text>
+          </g>
+        </svg>
+      </div>
+      <div class="module-side">
+        <ol class="step-list">
+          <li><strong>Onboard.</strong> The project already exists. JETRIX imports pages, APIs, database, entities, relationships, and existing features. A canonical architecture context is created.</li>
+          <li><strong>Plan scope.</strong> The BA uploads scope and <code>scope-plan</code> breaks it into features and feature IDs, creating epics in JETRIX.</li>
+          <li><strong>Plan the feature.</strong> The developer runs <code>feature-plan FT-1024</code>. The plugin loads the current DEV architecture, the feature description, and existing APIs, pages, and DB, then produces the implementation plan.</li>
+          <li><strong>Review the generated plan.</strong> New login page, modified user endpoint, added MFA endpoint, DB tables for MFA secret and recovery codes, testing, acceptance criteria, security checklist, and loop validation. Stored against FT-1024. Nothing modifies canonical architecture.</li>
+          <li><strong>Implement.</strong> <code>implement-feature FT-1024</code> creates branches, updates tasks, implements code, runs loop engineering, fixes failures, and generates documentation. Status becomes Development.</li>
+          <li><strong>Merge.</strong> <code>merge-to-dev</code> sets status to Merged to DEV and CI executes reconciliation.</li>
+        </ol>
+        <div class="example-card">
+          <div class="ex-label">Worked example &middot; end to end</div>
+          <div class="ex-figure">FT-1024</div>
+          <div class="ex-row"><span class="k">Plan</span><span>New Login page &middot; modify User endpoint &middot; add MFA endpoint</span></div>
+          <div class="ex-row"><span class="k">Database</span><span>MFA Secret, Recovery Codes</span></div>
+          <div class="ex-row"><span class="k">Commands</span><code>feature-plan FT-1024</code> &rarr; <code>implement-feature FT-1024</code> &rarr; <code>merge-to-dev</code></div>
+          <div class="ex-row"><span class="k">Status</span><span>Development &rarr; Merged to DEV</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== MODULE 3: GREENFIELD ===== -->
+  <section id="sec-mod-3" class="section">
+    <p class="eyebrow">Module 03</p>
+    <h2 class="section-heading">Greenfield Workflow</h2>
+    <p class="section-sub">Starting from an empty project. After bootstrap, the workflow becomes identical to brownfield, so a team learns one loop regardless of where a project begins.</p>
+    <div class="module-grid">
+      <div class="module-flow">
+        <svg viewBox="0 0 260 462" width="240" xmlns="http://www.w3.org/2000/svg">
+          <defs><marker id="m3-arr" markerWidth="9" markerHeight="9" refX="7.5" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L7.5,3 L0,6 Z" fill="#5a6a85"/></marker></defs>
+          <g class="step" data-title="Create project" data-desc="Start from an empty project">
+            <rect x="30" y="14" width="200" height="44" rx="8" fill="#e8f0fb" stroke="#2471a3" stroke-width="1.5"/>
+            <text x="130" y="41" text-anchor="middle" font-size="12" font-weight="600" fill="#12314d">1 &middot; Create project</text>
+          </g>
+          <line class="edge" x1="130" y1="58" x2="130" y2="94" stroke="#5a6a85" stroke-width="1.6" marker-end="url(#m3-arr)"/>
+          <g class="step" data-title="Define repositories" data-desc="Register the repositories the project spans">
+            <rect x="30" y="96" width="200" height="44" rx="8" fill="#e8f0fb" stroke="#2471a3" stroke-width="1.5"/>
+            <text x="130" y="123" text-anchor="middle" font-size="12" font-weight="600" fill="#12314d">2 &middot; Define repositories</text>
+          </g>
+          <line class="edge" x1="130" y1="140" x2="130" y2="176" stroke="#5a6a85" stroke-width="1.6" marker-end="url(#m3-arr)"/>
+          <g class="step" data-title="Register environments" data-desc="MAIN, DEV, STAGING, QA, PRODUCTION">
+            <rect x="30" y="178" width="200" height="44" rx="8" fill="#e8f0fb" stroke="#2471a3" stroke-width="1.5"/>
+            <text x="130" y="205" text-anchor="middle" font-size="12" font-weight="600" fill="#12314d">3 &middot; Register environments</text>
+          </g>
+          <line class="edge" x1="130" y1="222" x2="130" y2="258" stroke="#5a6a85" stroke-width="1.6" marker-end="url(#m3-arr)"/>
+          <g class="step" data-title="bootstrap-project" data-desc="Creates empty architecture||Empty feature catalog||Default engineering rules">
+            <rect x="30" y="260" width="200" height="44" rx="8" fill="#e6f7ed" stroke="#1e8449" stroke-width="1.5"/>
+            <text x="130" y="287" text-anchor="middle" font-size="12" font-weight="600" fill="#12402a">4 &middot; bootstrap-project</text>
+          </g>
+          <line class="edge" x1="130" y1="304" x2="130" y2="340" stroke="#5a6a85" stroke-width="1.6" marker-end="url(#m3-arr)"/>
+          <g class="step" data-title="BA uploads initial scope" data-desc="Workflow becomes identical to Brownfield">
+            <rect x="30" y="342" width="200" height="44" rx="8" fill="#e8f0fb" stroke="#2471a3" stroke-width="1.5"/>
+            <text x="130" y="369" text-anchor="middle" font-size="12" font-weight="600" fill="#12314d">5 &middot; Upload initial scope</text>
+          </g>
+          <line class="edge" x1="130" y1="386" x2="130" y2="422" stroke="#5a6a85" stroke-width="1.6" marker-end="url(#m3-arr)"/>
+          <g class="step" data-title="Identical to Brownfield" data-desc="From here the loop matches the brownfield workflow">
+            <rect x="30" y="424" width="200" height="30" rx="15" fill="#0e7a4f" stroke="#0a5c38" stroke-width="1.5"/>
+            <text x="130" y="443" text-anchor="middle" font-size="11" font-weight="700" fill="#ffffff">&rarr; Brownfield loop</text>
+          </g>
+        </svg>
+      </div>
+      <div class="module-side">
+        <ol class="step-list">
+          <li><strong>Create the project.</strong> Start empty.</li>
+          <li><strong>Define repositories.</strong> Register the repos the project spans.</li>
+          <li><strong>Register environments.</strong> MAIN, DEV, STAGING, QA, PRODUCTION.</li>
+          <li><strong>Bootstrap.</strong> <code>bootstrap-project</code> creates an empty architecture, an empty feature catalog, and the default engineering rules.</li>
+          <li><strong>Upload initial scope.</strong> The BA uploads scope and the workflow becomes identical to brownfield.</li>
+        </ol>
+        <div class="example-card">
+          <div class="ex-label">Worked example</div>
+          <div class="ex-figure mono" style="font-size:19px">bootstrap-project</div>
+          <div class="ex-row"><span class="k">Creates</span><span>Empty Architecture, Empty Feature Catalog, Default Engineering Rules</span></div>
+          <div class="ex-row"><span class="k">Then</span><span>BA uploads initial scope and the brownfield loop takes over</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== MODULE 4: CI RECONCILIATION ===== -->
+  <section id="sec-mod-4" class="section">
+    <p class="eyebrow">Module 04</p>
+    <h2 class="section-heading">CI Context Reconciliation</h2>
+    <p class="section-sub">The gate that keeps architecture honest. The pipeline compares the implementation plan against the merged code, and only a clean match promotes the DEV architecture context.</p>
+    <div class="module-grid">
+      <div class="module-flow">
+        <svg viewBox="0 0 260 462" width="240" xmlns="http://www.w3.org/2000/svg">
+          <defs><marker id="m4-arr" markerWidth="9" markerHeight="9" refX="7.5" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L7.5,3 L0,6 Z" fill="#5a6a85"/></marker>
+            <marker id="m4-fail" markerWidth="9" markerHeight="9" refX="7.5" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L7.5,3 L0,6 Z" fill="#c0392b"/></marker></defs>
+          <g class="step" data-title="Read implementation plan" data-desc="Load the plan stored against the feature">
+            <rect x="30" y="14" width="200" height="44" rx="8" fill="#e6f7ed" stroke="#1e8449" stroke-width="1.5"/>
+            <text x="130" y="41" text-anchor="middle" font-size="12" font-weight="600" fill="#12402a">1 &middot; Read plan</text>
+          </g>
+          <line class="edge" x1="130" y1="58" x2="130" y2="94" stroke="#5a6a85" stroke-width="1.6" marker-end="url(#m4-arr)"/>
+          <g class="step" data-title="Read merged code" data-desc="Load the code merged to DEV">
+            <rect x="30" y="96" width="200" height="44" rx="8" fill="#e6f7ed" stroke="#1e8449" stroke-width="1.5"/>
+            <text x="130" y="123" text-anchor="middle" font-size="12" font-weight="600" fill="#12402a">2 &middot; Read merged code</text>
+          </g>
+          <line class="edge" x1="130" y1="140" x2="130" y2="176" stroke="#5a6a85" stroke-width="1.6" marker-end="url(#m4-arr)"/>
+          <g class="step" data-title="Compare and validate" data-desc="Expected pages created, APIs match, DB changes exist||Acceptance criteria covered, tests passing||Unexpected architecture detected">
+            <rect x="30" y="178" width="200" height="44" rx="8" fill="#fdf3d9" stroke="#c9a84c" stroke-width="1.8"/>
+            <text x="130" y="205" text-anchor="middle" font-size="12" font-weight="600" fill="#7a5a00">3 &middot; Compare + validate</text>
+          </g>
+          <!-- branch down -->
+          <line class="edge" x1="130" y1="222" x2="130" y2="264" stroke="#5a6a85" stroke-width="1.6" marker-end="url(#m4-arr)"/>
+          <g class="step" data-title="Match: update DEV context" data-desc="On success, update the DEV architecture context">
+            <rect x="30" y="266" width="200" height="44" rx="8" fill="#e6f7ed" stroke="#1e8449" stroke-width="1.5"/>
+            <text x="130" y="288" text-anchor="middle" font-size="11.5" font-weight="600" fill="#12402a">Match &rarr; update</text>
+            <text x="130" y="302" text-anchor="middle" font-size="11.5" font-weight="600" fill="#12402a">DEV context</text>
+          </g>
+          <path class="edge" d="M230,200 H250 V382 H230" fill="none" stroke="#c0392b" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#m4-fail)"/>
+          <g class="step" data-title="Mismatch: promotion blocked" data-desc="If mismatch, promotion is blocked||Feature returns to development">
+            <rect x="30" y="360" width="200" height="44" rx="8" fill="#fdeaea" stroke="#c0392b" stroke-width="1.5" stroke-dasharray="5 3"/>
+            <text x="130" y="382" text-anchor="middle" font-size="11.5" font-weight="600" fill="#8a1a1a">Mismatch &rarr;</text>
+            <text x="130" y="396" text-anchor="middle" font-size="11.5" font-weight="600" fill="#8a1a1a">Promotion Blocked</text>
+          </g>
+        </svg>
+      </div>
+      <div class="module-side">
+        <ol class="step-list">
+          <li><strong>Read the implementation plan.</strong></li>
+          <li><strong>Read the merged code.</strong></li>
+          <li><strong>Compare both</strong> and validate: expected pages created, APIs match, DB changes exist, acceptance criteria covered, tests passing, and whether any unexpected architecture is detected.</li>
+          <li><strong>On mismatch,</strong> promotion is blocked.</li>
+          <li><strong>On success,</strong> the DEV architecture context is updated automatically.</li>
+        </ol>
+        <div class="example-card">
+          <div class="ex-label">Validation checklist</div>
+          <div class="ex-row"><span class="k">Pages</span><span>Expected pages created</span></div>
+          <div class="ex-row"><span class="k">APIs</span><span>APIs match the plan</span></div>
+          <div class="ex-row"><span class="k">Database</span><span>DB changes exist</span></div>
+          <div class="ex-row"><span class="k">Criteria</span><span>Acceptance criteria covered</span></div>
+          <div class="ex-row"><span class="k">Tests</span><span>Tests passing</span></div>
+          <div class="ex-row"><span class="k">Drift</span><span>Unexpected architecture detected &rarr; blocked</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== MODULE 5: ENVIRONMENT PROMOTION ===== -->
+  <section id="sec-mod-5" class="section">
+    <p class="eyebrow">Module 05</p>
+    <h2 class="section-heading">Environment Promotion</h2>
+    <p class="section-sub">Each environment owns its own context, and promotion happens only after successful CI validation. Context follows the merge, so documentation is never updated by hand.</p>
+    <div class="module-grid">
+      <div class="module-flow">
+        <svg viewBox="0 0 260 384" width="240" xmlns="http://www.w3.org/2000/svg">
+          <defs><marker id="m5-arr" markerWidth="9" markerHeight="9" refX="7.5" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L7.5,3 L0,6 Z" fill="#5a6a85"/></marker></defs>
+          <g class="step" data-title="Feature" data-desc="A validated feature ready to promote">
+            <rect x="30" y="14" width="200" height="40" rx="8" fill="#e8f0fb" stroke="#2471a3" stroke-width="1.5"/>
+            <text x="130" y="39" text-anchor="middle" font-size="12" font-weight="600" fill="#12314d">Feature</text>
+          </g>
+          <line class="edge" x1="130" y1="54" x2="130" y2="86" stroke="#5a6a85" stroke-width="1.6" marker-end="url(#m5-arr)"/>
+          <g class="step" data-title="Merge DEV" data-desc="DEV Context Updated">
+            <rect x="30" y="88" width="200" height="40" rx="8" fill="#e6f7ed" stroke="#1e8449" stroke-width="1.5"/>
+            <text x="130" y="113" text-anchor="middle" font-size="12" font-weight="600" fill="#12402a">Merge DEV &rarr; DEV context</text>
+          </g>
+          <line class="edge" x1="130" y1="128" x2="130" y2="160" stroke="#5a6a85" stroke-width="1.6" marker-end="url(#m5-arr)"/>
+          <g class="step" data-title="Merge STAGING" data-desc="STAGING Context Updated">
+            <rect x="30" y="162" width="200" height="40" rx="8" fill="#e6f7ed" stroke="#1e8449" stroke-width="1.5"/>
+            <text x="130" y="187" text-anchor="middle" font-size="11.5" font-weight="600" fill="#12402a">Merge STAGING &rarr; context</text>
+          </g>
+          <line class="edge" x1="130" y1="202" x2="130" y2="234" stroke="#5a6a85" stroke-width="1.6" marker-end="url(#m5-arr)"/>
+          <g class="step" data-title="Merge MAIN" data-desc="MAIN Context Updated">
+            <rect x="30" y="236" width="200" height="40" rx="8" fill="#e6f7ed" stroke="#1e8449" stroke-width="1.5"/>
+            <text x="130" y="261" text-anchor="middle" font-size="12" font-weight="600" fill="#12402a">Merge MAIN &rarr; MAIN context</text>
+          </g>
+          <line class="edge" x1="130" y1="276" x2="130" y2="308" stroke="#5a6a85" stroke-width="1.6" marker-end="url(#m5-arr)"/>
+          <g class="step" data-title="No manual updates" data-desc="No manual documentation updates at any stage">
+            <rect x="30" y="310" width="200" height="40" rx="20" fill="#0e7a4f" stroke="#0a5c38" stroke-width="1.5"/>
+            <text x="130" y="335" text-anchor="middle" font-size="11.5" font-weight="700" fill="#ffffff">No manual doc updates</text>
+          </g>
+        </svg>
+      </div>
+      <div class="module-side">
+        <ol class="step-list">
+          <li><strong>Each environment owns its context.</strong> MAIN, DEV, STAGING, QA, PRODUCTION.</li>
+          <li><strong>Promotion is gated.</strong> It happens only after successful CI validation.</li>
+          <li><strong>Context follows the merge.</strong> Merging to an environment updates that environment's context automatically.</li>
+          <li><strong>No manual documentation updates</strong> at any stage.</li>
+        </ol>
+        <div class="example-card">
+          <div class="ex-label">Worked example &middot; promotion chain</div>
+          <div class="ex-row"><span class="k">Flow</span><span><span class="mono">Feature</span> &rarr; Merge DEV &rarr; DEV context updated</span></div>
+          <div class="ex-row"><span class="k"></span><span>&rarr; Merge STAGING &rarr; STAGING context updated</span></div>
+          <div class="ex-row"><span class="k"></span><span>&rarr; Merge MAIN &rarr; MAIN context updated</span></div>
+          <div class="ex-row"><span class="k">Environments</span><span>MAIN &middot; DEV &middot; STAGING &middot; QA &middot; PRODUCTION</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== MODULE 6: FEATURE-OWNED CONTEXT ===== -->
+  <section id="sec-mod-6" class="section">
+    <p class="eyebrow">Module 06</p>
+    <h2 class="section-heading">Why Feature-owned Context</h2>
+    <p class="section-sub">Instead of branching documentation, implementation plans are attached to features. Git stays the source of code and JETRIX stays the source of architecture.</p>
+    <div class="benefits">
+      <span class="benefit-chip">No graph branching</span>
+      <span class="benefit-chip">No orphan context</span>
+      <span class="benefit-chip">Natural task ownership</span>
+      <span class="benefit-chip">Easy audit trail</span>
+      <span class="benefit-chip">Easy rollback</span>
+      <span class="benefit-chip">Git remains source of code</span>
+      <span class="benefit-chip">JETRIX remains source of architecture</span>
+    </div>
+  </section>
+
+  <!-- ===== CATALOG ===== -->
+  <section id="sec-catalog" class="section">
+    <p class="eyebrow">Reference</p>
+    <h2 class="section-heading">Plugin Commands</h2>
+    <p class="section-sub">The commands that drive the loop, from breaking scope into features through CI reconciliation and context promotion.</p>
+    <div class="catalog-grid">
+      <div class="catalog-card"><div class="cmd">scope-plan</div><div class="desc">Break scope into features</div></div>
+      <div class="catalog-card"><div class="cmd">feature-plan</div><div class="desc">Generate implementation plan</div></div>
+      <div class="catalog-card"><div class="cmd">implement-feature</div><div class="desc">Execute feature</div></div>
+      <div class="catalog-card"><div class="cmd">review-feature</div><div class="desc">AI review</div></div>
+      <div class="catalog-card"><div class="cmd">verify-feature</div><div class="desc">Loop verification</div></div>
+      <div class="catalog-card"><div class="cmd">merge-feature</div><div class="desc">Prepare merge</div></div>
+      <div class="catalog-card"><div class="cmd">reconcile-context</div><div class="desc">CI reconciliation</div></div>
+      <div class="catalog-card"><div class="cmd">promote-context</div><div class="desc">Update environment context</div></div>
+      <div class="catalog-card"><div class="cmd">sync-project</div><div class="desc">Refresh architecture</div></div>
+    </div>
+  </section>
+
+  <!-- ===== SUCCESS CRITERIA ===== -->
+  <section id="sec-criteria" class="section">
+    <p class="eyebrow">Outcomes</p>
+    <h2 class="section-heading">Success Criteria</h2>
+    <p class="section-sub">The spec is met when the loop runs itself: planning, implementation, verification, and promotion become one continuous flow.</p>
+    <div class="criteria-grid">
+      <div class="criteria-card"><span class="tick">&#10003;</span>Zero manual architecture documentation.</div>
+      <div class="criteria-card"><span class="tick">&#10003;</span>Every merged feature updates architecture automatically.</div>
+      <div class="criteria-card"><span class="tick">&#10003;</span>Every developer follows an identical engineering workflow.</div>
+      <div class="criteria-card"><span class="tick">&#10003;</span>Architecture context always reflects deployed environments.</div>
+      <div class="criteria-card"><span class="tick">&#10003;</span>Planning, implementation, verification, and promotion become one continuous loop.</div>
+    </div>
+  </section>
+
+</div><!-- /content-wrap -->
+
+<footer class="site-footer">
+  <p>JETRIX Loop Engineering Platform &mdash; Spec Walkthrough v1.0 &middot; Prepared by Techjays &middot; July 2026</p>
+  <p class="fine">Generated from the source specification (JETRIX Loop Engineering Platform Specification v1.0 Draft). Command names shown in the catalog follow the spec's Plugin Commands table.</p>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+
+  /* 1. SCROLL-SPY NAV */
+  var navItems = Array.prototype.slice.call(document.querySelectorAll('.nav-item'));
+  var sections = navItems.map(function (n) { return document.getElementById(n.dataset.target); }).filter(Boolean);
+  navItems.forEach(function (n) {
+    n.addEventListener('click', function (e) {
+      e.preventDefault();
+      var t = document.getElementById(n.dataset.target);
+      if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+  function setActive(id) { navItems.forEach(function (n) { n.classList.toggle('active', n.dataset.target === id); }); }
+  var spy = new IntersectionObserver(function (entries) {
+    var best = null;
+    entries.forEach(function (en) {
+      if (en.isIntersecting) { if (!best || en.boundingClientRect.top < best.boundingClientRect.top) best = en; }
+    });
+    if (best) setActive(best.target.id);
+  }, { rootMargin: '-30% 0px -60% 0px', threshold: 0 });
+  sections.forEach(function (s) { spy.observe(s); });
+
+  /* 2. NODE TOOLTIPS */
+  var tip = document.getElementById('node-tip');
+  function showTip(el, evt) {
+    var title = el.dataset.title || '';
+    var desc = (el.dataset.desc || '').split('||').filter(Boolean);
+    var html = '';
+    if (title) html += '<div class="tip-title">' + esc(title) + '</div>';
+    if (desc.length) html += '<ul>' + desc.map(function (d) { return '<li>' + esc(d) + '</li>'; }).join('') + '</ul>';
+    if (!html) return;
+    tip.innerHTML = html; tip.classList.add('show'); moveTip(evt);
+  }
+  function moveTip(evt) {
+    var pad = 14, w = tip.offsetWidth, h = tip.offsetHeight;
+    var x = evt.clientX + pad, y = evt.clientY + pad;
+    if (x + w > window.innerWidth - 8) x = evt.clientX - w - pad;
+    if (y + h > window.innerHeight - 8) y = evt.clientY - h - pad;
+    tip.style.left = Math.max(8, x) + 'px'; tip.style.top = Math.max(8, y) + 'px';
+  }
+  function hideTip() { tip.classList.remove('show'); }
+  Array.prototype.forEach.call(document.querySelectorAll('.state, .step'), function (el) {
+    if (!el.dataset.title && !el.dataset.desc) return;
+    el.addEventListener('mouseenter', function (e) { showTip(el, e); });
+    el.addEventListener('mousemove', moveTip);
+    el.addEventListener('mouseleave', hideTip);
+  });
+
+  /* 3. CLICK-TO-HIGHLIGHT (overview) */
+  var ovSvg = document.querySelector('#sec-overview svg');
+  if (ovSvg) {
+    var states = Array.prototype.slice.call(ovSvg.querySelectorAll('.state'));
+    var edges = Array.prototype.slice.call(ovSvg.querySelectorAll('.edge'));
+    function clearSel() {
+      ovSvg.classList.remove('has-sel');
+      states.forEach(function (s) { s.classList.remove('sel', 'adj'); });
+      edges.forEach(function (ed) { ed.classList.remove('lit'); });
+    }
+    function selectState(g) {
+      var id = g.dataset.state; if (!id) return;
+      if (g.classList.contains('sel')) { clearSel(); return; }
+      clearSel(); ovSvg.classList.add('has-sel'); g.classList.add('sel');
+      var neighbours = {};
+      edges.forEach(function (ed) {
+        var f = ed.dataset.from, t = ed.dataset.to;
+        if (f === id || t === id) { ed.classList.add('lit'); neighbours[f === id ? t : f] = true; }
+      });
+      states.forEach(function (s) { if (neighbours[s.dataset.state]) s.classList.add('adj'); });
+    }
+    states.forEach(function (g) {
+      g.addEventListener('click', function (e) { e.stopPropagation(); selectState(g); });
+    });
+    ovSvg.addEventListener('click', function (e) { if (!e.target.closest('.state')) clearSel(); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') clearSel(); });
+  }
+
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+})();
+</script>
+</body>
+</html>
