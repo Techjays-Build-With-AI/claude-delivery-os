@@ -1,6 +1,6 @@
 ---
 doc_type: scope
-schema_version: 1.0
+schema_version: 1.1
 produced_by: ba
 last_intake_run: run-001
 status: Draft
@@ -10,9 +10,13 @@ conforms_to: "Techjays D&D — 02 Scope Document Template"
 
 <!--
   This is the living, markdown form of the Techjays Design & Discovery SCOPE DOCUMENT.
-  It MUST follow the structure and conventions of:
-    docs/D&D Documentation/02 - Scope Document Template.docx
-  The Doc Agent renders this markdown into the branded .docx at scope-freeze time.
+  It follows the structure and conventions of the Techjays D&D Scope Document Template,
+  evolved (contract v1.x) to make USE CASES first-class: every module carries a master
+  flow and a nested Use Cases layer, so each distinct scenario/route is documented with
+  its own explanation, workflow, flow diagram, and worked example.
+    docs/D&D Documentation/02 - Scope Document Template.docx  (base template)
+  The Doc Agent renders this markdown into the branded .docx at scope-freeze time, and
+  renders each Mermaid flow into a branded SVG swimlane (see delivery-os-conventions §8).
 
   Conventions (keep, but author-guidance lines marked ✎ are deleted before issuing):
     ✎ grey-italic note          → author guidance, delete before issuing
@@ -21,6 +25,8 @@ conforms_to: "Techjays D&D — 02 Scope Document Template"
     Resp. = AI | DET | HUM      → AI capability / deterministic logic / human action
     Pri.  = M | S | C | W        → MoSCoW: Must / Should / Could / Won't-this-phase
     Requirement IDs             → <MODULE>-<FR|AI|DET|HUM>-<NN>  e.g. INTK-AI-02
+    Use-case IDs                → <MODULE>-UC-<NN>               e.g. INVP-UC-01
+    Mermaid flows               → ```mermaid fenced blocks; living source for the branded SVG
 -->
 
 # Scope Document
@@ -59,6 +65,7 @@ conforms_to: "Techjays D&D — 02 Scope Document Template"
 ## 3. Module Requirements
 
 > ✎ One sub-section per module. Copy the block below per module. Keep every sub-heading even when the answer is "None" — an explicit "None" records a decision; a missing one is a gap. Capability-level requirements only; detailed testable specs are deferred to the SRS.
+> ✎ Each module carries a **Master Flow** (§3.x.3) and a **Use Cases** layer (§3.x.4). The master flow shows the whole journey and its branch points; each distinct scenario/route below it is written up as its own use case with an explanation, a workflow, a flow diagram, and a worked example. A branch becomes its own use case only when it differs *materially* (different steps, actors, business rules, systems, or outcome) — a difference of data value alone is a business rule or an alternative flow, not a use case. See `ba-extraction` for the decision rule.
 
 ### 3.x Module: [Module Name]
 
@@ -71,31 +78,89 @@ conforms_to: "Techjays D&D — 02 Scope Document Template"
 - **Out of scope:** [excluded, deferred, or unconfirmed items].
 > ▸ Ask the client: Is there anything you assume is included that we have not listed here?
 
-#### 3.x.3 Functional Requirements
+#### 3.x.3 Module Master Flow
+> ✎ The end-to-end journey for this module in one picture: the trigger, the happy path, and the **decision/branch points** where the route diverges. Each branch names the use case (§3.x.4) it leads to, so the master flow and the use cases stay 1:1. Keep it to the skeleton — step-level detail lives inside each use case.
 
-| ID | Requirement | Resp. | Pri. | Acceptance criteria |
-|----|-------------|-------|------|---------------------|
-| [MOD-FR-01] | [requirement] | [DET] | [M] | [criterion] |
-| [MOD-AI-02] | [requirement] | [AI] | [M] | [≥95% field accuracy on the agreed test set; below threshold → triage] |
+[One or two sentences describing the overall journey and what makes it branch.]
 
-#### 3.x.4 AI / Automation Responsibilities
+```mermaid
+flowchart TD
+    A([Trigger: incoming item]) --> B{Which [type / condition]?}
+    B -->|[condition A]| UCA[MOD-UC-01: name]
+    B -->|[condition B]| UCB[MOD-UC-02: name]
+    B -->|[condition C]| UCC[MOD-UC-03: name]
+    UCA --> Z([Posted to system of record])
+    UCB --> Z
+    UCC --> Z
+```
+
+#### 3.x.4 Use Cases
+> ✎ One `##### ` block per distinct scenario/route. Keep every labelled field — write "None identified yet" rather than deleting one. Route-specific edge cases live *inside* the use case; cross-cutting module exceptions stay in §3.x.10. Each use case is mirrored in `use-case-register.md` under the same `MOD-UC-##` id.
+
+##### 3.x.4.a [MOD-UC-01] — [Use Case Name]
+- **Actor / Persona:** [who initiates / owns this route]
+- **Trigger:** [what starts it]
+- **Preconditions:** [what must already be true]
+- **When this route applies:** [the condition that selects this route over its siblings — the crux for branch cases, e.g. "invoice type = Credit Memo"]
+- **Explanation:** [what happens on this route and *why* it is a distinct case]
+- **Workflow:**
+  1. [step] `[SRC-### › path]`
+  2. [step]
+  3. [step]
+- **Flow diagram:**
+
+```mermaid
+flowchart TD
+    S([Start: ...]) --> S1[...]
+    S1 --> D{...?}
+    D -->|yes| S2[...]
+    D -->|no| S3[...]
+    S2 --> E([End: ...])
+    S3 --> E
+```
+
+- **Worked example:** [a concrete, realistic instance with actual-looking data that shows this route running end to end] `[EX-### ]`
+- **Business rules:** [rules that govern this route] `[BR-### ]`
+- **Edge cases & exceptions:**
+
+| Edge case | Handling |
+|-----------|----------|
+| [route-specific exception] | [handling] |
+
+- **Acceptance criteria:** [what must be true for this route to be accepted]
+- **Source references:** `[SRC-### › path]` · requirements [MOD-FR-##] · workflow [WF-###]
+
+##### 3.x.4.b [MOD-UC-02] — [Use Case Name]
+> ✎ Repeat the block above for every distinct route. Keep the ids sequential within the module.
+
+#### 3.x.5 Functional Requirements
+> ✎ Capability-level requirements for the module. The **Use Cases** column ties each requirement to the route(s) it serves; the same id is used in `requirement-register.md`.
+
+| ID | Requirement | Use Cases | Resp. | Pri. | Acceptance criteria |
+|----|-------------|-----------|-------|------|---------------------|
+| [MOD-FR-01] | [requirement] | [MOD-UC-01] | [DET] | [M] | [criterion] |
+| [MOD-AI-02] | [requirement] | [MOD-UC-01, MOD-UC-02] | [AI] | [M] | [≥95% field accuracy on the agreed test set; below threshold → triage] |
+
+#### 3.x.6 AI / Automation Responsibilities
 - **AI does:** [scope of the model's job here]
 - **Confidence threshold & fallback:** [value + what happens below it, e.g. 0.85 → route to triage]
 - **Human-in-the-loop:** [where a person reviews/approves]
 
-#### 3.x.5 Business Rules
+#### 3.x.7 Business Rules
+> ✎ Module-level / cross-cutting rules. A rule that governs only one route lives in that use case (§3.x.4).
 - [approval / matching / validation / escalation rules] `[BR-### › source]`
 
-#### 3.x.6 Data Fields
+#### 3.x.8 Data Fields
 
 | Field | Type | Req. | Source / validation |
 |-------|------|------|---------------------|
 | [field] | [type] | [Y/N] | [source / validation] |
 
-#### 3.x.7 Integrations
+#### 3.x.9 Integrations
 - [system + API / protocol + direction (read/write)] `[INT-### ]`
 
-#### 3.x.8 Exception Handling
+#### 3.x.10 Exception Handling
+> ✎ Cross-cutting exceptions that apply across the module's routes. Route-specific edge cases live inside their use case (§3.x.4).
 
 | Exception | Handling |
 |-----------|----------|
@@ -104,8 +169,8 @@ conforms_to: "Techjays D&D — 02 Scope Document Template"
 | [API / system failure] | [retry N× with backoff; alert on final failure] |
 | [Low AI confidence] | [route to human / hold] |
 
-#### 3.x.9 Acceptance Criteria
-- [What must be true for this module to be accepted — tie to the requirement IDs above.]
+#### 3.x.11 Acceptance Criteria
+- [What must be true for this module to be accepted — tie to the use cases (§3.x.4) and requirement IDs above.]
 
 ---
 

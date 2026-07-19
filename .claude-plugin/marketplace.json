@@ -12,6 +12,11 @@
       "description": "Shared foundation: project-workspace scaffolding, the cross-agent document contract, shared vocabulary, and canonical templates. Install this first."
     },
     {
+      "name": "jetrix",
+      "source": "./plugins/jetrix",
+      "description": "Jetrix sync — binds a local workspace to a Jetrix project and keeps them in sync via a working-copy model: /jetrix:pull refreshes a disposable local cache from Jetrix (the single source of truth), all analysis happens locally, and /jetrix:push publishes structured records back (idempotent upsert by stable id, transactional propose→commit, pull-before-push conflict safety). Owns .jetrix/project.json (identity + app/environment→branch wiring) and the cache. Requires the delivery-os core contract. Provides /jetrix:init, /jetrix:pull, and /jetrix:push."
+    },
+    {
       "name": "ba",
       "source": "./plugins/ba",
       "description": "Business Analyst Agent — builds and continuously updates a living scope document from client material (folders/Google Drive), raises a client-ready questions list and folds answers back in, runs a paranoid feature-by-feature scope review with a question-resolution loop, and breaks an approved scope into an implementation-ready feature breakdown (a folder per feature plus a feature index under context/features/). Provides /ba:scope, /ba:review, /ba:resolve, and /ba:features."

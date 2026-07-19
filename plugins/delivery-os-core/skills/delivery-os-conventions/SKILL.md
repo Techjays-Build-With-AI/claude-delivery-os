@@ -7,7 +7,9 @@ description: The Techjays Delivery OS shared document contract. Read this before
 
 This is the single source of truth that makes Delivery OS documents **shareable across agents and across weeks**. The BA Agent produces documents today; the Doc, TL, and QA agents consume them later. They only interoperate if every agent honors this contract.
 
-> **Contract version: 1.0.** Bump `schema_version` in document frontmatter and update this file together when the contract changes.
+> **Contract version: 1.1.** Bump `schema_version` in document frontmatter and update this file together when the contract changes.
+>
+> **1.1 (use-case model).** Made **use cases** first-class: added the `<MODULE>-UC-NN` id and `use-case-register.md`; the scope §3.x now carries a **§3.x.3 Master Flow** and a **§3.x.4 Use Cases** layer (renumbered through §3.x.11); added the **Mermaid diagram convention** (§8) where Mermaid is the living source and the Doc Agent's branded SVG swimlane is its projection. The change is **additive** — a `schema_version: 1.1` document remains readable; new documents are written at `1.1`.
 
 ---
 
@@ -34,6 +36,7 @@ Every Delivery OS project lives under a **single named container folder** (so th
 │   ├── client-questions.md      # clean, handover-ready open questions for the client
 │   ├── requirement-register.md
 │   ├── workflow-register.md
+│   ├── use-case-register.md
 │   ├── business-rule-register.md
 │   ├── example-register.md
 │   ├── data-register.md
@@ -68,6 +71,10 @@ The `context/` tree is the shared implementation-context layer, distinct from ea
 ### Output-folder creation rule
 `/delivery-os:init` seeds only the BA-phase essentials — `shared-context/` and `ba-output/` — because the Business Analyst runs immediately after init. Every **downstream** agent creates its own output folder the first time it produces something: `tl-output/` on the first `/tl:review`, `doc-output/` on the first Doc run, `qa-output/` later. This is deliberate — it keeps a fresh workspace minimal and avoids empty, speculative folders for agents a given project may never use. An agent must therefore create its output folder if absent, never assume `init` made it.
 
+### 1.b Jetrix binding — `.jetrix/` (owned by the **jetrix** plugin)
+
+A project's delivery context can be centralized in **Jetrix**, in which case Jetrix is the **single source of truth** for all project context (glossary, scope, registers, feature breakdown, and the `context/` graph) and the local `.jetrix/` folder is a disposable **working copy**. Binding a workspace and syncing it are owned by the separate **`jetrix`** plugin — read its **`jetrix-sync`** skill for the full contract: `.jetrix/project.json` (committed identity + app/environment→branch wiring), the gitignored incremental read-through cache, and the pull/push model. Commands: `/jetrix:init` (bind), `/jetrix:pull` (refresh the cache from Jetrix, incremental), `/jetrix:push` (publish local work back as structured records — upsert by stable id, transactional, pull-before-push). The canonical form in Jetrix is **structured records** (the IDs in §3); `scope.md` and the branded `.docx` are projections rendered from them. This is distinct from `/delivery-os:init`, which scaffolds a local-only workspace and never touches `.jetrix/`.
+
 ### Source handling — reference, never copy or move
 Original source files (local folders/files, Google Drive, etc.) **stay where they are**. The workspace never copies, moves, or deletes a user's originals. Intake only:
 1. **records** each source in `intake.index.md` (its real location + classification + status), and
@@ -87,8 +94,8 @@ It is **agent-maintained** (the user can still hand-edit it) and folds together 
 
 ```yaml
 ---
-doc_type: scope            # scope | requirement-register | glossary | run-summary | source-summary | intake-index | ...
-schema_version: 1.0        # the contract version this file conforms to
+doc_type: scope            # scope | requirement-register | use-case-register | glossary | run-summary | source-summary | intake-index | ...
+schema_version: 1.1        # the contract version this file conforms to
 produced_by: ba            # ba | doc | tl | qa | delivery-os
 last_intake_run: run-003   # the run that last touched this file (omit if N/A)
 status: Emerging           # see §5 maturity values
@@ -102,7 +109,7 @@ A **normalized source summary** (`artifacts/<category>/<name>.summary.md`) carri
 ```yaml
 ---
 doc_type: source-summary
-schema_version: 1.0
+schema_version: 1.1
 produced_by: ba
 source_id: SRC-002              # matches the intake.index registry row
 summary_of: "D:/acme/meetings/2026-06-12-kickoff.docx"   # the ORIGINAL location (path or Drive link), referenced not copied
@@ -124,6 +131,7 @@ IDs are the threads that let one agent cite what another produced. They are **ap
 | Entity            | Prefix | Example  | Lives in                     |
 |-------------------|--------|----------|------------------------------|
 | Requirement       | `<MODULE>-<FR\|AI\|DET\|HUM>` | INTK-AI-02 | requirement-register.md / scope §3 |
+| Use case          | `<MODULE>-UC` | INVP-UC-01 | use-case-register.md / scope §3.x.4 |
 | Workflow          | `WF`   | WF-001   | workflow-register.md         |
 | Business rule     | `BR`   | BR-001   | business-rule-register.md    |
 | Data entity       | `DATA` | DATA-001 | data-register.md             |
@@ -150,7 +158,9 @@ The `context/` graph IDs (`FEAT-`/`PAGE-`/`EP-`/`ENT-`) carry a short uppercase 
 
 IDs are zero-padded to 3 digits (functional-requirement `NN` is 2 digits within its module, per the scope template). Cross-references are written inline as the bare ID (e.g. "validated by EX-014" or "see WF-002").
 
-**Requirement IDs** follow the Techjays Scope Document convention: `<MODULE>-<FR|AI|DET|HUM>-<NN>` where the module prefix is a short uppercase abbreviation (Intake → `INTK`, Validation → `VALD`), the middle token is `FR` or the responsibility code, and `NN` is sequential within that module. The same ID is used in `requirement-register.md` and in `scope.md` §3.x.3 so they trace 1:1.
+**Requirement IDs** follow the Techjays Scope Document convention: `<MODULE>-<FR|AI|DET|HUM>-<NN>` where the module prefix is a short uppercase abbreviation (Intake → `INTK`, Validation → `VALD`), the middle token is `FR` or the responsibility code, and `NN` is sequential within that module. The same ID is used in `requirement-register.md` and in `scope.md` §3.x.5 so they trace 1:1.
+
+**Use-case IDs** follow the same module-prefix convention: `<MODULE>-UC-<NN>` (e.g. `INVP-UC-01`), `NN` sequential within the module. A use case is a **distinct scenario or route** through a module — one that differs from its siblings in a *material* way (different steps, actors, business rules, systems, or outcome), not merely in a data value. The canonical use case lives in `scope.md` §3.x.4 (nested under its module) and in `use-case-register.md`; the two trace 1:1. Functional requirements, workflows, examples, and business rules cite the use case(s) they serve by ID, and a use case cites the requirements/workflows/examples/rules that realise it — so a route is traceable in both directions. See `ba-extraction` for the rule that decides when a branch becomes its own use case versus an alternative flow.
 
 ---
 
@@ -199,6 +209,7 @@ All agents use these exact values — no synonyms.
 | `shared-context/*`                   | ba          | doc, tl, qa        |
 | `ba-output/scope.md`                 | ba          | doc, tl, qa        |
 | `ba-output/requirement-register.md`  | ba          | doc, tl, qa        |
+| `ba-output/use-case-register.md`     | ba          | doc, tl, qa        |
 | `ba-output/integration-register.md`  | ba          | tl                 |
 | `ba-output/data-register.md`         | ba          | tl                 |
 | `context/features/*`                 | ba          | tl, doc, qa        |
@@ -226,3 +237,17 @@ Client-facing deliverables conform to the Techjays **Design & Discovery** templa
 
 **RAID alignment** — the BA registers map onto the RAID Register's four registers:
 `assumption-register.md` → Assumptions `A-##` · dependencies → Dependencies `D-##` · `contradiction-log.md` / risk notes → Risks `R-##` · `clarification-log.md` → Open Questions `Q-##` (classified: *Must close before estimate · Proceed with assumption · Minor implementation detail · Too uncertain (exclude/T&M) · Future phase*). Scope §7 only references RAID — it never duplicates these.
+
+---
+
+## 8. Diagram convention (Mermaid is the living source; branded SVG is the projection)
+
+Flows are authored as **Mermaid** fenced code blocks directly in the markdown the BA maintains — a module master flow in `scope.md` §3.x.3, and a per-use-case flow in each §3.x.4 use case (and, downstream, in each feature's `workflow.md`). Mermaid is chosen because it is diffable, reviewable in a pull request, and renders in most markdown viewers, so the diagram evolves with the words around it instead of drifting out of date in a separate file. The **Doc Agent** renders these same flows into the branded **SVG swimlanes** of the Techjays deliverables at doc/freeze time (`doc-workflow`) — so Mermaid is the *source*, SVG is the *client-facing projection* of the same journey, never a second hand-authored diagram to keep in sync.
+
+Authoring rules so the diagrams stay uniform and machine-mappable:
+
+- Use `flowchart TD` (top-down) for a use-case route and `flowchart TD` or `LR` for a module master flow — pick one orientation per module and keep it.
+- **Decision/branch points are diamond nodes** (`{...}`), and **every branch edge is labelled with the condition** that selects it (`-->|credit memo| ...`). In a module master flow, each terminal branch names the use case it leads to by ID and name, so the master flow and the nested use cases line up 1:1.
+- Terminal/outcome nodes use rounded ends (`([...])`); systems of record or integrations referenced in a step name the `INT-###` they map to in the node text where it helps.
+- Keep the master flow to the decision skeleton (trigger → branch points → which use case) and push step-level detail into each use case's own flow — the master answers *which route*, the use-case flow answers *how that route runs*.
+- Fence every diagram as ` ```mermaid ` … ` ``` ` and keep the label text short; long prose belongs in the surrounding narrative, not inside a node.

@@ -63,6 +63,14 @@ an email attachment with the network unplugged.
   `shared-context/`. Use the spec's real names, IDs, and numbers. **Never
   fabricate.** If the spec states a fact, use it verbatim; if a number or detail
   the page needs is absent, mark it `[[NEEDS: …]]` and list it back to the user.
+- **Use cases are the natural module sections.** When the scope carries the
+  evolved shape (module **§3.x.3 master flow** + **§3.x.4 use cases**), map each
+  module to a page section whose overview diagram is the master flow, and give
+  **each use case its own sub-section** — the use case's own Mermaid flow becomes
+  the section's compact workflow diagram, and the use case's **worked example**
+  becomes the section's example card (verbatim). The scope's Mermaid is the living
+  source (`delivery-os-conventions` §8); render it, don't re-author it. Preserve
+  branch labels and decision points so the page and the scope stay 1:1.
 - **Do not invent metrics or outcomes.** This page explains what the spec says.
   Where the spec has no KPI, omit the KPI strip rather than inventing figures.
 - **Write the output to `doc-output/`** (create it on first use), timestamped so
@@ -92,11 +100,15 @@ down (even as a scratch outline) so the page is faithful:
    specs state this explicitly (a "Lifecycle", "Workflow", "Phases", or
    "Promotion" section); if several candidate lifecycles exist, pick the spine
    that best explains the whole system and note the others as module workflows.
-3. **The modules / features.** The spec's major building blocks: core objects,
-   subsystems, workflows, or numbered spec sections. Each becomes one page
-   section. For each capture: name, one-line purpose, the **ordered steps**
-   inside it (its mini-workflow), and any **example** the spec gives (an ID, a
-   sample plan, a command run).
+3. **The modules / features — and their use cases.** The spec's major building
+   blocks: core objects, subsystems, workflows, or numbered spec sections. Each
+   becomes one page section. For each capture: name, one-line purpose, the
+   **ordered steps** inside it (its mini-workflow), and any **example** the spec
+   gives (an ID, a sample plan, a command run). When the scope has a **§3.x.4 use
+   case layer**, treat each use case as a sub-section: its own flow is the
+   mini-workflow and its worked example is the example card — so a module that
+   branches by type renders as one master-flow overview plus one sub-section per
+   route.
 4. **The catalog.** Any table of commands/APIs/objects, and the success criteria
    or principles. These become reference strips.
 5. **Open questions** — anything the page would want but the spec doesn't state,

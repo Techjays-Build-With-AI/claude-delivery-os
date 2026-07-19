@@ -17,7 +17,7 @@ Every feature also carries an **`initiative`** — the human-named work-batch sl
 ```md
 ---
 doc_type: feature-index
-schema_version: 1.0
+schema_version: 1.1
 produced_by: ba
 status: Emerging
 generated_at: YYYY-MM-DD
@@ -44,10 +44,11 @@ The primary business and product context — enough to understand the feature wi
 ```md
 ---
 doc_type: feature
-schema_version: 1.0
+schema_version: 1.1
 produced_by: ba
 feature_id: FEAT-SUP-001
 initiative: supplier-portal
+use_cases: [SUP-UC-01, SUP-UC-02]
 status: Ready for Planning
 generated_at: YYYY-MM-DD
 ---
@@ -100,6 +101,11 @@ The current process requires operations teams to manually gather supplier inform
 - Supplier payment setup
 - Supplier performance scoring
 
+## Use Cases Covered
+The scope use cases (§3.x.4) this feature realises — each becomes a flow in `workflow.md`:
+- SUP-UC-01 — Submit supplier for review
+- SUP-UC-02 — Draft & resume
+
 ## Related Business Workflows
 - Supplier Onboarding
 - Supplier Approval
@@ -147,7 +153,8 @@ The current process requires operations teams to manually gather supplier inform
 - Are suppliers allowed to update their own profile?
 
 ## Source References
-- Scope Document: §3.2 Supplier Management
+- Scope Document: §3.2 Supplier Management (§3.2.4 Use Cases SUP-UC-01, SUP-UC-02)
+- Use Case Register: SUP-UC-01, SUP-UC-02
 - Requirement Register: SUP-FR-01, SUP-FR-02
 - Discovery Notes: Supplier Intake Workshop, June 2026 [SRC-004 › meeting-transcripts/2026-06-…]
 ```
@@ -166,7 +173,7 @@ How the feature breaks into buildable **work areas** — not code. No low-level 
 ```md
 ---
 doc_type: implementation-plan
-schema_version: 1.0
+schema_version: 1.1
 produced_by: ba
 feature_id: FEAT-SUP-001
 generated_at: YYYY-MM-DD
@@ -277,14 +284,15 @@ Ready | Partially Ready | Not Ready
 
 ## 3. workflow.md
 
-The end-to-end business journey.
+The end-to-end business journey. Starts with an **overview flow** (Mermaid, seeded from the module master flow §3.x.3), then the primary flow, then one **alternative flow per use case** the feature covers — each carrying its own Mermaid diagram and, where the scope has one, a worked example. Author diagrams as Mermaid `flowchart` blocks (`delivery-os-conventions` §8); the Doc Agent renders the branded SVG swimlane from them. *(Template shown with a four-backtick outer fence so the inner ```mermaid blocks nest cleanly.)*
 
-```md
+````md
 ---
 doc_type: feature-workflow
-schema_version: 1.0
+schema_version: 1.1
 produced_by: ba
 feature_id: FEAT-SUP-001
+use_cases: [SUP-UC-01, SUP-UC-02]
 generated_at: YYYY-MM-DD
 ---
 
@@ -292,6 +300,21 @@ generated_at: YYYY-MM-DD
 
 ## Trigger
 An internal operations user needs to onboard a new supplier.
+
+## Overview Flow
+The routes this feature covers and where they branch (seeded from scope §3.x.3; each branch names the use case it runs).
+
+```mermaid
+flowchart TD
+    A([Trigger: onboard a supplier]) --> B[Enter supplier details + documents]
+    B --> C{Submission complete?}
+    C -->|Saved incomplete| UCd[SUP-UC-02: Draft & resume]
+    C -->|Submitted| UCs[SUP-UC-01: Submit for review]
+    UCs --> D{Reviewer decision}
+    D -->|Approved| Z([Supplier available for sourcing])
+    D -->|Rejected| R([Rework & resubmit])
+    UCd --> B
+```
 
 ## Primary Flow
 1. User opens the Supplier List Page.
@@ -309,18 +332,27 @@ An internal operations user needs to onboard a new supplier.
 13. If approved, the supplier becomes available for sourcing workflows.
 
 ## Alternative Flows
+One sub-section per **use case / route** the feature covers (from scope §3.x.4). Where a route is materially distinct — different steps, actors, rules, systems, or outcome — give it its own Mermaid diagram and reuse the use case's worked example; a minor variation (draft, missing-field) can stay prose.
 
-### Save Draft
-The user may save incomplete supplier information as Draft and complete it later.
+### SUP-UC-02 — Draft & resume  ·  *route: submission saved incomplete*
+The user saves incomplete supplier information as Draft and completes it later.
 
-### Missing Mandatory Documents
-The system prevents submission and displays missing document requirements.
+```mermaid
+flowchart TD
+    S([Draft saved]) --> S1[System stores partial supplier as Draft]
+    S1 --> S2[User returns and edits]
+    S2 --> D{All mandatory fields & docs present?}
+    D -->|No| S1
+    D -->|Yes| E([Submit for review → SUP-UC-01])
+```
 
-### Rejection
-The reviewer rejects the supplier and provides a rejection reason.
+*Worked example:* Draft `SUP-DRAFT-118` saved with company info but no compliance docs; completed two days later and submitted. `[EX-021]`
 
-### Rework
-The operations user updates the supplier profile and resubmits it for review.
+### Missing Mandatory Documents  *(minor variation of SUP-UC-01)*
+The system prevents submission and displays the missing document requirements.
+
+### Rejection / Rework  *(reviewer path of SUP-UC-01)*
+The reviewer rejects with a reason; the operations user updates the profile and resubmits.
 
 ## Business Rules
 - Only users with relevant permissions can submit suppliers for review.
@@ -333,9 +365,9 @@ The operations user updates the supplier profile and resubmits it for review.
 - Supplier Approval Workflow (FEAT-SUP-002)
 - Notification Center
 - Audit History
-```
+````
 
-Cite the source workflow/business-rule register IDs (`WF-###`, `BR-###`) inline where they exist.
+Cite the source use-case / workflow / business-rule register IDs (`<MODULE>-UC-##`, `WF-###`, `BR-###`) inline where they exist. The `use_cases:` frontmatter lists every scope use case this feature realises, so traceability runs scope §3.x.4 → feature 1:1.
 
 ---
 
@@ -346,7 +378,7 @@ Testable, capability-level outcomes — what "done" means for the business, grou
 ```md
 ---
 doc_type: acceptance-criteria
-schema_version: 1.0
+schema_version: 1.1
 produced_by: ba
 feature_id: FEAT-SUP-001
 generated_at: YYYY-MM-DD
@@ -393,7 +425,7 @@ All upstream and downstream dependencies. Record cross-feature dependencies in *
 ```md
 ---
 doc_type: feature-dependencies
-schema_version: 1.0
+schema_version: 1.1
 produced_by: ba
 feature_id: FEAT-SUP-001
 generated_at: YYYY-MM-DD
@@ -441,7 +473,7 @@ Unresolved decisions, captured without guessing. Reuse `CLR-###` ids for questio
 ```md
 ---
 doc_type: feature-open-questions
-schema_version: 1.0
+schema_version: 1.1
 produced_by: ba
 feature_id: FEAT-SUP-001
 generated_at: YYYY-MM-DD
@@ -469,7 +501,7 @@ The operational tracker for the feature.
 ```md
 ---
 doc_type: feature-status
-schema_version: 1.0
+schema_version: 1.1
 produced_by: ba
 feature_id: FEAT-SUP-001
 initiative: supplier-portal

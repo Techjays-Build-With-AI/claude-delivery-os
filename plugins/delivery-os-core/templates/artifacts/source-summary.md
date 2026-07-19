@@ -1,6 +1,6 @@
 ---
 doc_type: source-summary
-schema_version: 1.0
+schema_version: 1.1
 produced_by: ba
 source_id: SRC-000
 summary_of: "<original path or Drive link — referenced, NOT copied>"
