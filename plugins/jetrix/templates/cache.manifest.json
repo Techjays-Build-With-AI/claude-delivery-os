@@ -1,0 +1,30 @@
+{
+  "schema_version": "2.0",
+  "doc_type": "jetrix-cache-manifest",
+  "project_slug": "{{PROJECT_SLUG}}",
+  "last_pull": "{{TIMESTAMP}}",
+  "source": "jetrix-mcp",
+
+  "sections": {
+    "project":   { "fetched_at": null, "hash": null },
+    "glossary":  { "fetched_at": null, "hash": null },
+    "apps":      { "fetched_at": null, "hash": null, "count": 0 },
+    "scope":     { "fetched_at": null, "hash": null },
+    "registers": { "fetched_at": null, "hash": null },
+    "features":  { "fetched_at": null, "hash": null, "count": 0 },
+    "context": {
+      "frontend": { "fetched_at": null, "hash": null, "count": 0 },
+      "backend":  { "fetched_at": null, "hash": null, "count": 0 },
+      "database": { "fetched_at": null, "hash": null, "count": 0 }
+    }
+  },
+
+  "id_map": [],
+
+  "_notes": [
+    "GITIGNORED, disposable, per-machine. This whole cache is a WORKING COPY of the Jetrix store; safe to delete anytime — /jetrix:pull rebuilds it. Jetrix remains the source of truth.",
+    "INCREMENTAL PULL: each section stamps fetched_at + a content hash. A pull asks Jetrix for the current hash per section and re-downloads ONLY sections whose hash changed. Nothing changed → the pull is a no-op. This is why pulling often is cheap — never a worry about staleness.",
+    "id_map backs IDEMPOTENT PUSH: entries of { local_id, jetrix_id, section, hash } map a local stable id (e.g. INTK-AI-02, WF-001, FEAT-SUP-001) to its Jetrix record. Push upserts by local_id, so re-pushing updates instead of duplicating. Rebuildable from Jetrix (each record stores its local_id), so losing this file is safe.",
+    "context.* mirror the Jetrix frontend/backend/database graph (pages/endpoints/entities); populated once the technical layer exists in Jetrix."
+  ]
+}

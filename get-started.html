@@ -124,9 +124,50 @@
   footer { border-top: 1px solid var(--border); margin-top: 40px; padding: 24px 20px; text-align: center;
     color: var(--muted); font-size: 13px; }
 
+  /* Command detail — clickable pills + modal */
+  .cmd-pill.has-detail { cursor: pointer; transition: background .15s ease, color .15s ease, transform .05s ease; }
+  .cmd-pill.has-detail:hover, .cmd-pill.has-detail:focus-visible { background: var(--accent); color: #fff; outline: none; }
+  .cmd-pill.has-detail:active { transform: translateY(1px); }
+  .cmd-pill .cmd-i { display: inline-flex; align-items: center; justify-content: center; width: 15px; height: 15px;
+    margin-left: 7px; border-radius: 50%; border: 1.4px solid currentColor; font-size: 10px; font-weight: 800;
+    font-style: normal; font-family: -apple-system, "Segoe UI", sans-serif; opacity: .7; vertical-align: middle; }
+  .cmd-pill.has-detail:hover .cmd-i, .cmd-pill.has-detail:focus-visible .cmd-i { opacity: 1; }
+  .detail-hint { font-size: 13.5px; color: var(--muted); margin: 2px 0 0; }
+  .detail-hint b { color: var(--text); }
+
+  .modal-overlay { position: fixed; inset: 0; z-index: 100; background: rgba(10,13,20,.55);
+    -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px);
+    display: flex; align-items: flex-start; justify-content: center; padding: 44px 16px; overflow-y: auto;
+    animation: mo-fade .18s ease; }
+  .modal-overlay[hidden] { display: none; }
+  @keyframes mo-fade { from { opacity: 0; } to { opacity: 1; } }
+  .modal { position: relative; background: var(--surface); color: var(--text); border: 1px solid var(--border);
+    border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,.35); max-width: 640px; width: 100%;
+    padding: 26px 28px 30px; animation: mo-pop .2s ease; }
+  @keyframes mo-pop { from { opacity: 0; transform: translateY(10px) scale(.985); } to { opacity: 1; transform: none; } }
+  .modal-close { position: absolute; top: 14px; right: 14px; width: 32px; height: 32px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--surface-2); color: var(--muted); font-size: 20px; line-height: 1;
+    cursor: pointer; }
+  .modal-close:hover { color: var(--text); background: var(--border); }
+  .modal-cmd { display: inline-block; font-family: ui-monospace, monospace; font-size: 13px; font-weight: 700;
+    background: var(--pill); color: var(--pill-text); padding: 4px 12px; border-radius: 999px; }
+  .modal-head h3 { margin: 12px 0 0; font-size: 22px; letter-spacing: -.01em; padding-right: 30px; }
+  .modal-summary { color: var(--muted); font-size: 15.5px; margin: 8px 0 2px; }
+  .modal-sec { margin-top: 18px; }
+  .modal-sec h4 { margin: 0 0 8px; font-size: 12.5px; text-transform: uppercase; letter-spacing: .05em;
+    color: var(--accent); font-weight: 800; }
+  .modal-sec ul { margin: 0; padding-left: 18px; } .modal-sec li { margin: 5px 0; font-size: 14.5px; }
+  .modal-sec li.not { list-style: none; margin-left: -18px; margin-top: 8px; padding: 7px 11px;
+    border-left: 3px solid var(--warn); background: var(--surface-2); border-radius: 0 8px 8px 0; color: var(--muted); }
+  .modal-sec p { margin: 0; font-size: 14.5px; }
+  .modal-ex { border-left: 3px solid var(--ok); background: var(--surface-2); border-radius: 0 8px 8px 0;
+    padding: 10px 14px; font-size: 14px; margin-top: 8px; }
+  body.modal-open { overflow: hidden; }
+
   @media (max-width: 640px) {
     .hero h1 { font-size: 27px; } .hero { padding: 34px 18px 28px; }
     .wrap { padding: 24px 16px 60px; }
+    .modal-overlay { padding: 20px 10px; } .modal { padding: 22px 18px 24px; }
   }
 </style>
 </head>
@@ -139,7 +180,7 @@
     <p>An internal Claude Code plugin marketplace that standardizes how we run delivery — from raw client inputs to structured, reviewed delivery documents. Install it once, then run the agents you need.</p>
     <div class="badges">
       <span class="badge">Marketplace: techjays-delivery-os</span>
-      <span class="badge">delivery-os · ba · dev · qa · tl · doc</span>
+      <span class="badge">delivery-os · jetrix · ba · dev · qa · tl · doc</span>
       <span class="badge">Runs in Claude Code</span>
     </div>
   </div>
@@ -150,6 +191,7 @@
     <button class="tab-btn" role="tab" aria-selected="true"  data-tab="general">Get Started</button>
     <button class="tab-btn" role="tab" aria-selected="false" data-tab="how">How It Works</button>
     <button class="tab-btn" role="tab" aria-selected="false" data-tab="core">Core <span class="ns">/delivery-os</span></button>
+    <button class="tab-btn" role="tab" aria-selected="false" data-tab="jetrix">Jetrix <span class="ns">/jetrix</span></button>
     <button class="tab-btn" role="tab" aria-selected="false" data-tab="ba">BA Agent <span class="ns">/ba</span></button>
     <button class="tab-btn" role="tab" aria-selected="false" data-tab="dev">Dev Agent <span class="ns">/dev</span></button>
     <button class="tab-btn" role="tab" aria-selected="false" data-tab="qa">QA Agent <span class="ns">/qa</span></button>
@@ -172,6 +214,7 @@
       <thead><tr><th>Plugin</th><th>Namespace</th><th>Status</th><th>What it provides</th></tr></thead>
       <tbody>
         <tr><td><b>delivery-os</b> (core)</td><td><code>/delivery-os:</code></td><td><span class="pill-tag tag-mvp">MVP</span></td><td>Project scaffolding, the cross-agent document contract, shared vocabulary, templates. <b>Install first.</b></td></tr>
+        <tr><td><b>jetrix</b></td><td><code>/jetrix:</code></td><td><span class="pill-tag tag-mvp">MVP</span></td><td>Jetrix sync <i>(optional)</i> — bind a workspace to a central Jetrix project (the source of truth) and pull/push context. Use only when centralizing to Jetrix.</td></tr>
         <tr><td><b>ba</b></td><td><code>/ba:</code></td><td><span class="pill-tag tag-mvp">MVP</span></td><td>Business Analyst — builds &amp; maintains the living scope, plus a paranoid scope review.</td></tr>
         <tr><td><b>dev</b></td><td><code>/dev:</code></td><td><span class="pill-tag tag-mvp">MVP</span></td><td>Developer — builds an approved feature through a state-driven delivery loop: implement, validate against acceptance criteria, fix, track, and prepare a PR handoff.</td></tr>
         <tr><td><b>qa</b></td><td><code>/qa:</code></td><td><span class="pill-tag tag-mvp">MVP</span></td><td>Quality Assurance — makes a repo properly testable and defines the quality-gate contract the Dev loop verifies against: audit the setup, plan it, stand up the harness, keep it healthy.</td></tr>
@@ -192,6 +235,7 @@
     <h3 class="step"><span class="stepnum">2</span> Install the plugins</h3>
     <p>Same for all options above. <b>We suggest installing all of them.</b> The agents are designed to work as one pipeline — each hands off to the next — so installing the full set gives you the complete flow and lets the Dev loop auto-plan via TL and verify against QA's gates without missing pieces. Install the core first; the order below follows the delivery flow.</p>
     <div class="code"><button class="copy">Copy</button><pre><code>/plugin install delivery-os@techjays-delivery-os
+/plugin install jetrix@techjays-delivery-os
 /plugin install ba@techjays-delivery-os
 /plugin install dev@techjays-delivery-os
 /plugin install qa@techjays-delivery-os
@@ -203,9 +247,13 @@
     <p>Reload if prompted, then run <code>/help</code>. You should see the new commands:</p>
     <div class="cmds">
       <span class="cmd-pill">/delivery-os:init</span>
+      <span class="cmd-pill">/jetrix:init</span>
+      <span class="cmd-pill">/jetrix:pull</span>
+      <span class="cmd-pill">/jetrix:push</span>
       <span class="cmd-pill">/ba:scope</span>
       <span class="cmd-pill">/ba:review</span>
       <span class="cmd-pill">/ba:resolve</span>
+      <span class="cmd-pill">/ba:features</span>
       <span class="cmd-pill">/dev:bootstrap</span>
       <span class="cmd-pill">/dev:build</span>
       <span class="cmd-pill">/dev:validate</span>
@@ -223,7 +271,9 @@
       <span class="cmd-pill">/doc:proposal</span>
       <span class="cmd-pill">/doc:magic-board</span>
       <span class="cmd-pill">/doc:workflow</span>
+      <span class="cmd-pill">/doc:walkthrough</span>
     </div>
+    <p class="detail-hint">💡 <b>Tip:</b> click any command chip for a detailed breakdown — how it processes, what you get, what it covers, and a worked example.</p>
 
     <h3 class="step"><span class="stepnum">4</span> Keep it up to date</h3>
     <p>After new commits are pushed (GitHub) or you edit files (local), refresh without re-adding:</p>
@@ -253,6 +303,8 @@
     </div>
 
     <div class="note"><b>The golden rule:</b> an agent only reads another agent's <b>published</b> output, never its working notes. The BA writes <code>ba-output/</code> and <code>context/features/</code>; the TL writes the <code>context/frontend|backend|database</code> graph; QA writes <code>qa-output/quality-gates.md</code>; Dev writes each feature's <code>dev/</code> folder and the PR summary. Because it's all in the workspace (and the repo), any agent — or teammate — can pick up where the last left off.</div>
+
+    <div class="note tip"><b>Centralizing to Jetrix?</b> The same relay runs, but the workspace becomes a <b>working copy</b> of a central Jetrix project that is the source of truth. Bind once with <code>/jetrix:init</code>, run <code>/jetrix:pull</code> before you work, and <code>/jetrix:push</code> to publish each agent's output back as structured records. See the <b>Jetrix</b> tab.</div>
 
     <!-- GREENFIELD -->
     <h3 class="step" style="margin-top:30px"><span class="stepnum">A</span> Greenfield — a brand-new project with no code yet</h3>
@@ -363,6 +415,55 @@
   </section>
 
   <!-- ============ BA AGENT ============ -->
+  <!-- ============ JETRIX ============ -->
+  <section class="panel" id="jetrix" role="tabpanel">
+    <h2 class="section">Jetrix — <code>jetrix</code></h2>
+    <p class="lead">Optional. Use Jetrix when a project's context should live in <b>one central store</b> that many repos and teammates share, rather than only in a local workspace. When a project is on Jetrix, <b>Jetrix is the single source of truth</b> for all project context — glossary, scope, registers, features, and the technical context graph — and your local <code>.jetrix/</code> folder is a disposable <b>working copy</b>, exactly like a git checkout.</p>
+
+    <div class="note"><b>Local-only vs Jetrix mode.</b> A purely local project uses <code>/delivery-os:init</code> and never touches Jetrix — skip this tab. A centralized project additionally binds to Jetrix with <code>/jetrix:init</code> and syncs with <code>/jetrix:pull</code> and <code>/jetrix:push</code>.</div>
+
+    <h4 class="sub">Commands</h4>
+    <div class="cmds">
+      <span class="cmd-pill">/jetrix:init &lt;project-slug&gt;</span>
+      <span class="cmd-pill">/jetrix:pull</span>
+      <span class="cmd-pill">/jetrix:push</span>
+    </div>
+
+    <h4 class="sub">The working-copy model</h4>
+    <p>You <b>pull</b> the slices you need into a local cache, do a whole piece of work locally (fast, reviewable, no round-trip per read, works offline), and when you're satisfied you <b>push</b> it back. A push is a deliberate commit, not an autosave — nothing local is published until you push.</p>
+    <ol class="flow">
+      <li><b>Bind once.</b> <code>/jetrix:init &lt;project-slug&gt;</code> records which Jetrix project this workspace maps to in the committed <code>.jetrix/project.json</code> and scaffolds an empty, gitignored <code>.jetrix/cache/</code>. It fetches no content — binding stays fast.</li>
+      <li><b>Pull.</b> <code>/jetrix:pull</code> fills the cache from Jetrix. It is <b>incremental</b> — a per-section hash means it re-downloads only what changed, so pulling often is cheap and staleness is a non-issue. Full pull (no args) grabs project + apps + all content; scoped flags (<code>--apps</code>, <code>--scope</code>, …) refresh one section.</li>
+      <li><b>Work locally.</b> The BA, TL, and Dev agents read and write the cache like any workspace.</li>
+      <li><b>Push.</b> <code>/jetrix:push</code> publishes your changes back as <b>structured records</b> (requirements, workflows, features, endpoints, …), not a document blob. It is idempotent (upsert by stable id, so re-pushing updates instead of duplicating), transactional (propose → preview a diff → commit), and safe (pull-before-push; on a both-sides-changed conflict it stops rather than clobber a Jetrix edit).</li>
+    </ol>
+
+    <h4 class="sub">Two files, opposite lifecycles</h4>
+    <table class="tbl">
+      <thead><tr><th>Path</th><th>Tracked?</th><th>Holds</th></tr></thead>
+      <tbody>
+        <tr><td><code>.jetrix/project.json</code></td><td>Committed</td><td>Identity + <b>wiring</b> only: project id, environments, and each app (repo) with its environment→branch map. No content, no secrets.</td></tr>
+        <tr><td><code>.jetrix/cache/</code></td><td>Gitignored</td><td>The disposable working copy of the Jetrix store, plus the manifest (per-section hashes + id-map). Safe to delete anytime; a pull rebuilds it.</td></tr>
+      </tbody>
+    </table>
+
+    <h4 class="sub">Greenfield: creating apps</h4>
+    <p>An <b>app</b> is a repo (frontend, backend, mobile, a service). At greenfield there are none yet, so <code>project.json</code> starts with an empty <code>apps</code> list. When the technical layer needs apps, you create them in Jetrix — each with its repo link and its environment→branch mapping (dev / staging / uat / prod) — and then <code>/jetrix:pull --apps</code> brings them into <code>project.json</code>. The logical implementation needs (which pages, endpoints, and entities a feature requires) are app-agnostic and can be produced before apps exist; only the app-binding waits on the pull.</p>
+
+    <div class="code"><button class="copy">Copy</button><pre><code>JETRIX — the sync loop
+
+  BIND   /jetrix:init acme-portal      →  .jetrix/project.json (identity) + empty cache
+  PULL   /jetrix:pull                  →  cache filled from Jetrix (incremental)
+   │
+  WORK   /ba:scope, /ba:features, …    →  edits in the local working copy
+   │
+  PUSH   /jetrix:push                  →  structured records upserted to Jetrix (propose → diff → commit)
+   ·
+  (apps) create apps in Jetrix  →  /jetrix:pull --apps  →  repos + env→branch wiring land in project.json</code></pre></div>
+
+    <div class="note warn"><b>Setup pending:</b> the sync commands talk to Jetrix through the <b>Jetrix MCP</b>. The concrete MCP tool names still need to be bound in the <code>jetrix-sync</code> skill once the Jetrix MCP is connected; until then the commands describe the sync but cannot reach a live Jetrix. See <code>plugins/jetrix/skills/jetrix-sync/</code>.</div>
+  </section>
+
   <section class="panel" id="ba" role="tabpanel">
     <h2 class="section">BA Agent — <code>/ba</code></h2>
     <p class="lead">The Business Analyst has two jobs: during discovery it's the project's <b>author &amp; memory</b> (processes client artifacts into a living scope and registers); once a scope exists it becomes its <b>paranoid critic</b> (breaks the scope down feature by feature, bounds each one, validates it against the client's examples, and scores how estimate-ready it is).</p>
@@ -372,6 +473,7 @@
       <span class="cmd-pill">/ba:scope</span>
       <span class="cmd-pill">/ba:review</span>
       <span class="cmd-pill">/ba:resolve</span>
+      <span class="cmd-pill">/ba:features</span>
     </div>
 
     <h3 class="step" style="margin-top:26px">Build the living scope — <code>/ba:scope</code></h3>
@@ -645,7 +747,7 @@
     <p class="lead">The Documentation agent standardizes how the org produces client-facing artifacts, so every document looks and reads like it came from one company. Phase 1 ships the <b>client proposal</b>: a single-file, print-to-PDF HTML deck built to the Techjays proposal standard and style system.</p>
 
     <h4 class="sub">Commands</h4>
-    <div class="cmds"><span class="cmd-pill">/doc:proposal</span><span class="cmd-pill">/doc:magic-board</span><span class="cmd-pill">/doc:workflow</span></div>
+    <div class="cmds"><span class="cmd-pill">/doc:proposal</span><span class="cmd-pill">/doc:magic-board</span><span class="cmd-pill">/doc:workflow</span><span class="cmd-pill">/doc:walkthrough</span></div>
 
     <h3 class="step" style="margin-top:26px">Generate a proposal — <code>/doc:proposal</code></h3>
     <p>Pass the client name and their domain. The agent pulls the client's logo from the domain, samples their brand accent, and (when a Delivery OS workspace exists) auto-drafts the problem, solution, and value from <code>ba-output/scope.md</code> using the client's real numbers.</p>
@@ -704,11 +806,12 @@
   <!-- ============ NEXT ============ -->
   <section class="panel" id="next" role="tabpanel">
     <h2 class="section">What's next</h2>
-    <p class="lead">Delivery OS is built in phases. The core, BA, Dev, QA, TL, and Doc agents are all live; these are on the roadmap.</p>
+    <p class="lead">Delivery OS is built in phases. The core, BA, Dev, QA, TL, and Doc agents are all live, and the Jetrix sync layer is newly added; these are on the roadmap.</p>
     <div class="grid">
       <div class="mini"><h4>Dev Agent <span class="pill-tag tag-mvp">Live</span></h4><p>The feature delivery loop ships now (<code>/dev:build</code>). Next: parallel sub-agent execution, automated worktree management, and GitHub PR/CI integration.</p></div>
       <div class="mini"><h4>QA Agent <span class="pill-tag tag-mvp">Live</span></h4><p>Audit, plan, set up the harness, and keep it healthy ship now (<code>/qa:audit</code> → <code>/qa:setup</code>). Next: baseline-harness handoff from the TL scaffold and richer contract/security gates.</p></div>
       <div class="mini"><h4>Doc Agent <span class="pill-tag tag-mvp">Proposal live</span></h4><p>The client proposal, magic board, and workflow document ship now. Next on the same standard: executive summary, SRS, SoW.</p></div>
+      <div class="mini"><h4>Jetrix Sync <span class="pill-tag tag-mvp">New</span></h4><p>Bind a workspace to a central Jetrix store and pull/push context as structured records (<code>/jetrix:init</code>, <code>/jetrix:pull</code>, <code>/jetrix:push</code>). Next: bind the Jetrix MCP tool names, then route each agent's output through push.</p></div>
     </div>
     <div class="note">All agents share the same <b>document contract</b>, so each new agent consumes the previous one's output without re-doing the analysis. New agents appear here as a new tab with their own commands.</div>
     <h4 class="sub">Resources</h4>
@@ -716,6 +819,7 @@
       <li>Repo: <code>Techjays-Build-With-AI/claude-delivery-os</code></li>
       <li>BA guide: <code>plugins/ba/ba_readme.md</code> · Dev guide: <code>plugins/dev/dev_readme.md</code> · QA guide: <code>plugins/qa/qa_readme.md</code> · TL guide: <code>plugins/tl/tl_readme.md</code> · Doc guide: <code>plugins/doc/doc_readme.md</code></li>
       <li>Document contract: <code>plugins/delivery-os-core/skills/delivery-os-conventions/</code></li>
+      <li>Jetrix sync contract: <code>plugins/jetrix/skills/jetrix-sync/</code></li>
     </ul>
   </section>
 
@@ -724,6 +828,19 @@
 <footer>
   Techjays Delivery OS · Get Started guide · runs in Claude Code
 </footer>
+
+<!-- Command-detail modal (populated by JS) -->
+<div class="modal-overlay" id="cmd-modal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="cmd-modal-title" tabindex="-1">
+    <button class="modal-close" type="button" aria-label="Close">&times;</button>
+    <div class="modal-head">
+      <span class="modal-cmd" id="cmd-modal-cmd"></span>
+      <h3 id="cmd-modal-title"></h3>
+    </div>
+    <p class="modal-summary" id="cmd-modal-summary"></p>
+    <div id="cmd-modal-body"></div>
+  </div>
+</div>
 
 <script>
 (function () {
@@ -754,6 +871,679 @@
       });
     });
   });
+
+  // ---- Command detail popups ----
+  var CMD = {
+    "delivery-os:init": {
+      title: "Set up the project workspace",
+      summary: "Scaffolds one named project folder with the starter structure and a source registry.",
+      processes: [
+        "Takes a project name (asks if none given; never uses the current folder).",
+        "Creates one container folder holding a README, the registry, and starter subfolders.",
+        "Seeds shared-context templates (profile, glossary, stakeholders, landscape, decisions).",
+        "Skips anything that already exists, so re-running never overwrites work.",
+        "Leaves downstream folders to the agents that need them later."
+      ],
+      outputs: [
+        "A named project folder with a README manifest.",
+        "A living intake.index.md source registry.",
+        "Empty shared-context and ba-output starter folders."
+      ],
+      covers: [
+        "Creates a clean, single-folder home for all Delivery OS work.",
+        "Keeps original source files untouched — only indexed later.",
+        "Does not: build scope or ingest sources — that is /ba:scope."
+      ],
+      when: "The very first command — run once before adding any client material.",
+      example: "Running it for \"acme-invoice-processing\" creates that folder with a README, an empty intake.index.md, and seeded shared-context files, then tells you to run /ba:scope to bring in your first sources."
+    },
+    "jetrix:init": {
+      title: "Bind the workspace to Jetrix",
+      summary: "Links this local workspace to an existing Jetrix project so everything resolves to the same source of truth.",
+      processes: [
+        "Takes a Jetrix project slug and looks it up via the Jetrix connection.",
+        "Reads project identity, environments, and any existing apps.",
+        "Writes a committed identity/wiring descriptor, merging on re-run.",
+        "Scaffolds an empty local cache folder, ignored from version control.",
+        "Fetches no project content here — keeps binding fast."
+      ],
+      outputs: [
+        "A committed .jetrix/project.json identity and wiring file.",
+        "An empty local cache folder ready to be filled.",
+        "A gitignore entry keeping the cache out of version control."
+      ],
+      covers: [
+        "Records which Jetrix project this workspace maps to.",
+        "Handles greenfield projects that have no apps yet.",
+        "Does not: create a local Delivery OS workspace — that is /delivery-os:init.",
+        "Does not: pull any content — that is /jetrix:pull."
+      ],
+      when: "Run after the Jetrix project exists and the connection is available; before /jetrix:pull.",
+      example: "Binding to slug \"acme-invoices\" records the project name, its dev/staging/prod environments, and zero apps into project.json, then tells you to run /jetrix:pull to fill the empty cache."
+    },
+    "jetrix:pull": {
+      title: "Refresh the local copy from Jetrix",
+      summary: "Pulls the latest project content and wiring from Jetrix into the local cache, only re-downloading what changed.",
+      processes: [
+        "Confirms the workspace is bound and Jetrix is connected.",
+        "Reads which sections to refresh (no args means a full pull).",
+        "Compares each section's fingerprint and skips anything unchanged.",
+        "Downloads only changed sections and updates the wiring file.",
+        "Records each record's local-to-Jetrix id mapping for later pushes."
+      ],
+      outputs: [
+        "An up-to-date local cache of scope, features, and technical context.",
+        "A refreshed project.json with apps and environment-to-branch mapping.",
+        "Updated fingerprints and last-pulled timestamps."
+      ],
+      covers: [
+        "Keeps the local working copy current with the shared store.",
+        "Brings apps created in Jetrix into the local wiring.",
+        "Does not: write anything back to Jetrix — that is /jetrix:push."
+      ],
+      when: "Run after /jetrix:init, and any time before starting work or pushing.",
+      example: "Running with no arguments finds the glossary and one feature changed, re-downloads just those two, and reports \"scope unchanged, 2 sections refreshed.\" The app count in project.json updates to 3."
+    },
+    "jetrix:push": {
+      title: "Publish local work to Jetrix",
+      summary: "The deliberate commit that publishes your local scope, features, and context up to Jetrix.",
+      processes: [
+        "Confirms binding and connection, then pulls first for safety.",
+        "Compares local, last-pulled, and current Jetrix states per item.",
+        "Flags items changed on both sides as conflicts and stops.",
+        "Builds an upsert transaction keyed by each item's stable id.",
+        "Previews a diff, asks to confirm, then commits or cancels cleanly."
+      ],
+      outputs: [
+        "Created or updated records in Jetrix, keyed by stable id.",
+        "A previewed diff of creates/updates per section.",
+        "An updated id-mapping and hashes after commit."
+      ],
+      covers: [
+        "Publishes changed scope, features, and technical context.",
+        "Protects against silently overwriting a Jetrix edit.",
+        "Does not: resolve conflicts for you — those are held back for a human."
+      ],
+      when: "Run when local analysis is ready to share; it is the only path that changes Jetrix.",
+      example: "After editing scope locally, a dry-run shows \"Scope: +3 requirements, ~1 workflow (WF-002).\" Confirming commits those to Jetrix, while one both-changed feature is held back as a conflict for you to resolve."
+    },
+    "ba:scope": {
+      title: "Build the living scope",
+      summary: "Turns client material into one continuously-updated, module-centric scope document with nested use cases and a client-questions list.",
+      processes: [
+        "Takes an add \"…\" pointer to folders or Drive links of sources.",
+        "Classifies, summarizes, and registers each source, referencing originals.",
+        "Maps each module into a master flow plus its distinct use cases.",
+        "Each use case gets its own explanation, workflow, flow diagram, and worked example.",
+        "Folds returned client answers back in, closing the matching questions."
+      ],
+      outputs: [
+        "The living scope.md with per-module use cases and Mermaid flow diagrams.",
+        "A client-facing client-questions.md, grouped and prioritized.",
+        "Supporting registers and an intake-run summary."
+      ],
+      covers: [
+        "Distinct routes become first-class use cases (credit memo vs net settlement vs full-month invoice).",
+        "Raises every open question, assumption, and contradiction.",
+        "Does not: score how estimate-ready the scope is — that is /ba:review."
+      ],
+      when: "Run after /delivery-os:init; re-run whenever new material or client answers arrive.",
+      example: "Pointing it at Acme meeting transcripts and an invoice archive builds an Invoicing module with a master flow and three use cases — each with a diagram and a worked example like a $4,200 credit-memo invoice — and raises 14 grouped client questions."
+    },
+    "ba:review": {
+      title: "Stress-test the scope",
+      summary: "A paranoid, feature-by-feature critique of the scope that scores how estimate-ready it is.",
+      processes: [
+        "Reads the whole scope plus the registers and examples.",
+        "Breaks it into features and checks nine coverage dimensions each.",
+        "Confirms branching requirements are expanded into proper use cases.",
+        "Interrogates every vague line into concrete client questions.",
+        "Scores each feature out of 10 and computes an overall verdict."
+      ],
+      outputs: [
+        "A timestamped interactive scope-review HTML dashboard.",
+        "Matching Markdown and JSON versions, never overwritten.",
+        "A feature scorecard and prioritized gating questions."
+      ],
+      covers: [
+        "Validates each feature against the client's own shared examples.",
+        "Severity-ranks questions; any Blocker caps the score.",
+        "Does not: change the scope or invent answers — that is /ba:resolve."
+      ],
+      when: "Run once a scope.md exists, before estimate or sign-off.",
+      example: "Reviewing scope.md scores Invoicing 4/10 with a Blocker on undefined dispute handling, dropping the verdict to \"Significant gaps.\" You open the HTML, answer questions inline, and export responses for /ba:resolve."
+    },
+    "ba:resolve": {
+      title: "Close the scope questions",
+      summary: "Adjudicates the author's answers to a scope review, folds confirmed ones into the scope, and re-scores.",
+      processes: [
+        "Takes the exported responses file and matches it to its review.",
+        "Judges each answer: resolve, accept as assumption, verify, or decline.",
+        "Applies the exact scope edit for every closed question.",
+        "Promotes facts to decisions; assumptions and open items to registers.",
+        "Recomputes feature scores and the readiness verdict, writing a new round."
+      ],
+      outputs: [
+        "A new timestamped review round (HTML, Markdown, JSON).",
+        "Applied scope edits and logged decisions/assumptions/clarifications.",
+        "A movement summary of resolved vs still-open items."
+      ],
+      covers: [
+        "Skeptically closes questions, demanding specifics not vague assurances.",
+        "Lifts the Blocker cap when a blocking question is resolved.",
+        "Does not: run the original review — it consumes /ba:review output."
+      ],
+      when: "Run after answering questions in a /ba:review report and exporting responses.",
+      example: "Feeding back answers on the dispute-handling question resolves the Blocker, moving Invoicing from 4 to 7 and the verdict from \"Significant gaps\" to \"Estimate with caveats.\" Two answers accepted as assumptions are logged with residual risk."
+    },
+    "ba:features": {
+      title: "Break scope into features",
+      summary: "Decomposes the scope into an implementation-ready set of self-contained feature folders.",
+      processes: [
+        "Reads the whole scope and supporting registers.",
+        "Groups it into a named initiative (work-batch) for this run.",
+        "Splits capabilities into independently understandable features.",
+        "Writes seven files per feature, carrying the scope's use-case flows.",
+        "Wires cross-feature dependencies and traces each item back to the scope."
+      ],
+      outputs: [
+        "A folder per feature (feature, plan, workflow, acceptance, dependencies, questions, status).",
+        "A feature-index listing every feature with its initiative.",
+        "Stable FEAT ids and source references back to the scope."
+      ],
+      covers: [
+        "Captures the pages, APIs, workflows, data, and integrations the scope implies.",
+        "Marks uncertainties as open questions rather than guessing.",
+        "Does not: invent product behavior, schemas, or API contracts."
+      ],
+      when: "Run after the scope is stable; before /tl:plan and /dev:build.",
+      example: "Breaking down the Acme scope under initiative \"payments-v2\" creates FEAT-INV-01 Invoice Ingestion and five others, each with a workflow carrying the credit-memo and net-settlement use cases. The feature-index lists all six with dependencies and open-question counts."
+    },
+    "dev:bootstrap": {
+      title: "Make a greenfield repo build-ready",
+      summary: "Ensures a real, green product repository exists before feature development starts.",
+      processes: [
+        "Detects whether the workspace already has a usable, green codebase.",
+        "If usable, reports it is build-ready and stops.",
+        "If empty, delegates to the TL scaffold to stand one up.",
+        "Asks you, with a recommendation, for any missing stack decision.",
+        "Re-verifies a green base build after scaffolding."
+      ],
+      outputs: [
+        "A confirmed build-ready repository (existing or newly scaffolded).",
+        "Logged stack decisions and a green-base verification result.",
+        "A report of spec-supplied vs user-answered decisions."
+      ],
+      covers: [
+        "Handles both brownfield and project-zero starting points.",
+        "Never guesses a critical stack choice silently.",
+        "Does not: implement any product features — that is /dev:build."
+      ],
+      when: "Run once per project at the start, before the first /dev:build.",
+      example: "On an empty workspace it reads the architecture, asks you to confirm PostgreSQL over MySQL, scaffolds a Next.js + Node skeleton, confirms install/lint/test/build all pass green, then tells you to run /dev:build."
+    },
+    "dev:build": {
+      title: "Deliver a feature end to end",
+      summary: "Runs the full delivery loop on one approved feature, from planning through validation to a PR handoff.",
+      processes: [
+        "Selects a feature (or the next one marked ready) and locks it.",
+        "Auto-plans it via the TL if its technical graph is missing.",
+        "Checks readiness, then implements on an isolated branch with tests.",
+        "Validates against acceptance criteria and repairs failures within limits.",
+        "Updates trackers and prepares a pull-request handoff."
+      ],
+      outputs: [
+        "Implemented code on a feature branch with tests.",
+        "A dev-plan, acceptance map, and implementation log.",
+        "A review-ready pr-summary and updated feature tracker."
+      ],
+      covers: [
+        "Handles impact analysis, decisions, and bounded self-repair.",
+        "Escalates business, architecture, schema, security, and scope blockers.",
+        "Does not: merge or deploy — it stops at human review."
+      ],
+      when: "Run after /ba:features (and bootstrap on greenfield); one feature at a time.",
+      example: "Building FEAT-INV-01 creates branch feature/FEAT-INV-01-invoice-ingestion, implements the parser with tests, passes 8 of 9 acceptance criteria, and moves the feature to HUMAN_REVIEW with a pr-summary. A schema-risk blocker would instead produce an escalation note."
+    },
+    "dev:validate": {
+      title: "Check a feature without building",
+      summary: "Runs the applicable checks on a feature and maps every result to its acceptance criteria as evidence.",
+      processes: [
+        "Takes a feature target and reads its acceptance criteria and plan.",
+        "Detects the repo's tooling and runs checks cheap-to-expensive.",
+        "Records raw results without changing any code.",
+        "Maps each acceptance criterion to a method, result, and evidence.",
+        "Flags each non-passing row as actionable or blocking."
+      ],
+      outputs: [
+        "An acceptance-map table of pass/fail per criterion.",
+        "A test-suite summary with evidence artifacts.",
+        "Flags marking failures as repair-or-escalate."
+      ],
+      covers: [
+        "Runs lint, type, unit, integration, contract, build, migration, security, e2e.",
+        "Distinguishes actionable failures from blocking ones.",
+        "Does not: implement fixes, waive criteria, merge, or deploy."
+      ],
+      when: "Run any time you want a read-only status check on a feature.",
+      example: "Validating FEAT-INV-01 runs the suite and reports 8 criteria Passed, 1 Failed on a duplicate-invoice edge case. It flags that row as actionable and points you to /dev:build to repair it."
+    },
+    "dev:fix-review": {
+      title: "Address reviewer feedback",
+      summary: "Folds human PR review comments back into an open feature, re-validates, and refreshes the PR summary.",
+      processes: [
+        "Takes the feature and the reviewer feedback source.",
+        "Treats each comment as a failure to address at the review-fixes step.",
+        "Makes focused fixes within retry limits and re-validates.",
+        "Re-runs code review over the new changes.",
+        "Refreshes the PR summary noting how each comment was handled."
+      ],
+      outputs: [
+        "Updated code addressing the actionable comments.",
+        "A refreshed pr-summary and updated trackers.",
+        "Logged decisions and any escalation notes."
+      ],
+      covers: [
+        "Handles the round-trip after a human reviews the PR.",
+        "Escalates comments needing a product/architecture/security decision.",
+        "Does not: merge or deploy — the feature stays at human review."
+      ],
+      when: "Run when a feature at HUMAN_REVIEW has received reviewer comments.",
+      example: "Given three review comments on FEAT-INV-01, it fixes two (a naming issue and a missing test) and re-validates green. The third, requiring a product decision on rounding, is escalated, and the PR summary is refreshed."
+    },
+    "dev:pr": {
+      title: "Prepare the PR handoff",
+      summary: "Verifies a completed feature meets every gate, then writes a review-ready summary and moves it to human review.",
+      processes: [
+        "Takes an implemented and validated feature target.",
+        "Gates on completion: scope, acceptance, tests, build, docs, no blockers.",
+        "Stops and reports if any mandatory criterion is unmet.",
+        "Writes the PR summary citing affected pages, APIs, and services.",
+        "Advances the feature to HUMAN_REVIEW and updates trackers."
+      ],
+      outputs: [
+        "A review-ready dev/pr-summary.md.",
+        "The feature advanced to HUMAN_REVIEW.",
+        "Mirrored status in the feature index and tracker."
+      ],
+      covers: [
+        "Documents purpose, scope, approach, tests, risks, and reviewer steps.",
+        "Refuses to summarize an unready feature.",
+        "Does not: merge or deploy."
+      ],
+      when: "Run when a feature is implemented and validated but not yet handed off; usually /dev:build does this automatically.",
+      example: "For FEAT-INV-01 it confirms all gates hold, writes a pr-summary describing the ingestion endpoint and its tests, and moves the feature to HUMAN_REVIEW. If coverage were below the floor, it would instead report exactly what is missing."
+    },
+    "qa:audit": {
+      title: "Score a repo's test readiness",
+      summary: "A read-only assessment of how testable a repository is, delivered as a scored, approvable gap report.",
+      processes: [
+        "Points at a repo (or the current workspace) and detects its stack.",
+        "Scores each applicable testing area out of ten.",
+        "Records every gap as a stable finding with a recommendation.",
+        "Computes an overall readiness score and verdict.",
+        "Renders an interactive report, changing no files."
+      ],
+      outputs: [
+        "An interactive test-audit HTML report plus Markdown and JSON.",
+        "Scored areas and a readiness verdict.",
+        "Stable QAF findings with recommended options and effort."
+      ],
+      covers: [
+        "Covers unit, integration, e2e, coverage, lint, CI, fixtures, mocking, and more.",
+        "Grounds each recommendation in the detected stack.",
+        "Does not: change any repository files."
+      ],
+      when: "Run to assess testability before planning a harness; first in the QA flow.",
+      example: "Auditing the Acme repo scores it 3.2/10 with a Blocker for zero integration tests, verdict \"Major gaps.\" You open the report, mark findings Adopt/Skip/Defer, export approvals, and run /qa:plan."
+    },
+    "qa:plan": {
+      title: "Plan the test setup",
+      summary: "Turns approved audit findings into a concrete test-setup plan and a draft quality-gate contract.",
+      processes: [
+        "Takes the exported approvals file and reloads the matching audit.",
+        "Plans only the findings marked Adopt, noting deferrals.",
+        "Honors the human's chosen option per finding.",
+        "Orders setup steps cheap-to-stand-up-first.",
+        "Drafts the quality-gates contract, marked Draft."
+      ],
+      outputs: [
+        "A test-setup-plan.md with ordered steps, tools, and thresholds.",
+        "A draft quality-gates.md contract.",
+        "A summary of chosen tools and open decisions."
+      ],
+      covers: [
+        "Specifies runners, config, CI changes, coverage floors, and smoke tests.",
+        "Never invents a choice the human left open.",
+        "Does not: build or install anything — that is /qa:setup."
+      ],
+      when: "Run after /qa:audit, using its exported approvals file.",
+      example: "From approvals adopting five findings, it plans Vitest for unit, Playwright for e2e, an 80% coverage floor, and CI wiring, then drafts the gates and tells you to review and run /qa:setup."
+    },
+    "qa:setup": {
+      title: "Build the test harness",
+      summary: "Implements the approved plan, proves a green smoke run, and finalizes the quality-gate contract.",
+      processes: [
+        "Reads the setup plan and works in an isolated branch.",
+        "Installs and configures each framework in stand-up order.",
+        "Wires CI, fixtures, mocks, coverage thresholds, and e2e scaffold.",
+        "Adds only example/smoke tests, then proves a full green run.",
+        "Finalizes the quality gates as Active with proven commands."
+      ],
+      outputs: [
+        "A configured, running test harness on a branch.",
+        "A finalized, Active quality-gates.md contract.",
+        "A setup log and logged decisions."
+      ],
+      covers: [
+        "Enforces the approved coverage threshold; never loosens a check to pass.",
+        "Escalates trade-offs rather than weakening gates.",
+        "Does not: write per-feature tests, edit product logic, merge, or deploy."
+      ],
+      when: "Run after /qa:plan produces an approved setup plan.",
+      example: "It installs Vitest and Playwright, wires GitHub Actions, enforces the 80% floor, and confirms install-lint-typecheck-unit-coverage-build-e2e all pass green. The gates flip to Active so the dev loop can verify against them."
+    },
+    "qa:health": {
+      title: "Catch test-harness drift",
+      summary: "Re-checks an existing harness against its own quality gates to catch weakened or broken checks.",
+      processes: [
+        "Reads the existing quality-gates contract.",
+        "Re-runs each Required gate's command against the current repo.",
+        "Detects any gate now failing, regressed, or below threshold.",
+        "Updates each gate's status from the real results.",
+        "Recommends fixes without weakening any gate."
+      ],
+      outputs: [
+        "An updated gate-status table.",
+        "Drift deltas since the gates were set.",
+        "Recommended actions for each regression."
+      ],
+      covers: [
+        "Detects disabled checks, dropped coverage floors, broken e2e config.",
+        "Read-only re-verification of the live harness.",
+        "Does not: silently repair by loosening a gate — a threshold change is a human decision."
+      ],
+      when: "Run periodically after /qa:setup to detect drift over time.",
+      example: "A health check finds coverage dropped to 71% below the 80% floor and the e2e config broken. It marks the harness Broken, reports both deltas, and recommends restoring the floor rather than lowering it."
+    },
+    "tl:plan": {
+      title: "Plan features into a technical graph",
+      summary: "Maps each feature to its pages, endpoints, and entities, wired into a bidirectionally linked context graph.",
+      processes: [
+        "Takes a feature folder, the whole set, or an initiative filter.",
+        "Reads each feature and the registers it cites.",
+        "Loads existing indexes first so it reuses units, not duplicates.",
+        "Maps declared pages/APIs/entities to real linked unit files.",
+        "Logs design decisions and runs a link-integrity check."
+      ],
+      outputs: [
+        "Page, endpoint, and entity unit files under context/frontend|backend|database.",
+        "Three maintained layer indexes.",
+        "Logged decisions and integrity findings."
+      ],
+      covers: [
+        "Wires links both ways (pages to endpoints to entities and back).",
+        "Marks inferred design by confidence and raises real unknowns.",
+        "Does not: implement code or invent contracts the scope lacks."
+      ],
+      when: "Run after /ba:features and before /dev:build; often auto-run by the dev loop.",
+      example: "Planning initiative \"payments-v2\" maps FEAT-INV-01 to PAGE-INV-01, EP-INV-01 (POST /invoices), and ENT-INV-01 Invoice, reusing an existing User entity. It logs two design decisions and reports no dangling links."
+    },
+    "tl:review": {
+      title: "Review a technical spec",
+      summary: "Scores an architecture or system-design document for an applied-AI system and produces a review report.",
+      processes: [
+        "Takes a spec document path or link and reads it whole.",
+        "Detects whether AI and multiple systems are involved.",
+        "Scores each applicable area out of ten with concrete findings.",
+        "Notes real strengths and computes a readiness verdict.",
+        "Writes a timestamped interactive report."
+      ],
+      outputs: [
+        "A timestamped interactive spec-review HTML plus Markdown.",
+        "An area scorecard and readiness verdict.",
+        "Severity-ranked findings with concrete suggestions."
+      ],
+      covers: [
+        "Covers architecture, data, APIs, and (if AI) evals, observability, compliance.",
+        "Also infrastructure, CI/CD, and cost projection.",
+        "Does not: change the spec or close findings — that is /tl:resolve."
+      ],
+      when: "Run on an architecture/HLD/SRS doc, independently of the scope flow.",
+      example: "Reviewing an AI claims-triage HLD scores Architecture 6/10 and flags a Blocker for no eval strategy, verdict \"Significant gaps.\" The interactive report lists the top five gating findings with fixes."
+    },
+    "tl:resolve": {
+      title: "Close spec-review findings",
+      summary: "Adjudicates author responses to a spec review, re-scores, and writes a new review round.",
+      processes: [
+        "Takes the exported responses file and matches it to its review.",
+        "Judges each response: resolve, accept-risk, verify, or decline.",
+        "Requires concrete specifics, stating the exact spec edit implied.",
+        "Recomputes area scores and the readiness verdict.",
+        "Logs decisions and writes a new incremented round."
+      ],
+      outputs: [
+        "A new timestamped review round (HTML, Markdown, JSON).",
+        "Logged decisions for each terminal finding.",
+        "A movement summary of the score and verdict."
+      ],
+      covers: [
+        "Carries findings forward by stable id across rounds.",
+        "Lifts the Blocker cap when a blocking finding is resolved.",
+        "Does not: run the original review — it consumes /tl:review output."
+      ],
+      when: "Run after answering findings in a /tl:review report and exporting responses.",
+      example: "Responses adding an eval plan resolve the Blocker, moving the score from 2.0 to 6.1 and the verdict from \"Not ready\" to \"Significant gaps.\" One accepted-risk item is logged with residual risk."
+    },
+    "tl:scaffold": {
+      title: "Stand up project zero",
+      summary: "Scaffolds the first application repository from the confirmed architecture, ending in a green base build.",
+      processes: [
+        "Reads the tech spec, context graph, and shared-context.",
+        "Extracts every stack choice the architecture confirms.",
+        "Asks you, with a recommendation, for any choice left open.",
+        "Scaffolds the skeleton, tooling, standards, README, and gitignore.",
+        "Runs install-lint-type-test-build to confirm a green base."
+      ],
+      outputs: [
+        "A working application repository with tooling and a passing test.",
+        "Written technology-stack, architecture, and coding-standards docs.",
+        "Logged stack decisions and a green-base result."
+      ],
+      covers: [
+        "Executes a confirmed stack across frontend, backend, and database.",
+        "Never silently guesses a critical stack decision.",
+        "Does not: implement product features."
+      ],
+      when: "Run on a greenfield project once the architecture is decided; the same work /dev:bootstrap can trigger.",
+      example: "Reading the architecture, it asks you to confirm pnpm and Vitest, scaffolds a Next.js + NestJS + PostgreSQL skeleton, writes the standards docs, and confirms a green base build — reporting the repo is now build-ready for /dev:build."
+    },
+    "tl:map": {
+      title: "Map an existing codebase",
+      summary: "Reverse-derives the technical context graph from a real repository to onboard a brownfield project.",
+      processes: [
+        "Points at an existing repo and detects its stack.",
+        "Loads any existing indexes first to reconcile, not duplicate.",
+        "Extracts entities, endpoints, and pages from the actual code.",
+        "Infers links between them and wires them both ways.",
+        "Marks every unit as-built with confidence and a source-file citation."
+      ],
+      outputs: [
+        "Page, endpoint, and entity units matching /tl:plan's format.",
+        "Three reconciled layer indexes.",
+        "A confidence spread and link-integrity findings."
+      ],
+      covers: [
+        "Uses the same match keys so later planning reuses these units.",
+        "Reads code only; never modifies or runs the repo.",
+        "Does not: invent relationships the code doesn't show, or author BA features."
+      ],
+      when: "Run to onboard an existing codebase; before planning new features against it.",
+      example: "Mapping the legacy Acme repo derives 12 pages, 30 endpoints, and 9 entities — 80% Confirmed, 20% Assumed for dynamic routes. It flags the low-confidence routes and suggests running /qa:audit and /tl:plan next."
+    },
+    "doc:proposal": {
+      title: "Generate a client proposal",
+      summary: "Builds a branded, print-to-PDF Techjays proposal deck as one self-contained HTML file.",
+      processes: [
+        "Takes the client name and domain (for logo and brand color).",
+        "Auto-drafts content from the BA scope when a workspace exists.",
+        "Brands the deck to the client and applies the Techjays standard.",
+        "Layers any free-text custom rules on top.",
+        "Writes a timestamped HTML deck ready to export as PDF."
+      ],
+      outputs: [
+        "A timestamped proposal HTML deck in doc-output/.",
+        "Client branding (logo, accent color) applied.",
+        "A list of placeholders still needing real numbers."
+      ],
+      covers: [
+        "Sources problem, solution, and value numbers from the scope.",
+        "Enforces voice and print rules for clean PDF export.",
+        "Does not: fabricate metrics — unknowns are marked as placeholders."
+      ],
+      when: "Run when a scope exists (or with supplied content) to produce a client-facing proposal.",
+      example: "Running with client=\"Acme\" domain=acme.com pulls Acme's logo and accent, drafts the problem and value pages from the scope, and writes proposal-acme-2026-07-19.html — flagging that final pricing is still a placeholder."
+    },
+    "doc:magic-board": {
+      title: "Create a Miro-style magic board",
+      summary: "Builds a self-contained infinite-canvas HTML board with a guided next/next fly-through tour.",
+      processes: [
+        "Takes a topic and board kind (workflow, journey, system, etc.).",
+        "Drafts the narrative spine from the BA scope when available.",
+        "Clusters content into 3-6 left-to-right parts and designs cards.",
+        "Places cards without overlaps and wires the tour in order.",
+        "Runs a QA pass and writes a timestamped HTML file."
+      ],
+      outputs: [
+        "A timestamped self-contained board HTML in doc-output/.",
+        "A pannable, zoomable canvas with an ordered fly-through tour.",
+        "A list of any placeholders still needing input."
+      ],
+      covers: [
+        "Presents a workflow or system understanding to a client or team.",
+        "Uses real names and numbers; marks unknowns as placeholders.",
+        "Does not: fabricate metrics or require any external files."
+      ],
+      when: "Run to visually walk a client or team through a workflow or system.",
+      example: "With topic=\"Acme invoice-processing workflow\" kind=workflow, it drafts an 8-card board across four clusters, wiring a tour from intake to payout. You open it and press next through each framed stop."
+    },
+    "doc:workflow": {
+      title: "Generate an interactive workflow doc",
+      summary: "Builds a phased SVG swimlane of the project's scope with value panels, KPIs, and a systems grid, in one HTML file.",
+      processes: [
+        "Takes a project and optional client name.",
+        "Drafts phases, actors, and values from the BA scope when available.",
+        "Builds a vertical swimlane with hover tooltips per node.",
+        "Adds per-phase current-pain to AI-solution value panels and KPI cards.",
+        "QA-checks in a browser and writes a timestamped HTML file."
+      ],
+      outputs: [
+        "A timestamped self-contained workflow HTML in doc-output/.",
+        "A phased swimlane, value panels, KPI cards, and a systems grid.",
+        "A list of any placeholders still needing numbers."
+      ],
+      covers: [
+        "Shows before/after value and hours saved per phase.",
+        "Renders the scope's use-case master flows as branded swimlanes.",
+        "Does not: fabricate KPI numbers or use external dependencies."
+      ],
+      when: "Run when a scope exists to present the project's phased workflow and value story.",
+      example: "For project=\"Acme — Invoice Processing\" it draws a five-phase swimlane, a value panel showing 40 hours/month saved on manual entry, and KPI cards, flagging one unknown as a placeholder."
+    },
+    "doc:walkthrough": {
+      title: "Turn a spec into a walkthrough",
+      summary: "Renders a specification as an interactive state-overview plus a module-by-module breakdown with worked examples.",
+      processes: [
+        "Takes a spec path or topic and reads it end to end.",
+        "Models its state machine, modules, catalog, and success criteria.",
+        "Builds a top overview state diagram with hover and click-to-trace.",
+        "Adds one drill-down section per module with a diagram and example.",
+        "QA-checks in a browser and writes a timestamped HTML file."
+      ],
+      outputs: [
+        "A timestamped self-contained walkthrough HTML in doc-output/.",
+        "An interactive state overview plus per-module sections.",
+        "A command/object catalog and success-criteria strip."
+      ],
+      covers: [
+        "Traces every transition, including branch and failure edges.",
+        "Uses the spec's real IDs and values in worked examples.",
+        "Does not: fabricate detail — missing items are marked as placeholders."
+      ],
+      when: "Run to present a spec or scope as a navigable, example-driven walkthrough.",
+      example: "Given the invoicing spec, it renders an overview state diagram (Received to Paid, with a Disputed failure edge) and a section per module with a worked example using invoice INV-2043. Clicking the Disputed state highlights its transitions."
+    }
+  };
+
+  var modal = document.getElementById("cmd-modal");
+  if (modal) {
+    var mCmd = document.getElementById("cmd-modal-cmd");
+    var mTitle = document.getElementById("cmd-modal-title");
+    var mSummary = document.getElementById("cmd-modal-summary");
+    var mBody = document.getElementById("cmd-modal-body");
+    var lastFocus = null;
+
+    var escEl = document.createElement("div");
+    function esc(s) { escEl.textContent = s; return escEl.innerHTML; }
+    function list(items) {
+      return "<ul>" + items.map(function (it) {
+        var isNot = /^does not\b/i.test(it);
+        return "<li" + (isNot ? " class=\"not\"" : "") + ">" + esc(it) + "</li>";
+      }).join("") + "</ul>";
+    }
+    function sec(title, inner) { return "<div class=\"modal-sec\"><h4>" + title + "</h4>" + inner + "</div>"; }
+
+    function openCmd(id) {
+      var d = CMD[id]; if (!d) return;
+      lastFocus = document.activeElement;
+      mCmd.textContent = "/" + id;
+      mTitle.textContent = d.title;
+      mSummary.textContent = d.summary;
+      var html = "";
+      html += sec("How it processes", list(d.processes));
+      html += sec("What you get", list(d.outputs));
+      html += sec("What it covers", list(d.covers));
+      html += sec("When to run it", "<p>" + esc(d.when) + "</p>");
+      html += sec("Worked example", "<div class=\"modal-ex\">" + esc(d.example) + "</div>");
+      mBody.innerHTML = html;
+      modal.hidden = false;
+      document.body.classList.add("modal-open");
+      var box = modal.querySelector(".modal"); if (box) box.focus();
+    }
+    function closeCmd() {
+      if (modal.hidden) return;
+      modal.hidden = true;
+      document.body.classList.remove("modal-open");
+      if (lastFocus && lastFocus.focus) lastFocus.focus();
+    }
+
+    modal.addEventListener("click", function (e) { if (e.target === modal) closeCmd(); });
+    var closeBtn = modal.querySelector(".modal-close");
+    if (closeBtn) closeBtn.addEventListener("click", closeCmd);
+    document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeCmd(); });
+
+    var reCmd = /\/([a-z][a-z-]*):([a-z][a-z-]*)/;
+    Array.prototype.slice.call(document.querySelectorAll(".cmd-pill")).forEach(function (pill) {
+      var m = (pill.textContent || "").match(reCmd);
+      if (!m) return;
+      var id = m[1] + ":" + m[2];
+      if (!CMD[id]) return;
+      pill.classList.add("has-detail");
+      pill.setAttribute("role", "button");
+      pill.setAttribute("tabindex", "0");
+      pill.setAttribute("aria-haspopup", "dialog");
+      pill.title = "View details";
+      var ic = document.createElement("i");
+      ic.className = "cmd-i"; ic.textContent = "i"; ic.setAttribute("aria-hidden", "true");
+      pill.appendChild(document.createTextNode(" "));
+      pill.appendChild(ic);
+      pill.addEventListener("click", function () { openCmd(id); });
+      pill.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openCmd(id); }
+      });
+    });
+  }
+
 })();
 </script>
 </body>

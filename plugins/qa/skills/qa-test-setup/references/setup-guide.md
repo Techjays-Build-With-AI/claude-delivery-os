@@ -9,7 +9,7 @@ How `/qa:plan` writes the plan and `/qa:setup` builds and proves the harness. Th
 ```yaml
 ---
 doc_type: test-setup-plan
-schema_version: 1.0
+schema_version: 1.1
 produced_by: qa
 source_audit: 2026-07-05-143210
 status: Draft

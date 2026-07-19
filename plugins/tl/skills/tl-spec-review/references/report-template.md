@@ -94,7 +94,7 @@ Assemble the Markdown in this exact structure. Keep it skimmable: a decision-mak
 ````markdown
 ---
 doc_type: spec-review
-schema_version: 1.0
+schema_version: 1.1
 produced_by: tl
 status: Reviewed
 generated_at: <YYYY-MM-DD>

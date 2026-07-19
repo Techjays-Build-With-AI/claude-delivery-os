@@ -1,6 +1,6 @@
 ---
 doc_type: run-summary
-schema_version: 1.0
+schema_version: 1.1
 produced_by: ba
 status: Draft
 generated_at: YYYY-MM-DD

@@ -12,7 +12,7 @@ Keep the frontmatter and the gate table stable; consumers key off them.
 ```yaml
 ---
 doc_type: quality-gates
-schema_version: 1.0
+schema_version: 1.1
 produced_by: qa
 harness_status: Active        # Active (proven green) | Draft (planned, not yet proven) | Broken
 coverage_floor: 70            # percent; the enforced minimum, or null if not enforced

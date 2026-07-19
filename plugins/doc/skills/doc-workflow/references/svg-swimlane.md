@@ -1,5 +1,7 @@
 # SVG Swimlane
 
+> **Source of the flow (Delivery OS).** When the scope has Mermaid flows, this SVG is their **branded projection**, not a fresh flow (see `delivery-os-conventions` §8). Translate the scope's **§3.x.3 master flow** and **§3.x.4 use-case flows** node-for-node: a Mermaid `{diamond}` becomes a **Decision** node, each labelled edge becomes an arrow carrying that condition, a stadium `([…])` becomes a START/END pill, and each master-flow branch routes to the use case it names. Keep the labels and branch conditions verbatim so the swimlane and the scope stay 1:1; only the presentation (columns, phases, styling) is added here.
+
 ## 1. Orientation — VERTICAL (phases as rows, actors as columns)
 
 **This is the canonical orientation.** Phases run top-to-bottom (each phase is a horizontal band).

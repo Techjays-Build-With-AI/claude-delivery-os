@@ -11,7 +11,7 @@ All dev files carry `produced_by: dev` and live under `context/features/<slug>/d
 ```md
 ---
 doc_type: dev-plan
-schema_version: 1.0
+schema_version: 1.1
 produced_by: dev
 feature_id: FEAT-SUP-001
 generated_at: YYYY-MM-DD
@@ -63,7 +63,7 @@ Low | Medium | High — driver: …
 ```md
 ---
 doc_type: dev-impacted-components
-schema_version: 1.0
+schema_version: 1.1
 produced_by: dev
 feature_id: FEAT-SUP-001
 generated_at: YYYY-MM-DD
@@ -96,7 +96,7 @@ The evidence table — a feature cannot reach READY_FOR_PR until every mandatory
 ```md
 ---
 doc_type: dev-acceptance-map
-schema_version: 1.0
+schema_version: 1.1
 produced_by: dev
 feature_id: FEAT-SUP-001
 generated_at: YYYY-MM-DD
@@ -122,7 +122,7 @@ Append one dated entry per meaningful step or repair attempt — never overwrite
 ```md
 ---
 doc_type: dev-implementation-log
-schema_version: 1.0
+schema_version: 1.1
 produced_by: dev
 feature_id: FEAT-SUP-001
 generated_at: YYYY-MM-DD
@@ -165,7 +165,7 @@ The fine-grained loop state and owner lock for this feature.
 ```md
 ---
 doc_type: dev-delivery-status
-schema_version: 1.0
+schema_version: 1.1
 produced_by: dev
 feature_id: FEAT-SUP-001
 generated_at: YYYY-MM-DD
@@ -210,7 +210,7 @@ Loop-state values and their BA/index mapping are in `loop-control.md`. Whenever 
 ```md
 ---
 doc_type: dev-decisions
-schema_version: 1.0
+schema_version: 1.1
 produced_by: dev
 feature_id: FEAT-SUP-001
 generated_at: YYYY-MM-DD
@@ -234,7 +234,7 @@ Written by `dev-pr-handoff`. Full field guide in that skill's `references/pr-and
 ```md
 ---
 doc_type: dev-pr-summary
-schema_version: 1.0
+schema_version: 1.1
 produced_by: dev
 feature_id: FEAT-SUP-001
 generated_at: YYYY-MM-DD
@@ -265,7 +265,7 @@ Written whenever the feature goes `BLOCKED`. `<n>` is a per-feature counter.
 ```md
 ---
 doc_type: dev-escalation
-schema_version: 1.0
+schema_version: 1.1
 produced_by: dev
 feature_id: FEAT-SUP-001
 generated_at: YYYY-MM-DD
@@ -314,7 +314,7 @@ Use the existing internal compliance validation service if available.
 ```md
 ---
 doc_type: dev-feature-tracker
-schema_version: 1.0
+schema_version: 1.1
 produced_by: dev
 status: Emerging
 generated_at: YYYY-MM-DD

@@ -1,0 +1,47 @@
+{
+  "schema_version": "2.0",
+  "doc_type": "jetrix-binding",
+  "bound_by": "jetrix:init",
+  "bound_at": "{{DATE}}",
+  "last_pulled": "{{TIMESTAMP}}",
+
+  "jetrix": {
+    "project_slug": "{{PROJECT_SLUG}}",
+    "project_id": "{{PROJECT_ID}}",
+    "workspace_ref": "{{JETRIX_WORKSPACE_REF}}",
+    "project_overview": "{{ONE_LINE_OVERVIEW}}"
+  },
+
+  "environments": [
+    { "name": "dev",     "ref": "{{ENV_REF}}" },
+    { "name": "staging", "ref": "{{ENV_REF}}" },
+    { "name": "uat",     "ref": "{{ENV_REF}}" },
+    { "name": "prod",    "ref": "{{ENV_REF}}" }
+  ],
+
+  "apps": [
+    {
+      "slug": "{{APP_SLUG}}",
+      "id": "{{APP_ID}}",
+      "type": "{{APP_TYPE}}",
+      "repo": "{{REPO_URL}}",
+      "local_root": null,
+      "env_branches": {
+        "dev":     "{{DEV_BRANCH}}",
+        "staging": "{{STAGING_BRANCH}}",
+        "uat":     "{{UAT_BRANCH}}",
+        "prod":    "{{PROD_BRANCH}}"
+      }
+    }
+  ],
+
+  "_notes": [
+    "COMMITTED, machine-independent IDENTITY + WIRING only. Same for every developer + CI on this project.",
+    "Jetrix is the SOURCE OF TRUTH. This file records how the local workspace maps to a Jetrix project and its apps — it does NOT hold project content (glossary, scope, features, context). That lives in .jetrix/cache/, gitignored, refreshed by /jetrix:pull.",
+    "environments are PROJECT-level (dev/staging/uat/prod). Each app maps every environment to one of ITS OWN branch names via env_branches — this is the mapping CI reconciliation and environment promotion consume.",
+    "apps[] is empty at greenfield bind. Once the user creates apps in Jetrix (repo + env→branch mapping), a /jetrix:pull refreshes this array. type: frontend | backend | mobile | service.",
+    "app.type 'monorepo' or a single app with slug '*' represents one repo holding the whole project.",
+    "local_root is an OPTIONAL local checkout path for an app's repo when it sits under this workspace; null when the repo lives elsewhere.",
+    "NEVER put tokens, passwords, or connection secrets here. Only names/refs/branches. Secrets stay in the developer's local Jetrix MCP config."
+  ]
+}

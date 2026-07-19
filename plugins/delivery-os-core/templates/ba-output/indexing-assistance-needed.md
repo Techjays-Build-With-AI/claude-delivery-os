@@ -1,6 +1,6 @@
 ---
 doc_type: indexing-assistance-needed
-schema_version: 1.0
+schema_version: 1.1
 produced_by: ba
 last_intake_run: run-001
 status: Draft

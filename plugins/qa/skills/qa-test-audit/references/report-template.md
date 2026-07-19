@@ -7,7 +7,7 @@ The audit produces **one structured data object**, rendered into three files tha
 ```json
 {
   "auditId": "2026-07-05-143210",
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "produced_by": "qa",
   "round": 1,
   "priorAudit": null,
@@ -56,7 +56,7 @@ Frontmatter then body:
 ```yaml
 ---
 doc_type: test-audit
-schema_version: 1.0
+schema_version: 1.1
 produced_by: qa
 audit_id: 2026-07-05-143210
 round: 1
@@ -78,7 +78,7 @@ The report lets the human, per finding, set **Adopt / Skip / Defer** and add a n
 ```yaml
 ---
 doc_type: test-audit-approvals
-schema_version: 1.0
+schema_version: 1.1
 produced_by: qa
 source_audit: 2026-07-05-143210
 generated_at: 2026-07-05

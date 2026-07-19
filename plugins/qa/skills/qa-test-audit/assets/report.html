@@ -167,7 +167,7 @@ function updateCount() {
   document.getElementById('count').textContent = `${a} adopt · ${d} defer · ${s} skip`;
 }
 function exportApprovals() {
-  let out = `---\ndoc_type: test-audit-approvals\nschema_version: 1.0\nproduced_by: qa\n`;
+  let out = `---\ndoc_type: test-audit-approvals\nschema_version: 1.1\nproduced_by: qa\n`;
   out += `source_audit: ${DATA.auditId}\ngenerated_at: ${DATA.generatedAt}\n---\n\n`;
   (DATA.findings||[]).forEach(f => {
     const st = findingState[f.id];

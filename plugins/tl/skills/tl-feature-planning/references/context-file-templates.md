@@ -13,7 +13,7 @@ Slugs are **lowercase kebab-case**. IDs are stable and append-only: `PAGE-<AREA>
 ```md
 ---
 doc_type: page-index
-schema_version: 1.0
+schema_version: 1.1
 produced_by: tl
 status: Emerging
 generated_at: YYYY-MM-DD
@@ -39,7 +39,7 @@ generated_at: YYYY-MM-DD
 ```md
 ---
 doc_type: endpoint-index
-schema_version: 1.0
+schema_version: 1.1
 produced_by: tl
 status: Emerging
 generated_at: YYYY-MM-DD
@@ -65,7 +65,7 @@ generated_at: YYYY-MM-DD
 ```md
 ---
 doc_type: entity-index
-schema_version: 1.0
+schema_version: 1.1
 produced_by: tl
 status: Emerging
 generated_at: YYYY-MM-DD
@@ -91,7 +91,7 @@ One user-facing surface — what it is, who uses it, what it does, and the endpo
 ```md
 ---
 doc_type: page
-schema_version: 1.0
+schema_version: 1.1
 produced_by: tl
 page_id: PAGE-SUP-03
 status: Designed
@@ -166,7 +166,7 @@ One backend operation — its contract, the pages/triggers that call it, and the
 ```md
 ---
 doc_type: endpoint
-schema_version: 1.0
+schema_version: 1.1
 produced_by: tl
 endpoint_id: EP-SUP-02
 status: Designed
@@ -244,7 +244,7 @@ One data object — its physical design, and the endpoints that use it. Realises
 ```md
 ---
 doc_type: entity
-schema_version: 1.0
+schema_version: 1.1
 produced_by: tl
 entity_id: ENT-SUP-01
 status: Designed

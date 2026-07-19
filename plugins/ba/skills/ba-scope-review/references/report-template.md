@@ -87,8 +87,8 @@ Field rules:
 - The per-question **resolution fields** (`status`, `authorResponse`, `adjudication`, `followUps`, `resolvedOn`, `decisionId`) start at `Open`/null in round 1 and are filled by `/ba:resolve`. `status` uses the controlled values in `resolution-loop.md`; `followUps` is a list of verification questions when `status` is `Needs-verification`.
 - `score` is a **number 0–10** (the HTML draws a bar and a band). Keep all features in the `features` array so the scorecard is complete.
 - `band` is the band label (`Excellent`/`Good`/`Adequate`/`Weak`/`Stub`/`Absent`).
-- `boundedness` is one of `"Bounded"` / `"Partially-bounded"` / `"Unbounded"`; `boundednessNote` (one line) says what's undefined. **These cap the score** — `Unbounded` ≤ 4, `Partially-bounded` ≤ 6 (see `review-rubric.md` §A). The HTML shows a boundedness badge on the feature.
-- `coverage` has exactly the nine keys above, each valued `"Covered"` / `"Partial"` / `"Absent"` (the HTML renders the matrix and colours each cell). Use `"Covered"` with an assessment note when a dimension is genuinely not-needed for that feature.
+- `boundedness` is one of `"Bounded"` / `"Partially-bounded"` / `"Unbounded"`; `boundednessNote` (one line) says what's undefined. **These cap the score** — `Unbounded` ≤ 4, `Partially-bounded` ≤ 6 (see `review-rubric.md` §A). The HTML shows a boundedness badge on the feature. For a **branching** feature, the note must state whether every materially-different route is expanded into its own §3.x.4 use case (with a flow and worked example) — an un-expanded fork is a boundedness failure, not just a missing dimension, and the flattening is raised as a question tagged `in_out_scope` or `business_rules` (see `review-rubric.md` §A item 6).
+- `coverage` has exactly the nine keys above, each valued `"Covered"` / `"Partial"` / `"Absent"` (the HTML renders the matrix and colours each cell). Use `"Covered"` with an assessment note when a dimension is genuinely not-needed for that feature. **Route/use-case expansion is scored through `boundedness`** (plus the `business_rules`/`in_out_scope`/`exceptions` cells it pulls down), not as a tenth coverage key — so the existing nine-column matrix is unchanged.
 - `exampleCompliance` is one of `"Pass"` / `"Partial"` / `"Conflict"` / `"No-examples"`; `exampleNote` explains it (cite the EX id for Partial/Conflict).
 - `group` drives the section dividers in the scorecard — use your own module-group names (e.g. `Core Modules`, `Supporting Modules`, `Cross-cutting`). Keep features in order so each group's rows are contiguous.
 - `kind` (optional) is the feature kind (UI/auth, integration, data/reporting, AI/automation, admin, workflow) — shown as a tag.
@@ -119,7 +119,7 @@ Assemble the Markdown in this exact structure. Keep it skimmable: a decision-mak
 ````markdown
 ---
 doc_type: scope-review
-schema_version: 1.0
+schema_version: 1.1
 produced_by: ba
 status: Reviewed
 generated_at: <YYYY-MM-DD>
