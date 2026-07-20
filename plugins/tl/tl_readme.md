@@ -5,10 +5,10 @@ The **Technical Lead Agent** does two jobs a seasoned TL does. It **authors** th
 | | |
 |---|---|
 | **Namespace** | `/tl:` |
-| **Commands** | `/tl:plan <feature-or-features>` · `/tl:review <doc> [out=<prefix>]` · `/tl:resolve <responses-file>` · `/tl:scaffold [spec] [repo=<path>]` |
+| **Commands** | `/tl:plan <feature-or-features>` · `/tl:review <doc> [out=<prefix>]` · `/tl:resolve <responses-file>` · `/tl:scaffold [spec] [repo=<path>]` · `/tl:map [repo=<path>]` · `/tl:maturity [repo=<path>] [strict-baseline]` |
 | **Input** | Feature planning: the BA feature breakdown under `context/features/`. Spec review: a tech spec / architecture / system-design / HLD / SRS document (`.md`, `.docx`, or `.pdf`). Scaffold: the confirmed architecture (spec / `context/project/`) + the context graph |
 | **Output** | Feature planning: the linked `context/frontend|backend|database` graph + three indexes. Spec review: `tl-output/spec-review-<timestamp>.{html, md, json}`. Scaffold: the initial application repository (skeleton + tooling + green base) and `context/project/{technology-stack, architecture, coding-standards}.md` |
-| **Skills** | `tl-feature-planning` · `tl-spec-review` · `tl-project-scaffold` |
+| **Skills** | `tl-feature-planning` · `tl-spec-review` · `tl-project-scaffold` · `tl-codebase-map` · `tl-maturity-audit` |
 
 ---
 
@@ -29,6 +29,33 @@ Point it at the tech spec / architecture (or let it read `context/project/` + `s
 Then it scaffolds: the idiomatic skeleton (preferring official generators like `create-vite`, `spring init`, `poetry new`), package-manager manifests, lint/format/type/test/build tooling, one trivial passing test, a README and `.gitignore`, and it writes `context/project/{technology-stack.md, architecture.md, coding-standards.md}`. Every stack decision — spec-confirmed or you-answered — is logged as a `DEC-###`. Before handing off it runs `install → lint → type-check → test → build` and confirms the **base build is green** — the exact readiness item the dev agent checks. It scaffolds the *foundation*, not features; the dev agent's `feature-delivery-loop` builds those into it.
 
 Once it's done, the workspace is build-ready: `/dev:build <feature>` (and the dev agent's `/dev:bootstrap` greenfield check) will pass.
+
+---
+
+## Maturity audit (`/tl:maturity`)
+
+Feature planning, scaffold, and spec review all act *before or around* the build. `/tl:maturity` acts on the **built system**: a read-only, evidence-backed score of how production-ready a project actually is, and where the engineering risk lies. It's the third of three audits in Delivery OS, each with a different subject — `/tl:review` scores a design **document**, `/qa:audit` scores the **test harness**, and `/tl:maturity` scores the **running system's reality**, consuming the other two.
+
+It scores four domains, each out of 10 (average of applicable sub-areas; any Blocker caps the tier):
+
+| Domain | What it looks at |
+|---|---|
+| **Code Quality & Maintainability** | lint cleanliness & enforcement, complexity, duplication, dependency hygiene, docs/ADRs, architectural adherence |
+| **Test Quality & Verifiability** | unit/integration/e2e presence, coverage level & enforcement, CI gating — **consumes `qa-output/quality-gates.md`; does not re-score testability** |
+| **Infrastructure & Operations** | CI/CD reliability, deployment safety (rollback, zero-downtime, migration safety), observability, scalability, env parity / IaC |
+| **Security** | dependency CVEs, SAST, secrets in code/history, authN/authZ posture, secrets management |
+
+**How it stays honest.** It prefers the project's **own enforced tooling** as evidence (the SonarScanner posture): a check wired into pre-commit/CI and passing scores highest — reading that tool's output *and* rewarding the enforcement. It only falls back to an ephemeral scanner where the project has nothing. Every check is tagged **`evidenced`** (a tool produced it) or **`attested`** (a human answered because no tool can see it — observability platform, rollback, autoscale), and it never fabricates a score for something it couldn't measure (`not measured`, never `0`). Alongside the maturity score it reports a **separate Audit Confidence** — the share of applicable checks actually tool-measured — so a high score resting on little measurement can't hide.
+
+**The QA baseline gate.** In preflight it reads the active `baseline-profile.md` and `quality-gates.md`'s `baseline_status` to check whether the mandatory tooling floor (enforced lint, coverage gate, dependency + secret scanning) is in place. If it isn't, it **reminds and routes** to `/qa:audit` → `/qa:setup` and — by default — still scores in **degraded mode** at reduced Audit Confidence; with `strict-baseline` it stops before scoring. It never establishes the baseline itself.
+
+**Read-only, always.** It installs nothing into the repo, changes no code or tests, and routes tooling gaps back to QA rather than fixing them. Output is a timestamped trio in `tl-output/` — `maturity-<timestamp>.{html, md, json}` — the interactive report carries the domain scorecard, the Audit Confidence split, and a `MAT-###` findings register with per-finding evidence and `routes-to-QA` badges. The JSON sidecar is keyed for a future org-wide portfolio rollup.
+
+```text
+/tl:maturity                                   # score the current workspace / repo
+/tl:maturity repo=D:\acme\orders-service       # point at a repo
+/tl:maturity repo=D:\acme\orders-service strict-baseline   # require the QA baseline first
+```
 
 ---
 

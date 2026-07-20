@@ -1,9 +1,10 @@
 # Quality-gate contract — the schema dev reads
 
-`qa-output/quality-gates.md` is the single source of truth for what "verified" means in this repo. It must be **parseable and unambiguous** because two consumers depend on it:
+`qa-output/quality-gates.md` is the single source of truth for what "verified" means in this repo. It must be **parseable and unambiguous** because three consumers depend on it:
 
 - The **dev readiness gate** (`feature-delivery-loop` → `readiness-and-planning.md` §1b) reads it to confirm a usable test harness exists before building a feature.
 - **`dev-validation`** reads it to know which checks are **Required**, the exact command for each, and the threshold each must clear — instead of guessing the repo's tooling.
+- The **TL maturity audit** (`tl-maturity-audit`) reads `baseline_status` in its preflight to decide whether the mandatory tooling floor is in place before scoring, and consumes the coverage/gate results as its Test-Quality domain evidence instead of re-scoring testability.
 
 Keep the frontmatter and the gate table stable; consumers key off them.
 
@@ -12,14 +13,24 @@ Keep the frontmatter and the gate table stable; consumers key off them.
 ```yaml
 ---
 doc_type: quality-gates
-schema_version: 1.1
+schema_version: 1.2
 produced_by: qa
 harness_status: Active        # Active (proven green) | Draft (planned, not yet proven) | Broken
+baseline_status: Met          # Met | Unmet — every mandatory BL-## in baseline-profile.md is present AND enforced
+baseline_unmet: []            # list of unmet mandatory BL-## ids when baseline_status is Unmet, e.g. [BL-08, BL-09]
 coverage_floor: 70            # percent; the enforced minimum, or null if not enforced
 source_audit: 2026-07-05-143210
 generated_at: 2026-07-05
 ---
 ```
+
+## Baseline status — the mandatory floor
+
+`harness_status` says the *test harness* is proven green. `baseline_status` says something broader: every **mandatory** capability in the active `baseline-profile.md` (the org default, or a `shared-context/baseline-profile.md` override) is **present and enforced** — linting/format/type in pre-commit + CI, coverage threshold-gated, CI gating merges, plus dependency and secret scanning (`BL-01`…`BL-10`).
+
+- `/qa:audit` flags every unmet mandatory `BL-##` as a **mandatory gap** (see `qa-test-audit/references/audit-rubric.md`), and `/qa:setup` stands them up. `baseline_status` flips to `Met` only when all mandatory items are enforced.
+- A mandatory item can't be silently skipped; skipping one is a `DEC-###` with a rationale, and it stays listed in `baseline_unmet` with a note.
+- The TL maturity audit reads `baseline_status`: `Met` → score at full fidelity; `Unmet` → remind + route to `/qa:audit` → `/qa:setup` (or, in strict mode, stop before scoring).
 
 ## Green-smoke sequence
 

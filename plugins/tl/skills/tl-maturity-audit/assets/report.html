@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Project Maturity Audit</title>
+<style>
+  :root {
+    --bg:#0f1420; --panel:#161c2b; --panel2:#1d2436; --line:#2a3350;
+    --ink:#e8ecf6; --mut:#96a0b8; --acc:#5b8cff; --ok:#39d98a; --warn:#f5a623;
+    --blk:#ff5c6c; --maj:#f5a623; --min:#5b8cff; --nit:#96a0b8;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink);
+    font:15px/1.5 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; }
+  .wrap { max-width:1000px; margin:0 auto; padding:32px 20px 80px; }
+  h1 { font-size:22px; margin:0 0 4px; }
+  .sub { color:var(--mut); margin:0 0 24px; font-size:13px; }
+  .hero { display:flex; gap:26px; align-items:center; flex-wrap:wrap; background:var(--panel);
+    border:1px solid var(--line); border-radius:14px; padding:20px 24px; margin-bottom:18px; }
+  .score { font-size:44px; font-weight:700; line-height:1; }
+  .score small { font-size:16px; color:var(--mut); font-weight:400; }
+  .tier { font-size:15px; font-weight:600; padding:4px 12px; border-radius:999px;
+    background:var(--panel2); border:1px solid var(--line); display:inline-block; }
+  .conf { font-size:26px; font-weight:700; line-height:1; }
+  .conf small { font-size:13px; color:var(--mut); font-weight:400; display:block; text-transform:uppercase; letter-spacing:.05em; margin-bottom:4px; }
+  .split { color:var(--mut); font-size:12px; margin-top:6px; }
+  .stack { color:var(--mut); font-size:13px; margin-top:6px; }
+  .divider { width:1px; align-self:stretch; background:var(--line); }
+  h2 { font-size:14px; text-transform:uppercase; letter-spacing:.06em; color:var(--mut);
+    margin:28px 0 12px; }
+  .banner { border-radius:12px; padding:14px 18px; margin-bottom:18px; font-size:14px; }
+  .banner.unmet { background:rgba(245,166,35,.12); border:1px solid var(--warn); color:var(--ink); }
+  .banner.met { background:rgba(57,217,138,.10); border:1px solid var(--ok); color:var(--ink); }
+  .banner code { background:var(--panel2); padding:1px 6px; border-radius:5px; }
+  table { width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--line);
+    border-radius:12px; overflow:hidden; }
+  th,td { text-align:left; padding:10px 14px; border-bottom:1px solid var(--line); font-size:14px; }
+  th { color:var(--mut); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:.04em; }
+  tr:last-child td { border-bottom:none; }
+  .bar { height:7px; border-radius:4px; background:var(--panel2); overflow:hidden; width:140px; display:inline-block; vertical-align:middle; margin-right:8px; }
+  .bar > i { display:block; height:100%; background:var(--acc); }
+  .na { color:var(--mut); font-style:italic; }
+  .filter { display:flex; gap:8px; align-items:center; margin:0 0 12px; flex-wrap:wrap; }
+  .filter .chip { cursor:pointer; padding:4px 12px; border-radius:999px; border:1px solid var(--line);
+    background:var(--panel2); color:var(--ink); font-size:12px; }
+  .filter .chip.off { opacity:.4; }
+  .find { background:var(--panel); border:1px solid var(--line); border-radius:12px;
+    padding:16px 18px; margin-bottom:14px; }
+  .find.blocker { border-left:4px solid var(--blk); }
+  .find.major { border-left:4px solid var(--maj); }
+  .find.minor { border-left:4px solid var(--min); }
+  .find.nit { border-left:4px solid var(--nit); }
+  .fhead { display:flex; align-items:center; gap:10px; margin-bottom:8px; flex-wrap:wrap; }
+  .fid { font-family:ui-monospace,Menlo,monospace; font-size:12px; color:var(--mut); }
+  .sev { font-size:11px; font-weight:700; text-transform:uppercase; padding:2px 8px; border-radius:6px; }
+  .sev.blocker { background:rgba(255,92,108,.16); color:var(--blk); }
+  .sev.major { background:rgba(245,166,35,.16); color:var(--maj); }
+  .sev.minor { background:rgba(91,140,255,.16); color:var(--min); }
+  .sev.nit { background:rgba(150,160,184,.16); color:var(--nit); }
+  .badge { font-size:11px; font-weight:600; padding:2px 8px; border-radius:6px; border:1px solid var(--line); color:var(--mut); }
+  .badge.evidenced { color:var(--ok); border-color:rgba(57,217,138,.4); }
+  .badge.attested { color:var(--warn); border-color:rgba(245,166,35,.4); }
+  .badge.rung { color:var(--acc); border-color:rgba(91,140,255,.4); }
+  .badge.qa { color:var(--min); border-color:rgba(91,140,255,.4); }
+  .farea { font-weight:600; }
+  .frow { margin:4px 0; font-size:14px; }
+  .frow b { color:var(--mut); font-weight:600; }
+  .rec { background:var(--panel2); border-radius:8px; padding:10px 12px; margin-top:8px; font-size:14px; }
+  .ev { font-family:ui-monospace,Menlo,monospace; font-size:12px; color:var(--mut); }
+  .list { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:6px 0; }
+  .list .li { padding:9px 16px; border-bottom:1px solid var(--line); font-size:14px; }
+  .list .li:last-child { border-bottom:none; }
+  .li .t { color:var(--mut); }
+  .empty { color:var(--mut); font-style:italic; padding:12px 2px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Project Maturity Audit</h1>
+  <p class="sub" id="meta"></p>
+
+  <div class="hero">
+    <div>
+      <div class="score" id="scoreVal"></div>
+      <div style="margin-top:8px"><span class="tier" id="tier"></span></div>
+    </div>
+    <div class="divider"></div>
+    <div>
+      <div class="conf"><small>Audit confidence</small><span id="confVal"></span></div>
+      <div class="split" id="split"></div>
+    </div>
+    <div class="divider"></div>
+    <div>
+      <div class="stack" id="stack"></div>
+    </div>
+  </div>
+
+  <div id="baseline"></div>
+
+  <h2>Domain scorecard</h2>
+  <table id="scorecard"><thead><tr><th>Domain</th><th>Score</th><th>Note</th></tr></thead><tbody></tbody></table>
+
+  <h2>Findings</h2>
+  <div class="filter" id="filter"></div>
+  <div id="findings"></div>
+
+  <h2>Attestations <span style="text-transform:none;font-weight:400">(human-answered — no tool can see these)</span></h2>
+  <div id="attestations" class="list"></div>
+
+  <h2>Not measured <span style="text-transform:none;font-weight:400">(install to raise confidence)</span></h2>
+  <div id="notmeasured" class="list"></div>
+</div>
+
+<script>
+const DATA = __MATURITY_DATA__;
+const sevFilter = { Blocker:true, Major:true, Minor:true, Nit:true };
+
+function esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+function init() {
+  document.getElementById('meta').textContent =
+    `Maturity ${DATA.maturityId} · ${DATA.repo} · round ${DATA.round} · ${DATA.generatedAt}`;
+  document.getElementById('scoreVal').innerHTML = `${(DATA.overallScore??0).toFixed(1)}<small>/10</small>`;
+  document.getElementById('tier').textContent = DATA.tier || '';
+  const conf = Math.round((DATA.auditConfidence??0)*100);
+  document.getElementById('confVal').textContent = `${conf}%`;
+  const es = DATA.evidenceSplit || {};
+  document.getElementById('split').textContent =
+    `evidenced ${es.evidenced||0} · attested ${es.attested||0} · not measured ${es.notMeasured||0}`;
+  const s = DATA.stack || {};
+  document.getElementById('stack').innerHTML =
+    [ (s.languages||[]).join(', '), (s.frameworks||[]).join(', '), s.packageManager ]
+      .filter(Boolean).map(esc).join('<br>');
+
+  // Baseline banner
+  const b = DATA.baseline || {};
+  const bd = document.getElementById('baseline');
+  if (b.status === 'Unmet') {
+    bd.innerHTML = `<div class="banner unmet"><b>Baseline unmet.</b> Missing mandatory items:
+      ${(b.unmet||[]).map(x=>`<code>${esc(x)}</code>`).join(' ')} —
+      run <code>/qa:audit</code> → <code>/qa:setup</code> to establish the floor.
+      This review ran in degraded mode; scores below rest on ${conf}% measured coverage.</div>`;
+  } else if (b.status === 'Met') {
+    bd.innerHTML = `<div class="banner met"><b>Baseline met.</b> Mandatory tooling is in place and enforced.</div>`;
+  }
+
+  // Scorecard (domains)
+  const sb = document.querySelector('#scorecard tbody');
+  (DATA.domains||[]).forEach(d => {
+    const tr = document.createElement('tr');
+    const pct = d.applicable ? Math.round(((d.score||0)/10)*100) : 0;
+    tr.innerHTML = `<td>${esc(d.id)} · ${esc(d.name)}</td>
+      <td>${d.applicable ? `<div class="bar"><i style="width:${pct}%"></i></div>${(d.score||0).toFixed(1)}/10`
+                         : `<span class="na">N/A</span>`}</td>
+      <td>${esc(d.note||'')}</td>`;
+    sb.appendChild(tr);
+  });
+
+  // Severity filter
+  const fbar = document.getElementById('filter');
+  ['Blocker','Major','Minor','Nit'].forEach(sev => {
+    const n = (DATA.findings||[]).filter(f=>f.severity===sev).length;
+    const chip = document.createElement('span');
+    chip.className = 'chip'; chip.dataset.sev = sev;
+    chip.textContent = `${sev} (${n})`;
+    chip.addEventListener('click', () => { sevFilter[sev] = !sevFilter[sev]; chip.classList.toggle('off', !sevFilter[sev]); renderFindings(); });
+    fbar.appendChild(chip);
+  });
+  renderFindings();
+
+  // Attestations
+  const at = document.getElementById('attestations');
+  const ats = DATA.attestations || [];
+  at.innerHTML = ats.length ? '' : `<div class="empty">No attested items.</div>`;
+  ats.forEach(a => {
+    const li = document.createElement('div'); li.className = 'li';
+    li.innerHTML = `<b>${esc(a.subArea)}</b> — ${esc(a.claim||'(unanswered)')}
+      <span class="t">· ${esc(a.status)}${a.by && a.by!=='unanswered' ? ' · '+esc(a.by) : ''}</span>`;
+    at.appendChild(li);
+  });
+
+  // Not measured
+  const nm = document.getElementById('notmeasured');
+  const nms = DATA.notMeasured || [];
+  nm.innerHTML = nms.length ? '' : `<div class="empty">Everything applicable was measured.</div>`;
+  nms.forEach(n => {
+    const li = document.createElement('div'); li.className = 'li';
+    li.innerHTML = `<b>${esc(n.subArea)}</b> <span class="t">— needs ${esc(n.needs)} (${esc(n.owner)})</span>`;
+    nm.appendChild(li);
+  });
+}
+
+function renderFindings() {
+  const fc = document.getElementById('findings');
+  fc.innerHTML = '';
+  const shown = (DATA.findings||[]).filter(f => sevFilter[f.severity]);
+  if (!shown.length) { fc.innerHTML = `<div class="empty">No findings match the filter.</div>`; return; }
+  shown.forEach(f => {
+    const sev = (f.severity||'').toLowerCase();
+    const el = document.createElement('div');
+    el.className = 'find ' + sev;
+    const ev = (f.evidence||'').toLowerCase();
+    el.innerHTML = `
+      <div class="fhead">
+        <span class="fid">${esc(f.id)}</span>
+        <span class="sev ${sev}">${esc(f.severity)}</span>
+        <span class="farea">${esc(f.subArea||f.domain)}</span>
+        ${ev ? `<span class="badge ${ev}">${esc(f.evidence)}</span>` : ''}
+        ${f.rung ? `<span class="badge rung">${esc(f.rung)}</span>` : ''}
+        ${f.routesTo==='qa' ? `<span class="badge qa">routes to QA</span>` : ''}
+      </div>
+      <div class="frow"><b>Issue:</b> ${esc(f.whatsWrong)}</div>
+      <div class="frow"><b>Why it matters:</b> ${esc(f.whyItMatters)}</div>
+      ${f.evidenceRef ? `<div class="frow"><b>Evidence:</b> <span class="ev">${esc(f.evidenceRef)}</span></div>` : ''}
+      <div class="rec"><b>Recommend:</b> ${esc(f.recommendation)}
+        ${f.effort ? `<div class="frow"><b>Effort:</b> ${esc(f.effort)}</div>` : ''}
+      </div>`;
+    fc.appendChild(el);
+  });
+}
+
+init();
+</script>
+</body>
+</html>

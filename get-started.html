@@ -268,6 +268,7 @@
       <span class="cmd-pill">/tl:resolve</span>
       <span class="cmd-pill">/tl:scaffold</span>
       <span class="cmd-pill">/tl:map</span>
+      <span class="cmd-pill">/tl:maturity</span>
       <span class="cmd-pill">/doc:proposal</span>
       <span class="cmd-pill">/doc:magic-board</span>
       <span class="cmd-pill">/doc:workflow</span>
@@ -682,6 +683,7 @@
       <span class="cmd-pill">/tl:resolve</span>
       <span class="cmd-pill">/tl:scaffold</span>
       <span class="cmd-pill">/tl:map</span>
+      <span class="cmd-pill">/tl:maturity</span>
     </div>
 
     <h3 class="step" style="margin-top:26px">Review a spec — <code>/tl:review</code></h3>
@@ -739,6 +741,16 @@
     </div>
     <div class="note"><b>Read-only on the code.</b> It's static analysis — it never modifies, refactors, or runs the repo, and it never authors BA features or product scope from the code (that stays the BA's). Units are stamped <code>origin: reverse-mapped</code>; when you later run <code>/tl:plan</code>, features link into these same units.</div>
     <div class="note tip"><b>Brownfield onboarding, in order:</b> <code>/ba:scope</code> (scope from your existing docs) → <code>/ba:features initiative=&lt;batch&gt;</code> → <code>/tl:map repo=&lt;path&gt;</code> (build the as-built graph once) → <code>/qa:audit</code> → <code>/tl:plan initiative=&lt;batch&gt;</code> (reuses the mapped units) → <code>/dev:build initiative=&lt;batch&gt; repo=&lt;path&gt;</code>.</div>
+
+    <h3 class="step">Score production maturity — <code>/tl:maturity</code></h3>
+    <p>A read-only maturity audit of a <b>built</b> project. Where <code>/tl:review</code> scores a design <i>document</i> and <code>/qa:audit</code> scores the <i>test harness</i>, <code>/tl:maturity</code> scores the <b>running system's reality</b> across four domains — <b>Code Quality &amp; Maintainability</b>, <b>Test Quality &amp; Verifiability</b>, <b>Infrastructure &amp; Operations</b>, and <b>Security</b> — and answers "is this production-grade, and where's the risk?" It prefers the project's <b>own enforced tooling</b> as evidence (lint, coverage, SARIF), tags every finding <code>evidenced</code> or <code>attested</code>, and reports a maturity score plus a <b>separate Audit Confidence</b> so a high score built on little measurement can't hide.</p>
+    <div class="code"><button class="copy">Copy</button><pre><code><span class="cmt"># score the current workspace / repo</span>
+/tl:maturity
+
+<span class="cmt"># point at a repo; require the QA baseline before scoring</span>
+/tl:maturity repo=D:\acme\orders-service strict-baseline</code></pre></div>
+    <div class="note"><b>Reminds you to run <code>/qa:audit</code> first.</b> In preflight it checks whether the mandatory QA baseline (enforced lint, coverage gate, dependency + secret scanning) is in place. If it isn't, it points you at <code>/qa:audit</code> → <code>/qa:setup</code> and, by default, still scores in <b>degraded mode</b> at reduced Audit Confidence (with <code>strict-baseline</code> it stops instead). It is <b>read-only on the repo</b> — it installs nothing, changes no code or tests, never fabricates a score it couldn't measure, and routes baseline gaps back to QA rather than fixing them itself.</div>
+    <div class="note tip"><b>Where it fits the three audits:</b> <code>/tl:review</code> scores the <i>spec</i> (before build) · <code>/qa:audit</code> scores the <i>test harness</i> (loop-readiness) · <code>/tl:maturity</code> scores the <i>built system</i> (production-readiness), consuming both.</div>
   </section>
 
   <!-- ============ DOC AGENT ============ -->
@@ -1380,6 +1392,29 @@
       ],
       when: "Run to onboard an existing codebase; before planning new features against it.",
       example: "Mapping the legacy Acme repo derives 12 pages, 30 endpoints, and 9 entities — 80% Confirmed, 20% Assumed for dynamic routes. It flags the low-confidence routes and suggests running /qa:audit and /tl:plan next."
+    },
+    "tl:maturity": {
+      title: "Score the project's production maturity",
+      summary: "A read-only, evidence-backed maturity score across four domains — is this built project production-grade, and where's the engineering risk?",
+      processes: [
+        "Preflights the repo: detects the stack, sets the project profile, and checks whether the mandatory QA baseline is in place.",
+        "If the baseline is unmet it reminds and routes to /qa:audit — or, in strict mode, stops before scoring.",
+        "Reads the project's OWN enforced tooling output first (lint, coverage, SARIF), falling back to ephemeral scanners only where the project has none.",
+        "Collects human attestations for what no tool can see (observability platform, rollback, autoscale, secret rotation).",
+        "Scores each applicable sub-area on a present → enforced → passing ladder; any Blocker caps the tier."
+      ],
+      outputs: [
+        "A timestamped interactive maturity-<timestamp>.html report in tl-output/, plus .md and .json.",
+        "A four-domain scorecard and a separate Audit Confidence (how much of the score is tool-measured vs attested vs not measured).",
+        "MAT-### findings tagged evidenced or attested, with the fix and whether it routes to QA."
+      ],
+      covers: [
+        "Code Quality & Maintainability, Test Quality & Verifiability, Infrastructure & Operations, and Security.",
+        "Prefers the project's own agreed rulesets as evidence; never fabricates a score it couldn't measure.",
+        "Does not: install tooling, change code or tests, or re-score testability — it consumes QA's quality-gates and routes baseline gaps back to /qa:setup."
+      ],
+      when: "Run on a built project before a launch / go-no-go, or periodically to track engineering risk — after /qa:setup has established the baseline for a full-fidelity score.",
+      example: "Auditing a .NET OrdersService finds the baseline unmet (no coverage gate, no dependency or secret scan) and scores it 5.8/10 — \"Significant gaps\" — at 62% Audit Confidence, with a Blocker on unenforced coverage that routes to /qa:setup and a Major on a connection string found in appsettings."
     },
     "doc:proposal": {
       title: "Generate a client proposal",

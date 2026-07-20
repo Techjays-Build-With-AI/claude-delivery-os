@@ -6,6 +6,18 @@ Severity guide: **Blocker** = the loop cannot meaningfully validate features unt
 
 ---
 
+## 0. Baseline pass — the mandatory floor (run first)
+
+Before the /10 area scoring, check the repo against the active **baseline profile** (`shared-context/baseline-profile.md` if present, else the `delivery-os-core` org default). Each mandatory capability (`BL-01`…`BL-10`) must be **present AND enforced** (in pre-commit and/or merge-gating CI) — a present-but-unenforced check does not satisfy a mandatory item.
+
+- For each unmet mandatory `BL-##`, record a **mandatory gap** finding — a `QAF-###` marked `baseline: BL-##`, severity at least `Major` (`Blocker` when it means the loop can't validate at all, e.g. no runner). These are **not discretionary**: the human may not silently `Skip` one; skipping is an explicit `DEC-###` with a rationale, and it stays listed in the gates' `baseline_unmet`.
+- Resolve each `BL-##` to the stack's concrete tool via `tl-maturity-audit/references/stack-bindings.md` so the recommendation names the right tool (ESLint vs RuboCop vs Roslyn, coverlet vs c8, etc.).
+- Set `baseline_status: Met` in the quality-gate contract only when every mandatory item is enforced; otherwise `Unmet` with the `baseline_unmet` list. The dev readiness gate and the TL maturity audit both read this.
+
+Note the deltas from the discretionary areas below: **pre-commit enforcement (BL-07), dependency scanning (BL-08), and secret scanning (BL-09)** are **mandatory** under the baseline even though they appear as optional/CI concerns in the area scoring — the baseline promotes them to a required floor.
+
+---
+
 ## 1. Unit test framework & runner
 Is there a configured test runner, a discoverable test location/convention, and a single command to run unit tests? Do example tests actually pass? *No runner at all is a Blocker — the dev loop has nothing to run.*
 
