@@ -20,13 +20,55 @@ Normalise the same way planning does: lowercase, path params as `{param}`, trail
 
 ---
 
+## Two passes — discovery then detail
+
+A large application won't fit in one reading. So split the run: enumerate everything cheaply first, then write unit files one at a time. **Enumeration order and link-resolution order are decoupled** — list endpoints and pages first because they're declarative and cheap to enumerate wholesale, but *write* entities first and resolve cross-links last, so a page file is never written pointing at an endpoint file that doesn't exist yet.
+
+### Prefer a declarative registry over reading every file
+
+Wherever the project already declares its surface, read that declaration instead of reconstructing it by hand — it's authoritative, static, and complete:
+
+| Layer | Best source of truth (in order) |
+|---|---|
+| Endpoint | a checked-in **OpenAPI/Swagger** spec → a route manifest/`routes.rb`-style table → decorators/controllers read individually |
+| Page | the **frontend router config** (route table) → the `pages`/`app` directory convention → screens discovered by naming |
+| Entity | the **schema/migration state** (or a Prisma/DBML schema) → ORM model classes → raw SQL |
+
+A route-dump *command* (`rails routes`, Django `show_urls`, a printed Spring mapping) is even more complete, but running it collides with the read-only boundary — so prefer a **checked-in** spec/manifest, and only fall back to per-file static reading when there's no declarative source.
+
+### The coverage manifest
+
+Discovery writes `context/map-coverage.md` — the full enumerated list, each row the scope guard for "what haven't we mapped yet":
+
+```md
+---
+doc_type: map-coverage
+produced_by: tl
+generated_at: YYYY-MM-DD
+---
+
+# Map Coverage
+
+| Layer | Match key | Source file | Area | Status | Note |
+|---|---|---|---|---|---|
+| endpoint | POST /suppliers | src/routes/supplier.ts | SUP | mapped | |
+| endpoint | (Schedule) doc-expiry-sweep | src/jobs/expiry.ts | SUP | mapped | trigger: schedule |
+| page | /suppliers/:id | src/pages/SupplierDetail.tsx | SUP | mapped | |
+| entity | suppliers | db/migrations/003_suppliers.sql | SUP | mapped | |
+| endpoint | GET /internal/debug | src/routes/debug.ts | CORE | skipped | dynamic dispatch — see finding |
+```
+
+**Status**: `pending` (enumerated, not yet written) · `mapped` (unit file written) · `skipped` (couldn't map confidently — must carry a note and a matching integrity finding). The integrity check fails if any row is left `pending`. On a re-run, rows for deleted code move to `removed`.
+
+---
+
 ## Layer 1 — Entities (start here; everything else references them)
 
 Map the data layer first so endpoints can link to real entity files.
 
 - **ORM/ODM models** — one entity per model class (Sequelize/TypeORM/Prisma/Django/SQLAlchemy/ActiveRecord/Mongoose…). Read the columns/fields, types, keys, and declared relations (`hasMany`, FK, `references`).
 - **Schema & migrations** — where there's no ORM, read `schema.sql`, migration files, or a Prisma/DBML schema. The latest migration state is the truth; note if migrations conflict.
-- **Views / stored procedures** — each is its own entity, marked as such.
+- **Views / stored procedures / functions / triggers** — each is its own entity file, marked with its `Kind`. Read these from schema dumps and migration DDL (`CREATE VIEW/PROCEDURE/FUNCTION/TRIGGER`); a trigger's entity notes the table it fires on and the procedure/function it calls.
 - **Citations & confidence:** cite the model/migration file. Columns read from a declared schema are `Confirmed`; a field added dynamically or via mixins is `Assumed`.
 - If a BA `data-register.md` exists, link the `DATA-###` the entity realises; brownfield-only projects often have none — that's fine, note it.
 
@@ -42,6 +84,23 @@ Map the data layer first so endpoints can link to real entity files.
 - **Routed surfaces** — one page per route in the frontend router (React Router/Next.js `pages` or `app`, Vue Router, Angular routes, server-rendered templates/controllers-with-views). A modal, tab, drawer, or widget is documented *inside* its page, not as its own unit — same rule as forward planning.
 - **Page → endpoint links:** trace the page's data calls to the backend — a service/api module, `fetch`/`axios`/`httpClient` calls, generated API clients, React-Query/RTK hooks, or form `action`s. Resolve each call's `METHOD + path` and link to that endpoint (Confirmed when the URL is a static literal; `Assumed` when it's composed at runtime).
 - **Citations:** cite the page component/template file and the api/service module.
+
+---
+
+## Using a language server (optional, phase-2 — best for the linking pass)
+
+Static reading and framework heuristics get you the *facts* (a route's `METHOD + path`, a table name); a **Language Server Protocol** server (tsserver/typescript-language-server, pyright, gopls, jdtls, rust-analyzer…) makes the *links between them* far more reliable. Reach for it when link inference is the bottleneck on a large codebase — not as a replacement for framework-aware extraction.
+
+Where it helps most (moves links from `Assumed` → `Confirmed`):
+- **find-references / call-hierarchy** — answers "which pages call this endpoint" and "which handlers touch this model" *semantically*, following the symbol across imports and re-exports instead of by regex. This is the single biggest confidence lever.
+- **go-to-definition** — resolves an API-client call back to the URL constant it actually uses, and a handler back to the ORM model, across files.
+- **workspace-symbols / document-symbols** — a structural index of every component/class/handler for the discovery pass, without hand-parsing.
+
+Where it does **not** help (still needs framework-aware reading):
+- The mapping facts live in **framework conventions on top of the AST** — decorator strings, router config objects, migration SQL. LSP tells you `createSupplier` is called in three places; it will not tell you it's `POST /suppliers`. Resolve method/path/route-binding/table-name yourself.
+- Dynamic routing, code-gen, metaprogramming, reflection — LSP resolves only what the compiler does, so these stay `Assumed`/open-question exactly as before.
+
+Cost note: standing up a language server per stack and indexing the whole repo is real infrastructure and a per-language matrix. For a first cut, **tree-sitter / ctags for enumeration + framework heuristics for semantics + ripgrep for call sites** gets ~80% with far less machinery; add LSP specifically when high-confidence cross-file reference resolution at scale is worth the setup.
 
 ---
 
@@ -79,6 +138,7 @@ Forward planning ignores `origin`; it just sees a normal unit to reuse and link 
 ## Integrity bar (same as forward planning)
 
 Run `tl-feature-planning`'s link-integrity check before finishing, plus these map-specific findings:
+- **Coverage:** every `context/map-coverage.md` row is `mapped` or `skipped`-with-a-note — no row left `pending`. A `skipped` row must have a matching finding below.
 - Code paths you saw but could not confidently map (dynamic routes, reflection, generated handlers) — list them, don't silently drop them.
 - Endpoints with no caller and no discoverable trigger — flag (may be dead code or an external caller).
 - Entities not referenced by any endpoint — flag as possible orphan/reference data.

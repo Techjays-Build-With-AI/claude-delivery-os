@@ -6,6 +6,37 @@ Slugs are **lowercase kebab-case**. IDs are stable and append-only: `PAGE-<AREA>
 
 ---
 
+## _overview.md (one per layer)
+
+`context/frontend/_overview.md`, `context/backend/_overview.md`, `context/database/_overview.md` — a short orientation doc at the head of each layer folder so a reader (or a coding agent) landing in the layer sees its stack and conventions **once**, and every unit file below stays lean instead of repeating them. Written by `tl-codebase-map` from the detected stack (reverse) or by `tl-feature-planning` from the confirmed architecture (forward); it holds no per-unit facts and never duplicates a unit.
+
+```md
+---
+doc_type: layer-overview
+schema_version: 1.1
+produced_by: tl
+layer: frontend        # frontend | backend | database
+generated_at: YYYY-MM-DD
+---
+
+# Frontend Overview
+
+## Stack
+React 18 + TypeScript, Vite. Routing: React Router v6. Data: React Query over an axios client (`src/api/`).
+
+## Conventions
+Pages under `src/pages/<area>/`; one route → one page component. Shared UI in `src/components/` (not mapped as pages).
+
+## Entry Points
+Router config: `src/router.tsx`. API base + interceptors: `src/api/client.ts`.
+
+## Notes
+<!-- backend: framework, routing style, auth model, ORM. database: engine, migration tool, schema location. -->
+Anything a unit file would otherwise have to restate — recorded here instead.
+```
+
+---
+
 ## page-index.md
 
 `context/frontend/page-index.md` — the map of all pages. One row per page. On re-runs update in place; keep retired pages visible with a status.
@@ -80,7 +111,7 @@ generated_at: YYYY-MM-DD
 | ENT-SUP-03 | supplier_documents | Table | DATA-006 | EP-SUP-04, EP-SUP-06 | ./entities/supplier-documents.md |
 ```
 
-**Kind**: `Table · Collection · View · Stored Procedure`. **Source DATA-###** links to the BA data-register; `—` if the entity is a pure technical object with no business-register counterpart (note why on the file).
+**Kind**: `Table · Collection · View · Stored Procedure · Function · Trigger`. **Source DATA-###** links to the BA data-register; `—` if the entity is a pure technical object with no business-register counterpart (note why on the file) — reverse-mapped functions and triggers usually have no `DATA-###` and that's expected.
 
 ---
 
@@ -260,7 +291,7 @@ ENT-SUP-01
 Proposed | Designed | In Development | Released | Blocked
 
 ## Kind
-Table | Collection | View | Stored Procedure
+Table | Collection | View | Stored Procedure | Function | Trigger
 
 ## Source Data Entity
 DATA-004 (ba-output/data-register.md) — the business entity this realises. `—` if none; note why.
