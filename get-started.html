@@ -259,6 +259,7 @@
       <span class="cmd-pill">/dev:validate</span>
       <span class="cmd-pill">/dev:fix-review</span>
       <span class="cmd-pill">/dev:pr</span>
+      <span class="cmd-pill">/dev:usage-eval</span>
       <span class="cmd-pill">/qa:audit</span>
       <span class="cmd-pill">/qa:plan</span>
       <span class="cmd-pill">/qa:setup</span>
@@ -537,6 +538,7 @@
       <span class="cmd-pill">/dev:validate</span>
       <span class="cmd-pill">/dev:fix-review</span>
       <span class="cmd-pill">/dev:pr</span>
+      <span class="cmd-pill">/dev:usage-eval</span>
     </div>
 
     <div class="note warn"><b>Needs the BA breakdown; plans TL for you; verifies against QA's gates.</b> The dev agent consumes the BA feature breakdown (<code>/ba:features</code>), so that must exist. TL planning is automatic: <code>/dev:build</code> opens with a <b>planning gate</b> that checks whether the feature is already split into pages/endpoints/entities and, if not, auto-plans it via <code>tl-feature-planning</code> before building. Its <b>test-harness gate</b> reads QA's <code>qa-output/quality-gates.md</code> to know how to verify — and routes to <code>/qa:audit → /qa:setup</code> if no harness exists yet (see the QA tab).</div>
@@ -615,6 +617,32 @@
     </table>
 
     <div class="note"><b>How it fits Delivery OS:</b> the dev agent is a <b>consumer</b> — it reads the BA feature folders, the TL <code>context/frontend|backend|database</code> graph, <code>shared-context/</code>, the BA registers, and QA's <code>quality-gates.md</code>, and never re-runs BA discovery or TL planning. It writes <code>produced_by: dev</code> files and mirrors feature state into the BA index using the shared vocabulary. Full guide: <code>plugins/dev/dev_readme.md</code>.</div>
+
+    <h3 class="step" style="margin-top:30px">Usage &amp; efficiency evaluation — <code>/dev:usage-eval</code></h3>
+    <p>A separate, opt-in capability bundled with the dev plugin — <b>independent of the delivery loop above</b>. Instead of building a feature, it evaluates <b>how efficiently you (or a teammate) drive Claude Code</b> and generates an interactive report card. It has two parts: <b>silent telemetry hooks</b> that quietly accumulate per-session activity in the background, and the <b>agentic evaluator</b> you invoke on demand.</p>
+    <div class="code"><button class="copy">Copy</button><pre><code><span class="cmt"># evaluate every recorded session and open the dashboard</span>
+/dev:usage-eval
+
+<span class="cmt"># scope it: recent sessions only, a single session, or don't auto-open the browser</span>
+/dev:usage-eval since=2026-07-01 limit=20
+/dev:usage-eval session=&lt;session-id&gt; no-open</code></pre></div>
+
+    <h4 class="sub">How it works</h4>
+    <div class="code"><button class="copy">Copy</button><pre><code>Hooks (silent, always on)            Evaluator (/dev:usage-eval)
+  UserPromptSubmit ┐                   Read ~/.claude/metrics/*.json
+  PreToolUse       ├─►  ~/.claude/     → Infer persona per session
+  Stop             ┘    metrics/*.json → Score upfront context + friction
+                                       → Adaptive 0–100 efficiency score
+                                       → Build & open ~/claude-usage-report.html</code></pre></div>
+
+    <div class="grid">
+      <div class="mini"><h4>Silent, non-blocking</h4><p>The hooks append normalized events to <code>~/.claude/metrics/&lt;session&gt;.json</code> and <b>fail silently</b> — they never slow or block a session. Only high-signal metadata is kept (event type, tool names, file paths, prompts); <b>code bodies and secrets are not stored</b>.</p></div>
+      <div class="mini"><h4>Persona-aware scoring</h4><p>Infers each session's role (Developer, BA, TL, QA, Sales/BD, PM) and grades <b>relative to that persona's best practices</b> — precise upfront context and tight turn counts score well; vague openers that force re-prompts don't.</p></div>
+      <div class="mini"><h4>Coaching, not surveillance</h4><p>Every strength and improvement is tied to something visible in the logs. The read is supportive and specific — good iteration on a hard problem isn't penalized; only avoidable, under-specified rework is.</p></div>
+      <div class="mini"><h4>What it generates</h4><p>A standalone dark-themed <code>~/claude-usage-report.html</code> — efficiency score, primary persona, key strengths, improvement areas, a grade-distribution chart, and per-session highlights with letter grades.</p></div>
+    </div>
+
+    <div class="note tip"><b>Telemetry starts at install.</b> The hooks only record on machines where the dev plugin is installed and <code>node</code> is on the PATH, so the report reflects sessions <i>after</i> install — not historical usage. Run a few normal Claude Code sessions first, then <code>/dev:usage-eval</code>. Click the <code>/dev:usage-eval</code> pill above for the full breakdown.</div>
   </section>
 
   <!-- ============ QA AGENT ============ -->
@@ -1185,6 +1213,29 @@
       ],
       when: "Run when a feature is implemented and validated but not yet handed off; usually /dev:build does this automatically.",
       example: "For FEAT-INV-01 it confirms all gates hold, writes a pr-summary describing the ingestion endpoint and its tests, and moves the feature to HUMAN_REVIEW. If coverage were below the floor, it would instead report exactly what is missing."
+    },
+    "dev:usage-eval": {
+      title: "Evaluate your Claude Code efficiency",
+      summary: "Reads silently-collected session telemetry and generates an interactive report scoring how efficiently you drive Claude Code — separate from the delivery loop.",
+      processes: [
+        "Reads the per-session logs the telemetry hooks accumulate in ~/.claude/metrics/.",
+        "Reconstructs each session's prompt, tool-use, and stop sequence.",
+        "Infers the persona per session (Developer, BA, TL, QA, Sales/BD, PM).",
+        "Judges upfront-context quality and avoidable re-prompt friction.",
+        "Computes an adaptive 0–100 score and builds the HTML dashboard."
+      ],
+      outputs: [
+        "A standalone dark-themed dashboard at ~/claude-usage-report.html.",
+        "An overall efficiency score, primary persona, strengths, and improvement areas.",
+        "Per-session letter grades with one-line feedback and a grade-distribution chart."
+      ],
+      covers: [
+        "Grades relative to each persona's best practices, not one absolute bar.",
+        "Stores only high-signal metadata — no code bodies or secrets — and never blocks a session.",
+        "Does not: evaluate the quality of Claude's answers, or change any code or delivery files."
+      ],
+      when: "Run after a few normal Claude Code sessions have been recorded; any time you want a usage read.",
+      example: "Across 8 recorded sessions it infers a Software Developer persona, scores 82/100, praises consistent @src path references and full stack traces in bug reports, flags vague \"fix this\" openers, and opens a dashboard with per-session A–C grades."
     },
     "qa:audit": {
       title: "Score a repo's test readiness",
