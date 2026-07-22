@@ -6,6 +6,5 @@
     "name": "Techjays",
     "email": "delivery@techjays.com"
   },
-  "hooks": "./hooks/hooks.json",
   "keywords": ["developer", "feature-delivery-loop", "implementation", "validation", "acceptance-criteria", "code-review", "security-review", "pull-request", "bootstrap", "sdlc", "usage-evaluation", "efficiency-score", "telemetry", "ai-adoption", "llm-as-a-judge"]
 }
