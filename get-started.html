@@ -643,6 +643,20 @@
     </div>
 
     <div class="note tip"><b>Telemetry starts at install.</b> The hooks only record on machines where the dev plugin is installed and <code>node</code> is on the PATH, so the report reflects sessions <i>after</i> install — not historical usage. Run a few normal Claude Code sessions first, then <code>/dev:usage-eval</code>. Click the <code>/dev:usage-eval</code> pill above for the full breakdown.</div>
+
+    <div class="note warn"><b>Prerequisite: Node.js must be installed and on your PATH.</b> Both the telemetry hooks and the report builder run on Node — without it, the hooks collect nothing and <code>/dev:usage-eval</code> can't render the dashboard. Verify with <code>node --version</code>; if it isn't found, install the LTS and restart your terminal / Claude Code so the PATH refreshes:
+      <div class="code" style="margin-top:10px"><button class="copy">Copy</button><pre><code><span class="cmt"># check first</span>
+node --version
+
+<span class="cmt"># Windows</span>
+winget install OpenJS.NodeJS.LTS      <span class="cmt"># or the installer from https://nodejs.org</span>
+
+<span class="cmt"># macOS</span>
+brew install node                     <span class="cmt"># or the installer from https://nodejs.org</span>
+
+<span class="cmt"># Linux</span>
+sudo apt install nodejs               <span class="cmt"># or nvm / the tarball from https://nodejs.org</span></code></pre></div>
+      The skill preflight-checks this for you: if Node is missing it stops with these exact steps instead of failing cryptically, and the telemetry hooks <b>skip silently</b> when Node isn't on the PATH — so you won't see repeated hook errors, you just won't collect telemetry until it's installed. This is the only extra dependency the dev plugin adds — the rest of the delivery-loop commands don't need it.</div>
   </section>
 
   <!-- ============ QA AGENT ============ -->
@@ -1235,6 +1249,7 @@
         "Does not: evaluate the quality of Claude's answers, or change any code or delivery files."
       ],
       when: "Run after a few normal Claude Code sessions have been recorded; any time you want a usage read.",
+      requires: "Node.js on your PATH — both the telemetry hooks and the report builder run on Node. Check with `node --version`; if missing, install the LTS (Windows: winget install OpenJS.NodeJS.LTS · macOS: brew install node · Linux: your package manager or nodejs.org) and restart Claude Code. The skill preflight-checks this and stops with setup steps if Node isn't found.",
       example: "Across 8 recorded sessions it infers a Software Developer persona, scores 82/100, praises consistent @src path references and full stack traces in bug reports, flags vague \"fix this\" openers, and opens a dashboard with per-session A–C grades."
     },
     "qa:audit": {
@@ -1590,6 +1605,7 @@
       html += sec("What you get", list(d.outputs));
       html += sec("What it covers", list(d.covers));
       html += sec("When to run it", "<p>" + esc(d.when) + "</p>");
+      if (d.requires) html += sec("Requirements", "<p>" + esc(d.requires) + "</p>");
       html += sec("Worked example", "<div class=\"modal-ex\">" + esc(d.example) + "</div>");
       mBody.innerHTML = html;
       modal.hidden = false;

@@ -18,6 +18,19 @@ You **grade the human's use of the tool**, not Claude's output and not the code.
 
 ## Workflow
 
+### 0. Preflight — verify Node.js is available
+
+The report builder (`scripts/build-dashboard.js`) and the telemetry hooks both run on **Node.js**, so confirm it's on the PATH before anything else. Run `node --version`.
+
+- **If it prints a version** (e.g. `v20.11.0`), continue to step 1.
+- **If it errors / is not found**, stop and tell the user Node.js is required but not installed (or not on the PATH), and that two things depend on it: the silent telemetry hooks that collect the data, and this report builder. Give them the quick setup, matched to their OS, and ask them to install it, **open a new terminal / restart Claude Code so the PATH refreshes**, then re-run `/dev:usage-eval`:
+  - **Windows:** `winget install OpenJS.NodeJS.LTS` — or download the LTS installer from https://nodejs.org.
+  - **macOS:** `brew install node` — or the LTS installer from https://nodejs.org.
+  - **Linux:** install `nodejs` via the distro package manager (e.g. `sudo apt install nodejs`), or use [nvm](https://github.com/nvm-sh/nvm), or the LTS from https://nodejs.org.
+  - Verify with `node --version` afterwards.
+
+  Do **not** try to work around a missing Node by other means. The one allowed fallback: if the user says they can't install Node right now but still wants the report, you may generate the dashboard HTML yourself with the `Write` tool — reproduce the same dark-themed layout (score, primary persona, strengths, improvement areas, per-session grades) from the payload and save it to `~/claude-usage-report.html` — and tell them the telemetry hooks still won't collect new data until Node is installed.
+
 ### 1. Read the telemetry
 
 List `~/.claude/metrics/` and read each `*.json` log. If the directory is missing or empty, tell the user no telemetry has been collected yet — the hooks record data as they use Claude Code, so they should run a few normal sessions first — and stop (don't fabricate a report). Respect any scope the command passed (e.g. a session id, a `since=<date>`, or a `limit=<n>` of most-recent sessions); otherwise evaluate all sessions.
