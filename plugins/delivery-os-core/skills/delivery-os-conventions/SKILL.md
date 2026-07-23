@@ -7,9 +7,11 @@ description: The Techjays Delivery OS shared document contract. Read this before
 
 This is the single source of truth that makes Delivery OS documents **shareable across agents and across weeks**. The BA Agent produces documents today; the Doc, TL, and QA agents consume them later. They only interoperate if every agent honors this contract.
 
-> **Contract version: 1.1.** Bump `schema_version` in document frontmatter and update this file together when the contract changes.
+> **Contract version: 1.2.** Bump `schema_version` in document frontmatter and update this file together when the contract changes.
 >
 > **1.1 (use-case model).** Made **use cases** first-class: added the `<MODULE>-UC-NN` id and `use-case-register.md`; the scope §3.x now carries a **§3.x.3 Master Flow** and a **§3.x.4 Use Cases** layer (renumbered through §3.x.11); added the **Mermaid diagram convention** (§8) where Mermaid is the living source and the Doc Agent's branded SVG swimlane is its projection. The change is **additive** — a `schema_version: 1.1` document remains readable; new documents are written at `1.1`.
+>
+> **1.2 (eval layer).** Added the applied-AI **eval** layer: the `EVAL-<AREA>-NN` id (§3), the `context/evals/` sub-tree (§1), and the *applied-AI / LLM feature* classification (§5) that gates it. The TL's `tl-feature-planning` **designs** eval units for AI-bearing features, the dev `feature-delivery-loop` **runs and inspects** them, and QA's harness hosts them — see the core **`eval-engineering`** skill. Additive — deterministic features are unaffected.
 
 ---
 
@@ -58,15 +60,18 @@ Every Delivery OS project lives under a **single named container folder** (so th
 │   ├── backend/
 │   │   ├── endpoint-index.md
 │   │   └── domains/<domain>/endpoints/<slug>.md # EP-<AREA>-NN
-│   └── database/
-│       ├── entity-index.md
-│       └── entities/<entity-slug>.md            # ENT-<AREA>-NN → DATA-###
+│   ├── database/
+│   │   ├── entity-index.md
+│   │   └── entities/<entity-slug>.md            # ENT-<AREA>-NN → DATA-###
+│   └── evals/                # TL eval design for applied-AI features — dev runs these
+│       ├── eval-index.md
+│       └── <feature-slug>/<eval-slug>.md        # EVAL-<AREA>-NN → verifies an AC, exercises EP-/ENT-
 ├── doc-output/                  # Doc Agent outputs (Phase 2) — created on demand
 ├── tl-output/                   # TL Agent outputs (Phase 3) — created on demand
 └── final/                       # approved, client-facing deliverables
 ```
 
-The `context/` tree is the shared implementation-context layer, distinct from each agent's private `*-output/`. The BA writes `context/features/`; the TL's `tl-feature-planning` skill writes the `frontend/`, `backend/`, and `database/` sub-trees and links them into a bidirectional graph (page → endpoint → entity, and back). It is created on demand by the first skill that writes to it — `init` does not pre-make it.
+The `context/` tree is the shared implementation-context layer, distinct from each agent's private `*-output/`. The BA writes `context/features/`; the TL's `tl-feature-planning` skill writes the `frontend/`, `backend/`, and `database/` sub-trees and links them into a bidirectional graph (page → endpoint → entity, and back), and — for **applied-AI features** — also designs the `evals/` sub-tree of runnable verifiers (see the core `eval-engineering` skill). It is created on demand by the first skill that writes to it — `init` does not pre-make it.
 
 ### Output-folder creation rule
 `/delivery-os:init` seeds only the BA-phase essentials — `shared-context/` and `ba-output/` — because the Business Analyst runs immediately after init. Every **downstream** agent creates its own output folder the first time it produces something: `tl-output/` on the first `/tl:review`, `doc-output/` on the first Doc run, `qa-output/` later. This is deliberate — it keeps a fresh workspace minimal and avoids empty, speculative folders for agents a given project may never use. An agent must therefore create its output folder if absent, never assume `init` made it.
@@ -146,6 +151,7 @@ IDs are the threads that let one agent cite what another produced. They are **ap
 | Page              | `PAGE-<AREA>` | PAGE-SUP-01 | context/frontend/ (tl)    |
 | Endpoint          | `EP-<AREA>`   | EP-SUP-02   | context/backend/ (tl)     |
 | Entity            | `ENT-<AREA>`  | ENT-SUP-01  | context/database/ (tl) — realises a `DATA-###` |
+| Eval              | `EVAL-<AREA>` | EVAL-SUP-01 | context/evals/ (tl) — verifies an AC, exercises EP-/ENT- (applied-AI features) |
 | QA finding        | `QAF`  | QAF-001  | qa-output/test-audit-*.md (qa)   |
 | Quality gate      | `QG`   | QG-001   | qa-output/quality-gates.md (qa)  |
 | Initiative        | *(human slug)* | payments-v2 | feature frontmatter + feature-index (ba) |
@@ -198,6 +204,9 @@ All agents use these exact values — no synonyms.
 **Priority** (`Pri.`, MoSCoW):
 `M` (Must) · `S` (Should) · `C` (Could) · `W` (Won't-this-phase)
 
+**Applied-AI / LLM feature** (does a feature need eval-engineering?):
+A feature is **AI-bearing** when its behaviour depends on a model's output — generation, classification/extraction, ranking or semantic search, RAG, or agentic tool use — or it declares `ai_component: true` / cites an `INT-###` to an LLM/AI provider. AI-bearing features get an **eval layer** (`context/evals/`, `EVAL-<AREA>-NN`, see the `eval-engineering` skill); every other feature is **deterministic** and is proven by the dev acceptance-map alone. When it's genuinely unclear, record an **open question** rather than assuming — don't skip evals on a feature that turns out to be AI-bearing, or invent them for one that isn't.
+
 ---
 
 ## 6. Producer / consumer map
@@ -214,6 +223,7 @@ All agents use these exact values — no synonyms.
 | `ba-output/data-register.md`         | ba          | tl                 |
 | `context/features/*`                 | ba          | tl, doc, qa        |
 | `context/frontend/*` `context/backend/*` `context/database/*` | tl (feature-planning forward, or codebase-map reverse for brownfield) | tl (spec-review), doc, qa, coding |
+| `context/evals/*` (applied-AI features) | tl (feature-planning designs) | dev (feature-delivery-loop runs + inspects), qa (harness hosts) |
 | `doc-output/*`                       | doc         | human, final       |
 | `tl-output/*`                        | tl          | human, delivery    |
 | `qa-output/quality-gates.md`         | qa          | dev (readiness gate + dev-validation) |

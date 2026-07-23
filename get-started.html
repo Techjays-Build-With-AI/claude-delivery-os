@@ -120,6 +120,7 @@
   .pill-tag { display: inline-block; font-size: 11px; font-weight: 800; text-transform: uppercase;
     letter-spacing: .03em; padding: 2px 9px; border-radius: 999px; color: #fff; }
   .tag-mvp { background: var(--ok); } .tag-soon { background: var(--muted); }
+  .tag-adopt { background: var(--accent); }
 
   footer { border-top: 1px solid var(--border); margin-top: 40px; padding: 24px 20px; text-align: center;
     color: var(--muted); font-size: 13px; }
@@ -190,6 +191,7 @@
   <nav class="tabbar" role="tablist" aria-label="Sections">
     <button class="tab-btn" role="tab" aria-selected="true"  data-tab="general">Get Started</button>
     <button class="tab-btn" role="tab" aria-selected="false" data-tab="how">How It Works</button>
+    <button class="tab-btn" role="tab" aria-selected="false" data-tab="skills">Leveraged Skills</button>
     <button class="tab-btn" role="tab" aria-selected="false" data-tab="core">Core <span class="ns">/delivery-os</span></button>
     <button class="tab-btn" role="tab" aria-selected="false" data-tab="jetrix">Jetrix <span class="ns">/jetrix</span></button>
     <button class="tab-btn" role="tab" aria-selected="false" data-tab="ba">BA Agent <span class="ns">/ba</span></button>
@@ -385,6 +387,58 @@
     </table>
 
     <div class="note tip"><b>The short version:</b> BA answers <i>what</i>, TL answers <i>which pages/APIs/entities</i>, QA answers <i>what "verified" means</i>, Dev answers <i>the working, validated code</i>, and Doc presents it to the client. Each consumes the previous one's output and never re-does it. Greenfield adds a one-time TL scaffold + QA setup; brownfield skips the scaffold and leans on the initiative to keep parallel work separate.</div>
+
+    <div class="note"><b>Under the agents: leveraged skills.</b> Each agent runs on <b>skills</b> — and some are vendored from the community rather than written in-house, like LangChain's eval-engineering method that the TL and Dev agents use to plan and verify AI features. See the <b>Leveraged Skills</b> tab for what we build on and how.</div>
+  </section>
+
+  <!-- ============ LEVERAGED SKILLS ============ -->
+  <section class="panel" id="skills" role="tabpanel">
+    <h2 class="section">Leveraged skills</h2>
+    <p class="lead">Delivery OS agents are built on <b>skills</b> — portable, self-contained instruction packs (a <code>SKILL.md</code> plus optional <code>references/</code>) that an agent loads on demand. Where a vendor or the community has already published a best-in-class skill for a hard sub-problem, we <b>leverage it</b> — vendoring or adapting it into the plugin that needs it, with attribution — instead of reinventing it. This page lists the external skills we build on and exactly how each is used.</p>
+
+    <div class="note"><b>What "leveraging a skill" means here.</b> A skill is Claude Code's unit of reusable expertise: a folder with a <code>SKILL.md</code> (the method) and optional <code>references/</code>. Our agents already run on our own skills — <code>tl-feature-planning</code>, <code>feature-delivery-loop</code>, <code>qa-quality-gates</code>, and more. A <i>leveraged</i> skill is an external one we pull into that same mechanism: it lives under a plugin's <code>skills/</code>, keeps a pointer to its upstream source, and an agent invokes it by name at the right step in the flow.</div>
+
+    <h4 class="sub">Skills we build on</h4>
+    <table class="tbl">
+      <thead><tr><th>Skill</th><th>Source</th><th>Used by</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><b>Eval Engineering</b><br><span style="color:var(--muted)">design runnable verifiers/evals for AI behaviour</span></td>
+          <td>LangChain — <a href="https://www.langchain.com/blog/towards-automating-eval-engineering" target="_blank" rel="noopener">Towards automating eval engineering</a></td>
+          <td><code>/tl:plan</code> · <code>/dev:build</code></td>
+          <td><span class="pill-tag tag-adopt">Adopting</span></td>
+        </tr>
+        <tr>
+          <td><b>Document skills</b><br><span style="color:var(--muted)">docx · pdf extraction &amp; authoring</span></td>
+          <td>Anthropic — first-party skills bundled with Claude Code</td>
+          <td><code>/tl:review</code> reads <code>.docx</code>/<code>.pdf</code> specs</td>
+          <td><span class="pill-tag tag-mvp">In use</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3 class="step" style="margin-top:26px">LangChain — Eval Engineering</h3>
+    <p><b>What it is.</b> An approach (and skill) from LangChain for <b>building the tests that measure an AI agent</b>. Rather than eyeballing whether an LLM feature "seems right," it produces executable <b>evals</b> — each pairing an <code>instruction</code> (the task), an <code>environment</code> (the tools and data it runs against), and a <code>verifier</code> (a scorer that decides pass/fail). It inspects the codebase and, where available, real production traces to find where an agent fails, turns each failure into an eval, and runs a tight <b>mine&nbsp;→&nbsp;build an eval&nbsp;→&nbsp;improve the agent&nbsp;→&nbsp;rerun</b> loop. A constant theme is guarding against <b>reward hacking</b> — the agent satisfying the verifier without doing the work (claiming an action it never took, over-citing irrelevant sources, exploiting exposed answers). Read the write-up: <a href="https://www.langchain.com/blog/towards-automating-eval-engineering" target="_blank" rel="noopener">langchain.com/blog/towards-automating-eval-engineering</a>.</p>
+
+    <div class="note"><b>Why we leverage it.</b> Our TL <code>/tl:review</code> already scores an <i>Evaluation strategy</i> area for applied-AI specs — but scoring a plan is not the same as <i>producing runnable verifiers</i>. LangChain's eval-engineering method is that missing piece: it turns "this feature uses an LLM" into concrete, rerunnable evidence of whether the behaviour is correct. So rather than write our own eval methodology from scratch, we adopt theirs into the two agents that plan and build.</div>
+
+    <h4 class="sub">How Delivery OS uses it — TL designs, Dev runs, QA is the infra</h4>
+    <div class="grid">
+      <div class="mini"><h4>TL — plan the evals <span style="color:var(--muted)">/tl:plan</span></h4><p>For a feature with an <b>LLM/AI component</b>, feature planning adds an eval layer to the technical context graph: for each AI-driven acceptance criterion it designs an eval unit (instruction · environment · verifier), decides which tool calls run <b>live vs. simulated</b> (paid or prod-writing calls get simulated), flags reward-hacking risks, and logs the design as a <code>DEC-###</code>.</p></div>
+      <div class="mini"><h4>Dev — run &amp; inspect <span style="color:var(--muted)">/dev:build</span></h4><p>In the delivery loop's <code>TESTING</code> phase the dev agent <b>materializes those evals into runnable verifiers</b>, runs them as first-class checks feeding the acceptance map, and <b>inspects both sides</b> — the agent's trajectory and the verifier's result — to catch shortcuts before calling a criterion passed. Failures iterate through the existing bounded repair loop.</p></div>
+      <div class="mini"><h4>QA — the harness <span style="color:var(--muted)">/qa:setup</span></h4><p>QA still owns the test infrastructure and the <code>quality-gates.md</code> contract. Evals plug into it as another gate type — TL designs the eval, Dev runs it, QA's harness is what it runs on. No agent's ownership changes.</p></div>
+    </div>
+
+    <div class="note tip"><b>Our adoption is hybrid and scoped.</b> We <b>adapt the method natively</b> so it's stack-agnostic and needs no LangSmith or Docker to work — with an <b>optional Harbor / LangSmith export</b> for teams that do run that stack (trace mining via <code>langsmith-cli</code>, Harbor task output). And it's <b>gated to applied-AI / LLM features</b>: deterministic CRUD features keep the normal acceptance-map flow, so we only pay the eval-engineering cost where non-deterministic behaviour actually needs it.</div>
+
+    <div class="note warn"><b>Status: adopting.</b> Eval-engineering is being folded into <code>tl-feature-planning</code> and <code>feature-delivery-loop</code> now — it applies to AI/LLM features and layers on top of today's flow without changing how non-AI features are planned or built. The <i>Evaluation strategy</i> scoring in <code>/tl:review</code> is already live.</div>
+
+    <h4 class="sub">Credits &amp; references</h4>
+    <ul class="clean">
+      <li>LangChain — <a href="https://www.langchain.com/blog/towards-automating-eval-engineering" target="_blank" rel="noopener">Towards automating eval engineering</a> — the eval-engineering method and the Harbor task format (instruction · environment · verifier).</li>
+      <li>Anthropic — Claude Code <a href="https://code.claude.com" target="_blank" rel="noopener">skills &amp; plugins</a> — the <code>SKILL.md</code> model every plugin here builds on, plus the bundled document skills.</li>
+    </ul>
+    <div class="note"><b>Attribution.</b> Leveraged skills keep a pointer to their upstream source in the skill folder. We adapt the method and structure to the Delivery OS document contract; credit for the original approach stays with its authors.</div>
   </section>
 
   <!-- ============ CORE ============ -->
@@ -524,6 +578,21 @@
     <p>The agent adjudicates each answer, gives the exact scope edit, promotes confirmed answers into the scope and registers (decisions, assumptions, clarifications), recomputes the feature scores and verdict, and writes a new round. Repeat until no questions remain.</p>
 
     <div class="note tip"><b>Verdicts:</b> Scope-ready → Estimate with caveats → Significant gaps (clarify before estimate) → Not scope-ready. Any unresolved <b>Blocker</b> caps the verdict — resolving it lifts the cap.</div>
+
+    <h3 class="step">Break scope into features — <code>/ba:features</code></h3>
+    <p>Once the scope is stable, this decomposes it into an <b>implementation-ready set of feature folders</b> — the handoff to the whole build team (TL, QA, Dev). It reads the scope and its registers, groups the run under a named <b>initiative</b> (work-batch), and splits the capabilities into independently understandable features, each traced back to the scope.</p>
+    <div class="code"><button class="copy">Copy</button><pre><code><span class="cmt"># decompose the scope into features under one initiative</span>
+/ba:features initiative=payments-v2
+
+<span class="cmt"># or point at a specific scope document</span>
+/ba:features docs/acme-scope.md initiative=reporting-v2</code></pre></div>
+    <div class="grid">
+      <div class="mini"><h4>Seven files per feature</h4><p>Each <code>context/features/&lt;slug&gt;/</code> holds <code>feature.md</code>, <code>implementation-plan.md</code>, <code>workflow.md</code>, <code>acceptance-criteria.md</code>, <code>dependencies.md</code>, <code>open-questions.md</code>, and <code>status.md</code>.</p></div>
+      <div class="mini"><h4>Stable ids + a feature-index</h4><p>Every feature gets a <code>FEAT-&lt;AREA&gt;-NN</code> id and a row in <code>feature-index.md</code>, stamped with its initiative so parallel batches stay sortable.</p></div>
+      <div class="mini"><h4>Carries the use-case flows</h4><p>Pulls the pages, APIs, workflows, data, and integrations the scope implies into each feature, wiring cross-feature dependencies.</p></div>
+      <div class="mini"><h4>Never guesses</h4><p>Marks uncertainties as open questions rather than inventing product behaviour, schemas, or API contracts — those stay the TL's job.</p></div>
+    </div>
+    <div class="note tip"><b>Where it sits:</b> run it after the scope is solid (<code>/ba:scope</code> → <code>/ba:review</code> → <code>/ba:resolve</code>), and before <code>/tl:plan</code> and <code>/dev:build</code>. The <b>initiative</b> name you give here is the same one TL and Dev filter by, so each developer's batch stays isolated in the shared <code>context/features/</code>.</div>
   </section>
 
   <!-- ============ DEV AGENT ============ -->
@@ -578,6 +647,8 @@
       <div class="mini"><h4>Bounded repair loop</h4><p>3 focused fixes per failure, 2 broad validation cycles, 2 plans per feature — then it escalates instead of retrying blindly.</p></div>
       <div class="mini"><h4>Escalates, never guesses</h4><p>Ambiguous rules, schema/data-loss risk, unclear authz, unavailable dependencies, and security concerns become a structured, decision-ready note.</p></div>
     </div>
+
+    <div class="note tip"><b>Evals for AI features <span class="pill-tag tag-adopt">Adopting</span></b> — when a feature has an LLM/AI component, the loop also <b>runs and inspects the evals the TL designed</b> (LangChain's eval-engineering method) as part of validation, guarding against an agent that satisfies a check without doing the work. Deterministic features are unaffected. See the <b>Leveraged Skills</b> tab.</div>
 
     <h4 class="sub">The state model</h4>
     <p>Each feature moves through explicit states — the fine-grained state lives in <code>dev/delivery-status.md</code> and is mirrored into the BA <code>feature-index.md</code>/<code>status.md</code>:</p>
@@ -728,6 +799,24 @@ sudo apt install nodejs               <span class="cmt"># or nvm / the tarball f
       <span class="cmd-pill">/tl:maturity</span>
     </div>
 
+    <h3 class="step" style="margin-top:26px">Plan features into the context graph — <code>/tl:plan</code></h3>
+    <p>The TL's <b>authoring</b> job — and the handoff the Dev agent builds from. It turns the BA feature breakdown into a <b>technical context graph</b>: each feature is mapped to the <b>frontend pages</b>, <b>backend endpoints</b>, and <b>database entities</b> it needs, and every unit is wired to its neighbours in <b>both directions</b> so a coding agent can land on any node and traverse the whole design. Its defining rule is <b>reuse, not duplication</b> — it checks the per-layer indexes before creating anything, so a shared endpoint or table is one file with many back-links, never a copy per feature.</p>
+    <div class="code"><button class="copy">Copy</button><pre><code><span class="cmt"># plan one feature</span>
+/tl:plan context/features/invoice-ingestion
+
+<span class="cmt"># or plan a whole initiative (batch) at once</span>
+/tl:plan initiative=payments-v2</code></pre></div>
+    <div class="grid">
+      <div class="mini"><h4>Three linked layers</h4><p>Pages (<code>PAGE-&lt;AREA&gt;-NN</code>) → endpoints (<code>EP-&lt;AREA&gt;-NN</code>) → entities (<code>ENT-&lt;AREA&gt;-NN</code>), each a self-contained unit file under <code>context/frontend|backend|database</code>, wired forward and back.</p></div>
+      <div class="mini"><h4>Reuse over duplication</h4><p>Matches pages by route, endpoints by <code>METHOD&nbsp;+&nbsp;path</code>, entities by object name against the three layer indexes — reuses and extends what exists instead of minting a duplicate.</p></div>
+      <div class="mini"><h4>Design authority, grounded</h4><p>Defines request/response shapes and entity columns (the TL's job), but grounds each in the feature and BA registers, marks inferred design by confidence, and turns real unknowns into open questions.</p></div>
+      <div class="mini"><h4>Traceable &amp; checked</h4><p>Entities cite the BA <code>DATA-###</code>, integrations cite <code>INT-###</code>; material choices are logged as <code>DEC-###</code>; a <b>link-integrity check</b> flags any dangling link or orphan before it finishes.</p></div>
+    </div>
+    <div class="note"><b>Output:</b> the <code>context/frontend|backend|database</code> unit files plus their three layer indexes (<code>page-index.md</code>, <code>endpoint-index.md</code>, <code>entity-index.md</code>). Re-run it when a feature changes — it updates in place, preserves existing back-links, and never duplicates a shared unit.</div>
+    <div class="note tip"><b>You can skip running it by hand.</b> <code>/dev:build</code>'s planning gate auto-runs <code>/tl:plan</code> on a feature that isn't planned yet, so the graph is guaranteed before the dev loop implements against it. Run it yourself when you want to review the design before building. On <b>brownfield</b>, run <code>/tl:map</code> first so planning reuses the as-built units.</div>
+
+    <div class="note tip"><b>Eval-aware planning <span class="pill-tag tag-adopt">Adopting</span></b> — for features with an LLM/AI component, <code>/tl:plan</code> also designs the <b>evals</b> that will later verify them, adopting LangChain's <a href="https://www.langchain.com/blog/towards-automating-eval-engineering" target="_blank" rel="noopener">eval-engineering</a> method (instruction · environment · verifier). The dev loop then runs them. See the <b>Leveraged Skills</b> tab.</div>
+
     <h3 class="step" style="margin-top:26px">Review a spec — <code>/tl:review</code></h3>
     <p>Point it at any spec / architecture / HLD / SRS document (<code>.md</code>, <code>.docx</code>, or <code>.pdf</code>). A workspace is optional — it works standalone.</p>
     <div class="code"><button class="copy">Copy</button><pre><code>/tl:review docs/support-copilot-spec.md</code></pre></div>
@@ -855,6 +944,20 @@ sudo apt install nodejs               <span class="cmt"># or nvm / the tarball f
       <div class="mini"><h4>Before / after + efficiency</h4><p>Per-phase value panel: current pain → AI solution, with the hours saved called out.</p></div>
     </div>
     <div class="note tip"><b>Viewing:</b> open <code>doc-output/[CLIENT]-[TOPIC]-[date].html</code>; the sidebar jumps to each phase. Drafted from <code>ba-output/scope.md</code> + <code>workflow-register.md</code> when a workspace exists; real numbers only, unknowns flagged as placeholders.</div>
+
+    <h3 class="step">Turn a spec into a walkthrough — <code>/doc:walkthrough</code></h3>
+    <p>Renders a specification (or scope) as an <b>interactive, example-driven walkthrough</b>: a top <b>state-overview diagram</b> with hover and click-to-trace, then one <b>drill-down section per module</b> with its own diagram and a worked example using the spec's real IDs and values. The best way to make a dense spec navigable for a client or a build team.</p>
+    <div class="code"><button class="copy">Copy</button><pre><code><span class="cmt"># walk through a spec document</span>
+/doc:walkthrough docs/invoicing-spec.md
+
+<span class="cmt"># or a topic, drafted from the BA scope when present</span>
+/doc:walkthrough topic="Claims intake state machine"</code></pre></div>
+    <div class="grid">
+      <div class="mini"><h4>Overview + per-module drill-down</h4><p>Models the spec's state machine, modules, catalog, and success criteria — an overview state diagram plus one section per module, each with a diagram and a worked example.</p></div>
+      <div class="mini"><h4>Every transition traced</h4><p>Includes branch and failure edges, not just the happy path; clicking a state highlights its transitions.</p></div>
+      <div class="mini"><h4>Real values, no fabrication</h4><p>Worked examples use the spec's real IDs and numbers; anything missing is marked as a placeholder rather than invented.</p></div>
+    </div>
+    <div class="note tip"><b>Viewing:</b> open the timestamped self-contained file in <code>doc-output/</code> — it QA-checks in a browser before writing. Use it to present a spec or scope as a navigable, example-driven story.</div>
   </section>
 
   <!-- ============ NEXT ============ -->
@@ -874,6 +977,7 @@ sudo apt install nodejs               <span class="cmt"># or nvm / the tarball f
       <li>BA guide: <code>plugins/ba/ba_readme.md</code> · Dev guide: <code>plugins/dev/dev_readme.md</code> · QA guide: <code>plugins/qa/qa_readme.md</code> · TL guide: <code>plugins/tl/tl_readme.md</code> · Doc guide: <code>plugins/doc/doc_readme.md</code></li>
       <li>Document contract: <code>plugins/delivery-os-core/skills/delivery-os-conventions/</code></li>
       <li>Jetrix sync contract: <code>plugins/jetrix/skills/jetrix-sync/</code></li>
+      <li>Leveraged skills: LangChain <a href="https://www.langchain.com/blog/towards-automating-eval-engineering" target="_blank" rel="noopener">eval engineering</a> — see the <b>Leveraged Skills</b> tab.</li>
     </ul>
   </section>
 
