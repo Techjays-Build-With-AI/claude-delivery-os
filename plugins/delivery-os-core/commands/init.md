@@ -1,49 +1,94 @@
 ---
-description: Scaffold a new Techjays Delivery OS project workspace — creates ONE named container folder with a README manifest, a living intake.index.md source registry, and the shared-context/ba-output/final structure. Does NOT create a rigid raw-artifacts taxonomy; sources are added later via /ba:scope.
-argument-hint: "<project-name>"
+description: Scaffold the Delivery-OS output workspace as a named container inside the current directory. Folder name comes from `.jetrix/project.json` (Solution slug) if `/jetrix:init` has run; otherwise pass a `<name>` argument. Creates `./<name>/` with `ba-output/`, `artifacts/`, `context/`, `shared-context/` (with seeded templates), `tl-output/`, `qa-output/`, `dev-output/`, `doc-output/`. Sibling of `.jetrix/` at workspace root — matches the delivery-os get-started model ("single container folder per project"). Does NOT touch Jetrix.
+argument-hint: "[<name>]"
 ---
 
-# Initialize a Delivery OS project workspace
+# /delivery-os:init
 
-You are scaffolding a new Delivery OS project. **Everything goes under one named container folder** so the user can see exactly what Delivery OS created (and delete one folder for a clean slate). Read the `delivery-os-conventions` skill first if it is not already in context.
+Scaffold the Delivery-OS project workspace as a named container at `<workspace>/<name>/`. Sits **sibling** to `.jetrix/` at workspace root:
 
-## Inputs
-- `$ARGUMENTS` should be the project/container name (e.g. `acme-invoice-processing`).
-- If `$ARGUMENTS` is empty, **ask the user for a name — do NOT scaffold into the current directory** (that pollutes the root). Suggest a kebab-case name from the client/project if you can infer one.
+```
+<workspace>/
+├── .jetrix/                    ← (optional, from /jetrix:init)
+└── <name>/                     ← this command creates this
+    ├── ba-output/
+    ├── artifacts/
+    ├── context/
+    ├── shared-context/
+    ├── tl-output/
+    ├── qa-output/
+    ├── dev-output/
+    └── doc-output/
+```
 
-## Steps
+Read the `delivery-os-conventions` skill first if it's not already in context.
 
-1. **Resolve the container.** The workspace root is `./<project-name>/`. If a folder of that name already contains a Delivery OS workspace (a `README.md` with our manifest marker or an existing `intake.index.md`), do **not** overwrite — report what exists and stop unless the user asks to proceed. Creating into a brand-new folder is the normal path.
+## 1. Resolve the container name
 
-2. **Create the structure** (and nothing else — no `raw-artifacts/`, no pre-made categories):
-   ```text
-   <project-name>/
-   ├── README.md
-   ├── intake.index.md
-   ├── artifacts/            (empty; add a .gitkeep — categories are created later by intake)
-   ├── shared-context/
-   ├── ba-output/
-   │   └── intake-runs/      (empty; add a .gitkeep)
-   └── final/                (empty; add a .gitkeep)
-   ```
+The name for the new folder comes from one of these, in order:
 
-3. **Seed files from the bundled templates** at `${CLAUDE_PLUGIN_ROOT}/templates/`. Write each into the container only if it does not already exist, and stamp `generated_at` to today + `status: Draft`:
+1. **`.jetrix/project.json` exists** (workspace already bound via `/jetrix:init`) → use `solutionSlug` from that file. **No argument needed.** This is the standard path.
+2. **`$ARGUMENTS` provided** → use it as the name (kebab-case recommended). Standalone / no-Jetrix mode.
+3. **Neither** → ask the teammate for a name. Do NOT scaffold into cwd itself (that pollutes the parent).
 
-   | Template | Destination |
-   |---|---|
-   | `workspace-readme.md` | `<project-name>/README.md` |
-   | `intake.index.md` | `<project-name>/intake.index.md` |
-   | `shared-context/project-profile.md` | `<project-name>/shared-context/project-profile.md` |
-   | `shared-context/glossary.md` | `<project-name>/shared-context/glossary.md` |
-   | `shared-context/stakeholder-map.md` | `<project-name>/shared-context/stakeholder-map.md` |
-   | `shared-context/system-landscape.md` | `<project-name>/shared-context/system-landscape.md` |
-   | `shared-context/decision-log.md` | `<project-name>/shared-context/decision-log.md` |
+## 2. Resolve target path
 
-   The `ba-output/` register files are created by the BA Agent on first intake — the workspace starts clean. **Do not pre-create downstream agent output folders** (`tl-output/`, `doc-output/`, `qa-output/`): by design each downstream agent creates its own output folder the first time it runs, so a fresh workspace has no empty folders for agents that may never be used (see the `delivery-os-conventions` *Output-folder creation rule*). `init` scaffolds only `shared-context/` and `ba-output/`.
+`<target>` = `<cwd>/<name>/`.
 
-4. **Report.** Print the exact tree you created, note that **original source files are never moved or copied** (Delivery OS only indexes and summarizes them), and give the next step:
-   > Add your sources in one line, e.g.:
-   > `/ba:scope add "meeting transcripts in <folder or Drive link>, client requirements in <folder or Drive link>, historical invoices in <folder> for reference only"`
-   > The agent will classify each, generate summaries under `artifacts/`, register them in `intake.index.md`, and build the scope.
+**Rerun handling:**
 
-Keep it idempotent — re-running must never clobber existing work.
+- If `<target>/` exists AND contains a `ba-output/` folder or seeded `shared-context/*.md` → treat as an existing Delivery-OS container. Fill in only missing pieces; never clobber existing files.
+- If `<target>/` exists but has NO Delivery-OS markers → report *"Folder `<name>` already exists but doesn't look like a Delivery-OS workspace. Continue anyway? [y/n]"*.
+
+## 3. Create the folder tree
+
+Under `<target>/`, create (all idempotent — never overwrite existing files):
+
+```
+<target>/
+├── ba-output/                          (empty; .gitkeep)
+├── artifacts/                          (empty; .gitkeep)
+├── context/
+│   ├── features/                       (empty; .gitkeep)
+│   ├── frontend/pages/                 (empty; .gitkeep)
+│   ├── backend/domains/                (empty; .gitkeep)
+│   ├── database/entities/              (empty; .gitkeep)
+│   └── project/                        (empty; .gitkeep)
+├── shared-context/
+│   ├── project-profile.md              (seeded)
+│   ├── glossary.md                     (seeded)
+│   ├── stakeholder-map.md              (seeded)
+│   ├── system-landscape.md             (seeded)
+│   └── decision-log.md                 (seeded)
+├── tl-output/                          (empty; .gitkeep)
+├── qa-output/                          (empty; .gitkeep)
+├── dev-output/                         (empty; .gitkeep)
+└── doc-output/                         (empty; .gitkeep)
+```
+
+Seed `shared-context/` templates from `${CLAUDE_PLUGIN_ROOT}/templates/shared-context/`. Stamp `generated_at: <today>` and `status: Draft` on each. Skip files that already exist.
+
+## 4. Report
+
+Print the tree that now exists. Note that original source files are never moved or copied — Delivery-OS only indexes and summarizes them. Give the next step:
+
+```
+✓ Delivery-OS workspace scaffolded.
+
+Container:  ./<name>/
+Sibling of: .jetrix/  (Jetrix wiring, if bound)
+
+Layout:
+  <name>/ba-output/, artifacts/, context/, shared-context/ (5 seeded templates),
+        tl-output/, qa-output/, dev-output/, doc-output/
+
+Next:
+  cd <name>
+  BA:  /ba:scope  →  /ba:features
+  TL:  /tl:map (brownfield)  or  /tl:scaffold (greenfield)
+  QA:  /qa:audit
+  Dev: /dev:build FEAT-<n>
+  Doc: /doc:proposal / /doc:magic-board / /doc:walkthrough / /doc:workflow
+```
+
+Keep it idempotent — re-runs never clobber existing work; they only fill in missing pieces.
