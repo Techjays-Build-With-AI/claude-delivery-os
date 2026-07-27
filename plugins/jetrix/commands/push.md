@@ -689,6 +689,34 @@ Result of step (c): three lists of file paths — `PAGES`, `ENDPOINTS`, `ENTITIE
 
 Preserve unit-file cross-references (relative paths like `../../../../database/entities/*.md` and ID mentions like `EP-INTK-02`) verbatim. Dev-agent resolves them locally at build time — they're the "external contracts" this feature depends on.
 
+> ### ⚠ HARD LIMIT — `implementationDetails` is capped at 60,000 characters
+>
+> Mission Control enforces this with its own Joi validator on the Task model. An over-length payload is **rejected outright** — the response is `{ok: false, updated: 0, error: "update_task failed: \"implementationDetails\" length must be less than or equal to 60000 characters long"}` and **nothing is written**. `feature_upsert_bundle` writes the same field and fails identically, so it is not a workaround.
+>
+> **A fully-inlined feature routinely exceeds this.** Measured on a 7-feature module: 70k–126k per feature, with only the smallest fitting. Entity bodies are the dominant cost (37k–54k per feature) *and* are massively duplicated — a single 10k shared entity gets inlined into every feature that touches it.
+>
+> **Always measure before composing.** Sum the body sizes (file size minus frontmatter) of the plan + resolved units. If the total approaches 60,000, degrade in this order, and **never by truncating a body**:
+>
+> 1. **Entity bodies → manifest.** Biggest saving, smallest loss: the entity files live in the same repo the dev agent builds in, and this doc already treats cross-references as contracts the dev agent resolves locally. Emit a table instead — `Entity ID | Collection | Owner feature | State (net-new-planned vs as-built-with-planned-additions) | Repo path | Critical note`. The note **must** carry any blocking warning verbatim in substance (e.g. "`employeeRef`/`roleOnProject`/`isActive` do not exist today; OQ-APPR-01 blocking"). Order blocking-first.
+> 2. **Blocked-endpoint bodies → manifest.** Only if still over. Endpoints marked `status: Blocked` must not be built anyway, so a row of `Endpoint ID | Trigger/Path | Blocker | Owner | Repo path` carries the actionable signal. Never manifest a `Designed` endpoint — that is the buildable spec.
+> 3. **Stop and escalate.** If plan + pages + Designed endpoints alone exceed 60,000, do NOT truncate. Report the number and let a human decide (raise the MC cap, or split the feature).
+>
+> **Never** cut the "Proposed Additive Fields (planned — NOT as-built)" sections, `Blocked` markers, confidence labels, or open questions to make something fit. Those exist precisely to stop a dev agent building against fields that don't exist; dropping them to save bytes causes the exact failure the TL graph was designed to prevent.
+
+> ### ⚠ CRLF — strip frontmatter safely on Windows
+>
+> Delivery-OS `.md` files are CRLF. A frontmatter strip that compares a line to `---` silently fails against `---\r`, leaving `doc_type:` / `schema_version:` / `produced_by:` metadata in the payload where it reads as spec content. Normalise line endings **before** stripping:
+>
+> ```python
+> s = io.open(path, encoding='utf-8', newline='').read().replace('\r\n', '\n')
+> if s.startswith('---\n'):
+>     end = s.find('\n---\n', 3)
+>     if end != -1:
+>         s = s[end + 5:]
+> ```
+>
+> Verify the composed payload contains zero `\r` and zero leaked frontmatter keys before pushing.
+
 **(e) Compute hash + skip decision**:
 - Compute sha256 of the FULL concatenated string (not just implementation-plan.md).
 - Skip if `sync-state.json[tasks/<feature_id>].implementation_hash === new hash`. This means any change to any owned unit file re-triggers a push.
@@ -715,6 +743,12 @@ mcp__task-mcp__feature_update_implementation(
 Response per feature: `{slug, feature_id, task_object_id, task_number, version, ok}`.
 
 Missing `task_object_id` returns `{ok: false, error: "…run /jetrix:push feature first"}` — the tool never creates tasks.
+
+**ALWAYS check the per-feature `ok` field — never infer success from the call returning.** A rejected write still returns a normal-looking response envelope with `updated: 0` and `ok: false` on the individual row. Report `ok:false` rows as failures and leave their sync-state untouched so the next push retries them.
+
+> **Known task-mcp defects (as of 2026-07-27) — do not misread these as your own failure:**
+> - **Read tools return empty for tasks that demonstrably exist.** `feature_pull_bundle`, `feature_list_bundle` and `get_task_by_id_or_number` all return nothing for a Solution whose tasks are writable by object id; a raw-oid lookup fails upstream with `"Please select a solution to continue"`, suggesting a missing solution-context header on the read path. **Do not use a read tool to verify a push, and do not treat an empty read as evidence the write failed.** Verify from the write response's `ok`/`updated`/`task_number` instead — `task_number` is echoed from the stored record, so its presence proves the task was found.
+> - **`version` comes back `null`** on every write, where scope-mcp and context-mcp both return an integer. Does not appear to affect the write; record `null` in sync-state rather than inventing a number.
 
 ### 5. Update sync-state
 
