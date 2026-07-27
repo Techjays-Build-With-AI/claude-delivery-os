@@ -331,12 +331,14 @@ To resolve the env list, call `project-mcp.project_get_env_configs(project_id)` 
 
 Legacy `--baseline` is still accepted as an alias for "push to the last env in the chain."
 
-### 2. Walk all context files — Bash only
+### 2. Collect the 3 index files — Bash only
 
-Walk the 3 architecture indexes AND every per-unit file `/tl:plan` wrote
-under `context/{frontend,backend,database}/`. The per-unit files (one per
-page, endpoint, entity) hold the actual schemas/decisions — without them,
-Jetrix only has the summary indexes, not the graph.
+Plan v3 §2.7 is explicit: **exactly three files go to GCS** — the three
+layer indexes. Per-unit files (individual page / endpoint / entity `.md`s
+under `context/{frontend,backend,database}/**/`) are NOT pushed here;
+their content reaches Jetrix by being concatenated into
+`task.implementationDetails` via `/jetrix:push implementation` (§2.9),
+so the dev agent gets one self-contained buildable spec per feature Task.
 
 ```bash
 #!/usr/bin/env bash
@@ -344,14 +346,14 @@ set -e
 PROJECT_ROOT="<absolute project_root>"
 cd "$PROJECT_ROOT"
 
-# Every markdown file under the three context layer directories.
-# find -mindepth 1 avoids matching the top-level directory itself.
-mapfile -t FILES < <(
-  find context/frontend context/backend context/database \
-    -type f -name '*.md' 2>/dev/null | sort
+# Exactly three files. No walk, no recursion.
+CANDIDATES=(
+  "context/frontend/page-index.md"
+  "context/backend/endpoint-index.md"
+  "context/database/entity-index.md"
 )
 
-for f in "${FILES[@]}"; do
+for f in "${CANDIDATES[@]}"; do
   [[ -f "$f" ]] || continue
   size_bytes=$(wc -c < "$f")
   size_kb=$(( (size_bytes + 1023) / 1024 ))
@@ -360,18 +362,22 @@ for f in "${FILES[@]}"; do
 done
 ```
 
-Parse output into `[{path, size_kb, content_hash}]`. Missing directories
-are silently skipped by the redirect on `find`. The three top-level
-`*-index.md` files come out automatically as part of the walk — no need
-for a separate CANDIDATES list.
+Parse output into `[{path, size_kb, content_hash}]`. Missing indexes
+skip silently (an early workspace may only have one or two).
 
-Do NOT `Read` any of these files.
+Do NOT `Read` any of these files. Do NOT enumerate per-unit files under
+`context/frontend/pages/`, `context/backend/domains/`, or
+`context/database/entities/` — those belong in `/jetrix:push
+implementation`, not here. Pushing them from this command creates
+scattered FileMeta rows in Jetrix that duplicate what the Task's
+Implementation tab already contains.
 
 ### 3. Resolve env + skip unchanged
 
 - Resolve env from args:
   - If `--env=<name>` present → use it verbatim after validating against the project's envConfig list.
-  - Else if `--baseline` present → `env = <last env in envConfig chain>` (legacy alias — new callers should prefer `--env=<name>`).
+  - Else if `--baseline` present → `env = <last env in envConfig chain>` (the shared truth — `main` / `prod` / `live`).
+  - Else if the workspace has NO `context/features/*/implementation-plan.md` files → **auto-baseline**: `env = <last env in envConfig chain>`. Rationale: with no `/tl:plan` output yet, the indexes describe as-shipped code (produced by `/tl:map`), so they belong in the shared baseline env, not the working env. Print a one-line note: *"No feature plans found — pushing to baseline `<env>`. Pass `--env=<name>` to override."*
   - Else → `env = <first env in envConfig chain>` (the working env, usually `dev`).
 - Read `<workspace_root>/.jetrix/cache/sync-state.json`. Look at `context/<path>[<env>]` — skip files whose `contentHash` matches.
 
@@ -555,9 +561,21 @@ Each index has a DIFFERENT column layout — do NOT treat them uniformly. Confir
 
 | Index | Feature filter | File column | Entity chain |
 |---|---|---|---|
-| `context/frontend/page-index.md` | col 4 = `Used by Features` | col 6 = `Folder` | — |
+| `context/frontend/page-index.md` | col 6 = `Used by Features` | col 8 = `Folder` | — |
 | `context/backend/endpoint-index.md` | col 6 = `Used by Features` | col 7 = `File` | col 5 = `Reads/Writes Entities` (used below) |
-| `context/database/entity-index.md` | *none* — features link indirectly | col 6 = `File` | col 5 = `Used by Endpoints` |
+| `context/database/entity-index.md` | *none* — features link indirectly | col 7 = `File` | col 6 = `Used by Endpoints` |
+
+Full headers, as emitted by `tl-feature-planning` / `tl-codebase-map` (`awk -F'|'` field numbers in brackets — note the leading empty field, so **awk field = column + 1**):
+
+```
+page-index.md    | Page ID[$2] | Page[$3] | Area[$4] | Origin[$5] | Status[$6] | Used by Features[$7] | Consumes Endpoints[$8] | Folder[$9] |
+endpoint-index.md| Endpoint ID[$2] | Method + Path[$3] | Domain[$4] | Called by[$5] | Reads/Writes Entities[$6] | Used by Features[$7] | File[$8] |
+entity-index.md  | Entity ID[$2] | Entity[$3] | Kind[$4] | Origin[$5] | Source DATA-###[$6] | Used by Endpoints[$7] | File[$8] |
+```
+
+`page-index.md` and `entity-index.md` carry two extra columns relative to `endpoint-index.md` (`Origin`/`Status` and `Origin`/`Source DATA-###`). Getting these wrong does **not** error — it silently reads the `Origin` column as the feature filter (never matching a `FEAT-` id, so every page is dropped) and emits the `Used by Endpoints` cell as a file path. Verify the header before trusting the field numbers.
+
+**Reverse-mapped rows.** Units produced by `/tl:map` carry `(as-built)` in their `Used by Features` cell, so a `FEAT-` filter naturally excludes them. That is correct — as-built units are not owned by any planned feature and must not be concatenated into a Task's implementation spec.
 
 Feature ↔ entity is a **2-hop link**: feature → endpoints (via `endpoint-index`) → entities (via each endpoint row's `Reads/Writes Entities` cell). Never grep entity-index directly for a feature id — that will find nothing.
 
@@ -573,24 +591,28 @@ grep -E "\\b$FEAT\\b"
 FEAT="FEAT-CLSF-01"
 cd "$PROJECT_ROOT"
 
-# --- Frontend pages (col 4 = features, col 6 = folder) ---
+# --- Frontend pages (features = $7, folder = $9) ---
 awk -F'|' -v f="$FEAT" '
-  $0 ~ "\\|---" { next }              # skip separator row
-  NF < 6 { next }                     # skip non-table lines
-  $2 !~ /^ *[A-Z]/ { next }           # skip header row
+  $0 ~ /\|---/ { next }               # skip separator row. MUST be a regex literal:
+                                      # the string form "\\|---" compiles to the regex |---
+                                      # whose empty left branch matches EVERY line, silently
+                                      # skipping the entire table and yielding zero units.
+  NF < 9 { next }                     # skip non-table lines / narrower side-tables
+  $2 !~ /^ *PAGE-/ { next }           # data rows only (skips header + any second table)
   {
-    feats = $5; gsub(/^ +| +$/, "", feats)
-    if (index(" " feats " ", " " f "," ) > 0 || feats == f || feats ~ ("[, ]" f "([,]| *$)")) {
-      folder = $7; gsub(/^ +| +$/, "", folder)
+    feats = $7; gsub(/^ +| +$/, "", feats)
+    if (feats ~ ("(^|[, ])" f "([,]| *$)")) {
+      folder = $9; gsub(/^ +| +$/, "", folder)
+      sub(/^\.\//, "", folder)
       print "context/frontend/" folder
     }
   }' context/frontend/page-index.md
 
-# --- Backend endpoints (col 6 = features, col 7 = file path, col 5 = entity ids) ---
+# --- Backend endpoints (features = $7, file = $8, entity ids = $6) ---
 awk -F'|' -v f="$FEAT" '
-  $0 ~ "\\|---" { next }
-  NF < 7 { next }
-  $2 !~ /^ *[A-Z]/ { next }
+  $0 ~ /\|---/ { next }
+  NF < 8 { next }
+  $2 !~ /^ *EP-/ { next }             # data rows only (skips header + blocked-unit side-table)
   {
     feats = $7; gsub(/^ +| +$/, "", feats)
     if (feats == f || feats ~ ("(^|[, ])" f "([,]| *$)")) {
@@ -611,15 +633,15 @@ awk -F'|' -v f="$FEAT" '
 **Handle the 2-hop for entities.** After the awk above prints unit paths and any `__ENT__ENT-CLSF-01` markers, deduplicate the ENT ids, then look each up in `entity-index.md`:
 
 ```bash
-# entity-index.md: col 1 = Entity ID, col 6 = File
+# entity-index.md: Entity ID = $2, File = $8
 awk -F'|' -v ent="$ENT_ID" '
-  $0 ~ "\\|---" { next }
-  NF < 6 { next }
-  $2 !~ /^ *[A-Z]/ { next }
+  $0 ~ /\|---/ { next }
+  NF < 8 { next }
+  $2 !~ /^ *ENT-/ { next }            # data rows only
   {
     id = $2; gsub(/^ +| +$/, "", id)
     if (id == ent) {
-      file = $7; gsub(/^ +| +$/, "", file)
+      file = $8; gsub(/^ +| +$/, "", file)
       sub(/^\.\//, "", file)
       print "context/database/" file
     }
