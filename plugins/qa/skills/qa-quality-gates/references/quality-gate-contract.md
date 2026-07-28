@@ -63,10 +63,12 @@ One row per gate. `Required` gates are what `dev-validation` must run and pass f
 | QG-008 | E2E | Optional | `<e2e cmd>` | required for user-journey criteria | Passing |
 | QG-009 | Contract/API | Optional | `<contract cmd>` | required when EP-* contract changes | Not-configured |
 | QG-010 | Security scan | Optional | `<security cmd>` | no high/critical | Not-configured |
+| QG-011 | AI evals | Optional | `<eval-runner cmd>` | required for applied-AI features — runs the TL's `EVAL-<AREA>-NN` verifiers | Not-configured |
 
 - **Status** values: `Passing` · `Failing` · `Not-configured`. Never record `Passing` unproven.
 - **`Required*`** = required only if the applicable surface exists (e.g. integration required once there's a DB/service; contract required once an API surface exists). State the condition in the rule column.
 - **When e2e/contract is mandatory** — spell out the rule (e.g. "any acceptance criterion tagged `user-journey` requires an e2e; any change to an `EP-<AREA>-NN` contract requires a contract test") so the dev agent knows when an Optional gate becomes obligatory for a given feature.
+- **AI evals (applied-AI features).** When a feature is AI-bearing (`delivery-os-conventions` §5), its verification includes the TL-designed `EVAL-<AREA>-NN` evals (core `eval-engineering` skill). QA owns only the **harness** they run on — the eval *design* is the TL's and the *run + inspection* is the dev loop's. Expose an eval-runner command here (QG-011) if the project standardizes one; otherwise the dev loop runs them directly. Non-AI features have no eval gate.
 
 ## Change rules
 
@@ -77,4 +79,4 @@ One row per gate. `Required` gates are what `dev-validation` must run and pass f
 ## How dev consumes this (informative)
 
 - **Readiness gate:** `harness_status: Active` (and the runner/coverage gates present) → harness exists, proceed. `Draft`/`Broken` or file absent → route to QA (`/qa:audit` → `/qa:setup`), analogous to the project-zero → bootstrap route.
-- **dev-validation:** run every `Required` gate's command, plus any `Optional` gate whose rule the feature triggers; map results into the feature's `acceptance-map.md`. The `coverage_floor` is the enforced minimum for the feature's changes.
+- **dev-validation:** run every `Required` gate's command, plus any `Optional` gate whose rule the feature triggers; map results into the feature's `acceptance-map.md`. The `coverage_floor` is the enforced minimum for the feature's changes. For an AI-bearing feature it also runs the TL's `EVAL-` verifiers (QG-011 or directly) and inspects them for reward hacking.

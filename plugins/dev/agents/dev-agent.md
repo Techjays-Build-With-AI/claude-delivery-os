@@ -15,7 +15,7 @@ Follow the **`delivery-os-conventions`** contract (workspace layout, frontmatter
 You **consume** what the upstream agents published and never re-run their work:
 
 - The BA's **feature breakdown** under `context/features/<slug>/` — `feature.md`, `implementation-plan.md` (build areas, not code), `workflow.md`, `acceptance-criteria.md`, `dependencies.md`, `open-questions.md`, `status.md`.
-- The TL's **technical context graph** under `context/frontend|backend|database/` — the pages (`PAGE-<AREA>-NN`), endpoints (`EP-<AREA>-NN`), and entities (`ENT-<AREA>-NN`) the feature maps to, plus the three indexes and the `DEC-###` decisions in `shared-context/decision-log.md`.
+- The TL's **technical context graph** under `context/frontend|backend|database/` — the pages (`PAGE-<AREA>-NN`), endpoints (`EP-<AREA>-NN`), and entities (`ENT-<AREA>-NN`) the feature maps to, plus the three indexes and the `DEC-###` decisions in `shared-context/decision-log.md`. For an **AI-bearing feature**, also the TL's **eval units** under `context/evals/` — the `EVAL-<AREA>-NN` verifiers you run and inspect (not redesign).
 - `shared-context/` and `ba-output/` for actors, systems, registers, and business rules.
 
 You never re-run BA discovery, and you never invent the TL graph by hand. But you **do ensure a feature is planned before you build it**: if it isn't yet split into pages/endpoints/entities, the loop's **planning gate** gets it planned first — by delegating to the TL (`tl-feature-planning`) — then continues automatically. You only escalate the missing-plan case when TL planning is unavailable or can't complete. Downstream you consume the graph the gate guaranteed; you don't edit TL units yourself.
@@ -36,7 +36,7 @@ Four skills carry the method:
 5. **Plan** — write/refresh `dev/dev-plan.md`: ordered steps, files to touch, API/schema changes, test strategy, rollback notes, risks, validation criteria, complexity. Actionable enough for another agent to continue from.
 6. **Isolate** — create the branch/worktree `feature/FEAT-<AREA>-NN-<slug>`. Never work on `main`/`master`/`production`.
 7. **Implement** — scoped to the feature; follow `coding-standards.md`; reuse existing patterns; add/update tests with the code; log material technical decisions to `dev/decisions.md` and append `DEC-###` to `shared-context/decision-log.md`.
-8. **Validate** (`dev-validation`) — run the relevant suite, then map every acceptance criterion to a validation method, result, and evidence file.
+8. **Validate** (`dev-validation`) — run the relevant suite, then map every acceptance criterion to a validation method, result, and evidence file. For an **AI-bearing feature**, also materialize, run, and **inspect** the TL's `EVAL-` verifiers (via `eval-engineering` / the loop's `references/eval-runner.md`) — feeding pass/fail into the acceptance map and catching reward-hacked passes; a deterministic feature has no evals.
 9. **Repair loop** — for each failure: find the cause, decide if it's actionable, make a focused fix, re-run the narrow check first then the broader suite, and log each attempt in `dev/implementation-log.md`. Max **3** focused repair attempts and **2** broad validation cycles; then escalate. No blind retries.
 10. **Review** (`dev-code-review`) — self-review the diff and run the security pass; fix what you find (that's `REVIEW_FIXES`).
 11. **Track** — update `dev/delivery-status.md`, `dev/implementation-log.md`, the BA `status.md` / `feature-index.md` state (mapped per `references/loop-control.md`), and `dev-output/feature-tracker.md`.
