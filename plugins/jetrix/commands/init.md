@@ -1,5 +1,5 @@
 ---
-description: Bind the current workspace to a Jetrix Solution. Writes `.jetrix/project.json` (committed) with solution + apps + env config + GitHub install info, and `.jetrix/cache/repolocation.json` (gitignored) with per-app local repo paths. Accepts either the Solution ObjectId or its slug/name — auto-detects. First MCP call triggers Claude Code's OAuth flow (one-time per teammate per machine). Does NOT scaffold delivery-os output folders — that is `/delivery-os:init`. Idempotent — re-run to refresh Jetrix-sourced fields without clobbering hand-edits.
+description: Bind the current workspace to a Jetrix Solution. Writes `.jetrix/project.json` (gitignored) with solution + apps + env config + GitHub install info, and `.jetrix/cache/repolocation.json` (gitignored) with per-app local repo paths. Accepts either the Solution ObjectId or its slug/name — auto-detects. First MCP call triggers Claude Code's OAuth flow (one-time per teammate per machine). Does NOT scaffold delivery-os output folders — that is `/delivery-os:init`. Idempotent — re-run to refresh Jetrix-sourced fields without clobbering hand-edits.
 argument-hint: "<projectId | slug/name>"
 ---
 
@@ -11,11 +11,11 @@ After running both, the workspace looks like:
 
 ```
 <workspace>/
-├── .jetrix/                    ← this command creates this
-│   ├── project.json
-│   └── cache/
-└── <solutionSlug>/             ← /delivery-os:init creates this (siblings)
-    └── ...
+└── .jetrix/                    ← ENTIRELY gitignored
+    ├── project.json            (this command writes this)
+    ├── cache/                  (this command writes repolocation.json here)
+    └── <solutionSlug>/         (/delivery-os:init creates this)
+        └── ...
 ```
 
 Use the LOCAL MCP tool `project-mcp` registered in `~/.claude/settings.json` or workspace `.mcp.json`. Never call server URLs directly.
@@ -86,7 +86,7 @@ Call `mcp__project-mcp__get_solution_bundle(solution_id)`. This returns everythi
 
 Per-app failures inside the bundle are already swallowed by project-mcp — apps whose env-configs or repo-integration fetch failed still appear in the response with `envConfigs: []` / `repositoryIntegration: null`. Not fatal for `/jetrix:init` — write the app to `project.json` with those empty fields.
 
-## 8. Write `<workspace>/.jetrix/project.json` (committed)
+## 8. Write `<workspace>/.jetrix/project.json` (gitignored)
 
 Create `<workspace>/.jetrix/` if missing. Then write `project.json`:
 
@@ -142,9 +142,9 @@ Answers → `<workspace>/.jetrix/cache/repolocation.json`:
 
 Keys = `projectId`. Values = absolute path OR literal `"SKIPPED"`.
 
-## 10. Gitignore the cache
+## 10. Gitignore `.jetrix/`
 
-Ensure `<workspace>/.gitignore` includes `.jetrix/cache/`. Create the file if missing; append idempotently.
+Ensure `<workspace>/.gitignore` includes `.jetrix/` (the entire folder — nothing under it is committed). Create the file if missing; append idempotently. If a prior version added only `.jetrix/cache/`, replace with `.jetrix/`.
 
 ## 11. Print summary
 
@@ -162,11 +162,11 @@ Apps (<N>):
 
 Workspace layout (so far):
   .jetrix/project.json      ← this command wrote this
-  .jetrix/cache/            ← per-teammate cache
+  .jetrix/cache/            ← repolocation.json + sync-state.json
 
 Next:
-  Scaffold delivery-os folders:  /delivery-os:init
-                                  (reads .jetrix/project.json — will create ./<slug>/ with output tree)
+  Scaffold delivery-os folder:  /delivery-os:init
+                                  (reads .jetrix/project.json — creates .jetrix/<slug>/ working tree)
 ```
 
 Keep it idempotent — a rerun for the same solutionId refreshes without clobbering hand-edits.

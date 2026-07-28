@@ -27,22 +27,22 @@ This document covers all stages. **Scope is the currently-implemented one.**
 **This command operates on the delivery-os container folder that `/jetrix:init` bound to a Jetrix Solution.** Resolve the workspace FIRST:
 
 1. Walk up from `$PWD` looking for **`.jetrix/project.json`** (up to 3 parent levels). If missing → tell the user to run `/jetrix:init` first.
-2. Read `solutionId` + `solutionSlug` from it. Note the folder that CONTAINS `.jetrix/` as **`workspace_root`** — that's where `.jetrix/cache/sync-state.json` lives.
-3. The delivery-os container is `<workspace_root>/<solutionSlug>/`. Note this as **`project_root`**.
-4. If `project_root` is missing, create the empty tree (`ba-output/`, `shared-context/`, `context/features/`) — Pull is the natural onboarding flow for a fresh teammate who just cloned the repo.
+2. Read `solutionId` + `solutionSlug` from it. Note the folder that CONTAINS `.jetrix/` as **`workspace_root`** — the entire `.jetrix/` is gitignored; it's the local working copy.
+3. The delivery-os container is nested at `<workspace_root>/.jetrix/<solutionSlug>/`. Note this as **`project_root`**.
+4. If `project_root` is missing, create the empty tree (`ba-output/`, `shared-context/`, `context/features/`) — Pull is the natural onboarding flow for a fresh teammate who just cloned the repo and ran `/jetrix:init`.
 
 > **Directory contract:**
 > ```
 > <workspace_root>/
-> ├── .jetrix/
-> │   ├── cache/sync-state.json     ← sync-state ALWAYS lives here
-> │   └── project.json
-> └── <solutionSlug>/               ← project_root
->     ├── ba-output/
->     ├── shared-context/
->     └── context/                  (NEVER contains a .jetrix/ folder)
+> └── .jetrix/                         ← ENTIRELY gitignored
+>     ├── project.json
+>     ├── cache/sync-state.json        ← sync-state ALWAYS lives here
+>     └── <solutionSlug>/              ← project_root
+>         ├── ba-output/
+>         ├── shared-context/
+>         └── context/
 > ```
-> `.jetrix/` and the solution folder are siblings. Sync-state reads/writes below resolve to `<workspace_root>/.jetrix/cache/sync-state.json` — NEVER inside `<project_root>/`.
+> Sync-state reads/writes below resolve to `<workspace_root>/.jetrix/cache/sync-state.json` — NEVER inside `<project_root>/`.
 
 ## 1. Parse the stage argument
 
@@ -113,8 +113,11 @@ done
 
 For each manifest doc where `ok:true`:
 
-- If the on-disk hash equals `sync-state[doc.path].contentHash` → **skip** (local already matches the version scope-mcp is offering).
+- If the manifest returns `contentHash` (server-side hash sidecar tag) → compare `local_sha256[:40] == manifest.contentHash`. Match → **skip** (bytes on disk match bytes on server). Mismatch → download regardless of what sync-state says (someone else pushed a newer version).
+- If the manifest has NO `contentHash` (older push predates the tag) → fall back to comparing local hash against `sync-state[doc.path].contentHash`. Match → skip. Mismatch → download.
 - Otherwise mark as **needs download**.
+
+Preferring manifest.contentHash over sync-state.contentHash is what catches teammate-pushed drift — a fresh clone or a workspace whose sync-state got out of date will still notice a newer server version and pull it.
 
 Generate ONE shell script that curl-GETs every needs-download doc from its `signed_download_url` and writes to `<project_root>/<doc.path>` — where `<doc.path>` is the relative local path from the manifest response. `mkdir -p` on the *directory* portion of that path reconstructs `ba-output/`, `shared-context/`, `context/features/`, etc. from scratch on a fresh clone, so a teammate who just cloned an empty repo ends up with the same folder tree as the pusher had.
 
@@ -308,12 +311,12 @@ Three total per combined pull:
 
 ## Stage: `context` (implemented — uses context-mcp)
 
-**Env is driven by envConfig.** Pass `--env=<name>` to select any env from the chain (e.g. `dev` / `staging` / `prod` / `live` — whatever the team named them). Default: the **last env in the envConfig chain** — the shared baseline all teammates plan against.
+**Env is a fixed two-word vocabulary — `main` (baseline) or `dev` (working state).** context-mcp does NOT accept envConfig branch names (`prod` / `staging` / `qa` etc.) — pushing under any other value silently strands docs at a tag pull can't find.
 
 Env resolution:
-- Resolve envConfig via `project-mcp.project_get_env_configs(project_id)` first (unless `--env=` supplied — in which case just validate it).
-- If `--env=<name>` present → use it.
-- Else → default to the last env in the chain (typically named `main` / `prod` / `live`).
+- If `--env=main` or `--env=dev` present → use it.
+- Else → default to `main` (the shared baseline).
+- Any other value → reject with a clear error listing the two allowed values.
 
 ### 2. Phase 1 — manifest (one MCP call)
 

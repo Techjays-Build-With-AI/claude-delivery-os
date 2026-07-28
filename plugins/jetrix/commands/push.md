@@ -27,23 +27,23 @@ This document covers all four stages. **Scope (the BA sync) is the currently-imp
 **This command operates on the delivery-os container folder that `/jetrix:init` bound to a Jetrix Solution — NOT on your current directory.** Resolve the workspace FIRST:
 
 1. Walk up from `$PWD` looking for **`.jetrix/project.json`** (up to 3 parent levels). If missing everywhere → stop and tell the user to run `/jetrix:init <projectId | slug>` first.
-2. Read `solutionId` + `solutionSlug` from it. Note the folder that CONTAINS `.jetrix/` as **`workspace_root`** — that's the top of the delivery-os workspace, and it's where `.jetrix/cache/sync-state.json` lives.
-3. The delivery-os container is the sibling folder `<workspace_root>/<solutionSlug>/` (e.g. if `solutionSlug: "larkiq"` then `larkiq/` next to `.jetrix/`). Note this as **`project_root`** — every content file walk below is relative to it.
+2. Read `solutionId` + `solutionSlug` from it. Note the folder that CONTAINS `.jetrix/` as **`workspace_root`** — the entire `.jetrix/` is gitignored; it's the local working copy.
+3. The delivery-os container is the nested folder `<workspace_root>/.jetrix/<solutionSlug>/` (e.g. if `solutionSlug: "larkiq"` then `.jetrix/larkiq/`). Note this as **`project_root`** — every content file walk below is relative to it.
 4. Verify the container exists. If missing → tell the user to run `/delivery-os:init`.
 
 > **Directory contract (referenced throughout this doc):**
 > ```
 > <workspace_root>/
-> ├── .jetrix/
-> │   ├── cache/sync-state.json     ← sync-state ALWAYS lives here
-> │   └── project.json
-> └── <solutionSlug>/               ← project_root
->     ├── ba-output/
->     ├── shared-context/
->     ├── context/
->     └── ... (NEVER contains a .jetrix/ folder)
+> └── .jetrix/                         ← ENTIRELY gitignored
+>     ├── project.json
+>     ├── cache/sync-state.json        ← sync-state ALWAYS lives here
+>     └── <solutionSlug>/              ← project_root
+>         ├── ba-output/
+>         ├── shared-context/
+>         ├── context/
+>         └── ...
 > ```
-> **`.jetrix/` and the solution folder are siblings.** Never create `.jetrix/` inside the solution folder. Every `sync-state.json` reference below resolves to `<workspace_root>/.jetrix/cache/sync-state.json` — NEVER inside `<project_root>/`.
+> Every `sync-state.json` reference below resolves to `<workspace_root>/.jetrix/cache/sync-state.json` — NEVER inside `<project_root>/`.
 
 ## 1. Parse the stage argument
 
@@ -254,7 +254,8 @@ mcp__scope-mcp__scope_finalize_push(
       mime_type: "text/markdown",
       tags: ["ba","scope"],
       document_id: "<from sync-state.json, if any>",
-      expected_version: <sync-state.version, if any> // enables optimistic locking
+      expected_version: <sync-state.version, if any>, // enables optimistic locking
+      content_hash: "<sha256 hex from step 2>" // stored as `ch:` tag; echoed on pull for skip-unchanged
     },
     ...
   ]
@@ -377,11 +378,14 @@ Implementation tab already contains.
 
 ### 3. Resolve env + skip unchanged
 
-- Resolve env from args:
-  - If `--env=<name>` present → use it verbatim after validating against the project's envConfig list.
-  - Else if `--baseline` present → `env = <last env in envConfig chain>` (the shared truth — `main` / `prod` / `live`).
-  - Else if the workspace has NO `context/features/*/implementation-plan.md` files → **auto-baseline**: `env = <last env in envConfig chain>`. Rationale: with no `/tl:plan` output yet, the indexes describe as-shipped code (produced by `/tl:map`), so they belong in the shared baseline env, not the working env. Print a one-line note: *"No feature plans found — pushing to baseline `<env>`. Pass `--env=<name>` to override."*
-  - Else → `env = <first env in envConfig chain>` (the working env, usually `dev`).
+context-mcp uses a **fixed two-word vocabulary** — `main` (shared baseline) and `dev` (in-flight working state) — NOT the envConfig branch names. This is deliberate: `page-index.md` etc. describe architecture and change slowly, so a two-bucket model is enough and it stays legible regardless of how many deploy envs a project has. Any other value (like `prod` derived from envConfig) writes docs to a tag that pull can't find, so the docs look "lost" even though they're on disk.
+
+- Resolve env from args (this is the ONLY place these words come from — do NOT derive from envConfig):
+  - If `--env=main` or `--env=dev` present → use it.
+  - Else if `--baseline` present → `env = main`.
+  - Else if the workspace has NO `context/features/*/implementation-plan.md` files → **auto-baseline**: `env = main`. Rationale: with no `/tl:plan` output yet, the indexes describe as-shipped code (produced by `/tl:map`), so they belong in the shared baseline. Print a one-line note: *"No feature plans found — pushing to baseline `main`. Pass `--env=dev` to override."*
+  - Else → `env = dev` (working state).
+- Reject any `--env=<other>` value with a clear error naming the two allowed values. The plugin owns the vocabulary contract; passing `prod` / `staging` / `qa` here silently breaks pull.
 - Read `<workspace_root>/.jetrix/cache/sync-state.json`. Look at `context/<path>[<env>]` — skip files whose `contentHash` matches.
 
 ### 4. Phase 1 — prepare (one MCP call)

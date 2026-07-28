@@ -1,24 +1,26 @@
 ---
-description: Scaffold the Delivery-OS output workspace as a named container inside the current directory. Folder name comes from `.jetrix/project.json` (Solution slug) if `/jetrix:init` has run; otherwise pass a `<name>` argument. Creates `./<name>/` with `ba-output/`, `artifacts/`, `context/`, `shared-context/` (with seeded templates), `tl-output/`, `qa-output/`, `dev-output/`, `doc-output/`. Sibling of `.jetrix/` at workspace root — matches the delivery-os get-started model ("single container folder per project"). Does NOT touch Jetrix.
+description: Scaffold the Delivery-OS output workspace inside `.jetrix/<name>/`. Folder name comes from `.jetrix/project.json` (Solution slug) if `/jetrix:init` has run; otherwise pass a `<name>` argument. Creates `.jetrix/<name>/` with `ba-output/`, `artifacts/`, `context/`, `shared-context/` (with seeded templates), `tl-output/`, `qa-output/`, `dev-output/`, `doc-output/`. Entire `.jetrix/` is gitignored — this is the local working copy that syncs with Jetrix via `/jetrix:push` and `/jetrix:pull`. Does NOT touch Jetrix.
 argument-hint: "[<name>]"
 ---
 
 # /delivery-os:init
 
-Scaffold the Delivery-OS project workspace as a named container at `<workspace>/<name>/`. Sits **sibling** to `.jetrix/` at workspace root:
+Scaffold the Delivery-OS project workspace at `<workspace>/.jetrix/<name>/`. Nested inside `.jetrix/` — the entire `.jetrix/` folder is gitignored (via `/jetrix:init`), so nothing this command creates lands in the workspace repo. Sync back to Jetrix via `/jetrix:push`; hydrate from Jetrix via `/jetrix:pull`.
 
 ```
 <workspace>/
-├── .jetrix/                    ← (optional, from /jetrix:init)
-└── <name>/                     ← this command creates this
-    ├── ba-output/
-    ├── artifacts/
-    ├── context/
-    ├── shared-context/
-    ├── tl-output/
-    ├── qa-output/
-    ├── dev-output/
-    └── doc-output/
+└── .jetrix/                    ← gitignored
+    ├── project.json            (from /jetrix:init)
+    ├── cache/                  (from /jetrix:init)
+    └── <name>/                 ← this command creates this
+        ├── ba-output/
+        ├── artifacts/
+        ├── context/
+        ├── shared-context/
+        ├── tl-output/
+        ├── qa-output/
+        ├── dev-output/
+        └── doc-output/
 ```
 
 Read the `delivery-os-conventions` skill first if it's not already in context.
@@ -33,7 +35,7 @@ The name for the new folder comes from one of these, in order:
 
 ## 2. Resolve target path
 
-`<target>` = `<cwd>/<name>/`.
+`<target>` = `<cwd>/.jetrix/<name>/`. Ensure `<cwd>/.jetrix/` already exists (created by `/jetrix:init`); if missing, tell the teammate to run `/jetrix:init` first — this command does NOT create `.jetrix/` on its own.
 
 **Rerun handling:**
 
@@ -75,15 +77,14 @@ Print the tree that now exists. Note that original source files are never moved 
 ```
 ✓ Delivery-OS workspace scaffolded.
 
-Container:  ./<name>/
-Sibling of: .jetrix/  (Jetrix wiring, if bound)
+Container:  ./.jetrix/<name>/   (gitignored — local working copy)
 
 Layout:
-  <name>/ba-output/, artifacts/, context/, shared-context/ (5 seeded templates),
-        tl-output/, qa-output/, dev-output/, doc-output/
+  .jetrix/<name>/ba-output/, artifacts/, context/, shared-context/ (5 seeded templates),
+                 tl-output/, qa-output/, dev-output/, doc-output/
 
 Next:
-  cd <name>
+  cd .jetrix/<name>
   BA:  /ba:scope  →  /ba:features
   TL:  /tl:map (brownfield)  or  /tl:scaffold (greenfield)
   QA:  /qa:audit
