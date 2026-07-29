@@ -124,7 +124,7 @@ plugins/
     templates/                       #   workspace-readme, intake.index registry, scope.md, registers,
     templates/d&d/scope-document/    #   the bundled branded Scope Document .docx (versioned)
   ba/                                # name: "ba" — /ba:scope + ba-agent + skills
-  doc/                               # name: "doc" — /doc:proposal + /doc:deck + doc-agent + doc-deck skill (design system + pptxgenjs generator + brand assets)
+  doc/                               # name: "doc" — /doc:proposal + doc-agent + doc-proposal skill (standard, style guide, HTML template)
   tl/                                # name: "tl" — /tl:review + tl-agent + tl-spec-review skill (HTML report template)
 examples/sample-project/             # ready-to-run test workspace (see TESTING.md)
 examples/tl-review-test/             # sample spec + generated interactive review report

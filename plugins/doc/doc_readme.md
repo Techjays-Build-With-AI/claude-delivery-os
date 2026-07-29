@@ -1,48 +1,52 @@
 # Doc Agent — Standardized Client Documents
 
-The **Documentation Agent** exists to unify how the org produces client-facing artifacts — proposals, workflow documents, walkthrough boards — so every document looks and reads like it came from one company, built to the Techjays standard and style system. It ships three capabilities today: the **client proposal**, the **magic board**, and the **workflow document**.
+The **Documentation Agent** exists to unify how the org produces client-facing artifacts — decks, workflow documents, walkthrough boards — so every document looks and reads like it came from one company, built to the Techjays standard and style system. It ships four capabilities today: the **client deck**, the **magic board**, the **workflow document**, and the **spec walkthrough**.
 
 | | |
 |---|---|
 | **Namespace** | `/doc:` |
-| **Commands** | `/doc:proposal client="<Name>" domain=<client.com>` · `/doc:magic-board topic="<…>"` · `/doc:workflow project="<…>"` |
-| **Output** | `doc-output/proposal-…html` · `doc-output/board-…html` · `doc-output/[CLIENT]-[TOPIC]-[date].html` — self-contained HTML |
-| **Skills** | `doc-proposal` (standard + style guide + template) · `doc-magic-board` (board engine) · `doc-workflow` (swimlane spec + references) |
+| **Commands** | `/doc:proposal client="<Name>"` · `/doc:deck title="<…>"` · `/doc:magic-board topic="<…>"` · `/doc:workflow project="<…>"` |
+| **Output** | `doc-output/deck-…pptx` · `doc-output/board-…html` · `doc-output/[CLIENT]-[TOPIC]-[date].html` |
+| **Skills** | `doc-deck` (design system + pptxgenjs generator + brand assets) · `doc-magic-board` (board engine) · `doc-workflow` (swimlane spec + references) · `doc-spec-walkthrough` |
 
 ---
 
-## What `/doc:proposal` does
+## What `/doc:proposal` and `/doc:deck` do
 
-It generates a **single-file HTML proposal deck** — no external CSS/JS/fonts, opens offline, and exports to a clean PDF — built to `proposal-standard.md` (the governing content flow and voice rules) and `proposal-style-guide.md` (the design system), both bundled in the skill.
+They generate a polished **.pptx deck in the Techjays house style** — editorial and confident: mostly-white content pages, oversized bold headlines, monospace micro-labels, generous whitespace, one dominant brand colour plus two restrained supporting accents, a faint corner watermark, a confidential footer on every page, and **dark slides used as section separators**. The structural idea is a tight **core deck** (executive level, ~6 slides) followed by an **appendix** that holds all the detail — an exec can read the core and skip the rest. It's built to `references/design-system.md` (the governing visual spec) via `scripts/build_deck.js` (a working pptxgenjs generator), both bundled in the `doc-deck` skill, and validated/rendered with the `pptx` skill's tooling.
 
-- **Branded to the client from their domain.** Give it the client's name and domain; it pulls their logo (`https://logo.clearbit.com/<domain>`, with favicon and text-wordmark fallbacks) onto the title brand pair and closing signoff, and samples their brand color into the deck's accent. For a truly offline file, it base64-embeds the logo.
+- **`/doc:proposal`** is the proposal-shaped entry point (cover → executive summary → solution → timeline → investment → closing, plus appendix). **`/doc:deck`** is the general entry point for any deck — a proposal, report, or status update — and shapes the core/appendix split to `kind`.
+- **Co-branded to the client.** Supply a client logo file and it goes onto the cover lockup beside the Techjays mark. This environment can't download logos from the web, so the agent takes the logo from a file you provide or extracts it from a prior client PDF/deck (crop tight, drop the background to transparent, use a dark/brand-coloured version so it doesn't vanish on white pages).
 - **Auto-drafted from the BA scope.** When a Delivery OS workspace exists, it drafts the problem statement, solution workflow, and value numbers from `ba-output/scope.md` and `shared-context/` — using the client's *real* numbers. It never fabricates a metric; unknowns become clearly marked `[[NEEDS: …]]` placeholders listed back to you.
-- **The standard's flow.** Title deck → Problem → Solution (workflow) → Value gain → Timeline & budget (with the zero-risk callout) → Partnership → Closing, plus an optional Appendix.
-- **PDF as a first-class deliverable.** Every responsive breakpoint is scoped to `@media screen`, the `@page`/print rules invert dark slides to white and preserve accent colors, cards avoid page breaks, and a floating **Print / Save PDF** button is always there. Open in Chrome/Edge → Print → Save as PDF (enable "Background graphics").
-- **Custom rules.** Anything extra you pass in quotes is layered on top: "add a security & compliance section", "use the lean 7-section form", "emphasize the migration story", brand-color overrides, specific pricing. A custom rule that would break a non-negotiable voice/brand rule is flagged rather than silently applied.
+- **Core / appendix discipline.** Core slides carry a single idea each; the moment one fills with bullets, the detail moves to an appendix slide with a one-line summary left behind. Timelines show as a proper **Gantt** in the appendix.
+- **Custom rules.** Anything extra you pass in quotes is layered on top: "add a security & compliance appendix slide", "use the lean core form", "emphasize the migration story", brand-color overrides, specific pricing. A custom rule that would break a non-negotiable voice or house-style rule is flagged rather than silently applied.
 
 ### Non-negotiable voice rules
 
-No em-dashes; no contrastive negation ("not X but Y"); address the client by name (not "your operating reality"); the Value page carries the client's real numbers; single file with system fonts only. The agent scans its own draft and fixes violations before delivering.
+No em-dashes; no contrastive negation ("not X but Y"); address the client by name (not "your operating reality"); the executive-summary and investment slides carry the client's real numbers; short, decisive headlines with colour used for meaning, not decoration. The agent scans its own draft and fixes violations before delivering.
 
 ---
 
 ## Usage
 
 ```text
-# minimal — pulls logo + accent from the domain, drafts from the scope if present
-/doc:proposal client="Harry Grodsky & Co." domain=grodsky.com
+# minimal — drafts from the scope if present, Techjays-branded cover
+/doc:proposal client="Harry Grodsky & Co."
 
-# with an engagement title and custom rules
-/doc:proposal client="Acme" domain=acme.com title="AI-Powered Estimating" "lean 7-section form; add a data-security section; pricing fixed at $50k Phase 1"
+# with an engagement title, a client logo, and custom rules
+/doc:proposal client="Acme" title="AI-Powered Estimating" logo=./acme-logo.png "lean core; add a data-security appendix slide; pricing fixed at $225k"
+
+# a non-proposal deck (report / update) from a source
+/doc:deck title="Q3 Delivery Review" client="Acme" kind=report source=./q3-notes.md
 ```
 
-- **`client="…"`** — required. **`domain=…`** — strongly recommended (drives logo + accent).
-- **`title="…"`** — optional; drafted from the scope if omitted.
-- **Free text** — treated as custom rules, layered on the standard.
+- **`client="…"`** — required for `/doc:proposal`. **`title="…"`** — the cover headline (drafted from the scope if omitted).
+- **`logo=…`** — path to a client logo file for co-branding (optional; no web download).
+- **`kind=…`** (`/doc:deck`) — `proposal` (default), `report`, or `update`; shapes the core/appendix split.
+- **Free text** — treated as custom rules, layered on the house style.
 - **`out=<prefix>`** — optional output-prefix override; a timestamp is always appended.
 
-Output lands in `doc-output/`. Open the `.html` in a browser and **Print → Save as PDF**.
+Output lands in `doc-output/` as a `.pptx`. Open it in PowerPoint or import to Google Slides (Roboto Mono is native in Google Slides, so the mono labels are pixel-exact there).
 
 ---
 
@@ -84,17 +88,17 @@ An **interactive workflow document** that walks a client through the scope of a 
 
 The Doc agent is a **consumer**: it reads `ba-output/scope.md` and `shared-context/` (produced by `/ba:scope`) and writes to `doc-output/`. So the pipeline is `/ba:scope` (build the scope) → `/ba:review` (harden it) → `/doc:proposal` (turn it into a client-ready deck). It works standalone too — without a workspace it uses what you pass and marks missing client numbers as placeholders.
 
-See the bundled `skills/doc-proposal/references/` for the full standard and style guide, and the shared [`delivery-os-conventions`](../delivery-os-core/skills/delivery-os-conventions/SKILL.md) contract.
+See the bundled `skills/doc-deck/references/design-system.md` for the full visual spec, the `pptx` skill for build/validation tooling, and the shared [`delivery-os-conventions`](../delivery-os-core/skills/delivery-os-conventions/SKILL.md) contract.
 
 ---
 
 ## FAQ
 
-**Does the logo work in the PDF?** Yes, if you're online when you Save-as-PDF (it loads the logo by domain). For an offline-portable file to archive or email, ask the agent to base64-embed the logo.
+**What format is the deck?** A `.pptx`. Open it in PowerPoint or import it into Google Slides. Roboto Mono (the mono micro-labels) is native in Google Slides so the import is pixel-exact; in PowerPoint without it installed the mono labels substitute cleanly.
 
-**What if Clearbit has no logo for the domain?** It falls back to the site favicon, then to a text wordmark in the client's accent color — replace it with the official asset before sending.
+**Can I co-brand with the client's logo?** Yes — pass `logo=<path>` to a logo file, or point the agent at a prior client PDF/deck and it extracts the mark. This environment can't download logos from the web, so a file is required. Use a dark/brand-coloured crop so the mark doesn't vanish on white pages.
 
-**Can I edit the deck afterward?** Yes — it's a single HTML file. Open it in any editor; the tokens and structure are documented in an HTML comment at the top.
+**Can I edit the deck afterward?** Yes — it's a normal PowerPoint file. You can also re-run the generator: the `► CONTENT` blocks in `build_deck.js` hold all the words and data arrays.
 
 **It left `[[NEEDS: …]]` placeholders.** Those are client numbers or facts the agent wouldn't invent (pricing, real metrics, the official logo). Fill them in before sending; the agent lists every one in its summary.
 
