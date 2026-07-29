@@ -17,10 +17,10 @@ This is the single source of truth that makes Delivery OS documents **shareable 
 
 ## 1. Workspace layout
 
-Every Delivery OS project lives under a **single named container folder** (so the user can see exactly what Delivery OS owns, and delete one folder for a clean slate). Agents read and write **only** at these paths.
+Every Delivery OS project lives under a **single named container folder** at `<workspace>/.jetrix/<project-name>/` — nested inside `.jetrix/` (the entire `.jetrix/` folder is gitignored and treated as a local working copy of Jetrix state). Agents read and write **only** at these paths.
 
 ```text
-<project-name>/                  # the one container — everything Delivery OS owns lives here
+<workspace>/.jetrix/<project-name>/   # the one container — everything Delivery OS owns lives here
 ├── README.md                    # what init created + how to use it (the workspace manifest)
 ├── intake.index.md              # LIVING source registry — maintained by /ba:scope (human-editable)
 ├── artifacts/                   # generated normalized summaries — categories created on demand
@@ -78,7 +78,7 @@ The `context/` tree is the shared implementation-context layer, distinct from ea
 
 ### 1.b Jetrix binding — `.jetrix/` (owned by the **jetrix** plugin)
 
-A project's delivery context can be centralized in **Jetrix**, in which case Jetrix is the **single source of truth** for all project context (glossary, scope, registers, feature breakdown, and the `context/` graph) and the local `.jetrix/` folder is a disposable **working copy**. Binding a workspace and syncing it are owned by the separate **`jetrix`** plugin — read its **`jetrix-sync`** skill for the full contract: `.jetrix/project.json` (committed identity + app/environment→branch wiring), the gitignored incremental read-through cache, and the pull/push model. Commands: `/jetrix:init` (bind), `/jetrix:pull` (refresh the cache from Jetrix, incremental), `/jetrix:push` (publish local work back as structured records — upsert by stable id, transactional, pull-before-push). The canonical form in Jetrix is **structured records** (the IDs in §3); `scope.md` and the branded `.docx` are projections rendered from them. This is distinct from `/delivery-os:init`, which scaffolds a local-only workspace and never touches `.jetrix/`.
+Jetrix is the **single source of truth** for all project context (glossary, scope, registers, feature breakdown, and the `context/` graph). The local `.jetrix/` folder is a disposable **working copy** — the ENTIRE folder is gitignored, including `project.json`, the cache, and the `<project-name>/` container this skill describes. Binding a workspace and syncing it are owned by the separate **`jetrix`** plugin — read its **`jetrix-sync`** skill for the full contract: `.jetrix/project.json` (regenerable identity + app/environment→branch wiring — no secrets), the cache, and the pull/push model. Commands: `/jetrix:init` (bind), `/jetrix:pull` (refresh the cache from Jetrix, incremental), `/jetrix:push` (publish local work back as structured records — upsert by stable id, transactional, pull-before-push). The canonical form in Jetrix is **structured records** (the IDs in §3); `scope.md` and the branded `.docx` are projections rendered from them. `/delivery-os:init` scaffolds `<workspace>/.jetrix/<project-name>/` — the working copy directly inside `.jetrix/`.
 
 ### Source handling — reference, never copy or move
 Original source files (local folders/files, Google Drive, etc.) **stay where they are**. The workspace never copies, moves, or deletes a user's originals. Intake only:

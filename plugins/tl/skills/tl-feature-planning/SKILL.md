@@ -39,6 +39,12 @@ context/
 
 Folder and file slugs are **lowercase kebab-case** (`supplier-list`, `create-supplier`, `suppliers`). Every unit file follows the exact schema in **`references/context-file-templates.md`** — build every file and every index from it so the graph stays uniform and machine-parseable. How to *decide* which pages/endpoints/entities a feature needs, how to match against what exists, and how to handle non-UI features is in **`references/planning-guide.md`** — read it before you plan a feature.
 
+**Every new unit file MUST include these two frontmatter fields** so the graph tracks design-vs-implementation state per env:
+- `status: Proposed` — design-level state. Values: `Proposed | Designed | Confirmed | Deprecated`. TL owns this; bumps on `/tl:review` outcomes.
+- `implementation_state: Planned` — operational state per env. Values: `Planned | In-Progress | In-Review | Implemented`. `/dev:build` flips it to `In-Progress` / `In-Review` on the working env; Stage 5's merge agent flips it to `Implemented` on the target env after PR merge.
+
+Never write `implementation_state: Implemented` at planning time — that lie is exactly what these fields exist to prevent. Leave it at `Planned` and let the dev-build + merge agent path update it as reality unfolds.
+
 If there's no Delivery OS workspace (no `context/features/`), don't block: take the feature path the user gives you, create the `context/` sub-trees next to it, and note in the run summary that a standard workspace wasn't found. Keep the frontmatter either way; only the location changes.
 
 ## Workflow

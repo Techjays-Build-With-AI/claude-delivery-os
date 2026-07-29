@@ -126,6 +126,7 @@ schema_version: 1.1
 produced_by: tl
 page_id: PAGE-SUP-03
 status: Designed
+implementation_state: Planned    # Planned | In-Progress | In-Review | Implemented — per env; updated by /dev:build + merge agent
 generated_at: YYYY-MM-DD
 ---
 
@@ -201,6 +202,7 @@ schema_version: 1.1
 produced_by: tl
 endpoint_id: EP-SUP-02
 status: Designed
+implementation_state: Planned    # Planned | In-Progress | In-Review | Implemented — per env; updated by /dev:build + merge agent
 generated_at: YYYY-MM-DD
 ---
 
@@ -279,6 +281,7 @@ schema_version: 1.1
 produced_by: tl
 entity_id: ENT-SUP-01
 status: Designed
+implementation_state: Planned    # Planned | In-Progress | In-Review | Implemented — per env; updated by /dev:build + merge agent
 generated_at: YYYY-MM-DD
 ---
 

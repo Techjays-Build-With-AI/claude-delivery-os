@@ -1,82 +1,172 @@
 ---
-description: Bind this local workspace to an existing Jetrix project so Delivery OS agents and MCP clients resolve the same project every time. Writes a committed identity + wiring descriptor at .jetrix/project.json and scaffolds a gitignored .jetrix/cache/ working copy. Does NOT fetch content here — the cache is filled by /jetrix:pull. At greenfield there are usually no apps yet; apps are created in Jetrix later and pulled in. Idempotent — re-run to refresh the descriptor. Does NOT scaffold a local Delivery OS workspace (that is /delivery-os:init) and never invents Jetrix data.
-argument-hint: "<project-slug> [--repo <path>]"
+description: Bind the current workspace to a Jetrix Solution. Writes `.jetrix/project.json` (gitignored) with solution + apps + env config + GitHub install info, and `.jetrix/cache/repolocation.json` (gitignored) with per-app local repo paths. Accepts either the Solution ObjectId or its slug/name — auto-detects. First MCP call triggers Claude Code's OAuth flow (one-time per teammate per machine). Does NOT scaffold delivery-os output folders — that is `/delivery-os:init`. Idempotent — re-run to refresh Jetrix-sourced fields without clobbering hand-edits.
+argument-hint: "<projectId | slug/name>"
 ---
 
 # /jetrix:init
 
-You are **connecting this local workspace to an existing Jetrix project**. Jetrix is the **source of truth** for all delivery context; this command records *which* project this workspace maps to and scaffolds a local working copy that `/jetrix:pull` fills. Read the `jetrix-sync` skill first if it is not already in context.
+Bind the **current workspace** (cwd) to a Jetrix Solution. Writes the Jetrix wiring (`.jetrix/`) at workspace root. Companion command `/delivery-os:init` scaffolds the delivery-os output folders alongside it — this command handles ONLY the Jetrix binding + OAuth handshake + per-app local repo path collection.
 
-**This is not `/delivery-os:init`.** `init` scaffolds a local-only Delivery OS workspace. `jetrix-init` binds this workspace to a Jetrix project so work syncs to the shared store. They are different verbs; do not scaffold the `shared-context/`/`ba-output/` tree here.
+After running both, the workspace looks like:
 
-**Apps are not required here.** An *app* is a repo (frontend, backend, mobile, a service). At greenfield there are usually none yet — they are created in Jetrix later (repo link + env→branch mapping) and land in `project.json` via `/jetrix:pull --apps`. Do not ask the user to pick an app at bind time.
+```
+<workspace>/
+└── .jetrix/                    ← ENTIRELY gitignored
+    ├── project.json            (this command writes this)
+    ├── cache/                  (this command writes repolocation.json here)
+    └── <solutionSlug>/         (/delivery-os:init creates this)
+        └── ...
+```
+
+Use the LOCAL MCP tool `project-mcp` registered in `~/.claude/settings.json` or workspace `.mcp.json`. Never call server URLs directly.
 
 ## 1. Parse arguments
 
-`$ARGUMENTS`:
-- **`<project-slug>`** (required) — the Jetrix project slug the user already created. If missing, ask for it; do not guess.
-- **`--repo <path>`** (optional) — workspace root to bind; defaults to the current directory.
+`$ARGUMENTS` should be exactly one token:
 
-## 2. Preconditions
+- If it matches `/^[a-f0-9]{24}$/` → treat as a Solution **ObjectId**. Go straight to `project_get_solution`.
+- Otherwise → treat as a **slug or name**. Resolve via `project_list_solutions` first.
 
-Confirm the **Jetrix MCP** is connected. If it is not, stop and tell the user to connect Jetrix (this command cannot fabricate project data). Do not fetch via curl/scripts — only the Jetrix MCP.
+If empty, ask for either an ObjectId or a name/slug. Do NOT guess.
 
-## 3. Resolve the project from Jetrix (source of truth)
+## 2. Precheck
 
-Via the Jetrix MCP, look up the project by `<project-slug>` and read:
-- project id, canonical name, one-line overview, and workspace ref (URL or id);
-- the project's **environments** — names/refs only (e.g. dev/staging/uat/prod);
-- the project's **apps** if any already exist — slug, id, type, repo, env→branch mapping. At greenfield expect none.
+Confirm `project-mcp` is registered as an MCP server. If not → stop and tell the teammate to register it. Do not attempt other MCP calls until this is fixed.
 
-If the slug resolves to nothing, stop and report it (offer the closest matches if the MCP supports search). Never invent ids.
+## 3. First MCP call → OAuth handshake (automatic)
 
-## 4. Write the committed descriptor — `.jetrix/project.json`
+The first invocation of any `mcp__project-mcp__*` tool triggers Claude Code's OAuth flow. Browser opens → teammate signs in to Jetrix → consent → token cached locally by Claude Code. All Jetrix MCPs share the auth server, so this one sign-in covers everything. Nothing to do beyond completing the browser flow.
 
-Seed from the bundled template at `${CLAUDE_PLUGIN_ROOT}/templates/project.json`, filling real values from step 3. This file is **committed** (machine-independent identity + wiring, identical for every dev + CI). It holds project identity, `environments`, and `apps[]` (repos + each app's env→branch mapping) — **wiring only, never content and never secrets**. Leave `apps[]` empty if Jetrix has none yet; a later `/jetrix:pull --apps` fills it once apps are created.
+If OAuth is cancelled → stop with *"Sign-in failed. Rerun `/jetrix:init`."*
 
-**Idempotency (this is required):**
-- If `.jetrix/project.json` already exists, **merge, don't clobber**: refresh `jetrix.*`, `environments`, and `apps[]` from Jetrix, but preserve any hand-added fields (e.g. an app's `local_root`).
-- Stamp `bound_at` only on first creation; refresh `last_pulled` whenever Jetrix data is read.
-- **Never** write tokens, passwords, or connection secrets here — names/refs/branches only.
+## 4. Rerun handling
 
-## 5. Gitignore the cache
+If `<workspace>/.jetrix/project.json` already exists:
 
-Ensure the repo's `.gitignore` ignores the cache (create `.gitignore` if absent, append idempotently — don't duplicate the line):
+- **Same `solutionId` as the argument** → ask *"Workspace already initialized for `<solutionName>` (`<solutionId>`). Refresh project details from Jetrix? [y/n]"*. On yes, continue and re-fetch. On no, stop.
+- **Different `solutionId`** → hard STOP. Tell teammate *"This workspace is already initialized for `<other-name>` (`<other-id>`). Use a separate workspace folder for each Jetrix project."*
 
-```gitignore
-# Delivery OS — Jetrix local context cache (disposable, per-machine)
-.jetrix/cache/
+## 5. Resolve the Solution
+
+**ObjectId path:**
+- `mcp__project-mcp__get_solution(solution_id=<arg>)`
+- On 404 / 403 → stop with *"Solution `<id>` not found or you're not a Member."*
+
+**Slug/name path:**
+- `mcp__project-mcp__list_solutions(query=<arg>)`
+- 0 matches → stop; list available names.
+- >1 matches → interactive picker: *"Multiple matches: [1] `<name>` (`<slug>`, `<id>`) [2] ... Pick a number."*
+- 1 match → confirm; then `get_solution(solution_id=<picked>)`.
+
+Capture full solution: `_id`, `name`, `slug`, `description`, `type`, `environments`.
+
+## 6. Soft workspace-name check
+
+Compare `solutionSlug` against workspace folder basename (normalized: lowercase, spaces → dashes). Mismatch → warn and confirm; never hard-fail. This is a nudge, not a rule.
+
+## 7. Fetch full project context — ONE call
+
+Call `mcp__project-mcp__get_solution_bundle(solution_id)`. This returns everything in a single MCP tool invocation:
+
+```json
+{
+  "solution": { "_id": "...", "name": "...", "slug": "...", "type": "...", ... },
+  "apps": [
+    {
+      "project": { "_id": "...", "name": "...", "slug": "...", "project_type": "...", "repoUrl": "..." },
+      "envConfigs": [ { "environmentName": "dev", "branchName": "dev", "url": "...", "autoDeploy": true }, ... ],
+      "repositoryIntegration": { "repository_owner": "...", "repository_name": "...", "installation_id": "..." }
+    },
+    ...
+  ]
+}
 ```
 
-`.jetrix/project.json` stays tracked; `.jetrix/cache/` never is.
+**Do NOT fall back to `project_list_projects` / `project_get_project` / `project_get_env_configs` / `project_get_repository_integration` cascades unless the bundle tool errors out.** Those are still available for finer-grained fetches (e.g., single-app refresh) but drive per-app UX prompt storms; the bundle is the sanctioned single-call entry point for init.
 
-## 6. Scaffold the cache folder — do NOT fetch content here
+Per-app failures inside the bundle are already swallowed by project-mcp — apps whose env-configs or repo-integration fetch failed still appear in the response with `envConfigs: []` / `repositoryIntegration: null`. Not fatal for `/jetrix:init` — write the app to `project.json` with those empty fields.
 
-Create the empty `.jetrix/cache/` structure only. **Do not pull content during bind** — keep binding fast and independent of the full project being fetchable. The cache is filled by `/jetrix:pull`, which is incremental (it refreshes only what changed in Jetrix).
+## 8. Write `<workspace>/.jetrix/project.json` (gitignored)
 
-```text
-.jetrix/
-├── project.json                 # committed identity + wiring (step 4)
-└── cache/                        # gitignored, disposable working copy — created empty here
-    ├── cache.manifest.json       # from templates/cache.manifest.json (all sections empty, hashes null)
-    └── context/
-        ├── glossary.md  .gitkeep
-        ├── scope/       .gitkeep
-        ├── features/    .gitkeep
-        ├── frontend/    .gitkeep
-        ├── backend/     .gitkeep
-        └── database/    .gitkeep
+Create `<workspace>/.jetrix/` if missing. Then write `project.json`:
+
+```json
+{
+  "solutionId": "<Solution._id>",
+  "solutionSlug": "<slug>",
+  "solutionName": "<name>",
+  "solutionType": "<type>",
+  "solutionDescription": "<description>",
+  "environments": ["dev", "staging", "prod"],
+  "apps": [
+    {
+      "projectId": "<Project._id>",
+      "projectSlug": "<slug>",
+      "projectName": "<name>",
+      "projectType": "<web application | backend api | mobile application | service>",
+      "repoUrl": "<https://github.com/...>",
+      "repositoryIntegration": {
+        "repository_owner": "acme",
+        "repository_name": "acme-frontend",
+        "installation_id": "12345678"
+      },
+      "env_branches": {
+        "dev": "dev",
+        "staging": "staging",
+        "prod": "master"
+      }
+    }
+  ],
+  "bound_at": "<ISO-8601 timestamp of first bind>",
+  "last_pulled": null
+}
 ```
 
-- Write `cache.manifest.json` from the template with every section `fetched_at: null`, `hash: null` — it's a stub the first `jetrix-pull` fills in.
-- Create each `context/` subfolder with a `.gitkeep` so the layout exists for the pull. Don't call the Jetrix MCP for content in this step.
+**Idempotency:** on refresh, merge Jetrix-sourced fields (name, slug, description, apps[], env_branches). Preserve `bound_at`. Never write secrets — env-config response already excludes them.
 
-## 7. Report
+## 9. Ask for per-app local repo paths
 
-Print:
-- the resolved Jetrix **project** (slug, name, overview);
-- the **environments** discovered, and the **app count** (usually 0 at greenfield);
-- the exact `.jetrix/` tree written (cache scaffolded empty), and the `.gitignore` line ensured;
-- whether this was a first bind or a refresh of an existing one.
+For each app in `apps[]`, prompt teammate:
 
-Next step: the workspace is now bound but the cache is **empty**. Run `/jetrix:pull` to fill it from Jetrix (and again after you create apps in Jetrix, to pull their repo + env→branch wiring into `project.json`). Re-run `/jetrix:init <slug>` anytime to refresh the descriptor. Keep it **idempotent** — a re-run must refresh Jetrix-sourced fields without ever clobbering hand-edits.
+> *"Where's the `<projectName>` (`<projectType>`) repo on your laptop? Absolute path, or 'skip' if you don't work on this app."*
+
+Answers → `<workspace>/.jetrix/cache/repolocation.json`:
+
+```json
+{
+  "<projectId-1>": "/Users/alice/Code/acme-frontend",
+  "<projectId-2>": "/Users/alice/Code/acme-backend",
+  "<projectId-3>": "SKIPPED"
+}
+```
+
+Keys = `projectId`. Values = absolute path OR literal `"SKIPPED"`.
+
+## 10. Gitignore `.jetrix/`
+
+Ensure `<workspace>/.gitignore` includes `.jetrix/` (the entire folder — nothing under it is committed). Create the file if missing; append idempotently. If a prior version added only `.jetrix/cache/`, replace with `.jetrix/`.
+
+## 11. Print summary
+
+```
+✓ Bound workspace to Jetrix project.
+
+Solution:      <name>  (<solutionId>)
+Slug:          <slug>
+Type:          <type>
+Environments:  dev, staging, prod
+
+Apps (<N>):
+  • <projectName>  (<projectType>)  →  <path or SKIPPED>
+  • ...
+
+Workspace layout (so far):
+  .jetrix/project.json      ← this command wrote this
+  .jetrix/cache/            ← repolocation.json + sync-state.json
+
+Next:
+  Scaffold delivery-os folder:  /delivery-os:init
+                                  (reads .jetrix/project.json — creates .jetrix/<slug>/ working tree)
+```
+
+Keep it idempotent — a rerun for the same solutionId refreshes without clobbering hand-edits.
