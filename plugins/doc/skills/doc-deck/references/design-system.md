@@ -21,19 +21,26 @@ template. Pure white content pages, oversized bold grotesque headlines, and lots
 whitespace. The only recurring "decoration" is a very faint brand mark bleeding off one
 corner. Colour is used sparingly and with intent: one brand colour dominates, two
 supporting colours appear only on small marks (index numbers, ticks, bars). Small
-labels are set in monospace to create editorial contrast with the big sans headlines.
+small labels are set UPPERCASE and letter-spaced to create editorial contrast with the
+big headlines (all in one typeface — see §3).
 No cards, no drop shadows on content, no gradient fills, **no accent stripes or
 underlines under titles** (those read as generic/AI-made).
 
 ## 2. Colour tokens
 ```
 INK    #141414   near-black — headlines & body
-MUT    #6B7280   muted grey — secondary/body copy
-FAINT  #9AA0AA   faint grey — captions, footer, page markers
+LBL    #424B5B   dark slate — SMALL LABELS / SUBTEXT (KPI labels, eyebrows, captions)
+MUT    #6B7280   muted grey — secondary body copy, descriptions
+FAINT  #9AA0AA   faint grey — only truly incidental marks
 LINE   #E7E7EC   hairlines & dividers
 WHITE  #FFFFFF   content background
 DARK   #141B2E   background for separator slides only
 ```
+Legibility rule for small text (learned the hard way): grey micro-labels on white are
+hard to read. Any small label / eyebrow / caption uses **LBL**, not MUT/FAINT, at
+**≥11.5pt**, and semibold where it's a standalone label (KPI labels, week tags, section
+labels like "What's Included"). Reserve MUT for longer secondary copy and FAINT for
+almost nothing. On dark separator slides, small text goes light (`#8A93A8`–`#B7C0D4`).
 Accent trio (max three; brand first, two supporting):
 ```
 C1  #6870F8  indigo/periwinkle — PRIMARY brand (techjays). Dominant accent.
@@ -51,15 +58,23 @@ you are **coding distinct items** — e.g. module 01 vs 02, or the four timeline
 cycling `[C1, C2, C3]`. Never colour body text; never give all colours equal weight.
 
 ## 3. Type
+**One typeface for everything** — headlines, body, and every label. The Techjays
+default is **Google Sans**:
 ```
-SANS  = "Arial"        // headlines + body. Metric-safe, renders true.
-MONO  = "Roboto Mono"  // micro-labels, eyebrows, page markers, footer, week tags
+FONT = "Google Sans"   // set once (CFG.font); used for headlines, body AND labels
 ```
-Why these: Arial is a clean neutral grotesque that ships everywhere and renders
-true-to-width in QA. Roboto Mono is the native monospace in Google Slides, so an import
-looks identical there; on PowerPoint without it installed it substitutes to another
-mono and still reads fine. If the user needs guaranteed PowerPoint-Windows fidelity on
-the mono labels, swap MONO to `"Consolas"`.
+Earlier versions paired Arial headlines with a Roboto Mono label font for editorial
+contrast; that was retired in favour of a single unified font. The eyebrow/label
+"micro" feel now comes from styling, not a different family: UPPERCASE, letter-spacing
+(charSpacing ~0.3–1.6), semibold, in LBL — not from monospace.
+
+Font caveat (important): **Google Sans is a proprietary Google font.** It renders
+correctly only where installed, and is **not** in the Google Slides font picker, so a
+Slides import substitutes it. It also can't be legally embedded/downloaded here. So:
+- If the deck is presented from a machine that has Google Sans → use it as-is.
+- If it must look identical everywhere (incl. Google Slides) → set `CFG.font` to
+  **"Poppins"** (a close, freely available geometric match, in the Slides picker) or
+  **"Arial"** (universal, renders true). Confirm the target with the user.
 
 Sizes (pt):
 ```
@@ -70,9 +85,11 @@ Module/stat number    30–40 bold
 Big money/number      54–60 bold
 KPI number            34 bold
 Body / description    13.5–17
-Mono eyebrow/label    11–14 (charSpacing ~0.8–1.6 for eyebrows)
-Footer mono           8.5
+Eyebrow / label       11.5–14 in LBL, semibold for standalone labels (charSpacing ~0.3–1.6)
+Footer                9.5 in a mid grey (#7A828E)
 ```
+The `mono(...)` helper in the generator is just the label helper — despite the name it
+renders in the single deck font, not a monospace family.
 Headlines are often two lines set with tight `lineSpacing` (≈ fontSize + 2..6).
 Titles are left-aligned, never centered. Body is always left-aligned.
 
@@ -102,8 +119,8 @@ noticed only if you look for it.
 Small brand mark + one mono line, bottom-left:
 ```
 mark:  bird.png (white pages) / bird_white.png (dark) at x LX, y 7.06, w 0.17, h 0.154
-text:  MONO 8.5pt, "Confidential    ·    <VENDOR> × <CLIENT>"
-       colour FAINT on white pages, "6E7A93" on dark pages, at x LX+0.28, y 7.02
+text:  9.5pt, "Confidential    ·    <VENDOR> × <CLIENT>"
+       colour #7A828E on white pages, #8891A6 on dark pages, at x LX+0.28, y 7.02
 ```
 Bake both the watermark and the footer into the slide-creation helper so they appear on
 every page automatically.
@@ -113,8 +130,8 @@ every page automatically.
 ### topbar (content pages)
 Section label top-left + page marker top-right, both mono:
 ```
-label : MONO 13pt INK, charSpacing 0.8, at (LX, 0.6)
-marker: MONO 11pt FAINT, right-aligned, at (RX-4, 0.62)  e.g. "02  /  06"
+label : 13pt INK, charSpacing 0.8, at (LX, 0.6)
+marker: 11.5pt MUT, right-aligned, at (RX-4, 0.62)  e.g. "02  /  06"
 ```
 Appendix pages use a marker like `"APPENDIX  ·  A1 / A3"`.
 
@@ -176,7 +193,7 @@ A true Gantt beats a text list. Geometry:
 ```
 chart x start gx = 4.35 (task labels occupy LX..gx-0.15, right-aligned, 11pt INK)
 chart width = RX - gx, split into 12 (or N) week columns
-faint vertical gridlines "F0F1F5" per column; week numbers on top in mono FAINT
+faint vertical gridlines "F0F1F5" per column; week numbers on top in LBL semibold
 row pitch ≈ 0.33, bar height ≈ 0.19, rounded rects (rectRadius 0.03)
 ```
 Each task row draws a **build bar** in its workstream colour spanning its week range,
@@ -197,7 +214,7 @@ small legend beneath: coloured squares + labels for each workstream and "QA".
   divider, vertically centered, top-left.
 
 ## 8. Do / Don't
-Do: whitespace, one dominant accent, mono micro-labels, borderless layouts, dark
+Do: whitespace, one dominant accent, dark legible uppercase micro-labels, borderless layouts, dark
 separators, a faint corner watermark, a confidential footer on every page, decisive
 to-the-point headlines.
 Don't: centered body text, accent stripes/edge bars, underlines beneath titles, drop

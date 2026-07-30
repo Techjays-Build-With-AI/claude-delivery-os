@@ -13,7 +13,7 @@ The **Documentation Agent** exists to unify how the org produces client-facing a
 
 ## What `/doc:proposal` and `/doc:deck` do
 
-They generate a polished **.pptx deck in the Techjays house style** — editorial and confident: mostly-white content pages, oversized bold headlines, monospace micro-labels, generous whitespace, one dominant brand colour plus two restrained supporting accents, a faint corner watermark, a confidential footer on every page, and **dark slides used as section separators**. The structural idea is a tight **core deck** (executive level, ~6 slides) followed by an **appendix** that holds all the detail — an exec can read the core and skip the rest. It's built to `references/design-system.md` (the governing visual spec) via `scripts/build_deck.js` (a working pptxgenjs generator), both bundled in the `doc-deck` skill, and validated/rendered with the `pptx` skill's tooling.
+They generate a polished **.pptx deck in the Techjays house style** — editorial and confident: mostly-white content pages, oversized bold headlines, uppercase letter-spaced micro-labels (one typeface throughout), generous whitespace, one dominant brand colour plus two restrained supporting accents, a faint corner watermark, a confidential footer on every page, and **dark slides used as section separators**. The structural idea is a tight **core deck** (executive level, ~6 slides) followed by an **appendix** that holds all the detail — an exec can read the core and skip the rest. It's built to `references/design-system.md` (the governing visual spec) via `scripts/build_deck.js` (a working pptxgenjs generator), both bundled in the `doc-deck` skill, and validated/rendered with the `pptx` skill's tooling.
 
 - **`/doc:proposal`** is the proposal-shaped entry point (cover → executive summary → solution → timeline → investment → closing, plus appendix). **`/doc:deck`** is the general entry point for any deck — a proposal, report, or status update — and shapes the core/appendix split to `kind`.
 - **Co-branded to the client.** Supply a client logo file and it goes onto the cover lockup beside the Techjays mark. This environment can't download logos from the web, so the agent takes the logo from a file you provide or extracts it from a prior client PDF/deck (crop tight, drop the background to transparent, use a dark/brand-coloured version so it doesn't vanish on white pages).
@@ -46,7 +46,7 @@ No em-dashes; no contrastive negation ("not X but Y"); address the client by nam
 - **Free text** — treated as custom rules, layered on the house style.
 - **`out=<prefix>`** — optional output-prefix override; a timestamp is always appended.
 
-Output lands in `doc-output/` as a `.pptx`. Open it in PowerPoint or import to Google Slides (Roboto Mono is native in Google Slides, so the mono labels are pixel-exact there).
+Output lands in `doc-output/` as a `.pptx`. Open it in PowerPoint or import to Google Slides. The deck uses one typeface (`CFG.font`, **Google Sans** by default); Google Sans is proprietary and not in the Google Slides picker, so for guaranteed-identical rendering set `CFG.font` to **Poppins** or **Arial** (see `design-system.md` §3).
 
 ---
 
@@ -94,7 +94,7 @@ See the bundled `skills/doc-deck/references/design-system.md` for the full visua
 
 ## FAQ
 
-**What format is the deck?** A `.pptx`. Open it in PowerPoint or import it into Google Slides. Roboto Mono (the mono micro-labels) is native in Google Slides so the import is pixel-exact; in PowerPoint without it installed the mono labels substitute cleanly.
+**What format is the deck?** A `.pptx`. Open it in PowerPoint or import it into Google Slides. The whole deck uses a single typeface (`CFG.font`, **Google Sans** by default). Google Sans is a proprietary Google font — it renders only where installed and isn't in the Google Slides font picker, so if the deck needs to look identical everywhere, set `CFG.font` to **Poppins** (a close, freely available match) or **Arial** (universal). Confirm the target with whoever's presenting.
 
 **Can I co-brand with the client's logo?** Yes — pass `logo=<path>` to a logo file, or point the agent at a prior client PDF/deck and it extracts the mark. This environment can't download logos from the web, so a file is required. Use a dark/brand-coloured crop so the mark doesn't vanish on white pages.
 
