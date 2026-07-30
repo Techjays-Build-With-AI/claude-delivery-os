@@ -378,7 +378,8 @@ Report:
 ✓ Pulled TASK-42 (FEAT-CLSF-01, "Document Classification & Extraction")
   → context/features/document-classification-extraction/
     feature.md, workflow.md, acceptance-criteria.md,
-    dependencies.md, open-questions.md, implementation-plan.md, status.md
+    dependencies.md, open-questions.md, status.md
+    tl-plan.md         (only if TL has pushed implementation for this feature)
 ```
 
 Use this stage for **single-task dev flow** — `/dev:build TASK-42` can auto-run it if the feature folder isn't already on disk.

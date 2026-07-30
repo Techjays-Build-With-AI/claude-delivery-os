@@ -25,3 +25,5 @@ Invoke the **tl-agent** subagent with the feature target. Pass it this instructi
 ## 3. Surface the result
 
 When the agent returns, present its **summary**: features planned, the created-vs-reused counts per layer, the three index tables (or their deltas), any evals designed for AI-bearing features (`EVAL-###`), the design decisions logged (`DEC-###`), the open questions raised (with owners), and any link-integrity findings. Link to the three indexes (`page-index.md`, `endpoint-index.md`, `entity-index.md`) and note that each unit file is self-contained. Keep it tight — the detail lives in the files.
+
+Remind the user of the **next step**: run `/tl:compose <target>` to turn the graph into per-feature buildable `tl-plan.md` files, then `/jetrix:push implementation` to ship them to Mission Control. `/tl:plan` produces the reusable graph; `/tl:compose` produces the per-feature developer handoff — they are separate steps.

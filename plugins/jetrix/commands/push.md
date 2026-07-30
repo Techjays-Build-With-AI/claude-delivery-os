@@ -691,191 +691,66 @@ Failed pushes list each with its error (missing feature_id, version conflict, id
 
 ## Stage: `implementation` (implemented — uses task-mcp)
 
-TL runs this AFTER `/tl:plan` produces per-feature `implementation-plan.md` PLUS the per-unit files under `context/{frontend,backend,database}/`. Each MC Task's `implementationDetails` gets **the feature's plan concatenated with every unit that feature owns** (verbatim, no rephrasing) so the dev-agent (Stage 4) has a self-contained buildable spec in one field. Status flips to `READY_FOR_DEV`. Does NOT touch BA-owned body fields.
+TL runs this AFTER `/tl:compose` writes per-feature `tl-plan.md` files (the buildable 9-section technical spec). Each MC Task's `implementationDetails` gets **that one file's body verbatim** — no concatenation, no unit-file walking, no manifest degradation. `/tl:compose` is responsible for producing a self-contained document sized under Mission Control's 60 KB cap; this stage only ships what compose produced. Status flips to `READY_FOR_DEV`. Does NOT touch BA-owned body fields.
 
-### 2. Walk feature folders that have `implementation-plan.md`
+If a feature folder has no `tl-plan.md`, this stage skips it with a clear "Run `/tl:compose <feature>` first" — this stage never composes, never guesses, never falls back to the old concat-of-units mode.
+
+### 2. Walk feature folders that have `tl-plan.md`
 
 ```bash
 for dir in context/features/*/; do
-  [[ -f "$dir/implementation-plan.md" ]] || continue
+  [[ -f "$dir/tl-plan.md" ]] || continue
   slug=$(basename "$dir")
   echo "$slug"
 done
 ```
 
-### 3. Per folder — read frontmatter, plan, and owned units
+A feature folder with a `feature.md` but no `tl-plan.md` is a signal that `/tl:compose` has not yet run for that feature. Report the skip explicitly:
+
+```
+[skip] context/features/<slug>/ — no tl-plan.md (run /tl:compose <slug>)
+```
+
+### 3. Per folder — read frontmatter, read the plan, size-check
 
 For each feature slug:
 
-**(a) Read feature.md frontmatter** — get `feature_id` and `jetrix_task_object_id`. Missing task-object-id → skip with "Push feature first before implementation".
+**(a) Read `feature.md` frontmatter** — get `feature_id` and `jetrix_task_object_id`. Missing task-object-id → skip with "Push feature first before implementation" (this stage never creates tasks).
 
-**(b) Read `implementation-plan.md`** body (the feature's high-level plan).
+**(b) Read `tl-plan.md` body verbatim** — this is the payload. Strip only the YAML frontmatter; every other character (including code fences, tables, and cross-references) goes to MC unchanged.
 
-**(c) Resolve owned units from the 3 layer indexes** — this is the enrichment step.
+**(c) CRLF-safe frontmatter strip.**
 
-Each index has a DIFFERENT column layout — do NOT treat them uniformly. Confirmed schemas (in this project):
+Delivery-OS `.md` files are CRLF on Windows. A frontmatter strip that compares a line to `---` silently fails against `---\r`, leaving `doc_type:` / `schema_version:` / `produced_by:` metadata visible in the pushed payload where a downstream reader interprets it as spec content. Normalise line endings **before** stripping:
 
-| Index | Feature filter | File column | Entity chain |
-|---|---|---|---|
-| `context/frontend/page-index.md` | col 6 = `Used by Features` | col 8 = `Folder` | — |
-| `context/backend/endpoint-index.md` | col 6 = `Used by Features` | col 7 = `File` | col 5 = `Reads/Writes Entities` (used below) |
-| `context/database/entity-index.md` | *none* — features link indirectly | col 7 = `File` | col 6 = `Used by Endpoints` |
-
-Full headers, as emitted by `tl-feature-planning` / `tl-codebase-map` (`awk -F'|'` field numbers in brackets — note the leading empty field, so **awk field = column + 1**):
-
-```
-page-index.md    | Page ID[$2] | Page[$3] | Area[$4] | Origin[$5] | Status[$6] | Used by Features[$7] | Consumes Endpoints[$8] | Folder[$9] |
-endpoint-index.md| Endpoint ID[$2] | Method + Path[$3] | Domain[$4] | Called by[$5] | Reads/Writes Entities[$6] | Used by Features[$7] | File[$8] |
-entity-index.md  | Entity ID[$2] | Entity[$3] | Kind[$4] | Origin[$5] | Source DATA-###[$6] | Used by Endpoints[$7] | File[$8] |
+```python
+s = io.open(path, encoding='utf-8', newline='').read().replace('\r\n', '\n')
+if s.startswith('---\n'):
+    end = s.find('\n---\n', 3)
+    if end != -1:
+        s = s[end + 5:]
+payload = s.lstrip('\n')   # drop any leading blank lines left by the strip
 ```
 
-`page-index.md` and `entity-index.md` carry two extra columns relative to `endpoint-index.md` (`Origin`/`Status` and `Origin`/`Source DATA-###`). Getting these wrong does **not** error — it silently reads the `Origin` column as the feature filter (never matching a `FEAT-` id, so every page is dropped) and emits the `Used by Endpoints` cell as a file path. Verify the header before trusting the field numbers.
+Verify the payload contains zero `\r` and zero leaked frontmatter keys before pushing.
 
-**Reverse-mapped rows.** Units produced by `/tl:map` carry `(as-built)` in their `Used by Features` cell, so a `FEAT-` filter naturally excludes them. That is correct — as-built units are not owned by any planned feature and must not be concatenated into a Task's implementation spec.
+**(d) Enforce the size cap.** Mission Control's Joi validator on `implementationDetails` rejects anything longer than **60 000 characters** — the response is `{ok: false, updated: 0, error: "\"implementationDetails\" length must be less than or equal to 60000 characters long"}` and **nothing is written**.
 
-Feature ↔ entity is a **2-hop link**: feature → endpoints (via `endpoint-index`) → entities (via each endpoint row's `Reads/Writes Entities` cell). Never grep entity-index directly for a feature id — that will find nothing.
+`/tl:compose` is supposed to keep `tl-plan.md` at ~10–15 KB and refuse to write above 60 KB. This stage is the last line of defence:
 
-**Feature-cell matching rule.** The `Used by Features` cell can hold MULTIPLE ids, comma-separated (`FEAT-HITL-01, FEAT-SEC-01, FEAT-MTCH-01`). Match a feature anywhere in the cell, not just at the start. Use a word-boundary check like:
+- If `len(payload) > 60000` → **skip this feature and fail loud**. Do NOT truncate. Report:
+  ```
+  [skip] FEAT-XXX-YY — tl-plan.md is <N> chars, cap is 60000.
+                     Split the feature via /tl:compose or /ba:features and re-run.
+  ```
+- If `55000 < len(payload) ≤ 60000` → push, but warn: `[warn] FEAT-XXX-YY — <N> chars, near the 60 KB cap`.
 
-```bash
-grep -E "\\b$FEAT\\b"
-```
+**(e) Compute hash + skip-unchanged.**
 
-**Recipe — run one bash call per feature to emit the unit paths (three groups):**
+Compute sha256 of the final payload (frontmatter-stripped, CRLF-normalised). Compare against `sync-state.json[tasks/<feature_id>].implementation_hash`:
 
-```bash
-FEAT="FEAT-CLSF-01"
-cd "$PROJECT_ROOT"
-
-# --- Frontend pages (features = $7, folder = $9) ---
-awk -F'|' -v f="$FEAT" '
-  $0 ~ /\|---/ { next }               # skip separator row. MUST be a regex literal:
-                                      # the string form "\\|---" compiles to the regex |---
-                                      # whose empty left branch matches EVERY line, silently
-                                      # skipping the entire table and yielding zero units.
-  NF < 9 { next }                     # skip non-table lines / narrower side-tables
-  $2 !~ /^ *PAGE-/ { next }           # data rows only (skips header + any second table)
-  {
-    feats = $7; gsub(/^ +| +$/, "", feats)
-    if (feats ~ ("(^|[, ])" f "([,]| *$)")) {
-      folder = $9; gsub(/^ +| +$/, "", folder)
-      sub(/^\.\//, "", folder)
-      print "context/frontend/" folder
-    }
-  }' context/frontend/page-index.md
-
-# --- Backend endpoints (features = $7, file = $8, entity ids = $6) ---
-awk -F'|' -v f="$FEAT" '
-  $0 ~ /\|---/ { next }
-  NF < 8 { next }
-  $2 !~ /^ *EP-/ { next }             # data rows only (skips header + blocked-unit side-table)
-  {
-    feats = $7; gsub(/^ +| +$/, "", feats)
-    if (feats == f || feats ~ ("(^|[, ])" f "([,]| *$)")) {
-      file = $8; gsub(/^ +| +$/, "", file)
-      sub(/^\.\//, "", file)
-      print "context/backend/" file
-      # emit the entity ids on this row for the 2-hop entity resolution below
-      ents = $6; gsub(/^ +| +$/, "", ents)
-      n = split(ents, arr, /[,] */)
-      for (i = 1; i <= n; i++) if (arr[i] ~ /^ENT-/) print "__ENT__" arr[i]
-    }
-  }' context/backend/endpoint-index.md
-
-# --- Database entities (2-hop: use the ENT-* ids emitted above) ---
-# (Separate step below; ENT ids collected from the endpoint step feed this.)
-```
-
-**Handle the 2-hop for entities.** After the awk above prints unit paths and any `__ENT__ENT-CLSF-01` markers, deduplicate the ENT ids, then look each up in `entity-index.md`:
-
-```bash
-# entity-index.md: Entity ID = $2, File = $8
-awk -F'|' -v ent="$ENT_ID" '
-  $0 ~ /\|---/ { next }
-  NF < 8 { next }
-  $2 !~ /^ *ENT-/ { next }            # data rows only
-  {
-    id = $2; gsub(/^ +| +$/, "", id)
-    if (id == ent) {
-      file = $8; gsub(/^ +| +$/, "", file)
-      sub(/^\.\//, "", file)
-      print "context/database/" file
-    }
-  }' context/database/entity-index.md
-```
-
-Loop over each unique ENT id to emit its path. Deduplicate the final list of entity paths (an entity used by 3 endpoints shows up once, not three times).
-
-Result of step (c): three lists of file paths — `PAGES`, `ENDPOINTS`, `ENTITIES` — each a set of `context/**/*.md` paths owned by the feature. Read each file with the `Read` tool (unit files are small; a couple hundred lines each).
-
-**Precision note for the executor:** Do NOT invent alternative filter logic or "figure out" a different chain. The three awk snippets above are the spec. If an index's column layout has drifted from what's described here, STOP and surface the discrepancy — don't guess.
-
-**(d) Compose the concatenated `implementation_details`**:
-
-```markdown
-# Implementation Plan
-<implementation-plan.md body verbatim, YAML frontmatter stripped>
-
----
-
-# Frontend Pages (N)
-
-## PAGE-XXX-YY — <title from unit file H1>
-<page unit body verbatim, frontmatter stripped>
-
-## PAGE-XXX-ZZ — <title>
-<...>
-
----
-
-# Backend Endpoints — grouped by Domain
-
-## <Domain name from index row>
-
-### EP-XXX-YY — <title>
-<endpoint unit body verbatim, frontmatter stripped>
-
----
-
-# Database Entities (N)
-
-## ENT-XXX-YY — <title>
-<entity unit body verbatim, frontmatter stripped>
-```
-
-Preserve unit-file cross-references (relative paths like `../../../../database/entities/*.md` and ID mentions like `EP-INTK-02`) verbatim. Dev-agent resolves them locally at build time — they're the "external contracts" this feature depends on.
-
-> ### ⚠ HARD LIMIT — `implementationDetails` is capped at 60,000 characters
->
-> Mission Control enforces this with its own Joi validator on the Task model. An over-length payload is **rejected outright** — the response is `{ok: false, updated: 0, error: "update_task failed: \"implementationDetails\" length must be less than or equal to 60000 characters long"}` and **nothing is written**. `feature_upsert_bundle` writes the same field and fails identically, so it is not a workaround.
->
-> **A fully-inlined feature routinely exceeds this.** Measured on a 7-feature module: 70k–126k per feature, with only the smallest fitting. Entity bodies are the dominant cost (37k–54k per feature) *and* are massively duplicated — a single 10k shared entity gets inlined into every feature that touches it.
->
-> **Always measure before composing.** Sum the body sizes (file size minus frontmatter) of the plan + resolved units. If the total approaches 60,000, degrade in this order, and **never by truncating a body**:
->
-> 1. **Entity bodies → manifest.** Biggest saving, smallest loss: the entity files live in the same repo the dev agent builds in, and this doc already treats cross-references as contracts the dev agent resolves locally. Emit a table instead — `Entity ID | Collection | Owner feature | State (net-new-planned vs as-built-with-planned-additions) | Repo path | Critical note`. The note **must** carry any blocking warning verbatim in substance (e.g. "`employeeRef`/`roleOnProject`/`isActive` do not exist today; OQ-APPR-01 blocking"). Order blocking-first.
-> 2. **Blocked-endpoint bodies → manifest.** Only if still over. Endpoints marked `status: Blocked` must not be built anyway, so a row of `Endpoint ID | Trigger/Path | Blocker | Owner | Repo path` carries the actionable signal. Never manifest a `Designed` endpoint — that is the buildable spec.
-> 3. **Stop and escalate.** If plan + pages + Designed endpoints alone exceed 60,000, do NOT truncate. Report the number and let a human decide (raise the MC cap, or split the feature).
->
-> **Never** cut the "Proposed Additive Fields (planned — NOT as-built)" sections, `Blocked` markers, confidence labels, or open questions to make something fit. Those exist precisely to stop a dev agent building against fields that don't exist; dropping them to save bytes causes the exact failure the TL graph was designed to prevent.
-
-> ### ⚠ CRLF — strip frontmatter safely on Windows
->
-> Delivery-OS `.md` files are CRLF. A frontmatter strip that compares a line to `---` silently fails against `---\r`, leaving `doc_type:` / `schema_version:` / `produced_by:` metadata in the payload where it reads as spec content. Normalise line endings **before** stripping:
->
-> ```python
-> s = io.open(path, encoding='utf-8', newline='').read().replace('\r\n', '\n')
-> if s.startswith('---\n'):
->     end = s.find('\n---\n', 3)
->     if end != -1:
->         s = s[end + 5:]
-> ```
->
-> Verify the composed payload contains zero `\r` and zero leaked frontmatter keys before pushing.
-
-**(e) Compute hash + skip decision**:
-- Compute sha256 of the FULL concatenated string (not just implementation-plan.md).
-- Skip if `sync-state.json[tasks/<feature_id>].implementation_hash === new hash`. This means any change to any owned unit file re-triggers a push.
+- Match → skip, print `[skip] TASK-<n> <slug> — unchanged (hash=<sha16>)`, do not call the MCP.
+- Mismatch (or missing) → push (step 4), then update sync-state on success (step 5).
 
 ### 4. Single MCP call — use the dedicated implementation tool
 
@@ -889,7 +764,7 @@ mcp__task-mcp__feature_update_implementation(
       feature_id: "FEAT-CLSF-01",                   // reporting only
       slug: "document-classification-extraction",   // reporting only
       task_object_id: "<from feature.md>",           // REQUIRED — this tool never creates
-      implementation_details: "<concatenated content from step 3d>",
+      implementation_details: "<tl-plan.md body from step 3b/c>",
       status: "readyForDev"
     }
   ]
@@ -906,9 +781,38 @@ Missing `task_object_id` returns `{ok: false, error: "…run /jetrix:push featur
 > - **Read tools return empty for tasks that demonstrably exist.** `feature_pull_bundle`, `feature_list_bundle` and `get_task_by_id_or_number` all return nothing for a Solution whose tasks are writable by object id; a raw-oid lookup fails upstream with `"Please select a solution to continue"`, suggesting a missing solution-context header on the read path. **Do not use a read tool to verify a push, and do not treat an empty read as evidence the write failed.** Verify from the write response's `ok`/`updated`/`task_number` instead — `task_number` is echoed from the stored record, so its presence proves the task was found.
 > - **`version` comes back `null`** on every write, where scope-mcp and context-mcp both return an integer. Does not appear to affect the write; record `null` in sync-state rather than inventing a number.
 
-### 5. Update sync-state
+### 5. Update sync-state — **incrementally, after EACH successful push**
 
-**MERGE, do not replace.** Read the current file first, add/update the `implementation_hash` field on each `tasks/<feature_id>` entry you just pushed, and write the merged object back. Report: `updated: N, skipped: M`.
+**Do NOT batch sync-state writes to the end of the run.** For every feature whose `feature_update_implementation` returned `ok: true`, immediately:
+
+1. Read `<workspace_root>/.jetrix/cache/sync-state.json` (MERGE, not replace).
+2. Set the `implementation_hash` on that ONE feature's `tasks/<feature_id>` entry.
+3. Write the merged object back.
+
+Then move on to the next feature. This runs sync-state one write per successful push, not one at the end.
+
+**Why incremental matters.** Implementation pushes relay 10–15 KB per feature through session context (the tool takes the spec as an inline string). On a 10-feature module that's ~150 KB total, and it's not unusual for the run to stop mid-way (session limits, network, an ambiguous input the agent surfaces). If sync-state is batched to the end and the run stops at 5/10:
+
+- Sync-state has ZERO entries → next run re-pushes all 10, even the 5 that landed cleanly.
+- 5 wasted network calls and each identical write bumps the Task's `version` field.
+
+With incremental updates: the same interrupted run leaves sync-state with 5 entries. Next run computes fresh hashes, sees 5 matches, skips those, and pushes only the remaining 5. Clean resume.
+
+**Report format.** Print progress per feature as you go, not one summary at the end:
+
+```
+[1/10] TASK-11 opening-balance-import      pushed   (12.4 KB, hash=<sha16>)
+[2/10] TASK-14 leave-balance-administration skip     (unchanged, hash=<sha16>)
+[3/10] TASK-16 leave-request-submission    pushed   (14.1 KB, hash=<sha16>)
+[4/10] TASK-19 approvals-workflow          skip     (no tl-plan.md — run /tl:compose)
+[5/10] TASK-22 monster-report              skip     (67.3 KB > 60 KB cap — split the feature)
+```
+
+Final report is a two-line summary — `updated: N`, `skipped: M`, `failed: K`, plus a list of any skips/failures with their reason.
+
+### 6. Never fall back to the old concat mode
+
+If a feature has no `tl-plan.md`, this stage **must not** silently reconstruct one by concatenating BA's `implementation-plan.md` + owned units. That path produced the "reads like a business user story" content Dharma flagged. The correct recovery is: tell the user to run `/tl:compose <slug>` and stop for that feature.
 
 ## Stage: `deliverable` (pending — will use deliverable-mcp)
 
