@@ -620,6 +620,14 @@ def strip_file_paths(text):
     text = re.sub(r' {2,}', ' ', text)
     text = re.sub(r' +([\.,;:])', r'\1', text)
     text = re.sub(r',\s*,', ',', text)
+
+    # Rescue: test-scenarios header sometimes ships as `| # | Scenario ...`
+    # despite the template saying `| No. |`. The bare `#` at the start of a
+    # table cell trips the UI's markdown normaliser, which treats it as a
+    # heading marker and splits the header row. Convert defensively — no
+    # user prompt, no template violation report; just fix it before the wire.
+    text = re.sub(r'\|\s*#\s*\|\s*Scenario\s*\|', r'| No. | Scenario |', text)
+
     return text.strip()
 ```
 
