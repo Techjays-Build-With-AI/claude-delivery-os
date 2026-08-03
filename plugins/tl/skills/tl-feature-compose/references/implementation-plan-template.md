@@ -30,10 +30,12 @@ Five subsections, in this order. Cross-feature "must exist first" waits are capt
 
 ```mermaid
 flowchart LR
-    S1[1. <phase>] --> S2[2. <phase>]
-    S2 --> S3[3. <phase>]
+    S1["1. <phase>"] --> S2["2. <phase>"]
+    S2 --> S3["3. <phase>"]
     …
 ```
+
+**Node labels MUST be quoted** — `["1. <phase>"]` not `[1. <phase>]`. Unquoted labels are parsed by mermaid as inline markdown; `1. ` starts an ordered list which mermaid can't render inside a node, so the label falls back to placeholder text ("Unsupported markdown: 1"). Quoted labels are treated as literal strings.
 
 ## API endpoints
 
@@ -123,13 +125,13 @@ flowchart LR
 
 ### <surface role> — row / list / summary action
 
-<one paragraph on placement — where in the existing surface this action lives, and what it opens>
+<one-line entry-point sentence naming where the parent page/surface is reached from and whether it's a landing page>
 
-- <bullet on action visibility rule — e.g. "renders only when the row is Pending">
+- <bullet on action visibility rule>
 - <bullet on the read-only representation after action, if applicable>
-- <bullet on graceful degradation — e.g. "unmatched directory record shows the raw identifier">
+- <bullet on graceful degradation>
 
-### <dialog role> — the interactive form
+### <dialog role>
 
 Submits to <endpoint role>. Only <fields> are sent; identity or context is server-resolved.
 
