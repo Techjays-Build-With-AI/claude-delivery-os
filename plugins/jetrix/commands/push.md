@@ -591,9 +591,18 @@ def strip_file_paths(text):
     text = re.sub(r'\s*\(see\s+[a-zA-Z0-9_-]+\.md\)\.?', '', text)
     text = re.sub(r'see\s+`[a-zA-Z0-9_-]+\.md`', '', text)
 
-    # Bracketed code citations  ([code › src/...], [TL ...])
-    text = re.sub(r'\[code › [^\]]+\]', '', text)
-    text = re.sub(r'\[TL[^\]]*\]', '', text)
+    # Bracketed provenance / citation callouts — internal-analysis debris.
+    # Whitelist of known analysis tags followed by ` › `, ` > `, or a
+    # space + content. Stripped entirely — no user prompt, no per-tag
+    # decision. Add more tags to this list as they surface in BA output.
+    #
+    # NEVER matches ID-only bracket forms like [BR-1], [AC-3], [WF-021],
+    # [EX-021], [FEAT-XYZ-01] — those don't have space/›/> after the tag,
+    # so the regex's content-required clause skips them.
+    text = re.sub(
+        r'\[(?:code|SIMULATED|TL|QA|BA|DEBUG|NOTE|REVIEW|TODO|FIXME|INTERNAL)[ ›>][^\]]+\]',
+        '', text,
+    )
 
     # Backticked code paths — must contain "/" to distinguish from bare filenames
     text = re.sub(
