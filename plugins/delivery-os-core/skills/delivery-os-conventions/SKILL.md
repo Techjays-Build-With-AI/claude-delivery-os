@@ -54,8 +54,8 @@ Every Delivery OS project lives under a **single named container folder** at `<w
 │   ├── features/                # BA feature breakdown (ba-feature-breakdown) + TL per-feature spec (tl-feature-compose)
 │   │   ├── feature-index.md
 │   │   └── <feature-slug>/
-│   │       ├── feature.md · workflow.md · acceptance-criteria.md · dependencies.md · open-questions.md · status.md · implementation-plan.md   # ba
-│   │       └── tl-plan.md        # tl-feature-compose — buildable 9-section spec, pushed to MC.Task.implementationDetails
+│   │       ├── feature.md · workflow.md · acceptance-criteria.md · business-rules.md · nfrs.md · test-scenarios.md · dependencies.md · open-questions.md · status.md · implementation-plan.md   # ba
+│   │       └── tl-plan.md        # tl-feature-compose — Implementation-tab spec, pushed to MC.Task.implementationDetails
 │   ├── frontend/                # TL feature planning (tl-feature-planning)
 │   │   ├── page-index.md
 │   │   └── pages/<area>/<page-slug>.md          # PAGE-<AREA>-NN

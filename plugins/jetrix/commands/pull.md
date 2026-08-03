@@ -207,13 +207,17 @@ Response:
       "task_object_id": "...", "task_number": 42,
       "feature_id": "FEAT-AUTH-001", "slug": "user-auth",
       "initiative": "user-portal",
+      "list_id": "<24-hex>", "list_name": "Supplier Management",   // MC List the Task lives in
       "title": "User Authentication",
-      "description": "## Summary\n...\n\n## Business Objective\n...",   // H2 preserved
-      "scope": "## In Scope\n...\n\n## Out of Scope\n...",
-      "assumptions": "...", "business_rules": "...",
-      "technical_flow": "...", "journeys": "...",
-      "acceptance_criteria": "...", "dependencies": "...", "open_questions": "...",
-      "implementation_details": "...",   // present only if TL has pushed
+      "description": "<summary + Users + workflow narrative + mermaid, tab-shape>",
+      "business_rules": "<BR table, tab-shape>",
+      "acceptance_criteria": "<AC content, tab-shape>",
+      "nfrs": "<NFR table by area, tab-shape>",
+      "test_scenarios": "<Positive / Negative / Edge tables, tab-shape>",
+      "assumptions": "<Depends on + Assumptions + Open questions, three sub-sections>",
+      "scope": "...", "dependencies": "...", "open_questions": "...",       // retained on the record; not tab-facing
+      "technical_flow": "...", "journeys": "...",                            // Execution Flow tab
+      "implementation_details": "...",                                       // present only if TL has pushed
       "status": "readyForDev", "priority": "..."
     },
     ...
@@ -221,77 +225,53 @@ Response:
 }
 ```
 
+**Fields carrying tab-shape content** — `description`, `business_rules`, `acceptance_criteria`, `nfrs`, `test_scenarios`, `assumptions`. These are already stripped of file paths / framework names / provenance by `/jetrix:push feature`. When pull writes them back to local files, it writes them **verbatim** — no re-transformation, no reshaping. Local files after pull are the tab-shape versions.
+
+**Fields carrying record-only content** — `scope`, `dependencies`, `open_questions`. Preserved on the MC record for traceability but not surfaced in any tab; pull writes them back to their local files for anyone reconstructing the feature folder.
+
 ### 6. Compose feature files locally (canonical section order)
 
-For each feature in the response, write these files under `<project_root>/context/features/<slug>/`. Use `mkdir -p` first. Order matters — plan v3 §2.5.
+For each feature in the response, write files under `<project_root>/context/features/<slug>/` (use `mkdir -p` first). Pull is symmetric to push: write each field to its local file verbatim. **No reshaping, no splitting, no restructuring** — the pushed content is already tab-shape.
 
-**`feature.md`:**
-```
+**Seven files reconstructed on pull** (one per wire field):
+
+| Wire field | Local file | Body written |
+|---|---|---|
+| `description` | `feature.md` | Frontmatter + H1 (`# <title>`) + `<description>` verbatim. The Description tab's merged Objective + In / Out Scope + Workflow + mermaid all sit inside this one file. |
+| `business_rules` | `business-rules.md` | Frontmatter + `<business_rules>` verbatim. Skip file entirely if the field is empty. |
+| `acceptance_criteria` | `acceptance-criteria.md` | Frontmatter + `<acceptance_criteria>` verbatim. Skip if empty. |
+| `nfrs` | `nfrs.md` | Frontmatter + `<nfrs>` verbatim. Skip if empty. |
+| `test_scenarios` | `test-scenarios.md` | Frontmatter + `<test_scenarios>` verbatim. Skip if empty. |
+| `assumptions` | `dependencies.md` | Frontmatter + `<assumptions>` verbatim. The Depends on / Assumptions / Open questions merged shape lands here as-is. |
+| `implementation_details` | `tl-plan.md` | Frontmatter + `<implementation_details>` verbatim. Skip if empty (means TL hasn't run `/jetrix:push implementation` yet). |
+
+**Frontmatter written on each file:**
+
+```yaml
 ---
-feature_id: <feature_id>
-initiative: <initiative>
-slug: <slug>
+feature_id: <feature_id>              # from wire task.metadata.externalId
+initiative: <initiative>              # from wire task.metadata.externalInitiative
+slug: <slug>                          # from wire task.metadata.externalSlug
+list_name: <list_name>                # from wire task.list_name — omit key if empty; preserves List routing on re-push
 jetrix_task_id: <task_number>
 jetrix_task_object_id: <task_object_id>
-status: <status>
+status: <status>                      # from wire task.status
+depends_on_features: [...]            # from wire task.metadata.dependsOnFeatureIds
+use_cases: [...]                      # from wire task.metadata.useCases
+generated_at: <today>
 ---
-
-# <title>
-
-<description>       ← already has ## Summary, ## Business Objective, ...
-
-<scope>             ← already has ## In Scope, ## Out of Scope
-
-## Assumptions
-
-<assumptions>
-
-## Related Business Rules
-
-<business_rules>
 ```
 
-**`workflow.md`:**
-```
-# <title> — Workflow
+**`list_name:` write rule.** Only write the key to `feature.md` frontmatter (never to the other six files); other files derive their List placement from the sibling `feature.md`. Omit the key entirely when the wire `list_name` is empty (task-mcp couldn't resolve the List name) so subsequent push falls back to the mapped_scope-derived default — never write `list_name: ""` which would force an empty-named List.
 
-## Technical Flow
+**Files NOT written on pull** — these are local-only in the BA authoring flow, never round-tripped through Jetrix:
 
-<technical_flow>
+- **`workflow.md`** — its content is inside `feature.md`'s Description-tab body. A fresh teammate does not need it as a separate file; the original author's local copy is left untouched if it exists.
+- **`open-questions.md`** — its content is inside `dependencies.md`'s Dependencies-tab body (merged). Same reasoning.
+- **`implementation-plan.md`** — local BA scratchpad, never pushed. Not recreated.
+- **`status.md`** — local operational tracker; task status is on the MC Task itself. Not recreated.
 
-## User Journeys
-
-<journeys>
-```
-
-**`acceptance-criteria.md`:**
-```
-# <title> — Acceptance Criteria
-
-<acceptance_criteria>
-```
-
-**`dependencies.md`:**
-```
-# <title> — Dependencies
-
-<dependencies>
-```
-
-**`open-questions.md`:**
-```
-# <title> — Open Questions
-
-<open_questions>
-```
-
-**`status.md`:**
-```
-# Status: <STATUS_UPPER>
-Progress: <progress>%
-```
-
-**`tl-plan.md`** — write ONLY if `implementation_details` is non-empty (means TL has already run `/jetrix:push implementation`).
+**When a local-only file already exists** (author's machine), pull **does not touch it**. Fresh teammates simply don't have these four files — they can regenerate the rich author view by running `/ba:features` locally against the same scope.
 
 Update `.jetrix/cache/sync-state.json` `tasks/<feature_id>` entries with `taskNumber`, `taskObjectId`, `slug`, `contentHash` (sha256 of the newly-written folder), `lastPulled`.
 
@@ -311,6 +291,11 @@ Three total per combined pull:
 
 ## Stage: `context` (implemented — uses context-mcp)
 
+**Model:** Jetrix stores the full architectural context graph (indexes + unit files + `_overview.md`) per env. Pull fetches it back.
+
+- **Default pull** (no selector) — every context doc in the env, filtered to `context/frontend/`, `context/backend/`, `context/database/` (excludes `context/features/**`). Content-hash skip-unchanged, so subsequent pulls are cheap. Fresh teammate onboarding = one pull, everything on disk.
+- **Patch pull** (with `--unit=<ids>` or `--path=<glob>`) — narrows to specific units. Useful for agents that already have most of the graph and just want a refresh of specific units.
+
 **Env is a fixed two-word vocabulary — `main` (baseline) or `dev` (working state).** context-mcp does NOT accept envConfig branch names (`prod` / `staging` / `qa` etc.) — pushing under any other value silently strands docs at a tag pull can't find.
 
 Env resolution:
@@ -318,7 +303,14 @@ Env resolution:
 - Else → default to `main` (the shared baseline).
 - Any other value → reject with a clear error listing the two allowed values.
 
-### 2. Phase 1 — manifest (one MCP call)
+### 2. Parse selectors
+
+**Arguments accepted:**
+- `--unit=<comma-separated-ids>` — narrow to these units. Plugin needs the local indexes to resolve id → path. If any index is missing locally, the plugin pulls the 3 indexes first (small, one round trip), then resolves.
+- `--path=<glob>` — narrow by glob. Repo-relative glob under `context/frontend|backend|database/**`. Multiple `--path=` flags allowed.
+- No selectors → **default: every doc in the env under `context/frontend|backend|database/`**.
+
+### 3. Phase 1 — manifest (one MCP call)
 
 ```
 mcp__context-mcp__context_pull_manifest(
@@ -331,15 +323,26 @@ Response: `{solution_id, env, ready, docs: [{path, signed_download_url, document
 
 Filter: only rows tagged `["context", "env:<resolved env>"]`.
 
-### 3. Skip-unchanged + download (Bash only, no `Read`)
+### 4. Client-side filter — narrow to requested files
 
-Same pattern as pull scope: sha256sum every local candidate → compare against `sync-state.json[<path>][main].contentHash` → skip matching, download the rest via curl GET to `<project_root>/<path>`.
+Build the download set from the manifest based on the selectors parsed in step 2:
 
-`mkdir -p context/frontend context/backend context/database` before writes.
+- **Default (no selector):** every path in the manifest that starts with `context/frontend/`, `context/backend/`, or `context/database/`. Everything else is dropped (including `context/features/**` — those come via `/jetrix:pull scope`).
+- **If `--unit=<ids>` is set:** read the (just-pulled or already-local) indexes, look up each id's `Folder` cell, resolve to a repo-relative path, and include those paths **plus** the 3 indexes. Unknown ids → warn per-id, skip.
+- **If `--path=<glob>` is set:** filter the manifest by each glob; union the matches. Indexes NOT auto-included in this mode — user's globs are explicit.
+- **De-duplicate** the final path set.
 
-### 4. Update sync-state
+**Never include** paths under `context/features/**` — those are BA scope-stage docs, pulled via `/jetrix:pull scope`.
 
-Write per-file fresh contentHash under the `main` sub-key. Report `Updated: N | Unchanged: M`.
+### 5. Skip-unchanged + download (Bash only, no `Read`)
+
+For each path in the filtered download set: `sha256sum` the local copy (if any) → compare against `sync-state.json[<path>][<env>].contentHash` → skip matching, curl GET the rest to `<project_root>/<path>`.
+
+`mkdir -p` the parent directory of each path before writing — patch pulls of `context/backend/endpoints/supplier/create-supplier.md` need `context/backend/endpoints/supplier/` to exist first.
+
+### 6. Update sync-state
+
+Write per-file fresh contentHash under the env sub-key. Report `Updated: N | Unchanged: M | Skipped-unfiltered: K` (K = manifest rows dropped by the client-side filter — useful for the user to see how much they'd have downloaded in bulk mode).
 
 ## Stage: `all`
 
@@ -378,6 +381,7 @@ Report:
 ✓ Pulled TASK-42 (FEAT-CLSF-01, "Document Classification & Extraction")
   → context/features/document-classification-extraction/
     feature.md, workflow.md, acceptance-criteria.md,
+    business-rules.md, nfrs.md, test-scenarios.md,
     dependencies.md, open-questions.md, status.md
     tl-plan.md         (only if TL has pushed implementation for this feature)
 ```
@@ -424,7 +428,7 @@ Use this stage for **sprint kickoff** — team members pull just this week's wor
 
 Materializes every feature folder in an MC List. `<ref>` accepts:
 
-- A **list name** (e.g. `larkiq` — task-mcp uses the solution slug as list name by default)
+- A **list name** (e.g. `"Supplier Management"` — feature-push resolves the list name from each feature's `list_name` frontmatter, or from `mapped_scope`; use the exact List name shown in MC)
 - A **MongoDB `_id`** (24-char hex)
 
 Plugin recipe:
@@ -439,7 +443,7 @@ Plugin recipe:
    ```
 3. Same materialization + sync-state merge as `sprint` stage.
 
-Since task-mcp always creates FEATURE tasks in a list named after the solution slug, `list <solution_slug>` is functionally equivalent to `pull scope` minus the BA docs — useful when you already have scope pulled and just want fresh feature content.
+A Solution's FEATURE tasks may be spread across **multiple MC Lists** (one per resolved `list_name` at push time — see `push.md` Stage: feature). `pull list <name>` fetches only the tasks in that one List. To materialize every feature under the Solution regardless of List, use `pull scope` (uses `feature_pull_bundle` without a list filter).
 
 ---
 

@@ -324,7 +324,13 @@ After the first push, subsequent pushes run **silently** — same three phases, 
 
 ## Stage: `context` (implemented — uses context-mcp)
 
-Pushes the 3 architecture indexes env-scoped:
+**Model:** Jetrix stores every architectural context file — indexes + unit files + `_overview.md` — for both envs (`main` baseline, `dev` working state). The graph is not code; it's the map the agents consult, so it belongs in the context engine, not in git.
+
+- **Default push** (no selector) — walks **everything** under `context/frontend/`, `context/backend/`, `context/database/` (indexes + unit files + `_overview.md`). Content-hash skip-unchanged applies, so a re-push of a workspace where nothing changed is a no-op.
+- **Patch push** (with `--unit=<ids>` or `--path=<glob>`) — narrows the walk to the specified units. Use when you only want to publish a specific slice (e.g. one page and its endpoint) without touching the rest.
+- **Never pushed here** — `context/features/**`. Those are BA scope-stage folders that become MC Tasks via the `feature` stage.
+
+The 3 indexes:
 - `context/frontend/page-index.md`
 - `context/backend/endpoint-index.md`
 - `context/database/entity-index.md`
@@ -335,14 +341,18 @@ To resolve the env list, call `project-mcp.project_get_env_configs(project_id)` 
 
 Legacy `--baseline` is still accepted as an alias for "push to the last env in the chain."
 
-### 2. Collect the 3 index files — Bash only
+### 2. Parse selectors + build the file list — Bash only
 
-Plan v3 §2.7 is explicit: **exactly three files go to GCS** — the three
-layer indexes. Per-unit files (individual page / endpoint / entity `.md`s
-under `context/{frontend,backend,database}/**/`) are NOT pushed here;
-their content reaches Jetrix by being concatenated into
-`task.implementationDetails` via `/jetrix:push implementation` (§2.9),
-so the dev agent gets one self-contained buildable spec per feature Task.
+**Arguments accepted:**
+- `--unit=<comma-separated-ids>` — narrow to these specific units. Plugin reads the local indexes, maps each id to its `Folder` cell (`./pages/supplier/supplier-list.md`), resolves to a repo-relative path, and uses those paths **plus** the 3 indexes. Unknown IDs → warn per-id and skip; don't halt the batch.
+- `--path=<glob>` — narrow by glob. Repo-relative glob under `context/frontend|backend|database/**`. Multiple `--path=` flags may be passed. Examples: `--path=context/frontend/pages/supplier/*.md`, `--path=context/backend/endpoints/**/*.md`.
+- No selectors → **default: walk everything** under `context/frontend/`, `context/backend/`, `context/database/`.
+
+**File list:**
+- Default: `find context/frontend context/backend context/database -type f -name '*.md'`.
+- With selectors: resolve to the narrow list (indexes + specified units/paths).
+- **Always exclude** paths under `context/features/**` — those are BA scope-stage content pushed via the feature stage.
+- De-duplicate.
 
 ```bash
 #!/usr/bin/env bash
@@ -350,15 +360,17 @@ set -e
 PROJECT_ROOT="<absolute project_root>"
 cd "$PROJECT_ROOT"
 
-# Exactly three files. No walk, no recursion.
-CANDIDATES=(
-  "context/frontend/page-index.md"
-  "context/backend/endpoint-index.md"
-  "context/database/entity-index.md"
+# Default: walk all .md under the three layer dirs.
+# Selectors narrow this list (plugin injects a filtered set before this loop).
+mapfile -t CANDIDATES < <(
+  find context/frontend context/backend context/database \
+    -type f -name '*.md' 2>/dev/null | sort
 )
 
 for f in "${CANDIDATES[@]}"; do
   [[ -f "$f" ]] || continue
+  # Guard: never push under context/features/** here — belongs to feature stage.
+  [[ "$f" == context/features/* ]] && continue
   size_bytes=$(wc -c < "$f")
   size_kb=$(( (size_bytes + 1023) / 1024 ))
   hash=$(sha256sum "$f" | cut -d' ' -f1)
@@ -366,15 +378,11 @@ for f in "${CANDIDATES[@]}"; do
 done
 ```
 
-Parse output into `[{path, size_kb, content_hash}]`. Missing indexes
-skip silently (an early workspace may only have one or two).
+Parse output into `[{path, size_kb, content_hash}]`. Missing dirs skip silently — an early workspace may only have one layer.
 
-Do NOT `Read` any of these files. Do NOT enumerate per-unit files under
-`context/frontend/pages/`, `context/backend/domains/`, or
-`context/database/entities/` — those belong in `/jetrix:push
-implementation`, not here. Pushing them from this command creates
-scattered FileMeta rows in Jetrix that duplicate what the Task's
-Implementation tab already contains.
+**Do NOT `Read` these files.** Bash-only walk keeps bytes out of the plugin's context; content flows GCS → curl in step 5.
+
+**Skip-unchanged is what makes bulk push cheap.** Step 3 below compares content hash against `sync-state.json` and filters unchanged files out before Phase 1 signs URLs. First push uploads everything; subsequent pushes upload only what changed.
 
 ### 3. Resolve env + skip unchanged
 
@@ -390,13 +398,19 @@ context-mcp uses a **fixed two-word vocabulary** — `main` (shared baseline) an
 
 ### 4. Phase 1 — prepare (one MCP call)
 
+Pass the resolved file list from step 2 (indexes + any unit files added via `--unit` / `--path` patches). Skip any file whose `content_hash` matches sync-state for the target env — no need to signed-URL what won't change.
+
 ```
 mcp__context-mcp__context_prepare_push(
   solution_id=<from project.json>,
   docs=[
+    # Always the indexes that exist:
     { path: "context/frontend/page-index.md",   mime_type: "text/markdown" },
     { path: "context/backend/endpoint-index.md", mime_type: "text/markdown" },
-    { path: "context/database/entity-index.md",  mime_type: "text/markdown" }
+    { path: "context/database/entity-index.md",  mime_type: "text/markdown" },
+    # Plus any unit files added via --unit / --path (patch mode). Example:
+    { path: "context/frontend/pages/supplier/supplier-list.md", mime_type: "text/markdown" },
+    { path: "context/backend/endpoints/supplier/create-supplier.md", mime_type: "text/markdown" }
   ],
   env=<main or dev>
 )
@@ -415,7 +429,7 @@ mcp__context-mcp__context_finalize_push(
   solution_id=<from project.json>,
   docs=[
     { path: "context/frontend/page-index.md", gcs_path: "<from prepare>", size_kb: 12 },
-    ...
+    # ... one row per file uploaded, including any patched unit files
   ],
   env=<main or dev>
 )
@@ -440,7 +454,36 @@ Only touch the sub-key for the env you just pushed. Report `Uploaded: N to <env>
 
 ## Stage: `feature` (implemented — uses task-mcp)
 
-Creates ONE MC Task per `context/features/<slug>/` folder. All FEATURE tasks for a Solution land under a single MC List named after `solutionSlug`. First push = POST (create); repush = PUT (update by `jetrix_task_object_id` stored in `feature.md` frontmatter).
+Creates ONE MC Task per `context/features/<slug>/` folder. Features are grouped into MC Lists by resolved `list_name` — one Task per feature, one MC List per unique `list_name` value, one `feature_upsert_bundle` call per group (task-mcp's `solution_slug` parameter carries the resolved List name for that batch). First push per Task = POST (create); repush = PUT (update by `jetrix_task_object_id` stored in `feature.md` frontmatter).
+
+### 1a. Prereq check — do NOT crash on missing files, tell the user what to pull
+
+Before walking, verify `context/features/` exists and has at least one feature folder with a `feature.md`. Two failure modes to handle explicitly:
+
+- **`context/features/` doesn't exist** — halt with:
+  ```
+  ✗ /jetrix:push feature requires the BA feature breakdown.
+    This workspace has no context/features/ folder.
+    Run one of:
+      /ba:features                 (generate the breakdown from local scope)
+      /jetrix:pull scope           (pull an existing breakdown from Jetrix)
+    Then re-run /jetrix:push feature.
+  ```
+- **Folder exists but a feature is missing required BA files** (e.g. no `feature.md`, or no `acceptance-criteria.md` — the seven tab-critical files) — halt for that feature with:
+  ```
+  ✗ /jetrix:push feature: feature '<slug>' is missing required BA files.
+    Missing:
+      context/features/<slug>/business-rules.md
+      context/features/<slug>/nfrs.md
+    Run one of:
+      /jetrix:pull scope           (pull all feature folders from Jetrix)
+      /jetrix:pull task <ref>      (pull just this feature)
+      /ba:features <slug>          (regenerate locally from scope)
+    Then re-run /jetrix:push feature.
+  ```
+- **Never silently skip** a feature just because a file is missing. Silent skips ship half-tasks; explicit halts let the user fix and retry.
+
+Only after all prereq checks pass do you walk the folders in step 2.
 
 ### 2. Walk feature folders — Bash + Read (small files, OK to read)
 
@@ -463,56 +506,157 @@ done
 
 Parse into `[{slug, content_hash}]`.
 
-### 3. Per feature — read + parse (canonical section order)
+### 3. Per feature — read local files + assemble the wire fields
 
 For each folder that needs push (content_hash differs from `sync-state.json[<slug>].contentHash`):
 
-**Read `feature.md`**, extract:
-- **Frontmatter** (YAML between `---` fences): `feature_id`, `initiative`, `priority`, `status`, `jetrix_task_id`, `jetrix_task_object_id`, `slug`
-- **`# <title>`** (H1 line) — title
-- **Body split on `\n## `** — section content per header
+**(a) Read the BA-authored files** (feature folder contents — small, `Read` is fine). The BA templates now produce tab-shape content directly, so **no stripping, regex-cleaning, or reshaping is needed at push time.** The push is a passthrough for five files and a two-line concatenation for the two merge pairs.
 
-Compose Task fields (H2 headers PRESERVED in multi-section fields):
+| Local file | Read purpose | Special notes |
+|---|---|---|
+| `feature.md` | Frontmatter (identity + metadata) + body (Description tab: Objective / In Scope / Out of Scope) | Frontmatter carries `title` (human-readable task title), `feature_id`, `initiative`, `slug`, `list_name` (optional — MC List routing), `use_cases`, `mapped_*`, `depends_on_features`, `status`, `priority`, `jetrix_task_id`, `jetrix_task_object_id`. Task title = `frontmatter.title` (falls back to H1 line if a legacy file still carries one, then to `slug` — but new templates author `title:` in frontmatter and never carry an H1). List routing resolved in (b) below. |
+| `workflow.md` | Body (Workflow section — user flows + mermaid) | Concatenated into `description` at (b). |
+| `business-rules.md` | Body verbatim | Sent as-is. |
+| `acceptance-criteria.md` | Body verbatim | Sent as-is. Templates now author it as three grouped tables directly. |
+| `nfrs.md` | Body verbatim | Sent as-is. If the file is missing, send `""`. |
+| `test-scenarios.md` | Body verbatim | Sent as-is. If the file is missing, send `""`. |
+| `dependencies.md` | Body (Depends on + Assumptions) | Concatenated with `open-questions.md` into `assumptions` at (b). |
+| `open-questions.md` | Body (Open questions bullet list) | Concatenated with `dependencies.md` into `assumptions` at (b). |
+| `implementation-plan.md` | Not read | Local-only. Never pushed. |
+| `status.md` | Not read | Local-only. Never pushed. |
 
-```
-title             = "<H1 content>"
-description       = "## Summary\n<content>\n\n## Business Objective\n<content>\n\n## Users\n<content>\n\n## User Value\n<content>"
-scope             = "## In Scope\n<content>\n\n## Out of Scope\n<content>"
-assumptions       = "<Assumptions section content, H2 stripped>"
-business_rules    = "<Related Business Rules section content, H2 stripped>"
-```
-
-**Read `workflow.md`** — split on `## `:
-```
-technical_flow    = "<Technical Flow section content>"
-journeys          = "<User Journeys section content>"
-```
-
-**Read `acceptance-criteria.md`, `dependencies.md`, `open-questions.md`, `status.md`** — full body (minus H1 title line) into the respective field. `status.md` parse `# Status: X` + `Progress: N%`.
-
-### 4. Single MCP call — `feature_upsert_bundle`
+**(b) Assemble the wire fields** — five verbatim, two merges. Nothing else.
 
 ```
+title              = <frontmatter.title of feature.md>
+                     ↳ fallback: <H1 of feature.md body> if frontmatter.title absent
+                     ↳ fallback: <frontmatter.slug> if neither is present
+
+description        = <feature.md Objective section (from "## Objective" up to but not including "## In Scope")>
+                   + "\n\n## Workflow\n\n"
+                   + <workflow.md body — minus frontmatter, minus H1>
+                   + "\n\n"
+                   + <feature.md In Scope + Out of Scope sections (from "## In Scope" to end of body)>
+                     ↳ If feature.md has no "## In Scope" heading (legacy or authored without scope):
+                       fall back to <feature.md body> + workflow (old order). Warn the author —
+                       the reader loses the "scope after workflow" affordance that AC / test-scenarios
+                       rely on when they cite "email notifications are out of scope, so a toast is shown".
+
+business_rules     = <business-rules.md body — minus frontmatter, minus H1>
+
+acceptance_criteria = <acceptance-criteria.md body — minus frontmatter, minus H1>
+
+nfrs               = <nfrs.md body — minus frontmatter, minus H1>
+                     or "" if the file is missing
+
+test_scenarios     = <test-scenarios.md body — minus frontmatter, minus H1>
+                     or "" if the file is missing
+
+assumptions        = <dependencies.md body — minus frontmatter, minus H1>
+                   + (open-questions.md body starts with "— none."
+                        ? "\n\n**Open questions** " + <open-questions.md body>
+                        : "\n\n**Open questions**\n\n" + <open-questions.md body>)
+```
+
+**Frontmatter → metadata** (populates task metadata for the dependency-check gate in `/dev:build`):
+
+```
+metadata = {
+  externalId:          <frontmatter.feature_id>,
+  externalInitiative:  <frontmatter.initiative>,
+  externalSlug:        <frontmatter.slug>,
+  dependsOnFeatureIds: <frontmatter.depends_on_features (list)>,
+  useCases:            <frontmatter.use_cases (list)>,
+}
+```
+
+**Resolve `list_name` per feature** — this determines which MC List the Task lands under. Fallback chain:
+
+```
+list_name = <frontmatter.list_name of feature.md>
+            ↳ fallback: <frontmatter.mapped_scope with the "§X.Y " prefix stripped>
+                        e.g. "§3.2 Supplier Management" → "Supplier Management"
+            ↳ fallback: <frontmatter.initiative>            (kebab-case is fine; MC List names are free text)
+            ↳ fallback: <solution_slug from project.json>   (last-resort; no feature is orphaned)
+```
+
+Compute the pattern strip as: if `mapped_scope` starts with `§`, drop everything up to and including the first whitespace character; trim the remainder. Every feature ends up with a non-empty `list_name`. Two features with the same resolved `list_name` share one MC List; task-mcp's find-or-create against `List.name` handles both cases.
+
+**No stripping. No reshaping. No bullet-to-table conversion.** The BA templates author the tab-shape directly; push is a near-passthrough. If a local file contains a forbidden pattern (file path, framework name, provenance callout, feature-id heading), that is a **BA template violation** — surface it back to the author, do NOT strip silently at push time. The tab is only as clean as what the templates produce.
+
+**Section-aware concatenations only** — `description` = `feature.md` Objective + `## Workflow` heading + `workflow.md` body + `feature.md` In-Scope + Out-of-Scope sections (workflow injected between Objective and Scope so AC / test-scenarios can cite the scope points naturally). `assumptions` = `dependencies.md` + `**Open questions**` separator + `open-questions.md` (inline `— none.` form when the questions body starts with it). Everything else is byte-verbatim.
+
+### 4. Grouped MCP calls — one `feature_upsert_bundle` per resolved `list_name`
+
+Group features by their resolved `list_name` (from step 3(b) above). Emit **one MCP call per group** — the `solution_slug` parameter carries the List name for that batch. All features in the same group land under the same MC List (find-or-create by name). task-mcp requires no change: it already uses `solution_slug` verbatim as the List name for find-or-create.
+
+```
+# Example — 10 features resolving to 3 distinct list_names → 3 MCP calls
+
 mcp__task-mcp__feature_upsert_bundle(
   solution_id = <from project.json>,
-  solution_slug = <from project.json>,
+  solution_slug = "Supplier Management",   // ← resolved list_name for this group
   features = [
     {
       feature_id: "FEAT-AUTH-001",
       slug: "user-auth",
       initiative: "user-portal",
       task_object_id: "<from frontmatter, if present>",  // omit for create
-      title: ..., description: ..., scope: ...,
-      assumptions: ..., business_rules: ...,
-      technical_flow: ..., journeys: ...,
-      acceptance_criteria: ..., dependencies: ..., open_questions: ...,
+
+      // The six BA-owned tab fields — passthrough / two-merge output from step 3(b).
+      title:               "<frontmatter.title of feature.md, e.g. 'Supplier Onboarding'>",
+      description:         "<feature.md Objective + '\n\n## Workflow\n\n' + workflow.md body + '\n\n' + feature.md In-Scope+Out-of-Scope — the reordering puts scope AFTER workflow so AC / test-scenarios can cite it naturally>",
+      business_rules:      "<business-rules.md body verbatim>",
+      acceptance_criteria: "<acceptance-criteria.md body verbatim>",
+      nfrs:                "<nfrs.md body verbatim, or ''>",
+      test_scenarios:      "<test-scenarios.md body verbatim, or ''>",
+      assumptions:         "<dependencies.md + '\n\n**Open questions**\n\n' + open-questions.md, OR '\n\n**Open questions** ' + '— none. <reason>' when there are no questions — matches v2 shape>",
+
+      // Metadata — populates task.metadata for downstream flows (dev:build dep check, etc.)
+      metadata: {
+        externalId:          "FEAT-AUTH-001",
+        externalInitiative:  "user-portal",
+        externalSlug:        "user-auth",
+        dependsOnFeatureIds: ["FEAT-USER-001"],
+        useCases:            ["AUTH-UC-01", "AUTH-UC-02"],
+      },
+
       status: "todo",
       priority: "..."
     },
     ...
   ]
 )
+
+# ... then repeat for the next group:
+mcp__task-mcp__feature_upsert_bundle(
+  solution_id = <from project.json>,
+  solution_slug = "Compliance Review",     // ← next resolved list_name
+  features = [ ... features in this group ... ]
+)
+
+# ... etc, one call per unique list_name.
 ```
+
+**Grouping is deterministic** — features iterate in a stable order (`feature_index.md` row order), so groups are formed by first-appearance of each `list_name`. This keeps push logs and MC List creation order predictable across runs.
+
+**Do NOT send** — these fields are legacy and reserved for MC-specific renders that we no longer duplicate from BA output:
+
+- `scope`, `dependencies`, `open_questions` — their content already lives inside `description` and `assumptions` respectively.
+- `technical_flow`, `journeys` — MC's Execution Flow tab can be repopulated later via a targeted structured push if needed; the mermaid diagram in `description` covers the Description-tab render.
+
+**Field-to-tab map:**
+
+| Field | MC Tab | Source |
+|---|---|---|
+| `description` | Description | `feature.md` Objective + `workflow.md` (Workflow section + mermaid) + `feature.md` In-Scope + Out-of-Scope, joined at push. Order: Objective → Workflow → In Scope → Out of Scope. |
+| `business_rules` | Business Rules | `business-rules.md`, verbatim |
+| `acceptance_criteria` | Acceptance Criteria | `acceptance-criteria.md`, verbatim |
+| `nfrs` | NFRs | `nfrs.md`, verbatim |
+| `test_scenarios` | Test Scenarios | `test-scenarios.md`, verbatim |
+| `assumptions` | Dependencies (tab labelled Dependencies in UI) | `dependencies.md` (Depends on + Assumptions) + `open-questions.md` (Open questions bullets), joined at push |
+| `implementation_details` | Implementation | Not written here — `feature_update_implementation` writes it after `/tl:compose` produces `tl-plan.md`. |
+| — | (no tab) | `implementation-plan.md` and `status.md` are local-only, never pushed. |
 
 Response per feature: `{slug, feature_id, task_object_id, task_number, version, action ('created' | 'updated' | 'recreated'), ok}`. `recreated` means the cached `task_object_id` no longer existed in MC (deleted server-side) so a new task was created; the response also carries `previous_task_object_id`.
 
@@ -556,7 +700,7 @@ Ad-hoc task push. Unlike `feature`, which is tied to the BA 6-file folder layout
   - Directory → walk `<dir>/**/*.md`.
 - `--list=<name>` OR `--list=<24-hex-oid>` (optional): target MC List. If name doesn't exist, it's created. If oid, must exist.
 - `--sprint=<24-hex-oid>` (optional): target Sprint by _id.
-- `--list` and `--sprint` are **mutually exclusive**. If neither, defaults to the solution's List named `solutionSlug` (same list `push feature` uses).
+- `--list` and `--sprint` are **mutually exclusive**. If neither, defaults to the solution's List named `solutionSlug`. Note: `push feature` no longer uses a single per-solution List — it groups features into per-scope-module Lists. For ad-hoc `push task`, `solutionSlug` remains the default catch-all List so unbucketed tasks are still discoverable.
 
 Detect oid vs name via the regex `^[0-9a-fA-F]{24}$`.
 
@@ -693,7 +837,12 @@ Failed pushes list each with its error (missing feature_id, version conflict, id
 
 TL runs this AFTER `/tl:compose` writes per-feature `tl-plan.md` files (the buildable 9-section technical spec). Each MC Task's `implementationDetails` gets **that one file's body verbatim** — no concatenation, no unit-file walking, no manifest degradation. `/tl:compose` is responsible for producing a self-contained document sized under Mission Control's 60 KB cap; this stage only ships what compose produced. Status flips to `READY_FOR_DEV`. Does NOT touch BA-owned body fields.
 
-If a feature folder has no `tl-plan.md`, this stage skips it with a clear "Run `/tl:compose <feature>` first" — this stage never composes, never guesses, never falls back to the old concat-of-units mode.
+If a feature folder has no `tl-plan.md`, this stage skips it with a clear message pointing the user at the right recovery command. Two cases:
+
+- **This teammate hasn't composed yet locally** → run `/tl:compose <slug>` to generate `tl-plan.md` from the local graph.
+- **The feature's `tl-plan.md` was pushed by a different teammate and this workspace hasn't pulled it** → run `/jetrix:pull task <ref>` (or `/jetrix:pull scope`) to fetch the composed plan from Jetrix.
+
+Never compose silently, never guess, never fall back to the old concat-of-units mode.
 
 ### 2. Walk feature folders that have `tl-plan.md`
 
@@ -705,10 +854,13 @@ for dir in context/features/*/; do
 done
 ```
 
-A feature folder with a `feature.md` but no `tl-plan.md` is a signal that `/tl:compose` has not yet run for that feature. Report the skip explicitly:
+A feature folder with a `feature.md` but no `tl-plan.md` means either `/tl:compose` hasn't run locally for this feature, or the composed plan lives on Jetrix but hasn't been pulled. Report the skip explicitly with both recovery paths:
 
 ```
-[skip] context/features/<slug>/ — no tl-plan.md (run /tl:compose <slug>)
+[skip] context/features/<slug>/ — no tl-plan.md.
+       Run one of:
+         /tl:compose <slug>        (compose from the local graph)
+         /jetrix:pull task <slug>  (pull an existing plan from Jetrix)
 ```
 
 ### 3. Per folder — read frontmatter, read the plan, size-check

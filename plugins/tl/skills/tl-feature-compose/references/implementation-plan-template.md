@@ -21,10 +21,12 @@ Feature identity lives in this frontmatter (and in the MC task metadata). It **n
 
 ## Section skeleton
 
+Five subsections, in this order. Cross-feature "must exist first" waits are captured in the **Dependencies tab** (BA-owned). Code-reuse targets are captured in **Touch points** below.
+
 ```markdown
 ## Build sequence
 
-<one paragraph naming the phases and their dependency order>
+<one paragraph naming the phases and their dependency order. Each step's exit condition is captured inline in the API and Frontend sections that follow — this diagram is the sequence map, not the step spec.>
 
 ```mermaid
 flowchart LR
@@ -32,12 +34,6 @@ flowchart LR
     S2 --> S3[3. <phase>]
     …
 ```
-
-| Step | Build | Done when |
-|---|---|---|
-| **1** | <what to build in this phase, by role> | <verifiable condition> |
-| **2** | <what to build in this phase, by role> | <verifiable condition> |
-| … | … | … |
 
 ## API endpoints
 
@@ -197,7 +193,7 @@ Never re-print content that belongs in Description, Business Rules, Acceptance C
 - No Test Scenarios (they live in Test Scenarios).
 - No Dependencies / Assumptions / Open Questions (they live in Dependencies).
 
-The visible content of this document is: **Build sequence · API endpoints · Database modifications · Frontend UI · Touch points**. That is the entire allowance.
+The visible content of this document is: **Build sequence · API endpoints · Database modifications · Frontend UI · Touch points**. That is the entire allowance. Cross-feature dependencies live in the Dependencies tab (BA-owned); code-reuse targets live in Touch points.
 
 ### 4. Feature identity in visible headings or prose
 
@@ -228,7 +224,7 @@ No "consider", "might", "could", "we should think about". A phase is either buil
 
 ## What this file MUST contain
 
-- **Build sequence** at the top — a paragraph, a mermaid step-graph, and a step table with a verifiable "Done when" for each step.
+- **Build sequence** — a paragraph naming the phases + their dependency order, plus a mermaid step-graph. The step table is NOT part of this section; each step's exit condition is captured inline in the API endpoints and Frontend UI sections that follow.
 - **API endpoints** — one section per endpoint (Create / Update / Delete / Read), with Request body table, normative Execution-order table, Success JSON, and Refusals table. Every distinct response code and every distinct `message` gets its own row.
 - **Database modifications** — the "Fields written" table for this feature, a one-line boundary listing "Never touched" fields on the same object, and a paragraph on any state semantics the write depends on.
 - **Frontend UI** — an API-wiring table (which surface calls what), a section per user-facing surface (row action / dialog / etc.) describing behaviour by role, a Refusal-placement table, and a one-paragraph API service description.

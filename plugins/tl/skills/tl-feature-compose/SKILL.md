@@ -45,8 +45,10 @@ For each targeted feature, compute the `inputs_hash` — sha256 over the concate
 
 ### 3. Read the feature and its graph slice
 For each feature to compose:
-- Read `feature.md`, `workflow.md`, `acceptance-criteria.md`, `dependencies.md`, `open-questions.md`. (Optional: read `implementation-plan.md` for BA scoping context — but do NOT copy its text; you are producing a technical document, not concatenating a BA one.)
+- Read `feature.md`, `workflow.md`, `acceptance-criteria.md`, `business-rules.md`, `nfrs.md`, `test-scenarios.md`, `dependencies.md`, `open-questions.md`. (`implementation-plan.md` and `status.md` are local-only and irrelevant here — do NOT read them.)
+- **Ensure the graph is local.** If any of the 3 indexes (`context/frontend/page-index.md`, `context/backend/endpoint-index.md`, `context/database/entity-index.md`) is missing, invoke `/jetrix:pull context` once (default = every context doc in the env) and retry. If still missing after pull, tell the user to run `/tl:plan` first (no indexes = no graph) and stop.
 - Resolve owned units from the three indexes using the awk recipe from `references/index-resolution.md` (same matching rule `/jetrix:push implementation` uses — feature-cell word-boundary match, and the 2-hop endpoint→entity chain via each endpoint row's `Reads/Writes Entities` cell). Reject a feature with **zero owned units** — tell the user to run `/tl:plan` first, do not fabricate units.
+- **Patch-pull only what's still missing.** The default `/jetrix:pull context` above already brought down every doc in the env. In the rare case a specific unit is referenced by the index but its file didn't come through (transient GCS 404, or the unit was created since the last full pull), batch-invoke `/jetrix:pull context --unit=<missing-ids>` once. Any unit still missing after that becomes `[HELD · unit file unavailable — pull failed for <id>]` in §9 with `TBD — unit-detail file unavailable` at its heading.
 - Read every owned page, endpoint, and entity file.
 
 ### 4. Repo-scan preflight
@@ -58,13 +60,13 @@ Read `.jetrix/cache/repolocation.json`. For each app declared:
 ### 5. Compose the Implementation-tab content
 Follow `references/implementation-plan-template.md`. The composed `tl-plan.md` populates **only** the Implementation tab of the Jetrix Task via `/jetrix:push implementation`. Description, Business Rules, Acceptance Criteria, NFRs, Test Scenarios, and Dependencies are populated by BA push from other files and never appear in this document.
 
-The output contains exactly five subsections, in this order:
+The output contains exactly five subsections, in this order. Cross-feature "must exist first" waits are captured in the **Dependencies tab** (BA-owned); code-reuse targets are captured in **Touch points** at the end of this document — never both.
 
-1. **Build sequence** — one paragraph naming the phases and their dependency order, one mermaid step-graph, and a step table (`Step | Build | Done when`). Each step is independently verifiable. A step that depends on an undecided open question is marked `[HELD · waiting on OQ-<id>]` and named as such — never a phase that pretends to be buildable while quietly depending on an unresolved decision.
+1. **Build sequence** — one paragraph naming the phases and their dependency order, one mermaid step-graph. **No step table.** Each step's exit condition is captured inline in the API and Frontend sections below; the diagram is the sequence map only. A phase that depends on an undecided open question is marked `[HELD · waiting on OQ-<id>]` in the paragraph rather than pretending to be buildable.
 2. **API endpoints** — one heading per endpoint the feature creates or modifies (`### Create — <role>`, `### Update — <role>`). Each carries: path parameter table (if applicable), request body table + JSON example, **normative execution-order table** (steps 1..N, each with failure code), success JSON with the exact response code, refusals table with **one row per distinct `message`** (three `409` variants → three rows, never collapsed), and a paragraph on invariants (idempotency, partial-write behaviour, side effects).
 3. **Database modifications** — one line describing the affected data object by role. "Fields written by this feature" table listing ONLY the fields this feature writes. One "Never touched" line naming existing fields the feature does not write (for reviewer boundary awareness). A paragraph on any state semantics the write relies on.
 4. **Frontend UI** — an API-wiring table (`Surface | Trigger | Calls`), one heading per user-facing surface described by role (row action, dialog, list, etc.), a control table on the interactive form, a refusal-placement table (which server `message` renders where, per code), and a one-paragraph API service description.
-5. **Touch points** — Reuse / New table naming existing and new components **by role**. Includes the internal review caveat about re-verifying reuse entries.
+5. **Touch points** — Reuse / New table naming existing and new components **by role**. The Reuse rows capture what the feature reuses from the existing codebase; the New rows capture what this feature creates. Includes the internal review caveat about re-verifying reuse entries.
 
 ### 6. Enforce the hard rules
 Before writing the file. These are absolute — any violation means the composition is wrong and must be redone.
@@ -73,7 +75,7 @@ Before writing the file. These are absolute — any violation means the composit
 
 **Rule 2 — No framework, library, or version names, anywhere.** No `React`, `React 18`, `Vite`, `Express`, `Mongoose`, `mongoose.Schema`, `TipTap`, `Redux`, `Playwright`, `Jest`, `axios`, `@uiw/react-md-editor`, `Prisma`, `SQLAlchemy`. Describe the data object by role and by the fields written; do NOT include a schema code fence in any framework's syntax. Version numbers are always forbidden.
 
-**Rule 3 — No duplication of other tabs.** This document contains ONLY the five subsections above. No Business Goal, no user-flow narrative, no mermaid workflow diagram (Description owns that), no AC list, no NFR list, no Business Rule list, no Test Scenarios, no Dependencies / Assumptions / Open Questions. If a fact belongs in another tab, do not restate it here — even briefly.
+**Rule 3 — No duplication of other tabs.** This document contains ONLY the five subsections above (Build sequence · API endpoints · Database modifications · Frontend UI · Touch points). No Business Goal, no user-flow narrative, no mermaid workflow diagram (Description owns that), no AC list, no NFR list, no Business Rule list, no Test Scenarios, no Dependencies / Assumptions / Open Questions, no Prerequisites section (cross-feature waits live in the Dependencies tab; code-reuse targets live in Touch points). If a fact belongs in another tab, do not restate it here — even briefly.
 
 **Rule 4 — No feature identity in visible content.** Feature id, initiative, slug, and provenance live in the frontmatter and MC task metadata. Never a `# FEAT-…` H1. Never a "Provenance:" line. Never a reference to `feature.md`, `workflow.md`, `acceptance-criteria.md`, `ba-output/*`, `context/*`, or any scope-review filename. The Description and Dependencies tabs (BA-owned) carry any provenance the reader needs.
 
@@ -104,7 +106,7 @@ Return: features composed vs skipped-unchanged (with reason each), the size per 
 
 ## Completion criteria
 
-A feature is composed when: `tl-plan.md` exists at `context/features/<slug>/tl-plan.md` with the correct frontmatter; the file contains exactly the five subsections (Build sequence · API endpoints · Database modifications · Frontend UI · Touch points); every endpoint the feature owns has its Execution-order and Refusals tables with one row per distinct response `message`; the Database modifications table lists only the fields this feature writes with a one-line "Never touched" boundary; every UI surface is named by role with its API wiring; every reuse in Touch points is named by role; the file is ≤ 60 KB; and none of the Rules 1–11 above are violated.
+A feature is composed when: `tl-plan.md` exists at `context/features/<slug>/tl-plan.md` with the correct frontmatter; the file contains exactly the five subsections (Build sequence · API endpoints · Database modifications · Frontend UI · Touch points); the Build sequence has intro paragraph + mermaid (no step table); every endpoint the feature owns has its Execution-order and Refusals tables with one row per distinct response `message`; the Database modifications table lists only the fields this feature writes with a one-line "Never touched" boundary; every UI surface is named by role with its API wiring; every REUSE from the context graph is captured in Touch points (not a separate Prerequisites section); the file is ≤ 60 KB; and none of the Rules 1–11 above are violated.
 
 **Path / framework / duplication pre-write scan.** Before writing, verify the document does NOT contain any of these patterns:
 - File-path fragments: `src/`, `app/`, `controllers/`, `routes/`, `models/`, `components/`, `.js`, `.jsx`, `.ts`, `.tsx`, `.py`, `.go`.
