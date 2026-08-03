@@ -92,15 +92,16 @@ For every feature, create the folder (`context/features/<feature-slug>/`) and wr
 
 Fill each file from the scope and registers. When a section has no supported content, write the labelled placeholder the template specifies — don't invent, and don't delete the heading.
 
-**Cross-tab rule that applies to every file — no file paths of ANY kind in visible content.** The MC Task tabs are self-contained; the reader has no filesystem access — they see a browser page and nothing else. Cross-reference exclusively by ID: `BR-3`, `AC-7`, `WF-021`, `DATA-042`, `INT-###`, `FEAT-<AREA>-NN`, `DEC-###`, `SRC-###`, `PAGE-...`, `EP-...`, `ENT-...`. **Never** write:
+**Cross-tab rule — IDs stay in both local + wire; file paths OK locally, stripped at push.** Local `.md` files are the BA author's navigation surface — you MAY write `see business-rules.md`, `[code › src/...]`, backticked code paths as navigation aids. `/jetrix:push feature` runs a targeted file-path strip on every wire field before sending to task-mcp, so what Jetrix sees is the clean prose plus **ID references** — `BR-3`, `AC-7`, `WF-021`, `DATA-042`, `INT-###`, `FEAT-<AREA>-NN`, `DEC-###`, `SRC-###`, `PAGE-...`, `EP-...`, `ENT-...`. IDs are the cross-tab reference mechanism inside Jetrix and are never stripped.
 
-- Local doc references — *"see business-rules.md"*, *"per the workflow file"*, *"defined in acceptance-criteria.md"*, or any variant.
-- Code-file citations — `[code › frontend › src/components/profile/profile.jsx]`, `[code › backend › models/Users.js]`, `src/api/client.ts`, `controllers/Leave.js`, `models/Users.js`. These are BA-analysis internals; they don't belong on a user-facing tab.
-- Framework / library names — `React`, `Vite`, `Express`, `Mongoose`, `TipTap`. Describe by role (`the leave controller`, `the identity accessor`), not by tech.
+What gets stripped at push (invisible on Jetrix, safe to write locally):
+- Local doc references — *"see business-rules.md"*, *"per the workflow file"*, *"defined in acceptance-criteria.md"*.
+- Code-file citations — `[code › frontend › src/components/profile/profile.jsx]`, `[code › backend › models/Users.js]`, backticked paths like `src/api/client.ts`, `controllers/Leave.js`.
+- Framework / library names — `React`, `Vite`, `Express`, `Mongoose`, `TipTap`. Push does NOT strip these automatically, so prefer role names (`the leave controller`, `the identity accessor`) even locally.
 
-If a dependency, assumption, or rule needs code-level evidence to be authored honestly, that evidence lives in the BA's private analysis notes — never in the pushed tab content. Dependencies especially describe **capabilities and roles** the user recognises ("sign-in / identity source", "leave list surface", "employee directory"), not code files or components.
+The Jetrix task reader only sees a browser page — no filesystem, no repo access. What survives the strip is the actual behavioural prose + IDs. That's the contract.
 
-This applies everywhere prose or table content lands on a tab: Criterion cells, Scenario cells, Assumption bullets, Dependency lines, NFR requirement cells, Rule descriptions.
+This applies everywhere prose or table content lands: Criterion cells, Scenario cells, Assumption bullets, Dependency lines, NFR requirement cells, Rule descriptions.
 
 **Self-check before writing each table file** — every row has all the columns the template shows. Blank cells are defects, not shortcuts. If you can't populate a column (Rule, AC, etc.), the row isn't ready to ship.
 

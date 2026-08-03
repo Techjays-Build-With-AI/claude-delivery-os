@@ -582,9 +582,43 @@ list_name = <frontmatter.list_name of feature.md>
 
 Compute the pattern strip as: if `mapped_scope` starts with `§`, drop everything up to and including the first whitespace character; trim the remainder. Every feature ends up with a non-empty `list_name`. Two features with the same resolved `list_name` share one MC List; task-mcp's find-or-create against `List.name` handles both cases.
 
-**No stripping. No reshaping. No bullet-to-table conversion.** The BA templates author the tab-shape directly; push is a near-passthrough. If a local file contains a forbidden pattern (file path, framework name, provenance callout, feature-id heading), that is a **BA template violation** — surface it back to the author, do NOT strip silently at push time. The tab is only as clean as what the templates produce.
+**One targeted transform — file-path strip on every wire field before sending.** Local BA files may contain filesystem navigation aids (`see business-rules.md`, `[code › ...]`, backticked code paths). Those help the BA author cross-check while authoring, but they're meaningless to a Jetrix reader who has no filesystem. After assembling each wire field, apply `strip_file_paths()` (defined below) to `description`, `business_rules`, `acceptance_criteria`, `nfrs`, `test_scenarios`, and `assumptions`. Do NOT apply to `implementation_details` (TL-authored, already clean) or to `metadata` / `title` (structured, no prose).
 
-**Section-aware concatenations only** — `description` = `feature.md` Objective + `## Workflow` heading + `workflow.md` body + `feature.md` In-Scope + Out-of-Scope sections (workflow injected between Objective and Scope so AC / test-scenarios can cite the scope points naturally). `assumptions` = `dependencies.md` + `**Open questions**` separator + `open-questions.md` (inline `— none.` form when the questions body starts with it). Everything else is byte-verbatim.
+```
+def strip_file_paths(text):
+    # File-reference prose  ("… — see foo.md.", "(see foo.md)", "see `foo.md`")
+    text = re.sub(r'\s+—\s+see\s+[a-zA-Z0-9_-]+\.md\.?', '', text)
+    text = re.sub(r'\s*\(see\s+[a-zA-Z0-9_-]+\.md\)\.?', '', text)
+    text = re.sub(r'see\s+`[a-zA-Z0-9_-]+\.md`', '', text)
+
+    # Bracketed code citations  ([code › src/...], [TL ...])
+    text = re.sub(r'\[code › [^\]]+\]', '', text)
+    text = re.sub(r'\[TL[^\]]*\]', '', text)
+
+    # Backticked code paths — must contain "/" to distinguish from bare filenames
+    text = re.sub(
+        r'`(src|controllers|models|routes|components|pages|endpoints|entities|api|utils|services|app|lib)/[^`]+`',
+        '', text,
+    )
+
+    # Backticked bare filenames with code extensions
+    text = re.sub(
+        r'`[a-zA-Z0-9_-]+\.(md|js|ts|jsx|tsx|py|go|java|rb|rs|kt|swift)`',
+        '', text,
+    )
+
+    # Cleanup: collapse leftover spaces + orphan punctuation
+    text = re.sub(r' {2,}', ' ', text)
+    text = re.sub(r' +([\.,;:])', r'\1', text)
+    text = re.sub(r',\s*,', ',', text)
+    return text.strip()
+```
+
+**Never stripped — IDs pass through untouched:** `BR-N`, `AC-N`, `NFR-<label>`, `WF-###`, `DATA-###`, `INT-###`, `SRC-###`, `DEC-###`, `PAGE-<AREA>-NN`, `EP-<AREA>-NN`, `ENT-<AREA>-NN`, `FEAT-<AREA>-NN`. These are the cross-tab reference mechanism inside Jetrix and must survive push.
+
+**No content reshaping otherwise** — no bullet-to-table conversion, no framework rewriting, no heading fixes. BA templates author the tab-shape directly; the strip only removes filesystem noise. If a local file contains something the strip *can't* handle (framework names, provenance callouts, feature-id headings), that's still a **BA template violation** — surface it back to the author, do NOT try to strip silently.
+
+**Section-aware concatenations only** — `description` = `feature.md` Objective + `## Workflow` heading + `workflow.md` body + `feature.md` In-Scope + Out-of-Scope sections (workflow injected between Objective and Scope so AC / test-scenarios can cite the scope points naturally). `assumptions` = `dependencies.md` + `**Open questions**` separator + `open-questions.md` (inline `— none.` form when the questions body starts with it). Everything else is byte-verbatim EXCEPT for the `strip_file_paths()` pass.
 
 ### 4. Grouped MCP calls — one `feature_upsert_bundle` per resolved `list_name`
 
