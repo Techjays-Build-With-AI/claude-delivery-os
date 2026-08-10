@@ -1,7 +1,7 @@
 {
   "name": "jetrix",
   "version": "0.1.0",
-  "description": "Jetrix sync for Techjays Delivery OS. Binds a local workspace to a Jetrix project and keeps them in sync through a working-copy model: Jetrix is the single source of truth; the local .jetrix/cache is a disposable read-through copy. jetrix:pull refreshes the cache incrementally, all analysis happens locally, and jetrix:push publishes structured records back (idempotent upsert by stable id, transactional propose→commit, pull-before-push conflict safety). Owns .jetrix/project.json (identity + app/env→branch wiring). Builds on the delivery-os document contract. Provides /jetrix:init, /jetrix:pull, and /jetrix:push.",
+  "description": "Jetrix sync for Techjays Delivery OS. Binds a local workspace to a Jetrix project and keeps them in sync through a working-copy model: Jetrix is the single source of truth; the local .jetrix/cache is a disposable read-through copy. jetrix:pull refreshes the cache incrementally, all analysis happens locally, and jetrix:push publishes structured records back (idempotent upsert by stable id, transactional propose→commit, pull-before-push conflict safety). Owns .jetrix/project.json (identity + app/env→branch wiring). Builds on the delivery-os document contract. Provides /jetrix:init, /jetrix:pull, and /jetrix:push. Env promotion (dev → main) is handled by MC's merge agent on PR merge — the plugin has no merge concern.",
   "author": {
     "name": "Techjays",
     "email": "delivery@techjays.com"

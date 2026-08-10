@@ -84,7 +84,7 @@ Call `mcp__project-mcp__get_solution_bundle(solution_id)`. This returns everythi
 
 **Do NOT fall back to `project_list_projects` / `project_get_project` / `project_get_env_configs` / `project_get_repository_integration` cascades unless the bundle tool errors out.** Those are still available for finer-grained fetches (e.g., single-app refresh) but drive per-app UX prompt storms; the bundle is the sanctioned single-call entry point for init.
 
-Per-app failures inside the bundle are already swallowed by project-mcp — apps whose env-configs or repo-integration fetch failed still appear in the response with `envConfigs: []` / `repositoryIntegration: null`. Not fatal for `/jetrix:init` — write the app to `project.json` with those empty fields.
+Per-app failures inside the bundle are already swallowed by project-mcp — apps whose env-configs or repo-integration fetch failed still appear in the response with `envConfigs: []` / `repositoryIntegration: null`. Not fatal for `/jetrix:init` — write the app with `envConfigs: []` if it came back empty. `repositoryIntegration` is **not** persisted locally either way (see the `project.json` shape below — `repoUrl` is the only repo field kept).
 
 ## 8. Write `<workspace>/.jetrix/project.json` (gitignored)
 
@@ -105,11 +105,6 @@ Create `<workspace>/.jetrix/` if missing. Then write `project.json`:
       "projectName": "<name>",
       "projectType": "<web application | backend api | mobile application | service>",
       "repoUrl": "<https://github.com/...>",
-      "repositoryIntegration": {
-        "repository_owner": "acme",
-        "repository_name": "acme-frontend",
-        "installation_id": "12345678"
-      },
       "env_branches": {
         "dev": "dev",
         "staging": "staging",

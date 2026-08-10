@@ -13,9 +13,9 @@ Run this **before** readiness validation. The dev agent builds against the TL te
 A feature counts as **planned** only when all of the following hold. Presence of the `context/frontend|backend|database` folders is *not* sufficient — verify the actual units:
 
 1. Read the feature's `feature.md` and collect what it declares: **Related Pages**, **Related APIs / Services**, **Related Data Entities**. (Backend-only features declare no pages — skip the page layer for them.)
-2. Load the three TL indexes — `context/frontend/page-index.md`, `context/backend/endpoint-index.md`, `context/database/entity-index.md`. If any required index is absent → **not planned**.
+2. Load the three TL indexes — `context/frontend/page-index.md`, `context/backend/endpoint-index.md`, `context/database/entity-index.md`. If any required index is **missing locally**, first invoke `/jetrix:pull context` (default = every context doc in the env, one round-trip) and retry. Only after that retry, if any index is still absent → **not planned**.
 3. For every declared unit, confirm two things:
-   - **Resolves** — the unit exists as a real file referenced by the index (the index row's file path resolves), not just a name in `feature.md`.
+   - **Resolves** — the unit exists as a real file referenced by the index (the index row's file path resolves), not just a name in `feature.md`. The default `/jetrix:pull context` above already brought down every doc in the env, so most unit files should be local. If a specific unit is still missing (transient miss, or created since the last pull), collect its id → after checking all declared units, batch-invoke `/jetrix:pull context --unit=<comma-separated-ids>` for the collected set (one round-trip) → re-check. A unit whose file still doesn't exist after that is a real gap (not a fresh-workspace artifact).
    - **Linked** — this feature's `FEAT-<AREA>-NN` appears in the index/unit as a consumer/owner of that unit (the TL wires `features that use it` into each row). A unit that exists but isn't linked to this feature is a graph gap.
 4. **Verdict:**
    - **Planned** — every declared page/endpoint/entity resolves and is linked to this `FEAT-id`. Proceed to readiness.
