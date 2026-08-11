@@ -309,6 +309,15 @@ def rewrite_feat_to_task(text: str, task_num_by_feat: dict) -> str:
 
 **Section-aware concatenations only** — `description` = `feature.md` Objective + `## Workflow` heading + `workflow.md` body + `feature.md` In-Scope + Out-of-Scope sections (workflow injected between Objective and Scope so AC / test-scenarios can cite the scope points naturally). `assumptions` = `dependencies.md` + `**Open questions**` separator + `open-questions.md` (inline `— none.` form when the questions body starts with it). Everything else is byte-verbatim EXCEPT for the two mandatory passes: `strip_file_paths()` (removes file citations + provenance debris) and `rewrite_feat_to_task()` (converts `FEAT-<AREA>-NN` → `TASK-<n>` using the sync-state task-number map).
 
+**Drift check first.** Invoke the shared drift helper (see `../drift.md`) before hashing bodies. The push naturally skips clean files (their `contentHash` matches sync-state); this helper's role in push is to give the user a "3 drifted, 5 clean, skipping the clean ones" summary up front — no interactive prompt on push, because pushing IS the sync.
+
+**Blocker-aware status.** Before emitting the MCP call, scan the local files and pick the outgoing `status` accordingly:
+
+- `open-questions.md` has any row whose `Status` column is `Open` AND whose `Impact` column starts with `Blocks` (case-insensitive). Rows `Resolved`, `Answered`, or `Deferred` are not blockers regardless of Impact.
+- `dependencies.md` has any Depends-on entry marked `unavailable`, `not available`, `blocked`, or `TBD` (case-insensitive) in its status column or inline.
+
+If any blocker signal fires → `status: "blocked"`. Otherwise → `status: "todo"` (the BA-push default). This makes MC's board reflect the local state at push time — a stakeholder sees `blocked` immediately if the author pushed with unresolved OQs or missing deps, without waiting for a separate sync step.
+
 ### 4. Grouped MCP calls — one `feature_upsert_bundle` per resolved `list_name`
 
 Group features by their resolved `list_name` (from step 3(b) above). Emit **one MCP call per group** — the `solution_slug` parameter carries the List name for that batch. All features in the same group land under the same MC List (find-or-create by name). task-mcp requires no change: it already uses `solution_slug` verbatim as the List name for find-or-create.
@@ -344,7 +353,7 @@ mcp__task-mcp__feature_upsert_bundle(
         useCases:            ["AUTH-UC-01", "AUTH-UC-02"],
       },
 
-      status: "todo",
+      status: "<'blocked' if any blocker signal fires per the rule above; else 'todo'>",
       priority: "..."
     },
     ...

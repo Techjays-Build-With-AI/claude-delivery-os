@@ -90,6 +90,28 @@ The inline block carries the same facts a good escalation note carries (§5); th
 
 When you update `status.md`, also set its *Development* progress row and *Last Updated*, and refresh the feature's row in `feature-index.md`. Never invent index states outside the BA vocabulary.
 
+### MC Task status sync — auto-push on BLOCKED and READY_FOR_PR
+
+Push-time detection (in `/jetrix:push feature` and `/jetrix:push implementation`) covers the *handoff moments*, but the dev loop can hit `BLOCKED` after the TL push and take hours to reach `READY_FOR_PR`. To keep MC's board honest during that window, the loop auto-syncs status to MC on **two transitions only** — `→ BLOCKED` and `→ READY_FOR_PR` — via a direct MCP call:
+
+```
+mcp__task-mcp__update_task_status(
+  task_object_id = <feature.md frontmatter jetrix_task_object_id>,
+  status         = "blocked"     # for → BLOCKED
+                 | "devReview"   # for → READY_FOR_PR (dev raised the PR, awaiting review)
+)
+```
+
+`READY_FOR_PR` maps to MC's `devReview` wire value (see MC's `TaskStatus` enum in `task.model.ts`). What happens after the PR merges is MC-owned — MC's GitHub webhook currently sets the task to `done` on merge; the dev-agent does not push any post-merge transition.
+
+Rules:
+
+- Fires on the transition, right after writing `dev/delivery-status.md` and before the chat broadcast.
+- Failures are **non-fatal** — log the error to `dev/implementation-log.md` and continue; the next explicit `/jetrix:push` will retry.
+- No other transitions auto-sync. `IN_PLANNING`, `IN_DEVELOPMENT`, `TESTING`, `REVIEW_FIXES` stay local — they change too often, and the local `delivery-status.md` + chat broadcasts already carry the detail for the human watching the run.
+
+Only these two states are stakeholder-visible on the MC board; only they are worth the wire cost.
+
 ---
 
 ## 2. Retry and cycle limits

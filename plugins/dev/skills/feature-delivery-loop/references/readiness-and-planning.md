@@ -4,6 +4,57 @@ How to gate a feature before coding, how to work out what the change touches, an
 
 ---
 
+## 0a. Pre-flight — MC status + local drift
+
+Two checks before the planning gate. Both consult external state so the dev-agent doesn't start on a task the team has flagged as blocked or on files the user hasn't synced.
+
+### MC task status (halt if `blocked`)
+
+Skip this check when the local feature.md has no `feature_id` in frontmatter (a feature not yet scoped) or no `jetrix_task_object_id` (never pushed to MC — nothing to check).
+
+Otherwise fetch the current MC task status by feature-id (safer than the raw object_id path, which had a past solution-context defect):
+
+```
+mcp__task-mcp__get_task_by_id_or_number(
+  solution_id = <from project.json>,
+  ref         = <feature.md frontmatter feature_id, e.g. "FEAT-AUTH-01">
+)
+→ { ok: bool, task?: { status: str, ... }, error?: str }
+```
+
+Interpret the response:
+
+- `ok: false` (task not found on MC) → skip silently, continue to drift check. The feature exists locally but hasn't landed on MC yet; no cross-team block to respect.
+- `ok: true` AND `task.status === "blocked"` → **halt cleanly** — do not proceed to any other check:
+
+```
+✗ Task <slug> is currently BLOCKED on Jetrix.
+  Resolve the blockers locally:
+    • open-questions.md — answer or defer any "Blocks…" questions
+    • dependencies.md   — mark unavailable deps as available or mockable
+    • tl-plan.md        — clear any [HELD] markers (re-run /tl:compose if needed)
+  Then push:
+    /jetrix:push feature <slug>
+    /jetrix:push implementation <slug>   (if TL-owned [HELD] steps)
+  Then re-run:
+    /dev:build FEAT-<AREA>-NN
+```
+
+Rationale: MC is authoritative for cross-team readiness. Even if the user's local files look clean, another teammate may have pushed the block, or the block may reflect a decision that isn't yet resolved on the shared board. Building against it jumps ahead of the team.
+
+`ok: true` with any other status (`todo`, `readyForDev`, `inProgress`, `agentExecuting`, `devReview`, `inQaReview`, `reopen`, `done`) → continue to the drift check below.
+
+### Local drift check
+
+Invoke the shared drift helper (`claude-delivery-os/plugins/jetrix/commands/references/drift.md`) on the target feature's folder.
+
+- **Clean** → continue silently to §0 (planning gate)
+- **Drift** → prompt:
+  - `y` → build with local as-is; note "drift ignored" in the run summary
+  - `s` → stop cleanly, tell the user to run `/jetrix:push feature <slug>` then re-run
+
+Do not check other features' folders — noise.
+
 ## 0. Planning gate (ensure the feature is planned)
 
 Run this **before** readiness validation. The dev agent builds against the TL technical context graph (pages, endpoints, entities); if that graph isn't there, there is nothing concrete to implement. So the first thing the build skill does is confirm the feature is **planned**, and — if it isn't — get it planned automatically rather than inventing endpoints and schemas or blocking.
