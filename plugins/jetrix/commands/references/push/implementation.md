@@ -87,6 +87,20 @@ The `size:` field from the batch is authoritative:
 - Match → skip, print `[skip] TASK-<n> <slug> — unchanged (hash=<sha16>)`, do not call the MCP.
 - Mismatch (or missing) → include this feature in the batched MCP call in step 5. Update sync-state on success (step 6).
 
+### 4. Drift summary
+
+Before assembling MCP rows, invoke the shared drift helper (see `../drift.md`). The push already skips clean features via `implementation_hash` — this helper's role here is to give the user an up-front `N drifted, M clean` summary, no interactive prompt.
+
+### 4a. Blocker-aware status
+
+Before assembling each feature's MCP row, decide the outgoing `status` by scanning the same local blocker signals BA push checks, plus one TL-specific signal:
+
+- `open-questions.md` has any row whose `Status` is `Open` AND whose `Impact` column starts with `Blocks` (case-insensitive).
+- `dependencies.md` has any Depends-on entry marked `unavailable`, `not available`, `blocked`, or `TBD`.
+- `tl-plan.md` contains any `[HELD]` marker — the TL themselves marked steps as blocked waiting on an OQ.
+
+If any signal fires → `status: "blocked"`. Otherwise → `status: "readyForDev"` (the implementation-push default). This is per-feature — pushing 10 features in one call can produce a mix of `readyForDev` and `blocked` outgoing statuses.
+
 ### 5. Single MCP call — use the dedicated implementation tool
 
 **Use `feature_update_implementation`, NOT `feature_upsert_bundle`.** This tool's Pydantic schema accepts ONLY `task_object_id`, `implementation_details`, and `status`. It ignores every other field, so it is IMPOSSIBLE to accidentally clobber BA-owned tabs (description / businessRules / acceptanceCriteria / assumptions / nfrs / testScenarios). Do not fall back to `feature_upsert_bundle` for implementation pushes — that tool accepts BA fields and could wipe them if empty strings sneak in.
@@ -100,7 +114,7 @@ mcp__task-mcp__feature_update_implementation(
       slug: "document-classification-extraction",   // reporting only
       task_object_id: "<from feature.md>",           // REQUIRED — this tool never creates
       implementation_details: "<tl-plan.md body from step 3b/c>",
-      status: "readyForDev"
+      status: "<'blocked' if any blocker signal fires per 4a; else 'readyForDev'>"
     }
   ]
 )
