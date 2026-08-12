@@ -318,6 +318,45 @@ def rewrite_feat_to_task(text: str, task_num_by_feat: dict) -> str:
 
 If any blocker signal fires → `status: "blocked"`. Otherwise → `status: "todo"` (the BA-push default). This makes MC's board reflect the local state at push time — a stakeholder sees `blocked` immediately if the author pushed with unresolved OQs or missing deps, without waiting for a separate sync step.
 
+### 3a. Warn on solution-slug List fallback (before pushing)
+
+The `list_name` fallback chain (see step 3(b)) uses the solution slug as the last-resort catch-all. If ANY feature resolves to that fallback, don't silently push them there — they'd all pile up in a List named after the solution ("Plugin_Test"-style), which is what caused the "why did all my tasks land here?" report.
+
+Before calling the MCP, group features by resolved `list_name` and check: is any group targeting the solution slug?
+
+If yes, print:
+
+```
+⚠ N feature(s) will land in List "<solution_slug>" (last-resort fallback —
+  no list_name / mapped_scope / initiative set on:
+    • user-authentication
+    • password-reset
+
+  Options:
+    [1] Continue — push these features into the solution-slug List
+    [2] Provide a shared list_name to use for these N features
+    [3] Cancel — set list_name in each feature.md frontmatter and retry
+
+Choice:
+```
+
+- **[1]** — continue with the fallback (current behavior).
+- **[2]** — prompt for a name, use it as the `solution_slug` argument for that group's `feature_upsert_bundle` call. Optionally offer to write the name back into each feature's frontmatter as `list_name:` so the next push doesn't re-prompt.
+- **[3]** — exit cleanly, no features pushed. User adds `list_name:` to each `feature.md` and re-runs.
+
+Features that resolved to a real (non-fallback) `list_name` skip this prompt entirely.
+
+### 3b. Permission-aware halt
+
+If any MCP call returns `{ok: false, error: "permission_denied", required_permission: "<name>"}`, halt cleanly:
+
+```
+✗ Push failed — your role is missing permission '<name>'.
+  Ask your Techjays admin to grant it, then re-run /jetrix:push feature.
+```
+
+Do not retry the failed feature. Continue pushing OTHER features (permission errors are usually per-operation, not per-feature — so a `task.create` denial on one push means every push will fail; but for safety, keep processing and surface each denial). At the end, report the union of failures so the user knows exactly what to fix.
+
 ### 4. Grouped MCP calls — one `feature_upsert_bundle` per resolved `list_name`
 
 Group features by their resolved `list_name` (from step 3(b) above). Emit **one MCP call per group** — the `solution_slug` parameter carries the List name for that batch. All features in the same group land under the same MC List (find-or-create by name). task-mcp requires no change: it already uses `solution_slug` verbatim as the List name for find-or-create.
