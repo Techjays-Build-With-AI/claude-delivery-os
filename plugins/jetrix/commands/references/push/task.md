@@ -14,9 +14,59 @@ Ad-hoc task push. Unlike `feature`, which is tied to the BA 6-file folder layout
   - Directory → walk `<dir>/**/*.md`.
 - `--list=<name>` OR `--list=<24-hex-oid>` (optional): target MC List. If name doesn't exist, it's created. If oid, must exist.
 - `--sprint=<24-hex-oid>` (optional): target Sprint by _id.
-- `--list` and `--sprint` are **mutually exclusive**. If neither, defaults to the solution's List named `solutionSlug`. Note: `push feature` no longer uses a single per-solution List — it groups features into per-scope-module Lists. For ad-hoc `push task`, `solutionSlug` remains the default catch-all List so unbucketed tasks are still discoverable.
+- `--list` and `--sprint` are **mutually exclusive**. If neither, fall through to the interactive prompt in §1a.
 
 Detect oid vs name via the regex `^[0-9a-fA-F]{24}$`.
+
+### 1a. Interactive target prompt (when neither `--list` nor `--sprint` is provided)
+
+Don't silently drop tasks into a List named after `solutionSlug`. Ask the user which container to use — Lists first, then Sprints, then a "create new" option.
+
+1. Call `mcp__task-mcp__list_all_lists(solution_id)` to fetch existing Lists (includes empty ones).
+2. Call `mcp__task-mcp__list_all_sprints(solution_id)` to fetch existing Sprints.
+3. Present a numbered menu:
+
+```
+Ready to push N task(s). Which container?
+
+  Lists:
+    [1] V2 Backlog         (32 tasks · existing)
+    [2] Bugs               (5 tasks · existing)
+    [3] <solutionSlug>     (default — will be created if missing)
+
+  Sprints:
+    [4] Sprint 12          (Active · 18 tasks)
+    [5] Sprint 13          (Planned · 0 tasks)
+
+  Other:
+    [6] Create a new List  → prompt for name
+    [7] Cancel
+
+Choice:
+```
+
+4. Map the user's choice to a push target:
+   - Existing List → set `list_name = <selected name>` (or `list_id = <_id>` for safety on ambiguous names)
+   - Existing Sprint → set `sprint_id = <_id>`
+   - Solution-slug default → set `list_name = <solutionSlug>` (find-or-create)
+   - Create new → ask for name, then set `list_name = <user input>` (creates on first push)
+   - Cancel → exit cleanly with `Cancelled — no tasks pushed.`
+5. Also present the resolved choice back for confirmation before batching:
+   ```
+   Pushing 3 tasks into List "V2 Backlog" (_id: 6a61d4...). Proceed? (Y/n)
+   ```
+6. On `n`, restart the prompt. On `Y`, continue to §2.
+
+### 1b. Permission-aware halt
+
+If any downstream MCP call returns `{ok: false, error: "permission_denied", required_permission: "<name>"}`, halt cleanly:
+
+```
+✗ Push failed — your role is missing permission '<name>'.
+  Ask your Techjays admin to grant it, then re-run /jetrix:push task.
+```
+
+Do not retry. Do not fall back to a different target. Do not swallow the error — surface it clearly with the exact permission name so the user knows what to ask for.
 
 ### 2. File contract
 

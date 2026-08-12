@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Delivery OS — Setup &amp; Workflow Guide</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --text: #1a1a1a;
+    --muted: #666666;
+    --border: #e5e5e5;
+    --border-strong: #cccccc;
+    --yellow: #f5c518;
+    --yellow-soft: #fef8db;
+    --code-bg: #f7f7f7;
+    --code-text: #1a1a1a;
+    --code-comment: #999999;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.65; font-size: 17px; -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--text); border-bottom: 1.5px solid var(--yellow); text-decoration: none; }
+  a:hover { background: var(--yellow-soft); }
+
+  header { padding: 56px 48px 36px; border-bottom: 1px solid var(--border); }
+  header .kicker { font-size: 12.5px; font-weight: 700; letter-spacing: .22em; text-transform: uppercase; color: var(--muted); margin-bottom: 26px; }
+  header h1 { font-size: 52px; font-weight: 800; letter-spacing: -.02em; line-height: 1.1; max-width: 800px; }
+  .yellow-line { width: 84px; height: 5px; background: var(--yellow); margin: 26px 0; }
+  header .lede { font-size: 19px; color: var(--muted); max-width: 800px; margin-top: 14px; line-height: 1.65; }
+
+  .meta { display: grid; grid-template-columns: repeat(4, 1fr); gap: 40px; margin-top: 40px; }
+  .meta .m .label { font-size: 12px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+  .meta .m .val { font-size: 17px; font-weight: 600; }
+
+  .tabbar { display: flex; gap: 0; padding: 0 48px; border-bottom: 1px solid var(--border); background: #fff; position: sticky; top: 0; z-index: 10; overflow-x: auto; scrollbar-width: none; }
+  .tabbar::-webkit-scrollbar { display: none; }
+  .tab { border: 0; background: transparent; padding: 20px 30px; font-size: 14.5px; font-weight: 600; color: var(--muted); cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -1px; white-space: nowrap; letter-spacing: .05em; text-transform: uppercase; }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--text); border-bottom-color: var(--yellow); }
+  .tab .n { display: inline-block; color: var(--muted); font-weight: 700; margin-right: 8px; }
+  .tab.active .n { color: var(--text); }
+
+  .panel { display: none; padding: 52px 48px 88px; }
+  .panel.active { display: block; }
+
+  .section-head { margin-bottom: 28px; }
+  .section-head .kick { font-size: 12.5px; font-weight: 700; letter-spacing: .22em; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; }
+  .section-head h2 { font-size: 38px; font-weight: 800; letter-spacing: -.015em; line-height: 1.15; }
+  .section-head .subtitle { color: var(--muted); font-size: 17.5px; margin-top: 12px; max-width: 820px; line-height: 1.65; }
+  .section-head::after { content: ""; display: block; width: 72px; height: 4px; background: var(--yellow); margin-top: 22px; }
+
+  h3 { font-size: 21px; font-weight: 700; margin: 44px 0 14px; letter-spacing: -.005em; }
+  h4 { font-size: 13px; font-weight: 700; margin: 26px 0 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .14em; }
+
+  p, li { margin-bottom: 12px; font-size: 16.5px; }
+  ul, ol { padding-left: 24px; margin-bottom: 14px; }
+
+  pre { background: var(--code-bg); color: var(--code-text); padding: 16px 20px; border-left: 3px solid var(--yellow); border-radius: 0; overflow-x: auto; margin: 10px 0 14px; font-size: 15px; line-height: 1.55; font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; }
+  pre code { color: inherit; background: transparent; padding: 0; }
+  pre .c { color: var(--code-comment); }
+  code { background: var(--code-bg); color: #1a1a1a; padding: 2px 6px; border-radius: 3px; font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; font-size: .9em; border: 1px solid var(--border); }
+
+  .note { border-left: 3px solid var(--yellow); background: var(--yellow-soft); padding: 14px 20px; margin: 18px 0; font-size: 15.5px; }
+  .note strong { color: #000; }
+  .warn { border-left: 3px solid #d97706; background: #fff7ed; padding: 14px 20px; margin: 18px 0; font-size: 15.5px; }
+  .same { border-left: 3px solid #16a34a; background: #f0fdf4; padding: 14px 20px; margin: 18px 0; font-size: 15.5px; }
+
+  .subtabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin: 26px 0 34px; }
+  .subtab { border: 0; background: transparent; padding: 14px 26px; font-size: 14.5px; font-weight: 700; color: var(--muted); cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -1px; letter-spacing: .04em; }
+  .subtab.active { color: #000; border-bottom-color: var(--yellow); }
+  .subpanel { display: none; }
+  .subpanel.active { display: block; }
+
+  .steps { counter-reset: step; list-style: none; padding: 0; margin: 22px 0; }
+  .steps > li { counter-increment: step; position: relative; padding: 22px 24px 24px 82px; margin: 0; border-top: 1px solid var(--border); }
+  .steps > li:last-child { border-bottom: 1px solid var(--border); }
+  .steps > li::before {
+    content: "0" counter(step);
+    position: absolute; left: 24px; top: 24px;
+    font-size: 24px; font-weight: 800; color: var(--yellow);
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    letter-spacing: -.03em;
+  }
+  .steps > li h3 { margin: 0 0 8px; font-size: 18px; font-weight: 700; }
+  .steps > li p { margin: 4px 0 10px; color: var(--muted); font-size: 16px; line-height: 1.6; }
+  .steps > li pre { margin: 10px 0 4px; }
+
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+  th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 15.5px; vertical-align: top; }
+  th { background: var(--yellow-soft); font-weight: 700; font-size: 12.5px; text-transform: uppercase; letter-spacing: .09em; color: #000; border-bottom: 1px solid var(--border-strong); }
+
+  /* Compact arg table shown under each command */
+  table.args { margin: 6px 0 18px; }
+  table.args th, table.args td { padding: 8px 12px; font-size: 14.5px; }
+  table.args th { background: #fafafa; border-bottom: 1px solid var(--border); text-transform: uppercase; letter-spacing: .08em; font-size: 11.5px; color: var(--muted); }
+  table.args td:first-child code { font-weight: 700; }
+  table.args .req { color: #b45309; font-weight: 700; font-size: 11.5px; letter-spacing: .04em; text-transform: uppercase; }
+  table.args .opt { color: var(--muted); font-size: 11.5px; letter-spacing: .04em; text-transform: uppercase; }
+
+  .mcp-list { border: 1px solid var(--border); border-radius: 0; margin: 22px 0; }
+  .mcp-row { display: grid; grid-template-columns: 220px 1fr auto; align-items: center; gap: 20px; padding: 18px 22px; border-bottom: 1px solid var(--border); }
+  .mcp-row:last-child { border-bottom: none; }
+  .mcp-row .name { font-weight: 700; font-size: 17px; }
+  .mcp-row .name .type { display: block; font-size: 12.5px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; margin-top: 3px; }
+  .mcp-row .url { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 13.5px; color: #000; background: #fafafa; padding: 8px 12px; border-left: 3px solid var(--yellow); word-break: break-all; }
+  .mcp-row .port { font-family: monospace; font-size: 13px; color: var(--muted); text-align: right; }
+
+  .flow { display: flex; flex-wrap: wrap; gap: 7px; align-items: center; margin: 22px 0 10px; padding: 16px 20px; background: #fafafa; border-left: 3px solid var(--yellow); }
+  .flow-step { background: #fff; border: 1px solid var(--border); padding: 6px 12px; font-size: 13.5px; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-weight: 600; }
+  .flow-arrow { color: var(--yellow); font-weight: 800; font-size: 15px; }
+
+  footer { border-top: 1px solid var(--border); padding: 28px 48px; color: var(--muted); font-size: 13.5px; letter-spacing: .04em; background: #fafafa; }
+  footer .yellow-line { width: 44px; height: 3px; margin: 0 0 14px; }
+
+  @media (max-width: 900px) {
+    header, .tabbar, .panel, footer { padding-left: 24px; padding-right: 24px; }
+    .meta { grid-template-columns: repeat(2, 1fr); gap: 24px; }
+    .mcp-row { grid-template-columns: 1fr; }
+    .mcp-row .port { text-align: left; }
+    header h1 { font-size: 38px; }
+    .section-head h2 { font-size: 30px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="kicker">Delivery-OS · Setup &amp; Workflow Guide</div>
+  <h1>Marketplace &amp; MCP Setup</h1>
+  <div class="yellow-line"></div>
+  <p class="lede">Install the seven plugins from the delivery-os marketplace, connect the four production MCPs to your local Claude Code, and run the end-to-end workflow — role by role, tab by tab.</p>
+  <div class="meta">
+    <div class="m"><div class="label">Marketplace</div><div class="val">claude-delivery-os</div></div>
+    <div class="m"><div class="label">Plugins</div><div class="val">7</div></div>
+    <div class="m"><div class="label">MCPs</div><div class="val">4</div></div>
+    <div class="m"><div class="label">Region</div><div class="val">asia-south1</div></div>
+  </div>
+</header>
+
+<nav class="tabbar" role="tablist">
+  <button class="tab active" onclick="showTab(event, 'install')"><span class="n">00</span>Install</button>
+  <button class="tab" onclick="showTab(event, 'init')"><span class="n">01</span>Init</button>
+  <button class="tab" onclick="showTab(event, 'ba')"><span class="n">02</span>BA</button>
+  <button class="tab" onclick="showTab(event, 'tl')"><span class="n">03</span>TL</button>
+  <button class="tab" onclick="showTab(event, 'qa')"><span class="n">04</span>QA</button>
+  <button class="tab" onclick="showTab(event, 'dev')"><span class="n">05</span>Dev</button>
+  <button class="tab" onclick="showTab(event, 'ship')"><span class="n">06</span>Ship</button>
+</nav>
+
+<!-- ================= 00 · INSTALL ================= -->
+<section class="panel active" id="install">
+  <div class="section-head">
+    <div class="kick">Stage 00 · Setup</div>
+    <h2>Install plugins &amp; connect MCPs</h2>
+    <p class="subtitle">One-time setup on your machine — install the marketplace, install the seven plugins, connect the four production MCPs to Claude Code, and bind your first workspace.</p>
+  </div>
+
+  <h3>Prerequisites</h3>
+  <table>
+    <tr><th>Tool</th><th>Version</th><th>Why</th></tr>
+    <tr><td><code>Claude Code</code></td><td>Latest (VS Code or standalone)</td><td>Hosts the plugins and MCP connections</td></tr>
+    <tr><td><code>git</code></td><td>Any recent</td><td>Cloning, committing, PRs</td></tr>
+    <tr><td>Jetrix account</td><td>—</td><td>OAuth handshake with each MCP</td></tr>
+  </table>
+
+  <h3>Production MCP endpoints (asia-south1)</h3>
+  <div class="mcp-list">
+    <div class="mcp-row">
+      <div class="name">project-mcp<span class="type">Read-only lookup</span></div>
+      <div class="url">https://project-mcp-prod-423614975588.asia-south1.run.app/mcp</div>
+      <div class="port">7 tools</div>
+    </div>
+    <div class="mcp-row">
+      <div class="name">scope-mcp<span class="type">BA push / pull</span></div>
+      <div class="url">https://scope-mcp-prod-423614975588.asia-south1.run.app/mcp</div>
+      <div class="port">4 tools</div>
+    </div>
+    <div class="mcp-row">
+      <div class="name">context-mcp<span class="type">TL graph push / pull</span></div>
+      <div class="url">https://context-mcp-prod-423614975588.asia-south1.run.app/mcp</div>
+      <div class="port">4 tools</div>
+    </div>
+    <div class="mcp-row">
+      <div class="name">task-mcp<span class="type">MC Task lifecycle</span></div>
+      <div class="url">https://task-mcp-prod-423614975588.asia-south1.run.app/mcp</div>
+      <div class="port">7 tools</div>
+    </div>
+  </div>
+
+  <h3>Steps</h3>
+  <ol class="steps">
+    <li>
+      <h3>Add the plugin marketplace</h3>
+      <p>Point Claude Code at the delivery-os marketplace repo. All seven plugins become installable.</p>
+<pre><code>/plugin marketplace add &lt;repo-url&gt;</code></pre>
+      <table class="args">
+        <tr><th>Arg</th><th>Kind</th><th>Value</th></tr>
+        <tr><td><code>repo-url</code></td><td><span class="req">required</span></td><td><code>github.com/Techjays-Build-With-AI/claude-delivery-os</code></td></tr>
+      </table>
+    </li>
+
+    <li>
+      <h3>Install the seven plugins</h3>
+      <p>Install what your role needs. For a full end-to-end workflow, install all seven.</p>
+<pre><code>/plugin install &lt;plugin-name&gt;</code></pre>
+      <table class="args">
+        <tr><th>Arg</th><th>Kind</th><th>Accepted values</th></tr>
+        <tr><td><code>plugin-name</code></td><td><span class="req">required</span></td><td><code>delivery-os-core</code> · <code>ba</code> · <code>tl</code> · <code>dev</code> · <code>qa</code> · <code>doc</code> · <code>jetrix</code></td></tr>
+      </table>
+      <p>Run once per plugin. To install all seven:</p>
+<pre><code>/plugin install delivery-os-core
+/plugin install ba
+/plugin install tl
+/plugin install dev
+/plugin install qa
+/plugin install doc
+/plugin install jetrix</code></pre>
+      <div class="note"><strong>Verify:</strong> <code>/plugin list</code> shows all seven under the delivery-os marketplace.</div>
+    </li>
+
+    <li>
+      <h3>Add each MCP to Claude Code</h3>
+      <p>In Claude Code, use the MCP command (or Settings → MCP) to add each of the four production URLs one at a time.</p>
+<pre><code>/mcp add &lt;name&gt; &lt;url&gt;</code></pre>
+      <table class="args">
+        <tr><th>Arg</th><th>Kind</th><th>Notes</th></tr>
+        <tr><td><code>name</code></td><td><span class="req">required</span></td><td>Local identifier — use the MCP's own name (<code>project-mcp</code>, etc.)</td></tr>
+        <tr><td><code>url</code></td><td><span class="req">required</span></td><td>Production URL ending in <code>/mcp</code></td></tr>
+      </table>
+<pre><code>/mcp add project-mcp  https://project-mcp-prod-423614975588.asia-south1.run.app/mcp
+/mcp add scope-mcp    https://scope-mcp-prod-423614975588.asia-south1.run.app/mcp
+/mcp add context-mcp  https://context-mcp-prod-423614975588.asia-south1.run.app/mcp
+/mcp add task-mcp     https://task-mcp-prod-423614975588.asia-south1.run.app/mcp</code></pre>
+      <p>Alternatively, drop all four into <code>.mcp.json</code> or <code>~/.claude/config.json</code>:</p>
+<pre><code>{
+  "mcpServers": {
+    "project-mcp": { "type": "http", "url": "https://project-mcp-prod-423614975588.asia-south1.run.app/mcp" },
+    "scope-mcp":   { "type": "http", "url": "https://scope-mcp-prod-423614975588.asia-south1.run.app/mcp" },
+    "context-mcp": { "type": "http", "url": "https://context-mcp-prod-423614975588.asia-south1.run.app/mcp" },
+    "task-mcp":    { "type": "http", "url": "https://task-mcp-prod-423614975588.asia-south1.run.app/mcp" }
+  }
+}</code></pre>
+    </li>
+
+    <li>
+      <h3>Complete OAuth for each MCP</h3>
+      <p>On first use of any tool, Claude Code opens a Jetrix consent page in your browser. Sign in with your Jetrix account and approve. One handshake per MCP.</p>
+      <div class="note"><strong>First-time only:</strong> if you've never signed in to Mission Control, complete signup at your Jetrix instance first.</div>
+    </li>
+
+    <li>
+      <h3>Sanity check</h3>
+      <p>In a Claude conversation, ask:</p>
+<pre><code>List my Jetrix solutions.</code></pre>
+      <p>Claude should call <code>project_list_solutions</code> via project-mcp and return your solutions. If four MCPs appear in your tool picker, wiring is complete.</p>
+    </li>
+  </ol>
+</section>
+
+<!-- ================= 01 · INIT ================= -->
+<section class="panel" id="init">
+  <div class="section-head">
+    <div class="kick">Stage 01 · Init</div>
+    <h2>Bind the workspace</h2>
+    <p class="subtitle">Pick a Jetrix solution and set up the local Delivery OS workspace. Every workflow starts here — greenfield or brownfield.</p>
+  </div>
+
+  <div class="subtabs">
+    <button class="subtab active" onclick="showSub(event, 'init-g')">Greenfield</button>
+    <button class="subtab" onclick="showSub(event, 'init-b')">Brownfield</button>
+  </div>
+
+  <div class="subpanel active" id="init-g">
+    <p>No codebase yet. Fresh solution on Jetrix. You'll create the workspace from scratch.</p>
+    <ol class="steps">
+      <li>
+        <h3>Create an empty folder and open Claude Code</h3>
+<pre><code>mkdir my-new-project &amp;&amp; cd my-new-project
+claude</code></pre>
+      </li>
+      <li>
+        <h3>Run init</h3>
+<pre><code>/jetrix:init [solution=&lt;slug|id&gt;]</code></pre>
+        <table class="args">
+          <tr><th>Arg</th><th>Kind</th><th>Notes</th></tr>
+          <tr><td><code>solution</code></td><td><span class="opt">optional</span></td><td>Solution slug or 24-hex ObjectId. Omit to pick interactively from the list.</td></tr>
+        </table>
+        <p>Claude lists your Jetrix solutions (via project-mcp). Pick the one you want to build.</p>
+      </li>
+      <li>
+        <h3>Init creates</h3>
+        <p><code>project.json</code>, empty <code>context/</code>, <code>ba-output/</code>, <code>shared-context/</code>, <code>dev-output/</code>. Nothing else on disk.</p>
+      </li>
+    </ol>
+  </div>
+
+  <div class="subpanel" id="init-b">
+    <p>Codebase exists. Workspace layers on top of the existing repo.</p>
+    <ol class="steps">
+      <li>
+        <h3>Open the existing repo in Claude Code</h3>
+<pre><code>cd path/to/existing-repo
+claude</code></pre>
+      </li>
+      <li>
+        <h3>Run init</h3>
+<pre><code>/jetrix:init [solution=&lt;slug|id&gt;]</code></pre>
+        <table class="args">
+          <tr><th>Arg</th><th>Kind</th><th>Notes</th></tr>
+          <tr><td><code>solution</code></td><td><span class="opt">optional</span></td><td>Same as greenfield — omit for interactive pick.</td></tr>
+        </table>
+        <p>Init detects the existing repo and won't overwrite it.</p>
+      </li>
+      <li>
+        <h3>Init creates alongside existing app code</h3>
+        <p>Same additions as greenfield. Your app code isn't touched.</p>
+        <div class="warn"><strong>Confirm <code>.gitignore</code></strong> is friendly to <code>.jetrix/</code> and <code>dev-output/</code> so local sync state doesn't leak into commits.</div>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<!-- ================= 02 · BA ================= -->
+<section class="panel" id="ba">
+  <div class="section-head">
+    <div class="kick">Stage 02 · Business Analyst</div>
+    <h2>Scope &amp; feature breakdown</h2>
+    <p class="subtitle">Turn discovery inputs into a scored, feature-broken scope. Output: <code>context/features/&lt;slug&gt;/</code> folders plus BA registers under <code>ba-output/</code>.</p>
+  </div>
+
+  <div class="subtabs">
+    <button class="subtab active" onclick="showSub(event, 'ba-g')">Greenfield</button>
+    <button class="subtab" onclick="showSub(event, 'ba-b')">Brownfield</button>
+  </div>
+
+  <div class="subpanel active" id="ba-g">
+    <div class="flow">
+      <span class="flow-step">/ba:scope</span><span class="flow-arrow">→</span>
+      <span class="flow-step">/ba:review</span><span class="flow-arrow">→</span>
+      <span class="flow-step">/ba:resolve</span><span class="flow-arrow">→</span>
+      <span class="flow-step">/ba:features</span><span class="flow-arrow">→</span>
+      <span class="flow-step">/jetrix:push scope</span><span class="flow-arrow">→</span>
+      <span class="flow-step">/jetrix:push feature</span>
+    </div>
+    <ol class="steps">
+      <li>
+        <h3>Discover scope from client artifacts</h3>
+        <p>Drop discovery inputs (notes, docs, transcripts, mockups) into the workspace.</p>
+<pre><code>/ba:scope</code></pre>
+        <table class="args"><tr><th>Arg</th><th>Kind</th><th>Notes</th></tr>
+        <tr><td>—</td><td><span class="opt">none</span></td><td>Reads all discovery artifacts placed in the workspace root.</td></tr>
+        </table>
+        <p>Produces <code>ba-output/scope.md</code>, registers, glossary.</p>
+      </li>
+
+      <li>
+        <h3>Paranoid review</h3>
+<pre><code>/ba:review</code></pre>
+        <table class="args"><tr><th>Arg</th><th>Kind</th><th>Notes</th></tr>
+        <tr><td>—</td><td><span class="opt">none</span></td><td>Scores every feature on coverage depth; flags gaps.</td></tr>
+        </table>
+      </li>
+
+      <li>
+        <h3>Resolve blocking open questions</h3>
+<pre><code>/ba:resolve</code></pre>
+        <table class="args"><tr><th>Arg</th><th>Kind</th><th>Notes</th></tr>
+        <tr><td>—</td><td><span class="opt">none</span></td><td>Iterates on OQs. Feed new info back until blockers clear.</td></tr>
+        </table>
+      </li>
+
+      <li>
+        <h3>Break scope into features</h3>
+<pre><code>/ba:features [&lt;slug&gt;] [initiative=&lt;name&gt;]</code></pre>
+        <table class="args">
+          <tr><th>Arg</th><th>Kind</th><th>Notes</th></tr>
+          <tr><td><code>slug</code></td><td><span class="opt">optional</span></td><td>Break down one feature only. Omit for all.</td></tr>
+          <tr><td><code>initiative</code></td><td><span class="opt">optional</span></td><td>Stamp all created features with this initiative name.</td></tr>
+        </table>
+        <p>Produces <code>context/features/&lt;slug&gt;/</code> with 8 files per feature.</p>
+      </li>
+
+      <li>
+        <h3>Push scope to Jetrix</h3>
+<pre><code>/jetrix:push scope</code></pre>
+        <table class="args"><tr><th>Arg</th><th>Kind</th><th>Notes</th></tr>
+        <tr><td>—</td><td><span class="opt">none</span></td><td>Pushes <code>ba-output/*</code>, registers, <code>shared-context/</code>.</td></tr>
+        </table>
+      </li>
+
+      <li>
+        <h3>Push features to Jetrix (as MC Tasks)</h3>
+<pre><code>/jetrix:push feature [&lt;slug&gt;]</code></pre>
+        <table class="args">
+          <tr><th>Arg</th><th>Kind</th><th>Notes</th></tr>
+          <tr><td><code>slug</code></td><td><span class="opt">optional</span></td><td>Push one feature. Omit for all changed features.</td></tr>
+        </table>
+        <div class="note"><strong>Blocker-aware:</strong> features with unresolved Open+Blocks OQs or unavailable deps land as <code>status: blocked</code>. Resolve locally, re-push to clear.</div>
+      </li>
+    </ol>
+  </div>
+
+  <div class="subpanel" id="ba-b">
+    <p>Two sub-cases: (A) scope already on Jetrix — pull it. (B) new increment — run discovery for the new work only.</p>
+
+    <h4>Case A — pull existing scope</h4>
+<pre><code>/jetrix:pull scope</code></pre>
+    <table class="args"><tr><th>Arg</th><th>Kind</th><th>Notes</th></tr>
+    <tr><td>—</td><td><span class="opt">none</span></td><td>Pulls scope + registers + all feature folders.</td></tr>
+    </table>
+    <p>Skip to TL (Stage 03) once done.</p>
+
+    <h4>Case B — delta discovery</h4>
+    <ol class="steps">
+      <li>
+        <h3>Run BA discovery for NEW work only</h3>
+<pre><code>/ba:scope
+/ba:review
+/ba:resolve</code></pre>
+        <p>Same args as greenfield. Registers get additive rows.</p>
+      </li>
+      <li>
+        <h3>Break new work into features</h3>
+<pre><code>/ba:features [&lt;slug&gt;] [initiative=&lt;name&gt;]</code></pre>
+      </li>
+      <li>
+        <h3>Push the delta</h3>
+<pre><code>/jetrix:push scope
+/jetrix:push feature</code></pre>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<!-- ================= 03 · TL ================= -->
+<section class="panel" id="tl">
+  <div class="section-head">
+    <div class="kick">Stage 03 · Tech Lead</div>
+    <h2>Plan the graph &amp; compose the spec</h2>
+    <p class="subtitle">Map every feature to real pages, endpoints, and entities. Compose a buildable per-feature technical brief the dev-agent consumes.</p>
+  </div>
+
+  <div class="subtabs">
+    <button class="subtab active" onclick="showSub(event, 'tl-g')">Greenfield</button>
+    <button class="subtab" onclick="showSub(event, 'tl-b')">Brownfield</button>
+  </div>
+
+  <div class="subpanel active" id="tl-g">
+    <div class="flow">
+      <span class="flow-step">/tl:plan</span><span class="flow-arrow">→</span>
+      <span class="flow-step">/tl:compose</span><span class="flow-arrow">→</span>
+      <span class="flow-step">/jetrix:push context</span><span class="flow-arrow">→</span>
+      <span class="flow-step">/jetrix:push implementation</span>
+    </div>
+    <ol class="steps">
+      <li>
+        <h3>Plan the context graph</h3>
+<pre><code>/tl:plan &lt;target&gt; [initiative=&lt;name&gt;] [layers=frontend,backend,database]</code></pre>
+        <table class="args">
+          <tr><th>Arg</th><th>Kind</th><th>Notes</th></tr>
+          <tr><td><code>target</code></td><td><span class="req">required</span></td><td>Feature folder, slug, <code>FEAT-id</code>, or <code>context/features/</code> for all.</td></tr>
+          <tr><td><code>initiative</code></td><td><span class="opt">optional</span></td><td>Restrict planning to features stamped with this initiative.</td></tr>
+          <tr><td><code>layers</code></td><td><span class="opt">optional</span></td><td>Comma list. Default: all three layers.</td></tr>
+        </table>
+        <p>Creates unit files under <code>context/frontend|backend|database/</code> plus the three indexes. Wires links both ways.</p>
+      </li>
+
+      <li>
+        <h3>Compose per-feature spec</h3>
+<pre><code>/tl:compose &lt;target&gt; [initiative=&lt;name&gt;] [--force]</code></pre>
+        <table class="args">
+          <tr><th>Arg</th><th>Kind</th><th>Notes</th></tr>
+          <tr><td><code>target</code></td><td><span class="opt">optional</span></td><td>Feature folder, slug, or <code>FEAT-id</code>. Omit for all features.</td></tr>
+          <tr><td><code>initiative</code></td><td><span class="opt">optional</span></td><td>Restrict to features stamped with this initiative.</td></tr>
+          <tr><td><code>--force</code></td><td><span class="opt">optional flag</span></td><td>Recompose even if graph inputs haven't changed since last compose.</td></tr>
+        </table>
+        <p>Writes <code>context/features/&lt;slug&gt;/tl-plan.md</code>. Role names only — no file paths in the doc.</p>
+      </li>
+
+      <li>
+        <h3>Push context graph</h3>
+<pre><code>/jetrix:push context [--env=dev|main]</code></pre>
+        <table class="args">
+          <tr><th>Arg</th><th>Kind</th><th>Notes</th></tr>
+          <tr><td><code>--env</code></td><td><span class="opt">optional</span></td><td>Default <code>dev</code>. Use <code>main</code> only when pushing a baseline (paired with <code>/tl:map --baseline</code>).</td></tr>
+        </table>
+      </li>
+
+      <li>
+        <h3>Push implementation to MC Tasks</h3>
+<pre><code>/jetrix:push implementation [&lt;slug&gt;]</code></pre>
+        <table class="args">
+          <tr><th>Arg</th><th>Kind</th><th>Notes</th></tr>
+          <tr><td><code>slug</code></td><td><span class="opt">optional</span></td><td>Push one feature's <code>tl-plan.md</code>. Omit for all with changed tl-plans.</td></tr>
+        </table>
+        <p>Each <code>tl-plan.md</code> lands verbatim in its MC Task's Implementation tab. Status flips to <code>readyForDev</code> — unless blockers exist, then <code>blocked</code>.</p>
+      </li>
+    </ol>
+  </div>
+
+  <div class="subpanel" id="tl-b">
+    <div class="flow">
+      <span class="flow-step">/tl:map</span><span class="flow-arrow">→</span>
+      <span class="flow-step">/tl:map --baseline</span><span class="flow-arrow">→</span>
+      <span class="flow-step">/jetrix:push context --env=main</span><span class="flow-arrow">→</span>
+      <span class="flow-step">/tl:plan</span><span class="flow-arrow">→</span>
+      <span class="flow-step">/tl:compose</span><span class="flow-arrow">→</span>
+      <span class="flow-step">/jetrix:push implementation</span>
+    </div>
+    <ol class="steps">
+      <li>
+        <h3>Reverse-map the existing codebase</h3>
+        <p>The brownfield-defining step. TL agent reads the repo and derives the graph. Every unit gets <code>[code › &lt;file&gt;]</code> citations.</p>
+<pre><code>/tl:map [repo=&lt;path&gt;] [layers=frontend,backend,database] [scope=&lt;subpath&gt;]</code></pre>
+        <table class="args">
+          <tr><th>Arg</th><th>Kind</th><th>Notes</th></tr>
+          <tr><td><code>repo</code></td><td><span class="opt">optional</span></td><td>Path to the product repo. Default: current workspace.</td></tr>
+          <tr><td><code>layers</code></td><td><span class="opt">optional</span></td><td>Comma list. Default: all three.</td></tr>
+          <tr><td><code>scope</code></td><td><span class="opt">optional</span></td><td>Subpath / module to map a slice of a monorepo at a time.</td></tr>
+        </table>
+        <div class="warn"><strong>Review low-confidence edges first.</strong> Every link is <code>Confirmed</code> or <code>Assumed</code>. Fix assumed ones before treating the graph as authoritative.</div>
+      </li>
+
+      <li>
+        <h3>Mark baseline and push to main env</h3>
+<pre><code>/tl:map --baseline
+/jetrix:push context --env=main</code></pre>
+        <table class="args">
+          <tr><th>Arg</th><th>Kind</th><th>Notes</th></tr>
+          <tr><td><code>--baseline</code></td><td><span class="opt">flag</span></td><td>Marks graph as the shared baseline (main env).</td></tr>
+          <tr><td><code>--env</code></td><td><span class="req">required for main</span></td><td>Only case where you push to <code>main</code> env directly.</td></tr>
+        </table>
+      </li>
+
+      <li>
+        <h3>Plan new features on top</h3>
+<pre><code>/tl:plan &lt;target&gt; [initiative=&lt;name&gt;]</code></pre>
+        <p>Same args as greenfield. Reuses existing units where match keys hit.</p>
+      </li>
+
+      <li>
+        <h3>Compose + push implementation</h3>
+<pre><code>/tl:compose &lt;target&gt; [--force]
+/jetrix:push context              <span class="c"># dev env — in-flight</span>
+/jetrix:push implementation</code></pre>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<!-- ================= 04 · QA ================= -->
+<section class="panel" id="qa">
+  <div class="section-head">
+    <div class="kick">Stage 04 · Quality</div>
+    <h2>Establish the test harness</h2>
+    <p class="subtitle">Set the quality bar dev-validation enforces. Produces <code>qa-output/quality-gates.md</code> — the contract every <code>/dev:build</code> reads.</p>
+  </div>
+
+  <div class="subtabs">
+    <button class="subtab active" onclick="showSub(event, 'qa-g')">Greenfield</button>
+    <button class="subtab" onclick="showSub(event, 'qa-b')">Brownfield</button>
+  </div>
+
+  <div class="subpanel active" id="qa-g">
+    <p>The repo has just been scaffolded (Stage 05). Decide the test strategy from scratch.</p>
+    <div class="flow">
+      <span class="flow-step">/qa:audit</span><span class="flow-arrow">→</span>
+      <span class="flow-step">/qa:plan</span><span class="flow-arrow">→</span>
+      <span class="flow-step">/qa:setup</span>
+    </div>
+    <ol class="steps">
+      <li>
+        <h3>Scan repo</h3>
+<pre><code>/qa:audit [repo=&lt;path&gt;]</code></pre>
+        <table class="args">
+          <tr><th>Arg</th><th>Kind</th><th>Notes</th></tr>
+          <tr><td><code>repo</code></td><td><span class="opt">optional</span></td><td>Path to the product repo. Default: current workspace.</td></tr>
+        </table>
+        <p>Read-only. Gap report on unit / integration / e2e / coverage / lint / type-check / CI.</p>
+      </li>
+      <li>
+        <h3>Approve recommendations → plan</h3>
+<pre><code>/qa:plan</code></pre>
+        <table class="args"><tr><th>Arg</th><th>Kind</th><th>Notes</th></tr>
+        <tr><td>—</td><td><span class="opt">none</span></td><td>Turns approved recommendations into a plan + draft <code>quality-gates.md</code>.</td></tr>
+        </table>
+      </li>
+      <li>
+        <h3>Implement the harness</h3>
+<pre><code>/qa:setup</code></pre>
+        <table class="args"><tr><th>Arg</th><th>Kind</th><th>Notes</th></tr>
+        <tr><td>—</td><td><span class="opt">none</span></td><td>Frameworks, config, CI wiring, fixtures. Flips <code>harness_status: Active</code> when green.</td></tr>
+        </table>
+      </li>
+    </ol>
+  </div>
+
+  <div class="subpanel" id="qa-b">
+    <p>Repo already has tests. Audit finds what's missing without touching what works.</p>
+    <div class="flow">
+      <span class="flow-step">/qa:audit</span><span class="flow-arrow">→</span>
+      <span class="flow-step">/qa:plan</span><span class="flow-arrow">→</span>
+      <span class="flow-step">/qa:setup</span><span class="flow-arrow">→</span>
+      <span class="flow-step">/qa:health</span>
+    </div>
+    <ol class="steps">
+      <li>
+        <h3>Audit existing harness</h3>
+<pre><code>/qa:audit [repo=&lt;path&gt;]</code></pre>
+        <p>Same args as greenfield.</p>
+      </li>
+      <li>
+        <h3>Plan the delta</h3>
+<pre><code>/qa:plan</code></pre>
+      </li>
+      <li>
+        <h3>Implement missing pieces</h3>
+<pre><code>/qa:setup</code></pre>
+        <p>Adds missing frameworks, fixtures, CI stages. Never weakens or deletes existing tests.</p>
+      </li>
+      <li>
+        <h3>Health check over time</h3>
+<pre><code>/qa:health</code></pre>
+        <table class="args"><tr><th>Arg</th><th>Kind</th><th>Notes</th></tr>
+        <tr><td>—</td><td><span class="opt">none</span></td><td>Re-check for drift. Run monthly or after major refactors.</td></tr>
+        </table>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<!-- ================= 05 · DEV ================= -->
+<section class="panel" id="dev">
+  <div class="section-head">
+    <div class="kick">Stage 05 · Developer</div>
+    <h2>Build features through the loop</h2>
+    <p class="subtitle">Dev-agent runs a state-driven loop with hard guardrails — readiness → impact → plan → implement → validate → repair → self-review → PR handoff.</p>
+  </div>
+
+  <div class="subtabs">
+    <button class="subtab active" onclick="showSub(event, 'dev-g')">Greenfield</button>
+    <button class="subtab" onclick="showSub(event, 'dev-b')">Brownfield</button>
+  </div>
+
+  <div class="subpanel active" id="dev-g">
+    <div class="flow">
+      <span class="flow-step">/dev:bootstrap</span><span class="flow-arrow">→</span>
+      <span class="flow-step">(QA setup)</span><span class="flow-arrow">→</span>
+      <span class="flow-step">/dev:build</span><span class="flow-arrow">→</span>
+      <span class="flow-step">/dev:pr</span>
+    </div>
+    <ol class="steps">
+      <li>
+        <h3>Bootstrap the codebase</h3>
+        <p>No code exists yet. Stand up the initial repo with the confirmed stack.</p>
+<pre><code>/dev:bootstrap [repo=&lt;path&gt;]</code></pre>
+        <table class="args">
+          <tr><th>Arg</th><th>Kind</th><th>Notes</th></tr>
+          <tr><td><code>repo</code></td><td><span class="opt">optional</span></td><td>Where to create the repo. Default: current workspace.</td></tr>
+        </table>
+        <p>Or use TL scaffold if architecture is already confirmed:</p>
+<pre><code>/tl:scaffold</code></pre>
+      </li>
+      <li>
+        <h3>Set up the QA harness</h3>
+        <p>Complete Stage 04 before your first <code>/dev:build</code>. Otherwise dev-validation degrades to detected tooling.</p>
+      </li>
+      <li>
+        <h3>Build a feature</h3>
+<pre><code>/dev:build [&lt;target&gt;] [initiative=&lt;name&gt;] [repo=&lt;path&gt;] [mode=implement|plan-only]</code></pre>
+        <table class="args">
+          <tr><th>Arg</th><th>Kind</th><th>Notes</th></tr>
+          <tr><td><code>target</code></td><td><span class="opt">optional</span></td><td><code>FEAT-id</code>, folder, or slug. Omit → picks next <code>READY_FOR_DEV</code>.</td></tr>
+          <tr><td><code>initiative</code></td><td><span class="opt">optional</span></td><td>Restrict selection to one initiative's features.</td></tr>
+          <tr><td><code>repo</code></td><td><span class="opt">optional</span></td><td>Product repo to implement in. Default: current workspace.</td></tr>
+          <tr><td><code>mode</code></td><td><span class="opt">optional</span></td><td><code>implement</code> (default) or <code>plan-only</code> (stops after dev plan).</td></tr>
+        </table>
+        <p>Two automatic checks at startup:</p>
+        <ul>
+          <li><strong>MC pre-flight</strong> — halts cleanly if MC says the task is <code>blocked</code>. Resolve locally, push, re-run.</li>
+          <li><strong>Drift check</strong> — if local is ahead of Jetrix, prompts <code>y</code> (build local) or <code>s</code> (stop, push first).</li>
+        </ul>
+      </li>
+      <li>
+        <h3>Handle blockers mid-run</h3>
+        <p>Dev-agent writes <code>dev/escalation-&lt;n&gt;.md</code>, auto-pushes MC status to <code>blocked</code>. Read the escalation, provide the decision, re-run <code>/dev:build</code>.</p>
+      </li>
+      <li>
+        <h3>Hand off for PR</h3>
+<pre><code>/dev:pr &lt;target&gt;</code></pre>
+        <table class="args">
+          <tr><th>Arg</th><th>Kind</th><th>Notes</th></tr>
+          <tr><td><code>target</code></td><td><span class="req">required</span></td><td><code>FEAT-id</code>, folder, or slug — the feature to prepare handoff for.</td></tr>
+        </table>
+        <p>Writes <code>dev/pr-summary.md</code>, moves state to <code>READY_FOR_PR</code>, auto-pushes MC status to <code>devReview</code>.</p>
+      </li>
+    </ol>
+  </div>
+
+  <div class="subpanel" id="dev-b">
+    <div class="flow">
+      <span class="flow-step">/dev:build</span><span class="flow-arrow">→</span>
+      <span class="flow-step">/dev:pr</span>
+    </div>
+    <div class="same"><strong>Same commands as greenfield</strong> — no <code>/dev:bootstrap</code> (repo exists). Dev-agent uses the reverse-mapped graph to resolve role names → real code files.</div>
+    <ol class="steps">
+      <li>
+        <h3>Confirm QA harness is Active</h3>
+        <p>If <code>qa-output/quality-gates.md</code> is <code>harness_status: Active</code>, you're good. Otherwise loop back to Stage 04.</p>
+      </li>
+      <li>
+        <h3>Build a feature</h3>
+<pre><code>/dev:build [&lt;target&gt;] [initiative=&lt;name&gt;] [repo=&lt;path&gt;] [mode=implement|plan-only]</code></pre>
+        <p>Same args as greenfield.</p>
+      </li>
+      <li>
+        <h3>Re-map if code drifts from graph</h3>
+        <p>Run periodically. Updates in place, doesn't duplicate.</p>
+<pre><code>/tl:map
+/jetrix:push context --env=main</code></pre>
+      </li>
+      <li>
+        <h3>Hand off for PR</h3>
+<pre><code>/dev:pr &lt;target&gt;</code></pre>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<!-- ================= 06 · SHIP ================= -->
+<section class="panel" id="ship">
+  <div class="section-head">
+    <div class="kick">Stage 06 · Ship</div>
+    <h2>Review, merge, promote</h2>
+    <p class="subtitle">Human reviews the PR, merges to main. GitHub webhook flips MC Task status. If context files changed, the merge agent promotes them dev → main automatically.</p>
+  </div>
+
+  <div class="same"><strong>Ship is identical for greenfield and brownfield.</strong> Same GitHub webhook, same context-merge behavior.</div>
+
+  <ol class="steps">
+    <li>
+      <h3>Reviewer reads <code>dev/pr-summary.md</code></h3>
+      <p>Purpose, scope, technical approach, affected units, tests run, AC status, risks, follow-ups.</p>
+    </li>
+    <li>
+      <h3>If reviewer requests changes</h3>
+<pre><code>/dev:fix-review &lt;target&gt;</code></pre>
+      <table class="args">
+        <tr><th>Arg</th><th>Kind</th><th>Notes</th></tr>
+        <tr><td><code>target</code></td><td><span class="req">required</span></td><td><code>FEAT-id</code>, folder, or slug — feature with the PR to fix.</td></tr>
+      </table>
+      <p>Dev-agent re-enters <code>REVIEW_FIXES</code> — folds actionable comments in, re-validates, refreshes the PR summary.</p>
+    </li>
+    <li>
+      <h3>Merge the PR on GitHub</h3>
+      <p>Reviewer clicks Merge. GitHub webhook fires to Mission Control.</p>
+    </li>
+    <li>
+      <h3>Automatic post-merge</h3>
+      <ul>
+        <li><strong>MC Task status</strong> → <code>done</code></li>
+        <li><strong>Context files</strong> — if the PR touched <code>context/frontend|backend|database/</code> files, MC's merge agent LLM-merges <code>dev</code> env → <code>main</code> env automatically</li>
+      </ul>
+    </li>
+  </ol>
+
+  <h3>Sync commands (cross-cutting)</h3>
+  <table>
+    <tr><th>Command</th><th>Args</th><th>What it does</th></tr>
+    <tr><td><code>/jetrix:pull</code></td><td>—</td><td>Pull scope + context in one shot</td></tr>
+    <tr><td><code>/jetrix:pull scope</code></td><td>—</td><td>Scope-only pull (registers, shared-context, feature folders)</td></tr>
+    <tr><td><code>/jetrix:pull context</code></td><td><code>[--env=dev|main]</code></td><td>Context graph pull. Default env <code>main</code>.</td></tr>
+    <tr><td><code>/jetrix:pull task &lt;ref&gt;</code></td><td><code>ref</code> required (<code>TASK-n</code> / <code>FEAT-id</code>)</td><td>Pull one feature by task number or feature-id</td></tr>
+    <tr><td><code>/jetrix:push scope</code></td><td>—</td><td>Push scope docs + registers + shared-context</td></tr>
+    <tr><td><code>/jetrix:push feature</code></td><td><code>[&lt;slug&gt;]</code></td><td>Push BA features → MC Tasks (blocker-aware)</td></tr>
+    <tr><td><code>/jetrix:push implementation</code></td><td><code>[&lt;slug&gt;]</code></td><td>Push <code>tl-plan.md</code> → Implementation tab</td></tr>
+    <tr><td><code>/jetrix:push context</code></td><td><code>[--env=dev|main]</code></td><td>Push graph. Default <code>dev</code>; <code>main</code> for baseline only.</td></tr>
+  </table>
+</section>
+
+<footer>
+  <div class="yellow-line"></div>
+  Delivery-OS · Setup &amp; Workflow Guide · Marketplace at <a href="https://github.com/Techjays-Build-With-AI/claude-delivery-os">github.com/Techjays-Build-With-AI/claude-delivery-os</a> · MCPs in <code>asia-south1</code>
+</footer>
+
+<script>
+  function showTab(e, id) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    e.currentTarget.classList.add('active');
+    document.getElementById(id).classList.add('active');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  function showSub(e, id) {
+    const parent = e.currentTarget.closest('.panel');
+    parent.querySelectorAll('.subtab').forEach(t => t.classList.remove('active'));
+    parent.querySelectorAll('.subpanel').forEach(p => p.classList.remove('active'));
+    e.currentTarget.classList.add('active');
+    document.getElementById(id).classList.add('active');
+  }
+</script>
+
+</body>
+</html>
