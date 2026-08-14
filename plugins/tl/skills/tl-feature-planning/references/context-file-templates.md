@@ -8,7 +8,7 @@ Slugs are **lowercase kebab-case**. IDs are stable and append-only: `PAGE-<AREA>
 
 ## _overview.md (one per layer)
 
-`context/frontend/_overview.md`, `context/backend/_overview.md`, `context/database/_overview.md` — a short orientation doc at the head of each layer folder so a reader (or a coding agent) landing in the layer sees its stack and conventions **once**, and every unit file below stays lean instead of repeating them. Written by `tl-codebase-map` from the detected stack (reverse) or by `tl-feature-planning` from the confirmed architecture (forward); it holds no per-unit facts and never duplicates a unit.
+`context/frontend/_overview.md`, `context/backend/_overview.md`, `context/database/_overview.md` — a short orientation doc at the head of each layer folder so a reader (or a coding agent) landing in the layer sees its stack and conventions **once**, and every unit file below stays lean instead of repeating them. Written by `tl-code-map` from the detected stack (reverse) or by `tl-feature-planning` from the confirmed architecture (forward); it holds no per-unit facts and never duplicates a unit.
 
 ```md
 ---

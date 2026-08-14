@@ -44,6 +44,17 @@ When you reuse, you **add** back-links and extend — you never overwrite existi
 
 **Two run modes.** Pointed at one feature, still read the whole existing graph (step 2 of the workflow) so you reuse units other features created. Pointed at the whole set, plan feature by feature against the *growing* index so later features reuse what earlier ones added. Either way the indexes are the shared memory.
 
+### Brownfield — look up the as-built code context too
+
+On a project that has been through `/tl:code-map`, the as-built units do **not** live in the workspace `context/` tree: each mapped repository owns its own committed `context/code-context/` tree, and `<workspace>/.jetrix/<project-name>/context/code-map-registry.md` lists them. So the reuse lookup has two hops, and the second is not optional — skipping it is how a brownfield project ends up with a designed `POST /accounts` sitting beside the one that already exists in the code.
+
+1. Read the registry if it exists. For every repo it lists, read the layer indexes it points at — **the `## Domain Map` first**, then the `## Units` table; those files are built to be read index-first, so you can resolve a match key without opening unit files.
+2. Match on the **same keys** as above (route, normalised `METHOD + path`, object name). An as-built unit is a normal unit: link the feature to it, add the `FEAT-…` to its *Used by Features*, and extend it in place.
+3. The headings are the ones you already know — `/tl:code-map` keeps every forward heading verbatim (`Used by Features`, `Reads / Writes Entities`, `Called by`, `Used by Endpoints`, `Behaviour / Business Rules`, `Integrations`, `Permissions`, `Status`) and only **adds** sections (`Summary`, `Domain`, `Validation`, `Business Logic`, `Side Effects`, `Business Purpose`, `Used by Database Objects`, `Area`, `State & Data Handling`, `Client-side Validation`, plus kind-specific ones on database objects — the full list is in `tl-code-map`'s `references/code-context-templates.md` §9). Write your links into the same sections you always do; leave the added ones alone unless the feature changes what they describe. On a reverse-mapped unit `Used by Features` reads `(as-built)` — replace that marker with your `FEAT-…` row rather than appending to it.
+4. When you extend a reverse-mapped unit, **leave its provenance alone** — `origin: reverse-mapped`, `mapped_from`, `mapped_from_commit`, `map_confidence` and the `[code › …]` Source References stay; you are adding a forward-planned intent to a unit that already exists in code, not replacing its history. Note the addition in the unit's Source References alongside the code citation.
+5. If the feature needs behaviour the as-built unit doesn't have, say so explicitly on the unit (a new field, a new state, a new rule) rather than silently rewriting a contract the running code implements — a delta against working code is a change request, and the dev agent needs to see it as one.
+6. Write the extension **into the repo's `code-context/` file**, not a workspace copy, so the design and the code stay in one place and diff together.
+
 ---
 
 ## Entry paths — not everything starts at a page

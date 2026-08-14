@@ -7,11 +7,13 @@ description: The Techjays Delivery OS shared document contract. Read this before
 
 This is the single source of truth that makes Delivery OS documents **shareable across agents and across weeks**. The BA Agent produces documents today; the Doc, TL, and QA agents consume them later. They only interoperate if every agent honors this contract.
 
-> **Contract version: 1.2.** Bump `schema_version` in document frontmatter and update this file together when the contract changes.
+> **Contract version: 1.3.** Bump `schema_version` in document frontmatter and update this file together when the contract changes.
 >
 > **1.1 (use-case model).** Made **use cases** first-class: added the `<MODULE>-UC-NN` id and `use-case-register.md`; the scope §3.x now carries a **§3.x.3 Master Flow** and a **§3.x.4 Use Cases** layer (renumbered through §3.x.11); added the **Mermaid diagram convention** (§8) where Mermaid is the living source and the Doc Agent's branded SVG swimlane is its projection. The change is **additive** — a `schema_version: 1.1` document remains readable; new documents are written at `1.1`.
 >
 > **1.2 (eval layer).** Added the applied-AI **eval** layer: the `EVAL-<AREA>-NN` id (§3), the `context/evals/` sub-tree (§1), and the *applied-AI / LLM feature* classification (§5) that gates it. The TL's `tl-feature-planning` **designs** eval units for AI-bearing features, the dev `feature-delivery-loop` **runs and inspects** them, and QA's harness hosts them — see the core **`eval-engineering`** skill. Additive — deterministic features are unaffected.
+>
+> **1.3 (in-repo code context).** Added the brownfield **code-context** layer: a committed `<repo>/context/code-context/` tree written by the TL's `tl-code-map` **inside the mapped repository** — a `context/` folder at the repo root with `code-context/` inside it (not in the workspace, and not inside `.jetrix/`, which is gitignored), holding one markdown unit per page, endpoint and database object, grouped by business domain — with database objects grouped on disk by **kind** (`tables/ collections/ views/ procedures/ functions/ triggers/`) — plus **semantic layer indexes** (a `## Domain Map` in prose alongside the unit table) that exist so a consumer can pick the right file without opening any other. New doc_types: `code-context-readme`, `code-context-index`, `code-map-registry`, `map-coverage`; the layer indexes keep the existing `page-index` / `endpoint-index` / `entity-index` doc_types so current consumers keep working by doc_type rather than filename. New workspace file: `context/code-map-registry.md`, the pointer from the workspace to each mapped repo's tree (§1). IDs are unchanged — `PAGE-`/`EP-`/`ENT-<AREA>-NN` on the same match keys — so `/tl:plan` reuses as-built units instead of duplicating them. Additive: greenfield projects that never run `/tl:code-map` are unaffected.
 
 ---
 
@@ -63,13 +65,18 @@ Every Delivery OS project lives under a **single named container folder** at `<w
 │   ├── database/
 │   │   ├── entity-index.md
 │   │   └── entities/<entity-slug>.md            # ENT-<AREA>-NN → DATA-###
-│   └── evals/                # TL eval design for applied-AI features — dev runs these
-│       ├── eval-index.md
-│       └── <feature-slug>/<eval-slug>.md        # EVAL-<AREA>-NN → verifies an AC, exercises EP-/ENT-
+│   ├── evals/                # TL eval design for applied-AI features — dev runs these
+│   │   ├── eval-index.md
+│   │   └── <feature-slug>/<eval-slug>.md        # EVAL-<AREA>-NN → verifies an AC, exercises EP-/ENT-
+│   └── code-map-registry.md  # brownfield only — pointer to each mapped repo's in-repo code-context/ tree
 ├── doc-output/                  # Doc Agent outputs (Phase 2) — created on demand
 ├── tl-output/                   # TL Agent outputs (Phase 3) — created on demand
 └── final/                       # approved, client-facing deliverables
 ```
+
+### 1.c Brownfield — the in-repo `context/code-context/` tree (owned by **`tl-code-map`**)
+
+For a project that already has code, `/tl:code-map` writes its as-built context **inside the mapped repository** at `<repo>/context/code-context/`, committed with the code — not under `<workspace>/.jetrix/…`, which is gitignored and would strand the context away from the repo it describes. The tree holds a `README.md` and root `code-context-index.md`, a `map-coverage.md` manifest, and per-layer `backend/`, `frontend/`, `database/` folders: endpoints under `domains/<domain>/endpoints/`, pages under `pages/<area>/`, and database objects under a folder per **kind** (`tables/`, `collections/`, `views/`, `procedures/`, `functions/`, `triggers/`). Each layer index pairs a **semantic Domain Map** with the unit table, so the intended read order is index → domain → one unit file. The workspace keeps only `context/code-map-registry.md`, listing each mapped repo, its context root, its indexes and its area tokens — which is how `/tl:plan` finds as-built units to reuse and how cross-repo links resolve. Unit IDs and match keys are identical to the forward-planned ones; reverse-mapped units add `origin: reverse-mapped`, `mapped_from`, `mapped_from_commit` and `map_confidence`. Nothing sensitive is ever written into this tree — it is committed and shared.
 
 The `context/` tree is the shared implementation-context layer, distinct from each agent's private `*-output/`. The BA writes `context/features/`; the TL's `tl-feature-planning` skill writes the `frontend/`, `backend/`, and `database/` sub-trees and links them into a bidirectional graph (page → endpoint → entity, and back), and — for **applied-AI features** — also designs the `evals/` sub-tree of runnable verifiers (see the core `eval-engineering` skill). It is created on demand by the first skill that writes to it — `init` does not pre-make it.
 
@@ -100,7 +107,7 @@ It is **agent-maintained** (the user can still hand-edit it) and folds together 
 ```yaml
 ---
 doc_type: scope            # scope | requirement-register | use-case-register | glossary | run-summary | source-summary | intake-index | ...
-schema_version: 1.1        # the contract version this file conforms to
+schema_version: 1.3        # the contract version this file conforms to
 produced_by: ba            # ba | doc | tl | qa | delivery-os
 last_intake_run: run-003   # the run that last touched this file (omit if N/A)
 status: Emerging           # see §5 maturity values
@@ -125,7 +132,7 @@ generated_at: 2026-06-18
 ---
 ```
 
-A consuming agent that finds `schema_version` newer than it understands must **stop and warn** rather than guess.
+A consuming agent that finds `schema_version` newer than it understands must **stop and warn** rather than guess — with one standing exception, because the contract has so far only ever grown: where a minor bump is declared **additive** in the version note above (1.1, 1.2 and 1.3 all are), a consumer written for an earlier minor may read the document, use the fields it knows, and ignore the rest. It must still warn if a *major* version is newer, or if a minor bump is not marked additive. Concretely: a `/tl:plan` written against 1.1 may read, reuse and extend a 1.3 `code-context/` unit — the sections it knows are present under their original headings — and should not refuse it.
 
 ---
 
@@ -222,7 +229,9 @@ A feature is **AI-bearing** when its behaviour depends on a model's output — g
 | `ba-output/integration-register.md`  | ba          | tl                 |
 | `ba-output/data-register.md`         | ba          | tl                 |
 | `context/features/*`                 | ba          | tl, doc, qa        |
-| `context/frontend/*` `context/backend/*` `context/database/*` | tl (feature-planning forward, or codebase-map reverse for brownfield) | tl (spec-review), doc, qa, coding |
+| `context/frontend/*` `context/backend/*` `context/database/*` | tl (feature-planning, forward) | tl (spec-review), doc, qa, coding |
+| `<repo>/context/code-context/*` (brownfield, committed in the repo) | tl (code-map, reverse) | tl (feature-planning reuse), dev, doc, qa, coding agents |
+| `context/code-map-registry.md` | tl (code-map) | tl (feature-planning), dev |
 | `context/evals/*` (applied-AI features) | tl (feature-planning designs) | dev (feature-delivery-loop runs + inspects), qa (harness hosts) |
 | `doc-output/*`                       | doc         | human, final       |
 | `tl-output/*`                        | tl          | human, delivery    |

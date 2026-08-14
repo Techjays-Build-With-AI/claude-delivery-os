@@ -86,7 +86,7 @@ Layout:
 Next:
   cd .jetrix/<name>
   BA:  /ba:scope  →  /ba:features
-  TL:  /tl:map (brownfield)  or  /tl:scaffold (greenfield)
+  TL:  /tl:code-map (brownfield)  or  /tl:scaffold (greenfield)
   QA:  /qa:audit
   Dev: /dev:build FEAT-<n>
   Doc: /doc:proposal / /doc:magic-board / /doc:walkthrough / /doc:workflow

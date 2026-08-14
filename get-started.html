@@ -270,7 +270,7 @@
       <span class="cmd-pill">/tl:review</span>
       <span class="cmd-pill">/tl:resolve</span>
       <span class="cmd-pill">/tl:scaffold</span>
-      <span class="cmd-pill">/tl:map</span>
+      <span class="cmd-pill">/tl:code-map</span>
       <span class="cmd-pill">/tl:maturity</span>
       <span class="cmd-pill">/doc:proposal</span>
       <span class="cmd-pill">/doc:magic-board</span>
@@ -349,7 +349,7 @@
     <ol class="flow">
       <li><b>BA scopes only the increment.</b> Run <code>/ba:scope add "…just the new material…"</code> to update the living scope, or point <code>/ba:features</code> straight at an existing scope document. Keeping the scope to the new work is the cleanest way to avoid regenerating features you've already shipped.</li>
       <li><b>BA breaks it down under a new initiative.</b> <code>/ba:features initiative=&lt;new-batch&gt;</code> creates folders for just the new features and tags them. If your scope covers the whole system, mark already-shipped features <code>Released</code> in the index so only the new ones flow downstream. Each developer uses their own initiative name, so the shared <code>context/features/</code> stays sortable.</li>
-      <li><b>TL maps the existing code into the context graph.</b> Run <code>/tl:map repo=&lt;path&gt;</code> once to reverse-engineer the repo — deriving the frontend pages, backend endpoints, and database entities and their relationships that are already there, as an <b>as-built</b> graph. This is the brownfield equivalent of greenfield's scaffold step: it gives the build team the technical context the code already embodies, so planning the new increment reuses it.</li>
+      <li><b>TL maps the existing code into a committed code-context tree.</b> Run <code>/tl:code-map repo=&lt;path&gt;</code> once to reverse-engineer the repo — deriving every page, endpoint and database object already there, grouped by business domain, into <code>&lt;repo&gt;/context/code-context/</code>. This is the brownfield equivalent of greenfield's scaffold step: it gives the build team (and their agents) the technical context the code already embodies, so planning the new increment reuses it.</li>
       <li><b>QA checks the existing setup.</b> <code>/qa:audit</code> on the real repo shows what testing already exists and where the gaps are; <code>/qa:setup</code> fills only what's missing and updates the quality-gate contract. (No need to start from scratch if a harness is already there.)</li>
       <li><b>TL plans just the new batch.</b> <code>/tl:plan initiative=&lt;new-batch&gt;</code> plans only that developer's features, ignoring everyone else's in-flight work.</li>
       <li><b>Dev builds into the existing repo.</b> <code>/dev:build initiative=&lt;new-batch&gt; repo=D:\path\to\app</code> — the repository gate sees a real repo and treats it as brownfield, so there's <b>no scaffolding step</b>. It builds, validates against the gates, and hands off a PR.</li>
@@ -361,11 +361,11 @@
   BA     /ba:scope add "just the new increment"        →  updates ba-output/scope.md
   BA     /ba:features initiative=reporting-v2          →  new feature folders only
          (mark already-shipped features Released)
-  TL     /tl:map repo=<path>                           →  as-built context graph from the code
+  TL     /tl:code-map repo=<path>                      →  as-built code context, committed in the repo
   QA     /qa:audit → /qa:setup   (on the existing repo) →  fills test-setup gaps
   TL     /tl:plan  initiative=reporting-v2             →  plans this batch (reuses mapped units)
   DEV    /dev:build initiative=reporting-v2 repo=<path> →  builds into the existing repo
-         (no /tl:scaffold — the repo already exists; /tl:map replaces it)</code></pre></div>
+         (no /tl:scaffold — the repo already exists; /tl:code-map replaces it)</code></pre></div>
 
     <div class="note warn"><b>Multiple developers, one repo.</b> Because <code>context/features/</code> lives in the repo, everyone's in-flight features share it. The <b>initiative</b> is what keeps a developer focused on their own batch: <code>/ba:features</code> stamps it, and <code>/tl:plan</code> and <code>/dev:build</code> filter by it, so Dev B never trips over Dev A's four unfinished features. Pair it with per-initiative branches for clean merges.</div>
 
@@ -379,7 +379,7 @@
         <tr><td>BA → Doc</td><td><code>ba-output/scope.md</code> — the living scope the proposal/workflow docs draft from</td></tr>
         <tr><td>TL → Dev</td><td><code>context/frontend|backend|database</code> — the pages/endpoints/entities graph the feature maps to</td></tr>
         <tr><td>TL → Dev (greenfield)</td><td>The scaffolded repo + <code>context/project/{architecture, technology-stack, coding-standards}.md</code></td></tr>
-        <tr><td>Code → TL graph (brownfield)</td><td><code>/tl:map</code> reads the existing repo → the same <code>context/frontend|backend|database</code> units, marked as-built, that <code>/tl:plan</code> then reuses</td></tr>
+        <tr><td>Code → code context (brownfield)</td><td><code>/tl:code-map</code> reads the existing repo → a committed <code>&lt;repo&gt;/context/code-context/</code> tree of as-built units that <code>/tl:plan</code> then reuses via <code>context/code-map-registry.md</code></td></tr>
         <tr><td>QA → Dev</td><td><code>qa-output/quality-gates.md</code> — the checks, commands, and thresholds that define "verified"</td></tr>
         <tr><td>Dev → Human</td><td><code>dev/pr-summary.md</code> + the feature branch at <code>HUMAN_REVIEW</code></td></tr>
         <tr><td>Everyone → Everyone</td><td><code>shared-context/</code> (actors, glossary, decisions) and the <code>DEC-###</code> decision log</td></tr>
@@ -795,7 +795,7 @@ sudo apt install nodejs               <span class="cmt"># or nvm / the tarball f
       <span class="cmd-pill">/tl:review</span>
       <span class="cmd-pill">/tl:resolve</span>
       <span class="cmd-pill">/tl:scaffold</span>
-      <span class="cmd-pill">/tl:map</span>
+      <span class="cmd-pill">/tl:code-map</span>
       <span class="cmd-pill">/tl:maturity</span>
     </div>
 
@@ -813,7 +813,7 @@ sudo apt install nodejs               <span class="cmt"># or nvm / the tarball f
       <div class="mini"><h4>Traceable &amp; checked</h4><p>Entities cite the BA <code>DATA-###</code>, integrations cite <code>INT-###</code>; material choices are logged as <code>DEC-###</code>; a <b>link-integrity check</b> flags any dangling link or orphan before it finishes.</p></div>
     </div>
     <div class="note"><b>Output:</b> the <code>context/frontend|backend|database</code> unit files plus their three layer indexes (<code>page-index.md</code>, <code>endpoint-index.md</code>, <code>entity-index.md</code>). Re-run it when a feature changes — it updates in place, preserves existing back-links, and never duplicates a shared unit.</div>
-    <div class="note tip"><b>You can skip running it by hand.</b> <code>/dev:build</code>'s planning gate auto-runs <code>/tl:plan</code> on a feature that isn't planned yet, so the graph is guaranteed before the dev loop implements against it. Run it yourself when you want to review the design before building. On <b>brownfield</b>, run <code>/tl:map</code> first so planning reuses the as-built units.</div>
+    <div class="note tip"><b>You can skip running it by hand.</b> <code>/dev:build</code>'s planning gate auto-runs <code>/tl:plan</code> on a feature that isn't planned yet, so the graph is guaranteed before the dev loop implements against it. Run it yourself when you want to review the design before building. On <b>brownfield</b>, run <code>/tl:code-map</code> first so planning reuses the as-built units.</div>
 
     <div class="note tip"><b>Eval-aware planning <span class="pill-tag tag-adopt">Adopting</span></b> — for features with an LLM/AI component, <code>/tl:plan</code> also designs the <b>evals</b> that will later verify them, adopting LangChain's <a href="https://www.langchain.com/blog/towards-automating-eval-engineering" target="_blank" rel="noopener">eval-engineering</a> method (instruction · environment · verifier). The dev loop then runs them. See the <b>Leveraged Skills</b> tab.</div>
 
@@ -859,19 +859,21 @@ sudo apt install nodejs               <span class="cmt"># or nvm / the tarball f
     </div>
     <div class="note tip"><b>Output:</b> a real, git-initialised repository plus <code>context/project/{technology-stack, architecture, coding-standards}.md</code>, with every stack choice logged as a <code>DEC-###</code>. Then <code>/dev:build &lt;feature&gt;</code> can run.</div>
 
-    <h3 class="step">Onboard an existing codebase — <code>/tl:map</code></h3>
-    <p>The brownfield counterpart to <code>/tl:plan</code>. Where planning builds the context graph <i>forward</i> from features, <code>/tl:map</code> builds it <i>backward</i> from the <b>real code</b>: it reads an existing repository and derives the frontend pages, backend endpoints, and database entities — and their relationships — that are already there. It writes the <b>same</b> <code>context/frontend|backend|database</code> unit files, so once the as-built graph exists a later <code>/tl:plan</code> <b>reuses</b> those units instead of duplicating them.</p>
+    <h3 class="step">Onboard an existing codebase — <code>/tl:code-map</code></h3>
+    <p>The brownfield counterpart to <code>/tl:plan</code>. Where planning builds context <i>forward</i> from features, <code>/tl:code-map</code> builds it <i>backward</i> from the <b>real code</b>: it reads an existing repository and derives every page, endpoint and database object that is already there, and the links between them. The result is written <b>into that repository</b> at <code>&lt;repo&gt;/context/code-context/</code> and committed with the code, so it travels with the repo and diffs in review. A workspace registry (<code>context/code-map-registry.md</code>) points at each mapped repo, so a later <code>/tl:plan</code> <b>reuses</b> those as-built units instead of duplicating them.</p>
+    <p>Everything is grouped by <b>business domain</b>. Each endpoint gets one markdown file recording its request contract, its <b>validation rules and where each is enforced</b> (schema middleware, handler check, database constraint), its <b>business logic</b> as ordered steps, and a <b>data-access table</b> naming every database object it touches, the access mechanism (ORM, direct query, stored procedure, function, view) and whether it reads, writes or executes. Database objects are grouped on disk <b>by kind</b> — <code>tables/ collections/ views/ procedures/ functions/ triggers/</code> — each with its structure <i>and</i> its business purpose.</p>
     <div class="code"><button class="copy">Copy</button><pre><code><span class="cmt"># map an existing repo into the context graph</span>
-/tl:map repo=D:\acme\legacy-portal
+/tl:code-map repo=D:\acme\legacy-portal
 
 <span class="cmt"># map just one layer, or a slice of a monorepo</span>
-/tl:map repo=D:\acme\legacy-portal layers=backend,database scope=services/billing</code></pre></div>
+/tl:code-map repo=D:\acme\legacy-portal layers=backend,database scope=services/billing</code></pre></div>
     <div class="grid">
-      <div class="mini"><h4>Derived from code, not invented</h4><p>Pages from the router, endpoints from route handlers (with <code>METHOD + path</code>), entities from models/migrations — each unit cites the source file it was read from.</p></div>
-      <div class="mini"><h4>Honest confidence</h4><p>Every inferred link is marked <code>Confirmed</code> (static route/query) or <code>Assumed</code> (dynamic/opaque); genuinely unresolvable links become open questions, not fabrications.</p></div>
+      <div class="mini"><h4>Derived from code, not invented</h4><p>Pages from the router, endpoints from route handlers (with <code>METHOD + path</code>), objects from models, migrations and DDL — each unit cites the source file it was read from.</p></div>
+      <div class="mini"><h4>Honest confidence</h4><p>Every inferred link is marked <code>Confirmed</code> (static route/query) through to <code>Assumed</code> (dynamic/opaque); genuinely unresolvable links become open questions, not fabrications.</p></div>
+      <div class="mini"><h4>Index-first, so agents don't walk folders</h4><p>Each layer index pairs a <b>semantic domain map</b> — what kinds of operations and objects live in each domain, in prose — with a unit table whose one-line summaries mirror the unit files. Root index → domain map → one file: three cheap reads instead of a directory crawl.</p></div>
     </div>
-    <div class="note"><b>Read-only on the code.</b> It's static analysis — it never modifies, refactors, or runs the repo, and it never authors BA features or product scope from the code (that stays the BA's). Units are stamped <code>origin: reverse-mapped</code>; when you later run <code>/tl:plan</code>, features link into these same units.</div>
-    <div class="note tip"><b>Brownfield onboarding, in order:</b> <code>/ba:scope</code> (scope from your existing docs) → <code>/ba:features initiative=&lt;batch&gt;</code> → <code>/tl:map repo=&lt;path&gt;</code> (build the as-built graph once) → <code>/qa:audit</code> → <code>/tl:plan initiative=&lt;batch&gt;</code> (reuses the mapped units) → <code>/dev:build initiative=&lt;batch&gt; repo=&lt;path&gt;</code>.</div>
+    <div class="note"><b>Read-only on the code.</b> It's static analysis — it never modifies, refactors, or runs the repo, and it never authors BA features or product scope from the code (that stays the BA's). Units are stamped <code>origin: reverse-mapped</code> with the commit they were read at; when you later run <code>/tl:plan</code>, features link into these same units. It writes only the <code>context/code-context/</code> tree and never commits — you review and commit it like any other change.</div>
+    <div class="note tip"><b>Brownfield onboarding, in order:</b> <code>/ba:scope</code> (scope from your existing docs) → <code>/ba:features initiative=&lt;batch&gt;</code> → <code>/tl:code-map repo=&lt;path&gt;</code> (build the as-built graph once) → <code>/qa:audit</code> → <code>/tl:plan initiative=&lt;batch&gt;</code> (reuses the mapped units) → <code>/dev:build initiative=&lt;batch&gt; repo=&lt;path&gt;</code>.</div>
 
     <h3 class="step">Score production maturity — <code>/tl:maturity</code></h3>
     <p>A read-only maturity audit of a <b>built</b> project. Where <code>/tl:review</code> scores a design <i>document</i> and <code>/qa:audit</code> scores the <i>test harness</i>, <code>/tl:maturity</code> scores the <b>running system's reality</b> across four domains — <b>Code Quality &amp; Maintainability</b>, <b>Test Quality &amp; Verifiability</b>, <b>Infrastructure &amp; Operations</b>, and <b>Security</b> — and answers "is this production-grade, and where's the risk?" It prefers the project's <b>own enforced tooling</b> as evidence (lint, coverage, SARIF), tags every finding <code>evidenced</code> or <code>attested</code>, and reports a maturity score plus a <b>separate Audit Confidence</b> so a high score built on little measurement can't hide.</p>
@@ -1540,20 +1542,22 @@ sudo apt install nodejs               <span class="cmt"># or nvm / the tarball f
       when: "Run on a greenfield project once the architecture is decided; the same work /dev:bootstrap can trigger.",
       example: "Reading the architecture, it asks you to confirm pnpm and Vitest, scaffolds a Next.js + NestJS + PostgreSQL skeleton, writes the standards docs, and confirms a green base build — reporting the repo is now build-ready for /dev:build."
     },
-    "tl:map": {
+    "tl:code-map": {
       title: "Map an existing codebase",
-      summary: "Reverse-derives the technical context graph from a real repository to onboard a brownfield project.",
+      summary: "Reverse-derives a committed, index-first code-context tree from a real repository to onboard a brownfield project.",
       processes: [
-        "Points at an existing repo and detects its stack.",
-        "Loads any existing indexes first to reconcile, not duplicate.",
-        "Extracts entities, endpoints, and pages from the actual code.",
-        "Infers links between them and wires them both ways.",
-        "Marks every unit as-built with confidence and a source-file citation."
+        "Points at an existing repo, detects its stack, and derives its business domains.",
+        "Loads any existing code-context and the registry first to reconcile, not duplicate.",
+        "Extracts database objects by kind, then endpoints, then pages from the actual code.",
+        "Records each endpoint's contract, validation and where it's enforced, business logic, and every object it touches with the access mechanism.",
+        "Infers links between them — including indirect ones through triggers and procedures — and wires them both ways.",
+        "Marks every unit as-built with confidence, a commit stamp and a source-file citation."
       ],
       outputs: [
-        "Page, endpoint, and entity units matching /tl:plan's format.",
-        "Three reconciled layer indexes.",
-        "A confidence spread and link-integrity findings."
+        "A committed <repo>/context/code-context/ tree: page, endpoint and database-object units matching /tl:plan's format, grouped by domain.",
+        "Database objects grouped by kind — tables, collections, views, procedures, functions, triggers.",
+        "Semantic layer indexes: a domain map in prose plus a unit table, so an agent finds the right file without opening any other.",
+        "A coverage manifest, a workspace registry row, a confidence spread and link-integrity findings."
       ],
       covers: [
         "Uses the same match keys so later planning reuses these units.",
@@ -1561,7 +1565,7 @@ sudo apt install nodejs               <span class="cmt"># or nvm / the tarball f
         "Does not: invent relationships the code doesn't show, or author BA features."
       ],
       when: "Run to onboard an existing codebase; before planning new features against it.",
-      example: "Mapping the legacy Acme repo derives 12 pages, 30 endpoints, and 9 entities — 80% Confirmed, 20% Assumed for dynamic routes. It flags the low-confidence routes and suggests running /qa:audit and /tl:plan next."
+      example: "Mapping the legacy Acme repo derives 5 domains, 30 endpoints and 26 database objects (including 4 stored procedures that turn out to hold the invoice maths) into acme-api/context/code-context/ — 80% Confirmed, 20% Assumed for dynamic routes. It flags the low-confidence routes and suggests running /qa:audit and /tl:plan next."
     },
     "tl:maturity": {
       title: "Score the project's production maturity",

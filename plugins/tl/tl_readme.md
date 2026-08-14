@@ -5,10 +5,10 @@ The **Technical Lead Agent** does two jobs a seasoned TL does. It **authors** th
 | | |
 |---|---|
 | **Namespace** | `/tl:` |
-| **Commands** | `/tl:plan <feature-or-features>` · `/tl:review <doc> [out=<prefix>]` · `/tl:resolve <responses-file>` · `/tl:scaffold [spec] [repo=<path>]` · `/tl:map [repo=<path>]` · `/tl:maturity [repo=<path>] [strict-baseline]` |
+| **Commands** | `/tl:plan <feature-or-features>` · `/tl:review <doc> [out=<prefix>]` · `/tl:resolve <responses-file>` · `/tl:scaffold [spec] [repo=<path>]` · `/tl:code-map [repo=<path>]` · `/tl:maturity [repo=<path>] [strict-baseline]` |
 | **Input** | Feature planning: the BA feature breakdown under `context/features/`. Spec review: a tech spec / architecture / system-design / HLD / SRS document (`.md`, `.docx`, or `.pdf`). Scaffold: the confirmed architecture (spec / `context/project/`) + the context graph |
 | **Output** | Feature planning: the linked `context/frontend|backend|database` graph + three indexes. Spec review: `tl-output/spec-review-<timestamp>.{html, md, json}`. Scaffold: the initial application repository (skeleton + tooling + green base) and `context/project/{technology-stack, architecture, coding-standards}.md` |
-| **Skills** | `tl-feature-planning` · `tl-spec-review` · `tl-project-scaffold` · `tl-codebase-map` · `tl-maturity-audit` |
+| **Skills** | `tl-feature-planning` · `tl-spec-review` · `tl-project-scaffold` · `tl-code-map` · `tl-maturity-audit` |
 
 ---
 

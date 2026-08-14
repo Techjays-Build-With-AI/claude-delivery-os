@@ -383,7 +383,7 @@ context-mcp uses a **fixed two-word vocabulary** — `main` (shared baseline) an
 - Resolve env from args (this is the ONLY place these words come from — do NOT derive from envConfig):
   - If `--env=main` or `--env=dev` present → use it.
   - Else if `--baseline` present → `env = main`.
-  - Else if the workspace has NO `context/features/*/implementation-plan.md` files → **auto-baseline**: `env = main`. Rationale: with no `/tl:plan` output yet, the indexes describe as-shipped code (produced by `/tl:map`), so they belong in the shared baseline. Print a one-line note: *"No feature plans found — pushing to baseline `main`. Pass `--env=dev` to override."*
+  - Else if the workspace has NO `context/features/*/implementation-plan.md` files → **auto-baseline**: `env = main`. Rationale: with no `/tl:plan` output yet, whatever the indexes hold describes as-shipped code, so it belongs in the shared baseline. (As-built context from `/tl:code-map` itself lives in the mapped repo's `context/code-context/` tree, not here, and is not pushed by this command.) Print a one-line note: *"No feature plans found — pushing to baseline `main`. Pass `--env=dev` to override."*
   - Else → `env = dev` (working state).
 - Reject any `--env=<other>` value with a clear error naming the two allowed values. The plugin owns the vocabulary contract; passing `prod` / `staging` / `qa` here silently breaks pull.
 - Read `<workspace_root>/.jetrix/cache/sync-state.json`. Look at `context/<path>[<env>]` — skip files whose `contentHash` matches.
@@ -721,7 +721,7 @@ Each index has a DIFFERENT column layout — do NOT treat them uniformly. Confir
 | `context/backend/endpoint-index.md` | col 6 = `Used by Features` | col 7 = `File` | col 5 = `Reads/Writes Entities` (used below) |
 | `context/database/entity-index.md` | *none* — features link indirectly | col 7 = `File` | col 6 = `Used by Endpoints` |
 
-Full headers, as emitted by `tl-feature-planning` / `tl-codebase-map` (`awk -F'|'` field numbers in brackets — note the leading empty field, so **awk field = column + 1**):
+Full headers, as emitted by `tl-feature-planning` (`awk -F'|'` field numbers in brackets — note the leading empty field, so **awk field = column + 1**):
 
 ```
 page-index.md    | Page ID[$2] | Page[$3] | Area[$4] | Origin[$5] | Status[$6] | Used by Features[$7] | Consumes Endpoints[$8] | Folder[$9] |
@@ -731,7 +731,7 @@ entity-index.md  | Entity ID[$2] | Entity[$3] | Kind[$4] | Origin[$5] | Source D
 
 `page-index.md` and `entity-index.md` carry two extra columns relative to `endpoint-index.md` (`Origin`/`Status` and `Origin`/`Source DATA-###`). Getting these wrong does **not** error — it silently reads the `Origin` column as the feature filter (never matching a `FEAT-` id, so every page is dropped) and emits the `Used by Endpoints` cell as a file path. Verify the header before trusting the field numbers.
 
-**Reverse-mapped rows.** Units produced by `/tl:map` carry `(as-built)` in their `Used by Features` cell, so a `FEAT-` filter naturally excludes them. That is correct — as-built units are not owned by any planned feature and must not be concatenated into a Task's implementation spec.
+**Reverse-mapped rows.** As-built units produced by `/tl:code-map` are **not in these workspace indexes at all** — since contract 1.3 they live in each mapped repo's own committed `context/code-context/` tree, listed in `context/code-map-registry.md`. Nothing here needs to filter them out. (A workspace mapped before 1.3 may still hold reverse-mapped rows inline; those carry `(as-built)` in their `Used by Features` cell, so a `FEAT-` filter excludes them naturally — which is correct, as-built units are not owned by any planned feature and must not be concatenated into a Task's implementation spec.)
 
 Feature ↔ entity is a **2-hop link**: feature → endpoints (via `endpoint-index`) → entities (via each endpoint row's `Reads/Writes Entities` cell). Never grep entity-index directly for a feature id — that will find nothing.
 
