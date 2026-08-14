@@ -53,9 +53,11 @@ Every Delivery OS project lives under a **single named container folder** at `<w
 │   └── intake-runs/
 │       └── run-001.md ...
 ├── context/                     # shared implementation context (the whole build team reads)
-│   ├── features/                # BA feature breakdown (ba-feature-breakdown)
+│   ├── features/                # BA feature breakdown (ba-feature-breakdown) + TL per-feature spec (tl-feature-compose)
 │   │   ├── feature-index.md
-│   │   └── <feature-slug>/ …
+│   │   └── <feature-slug>/
+│   │       ├── feature.md · workflow.md · acceptance-criteria.md · business-rules.md · nfrs.md · test-scenarios.md · dependencies.md · open-questions.md · status.md · implementation-plan.md   # ba
+│   │       └── tl-plan.md        # tl-feature-compose — Implementation-tab spec, pushed to MC.Task.implementationDetails
 │   ├── frontend/                # TL feature planning (tl-feature-planning)
 │   │   ├── page-index.md
 │   │   └── pages/<area>/<page-slug>.md          # PAGE-<AREA>-NN
@@ -228,6 +230,9 @@ A feature is **AI-bearing** when its behaviour depends on a model's output — g
 | `ba-output/use-case-register.md`     | ba          | doc, tl, qa        |
 | `ba-output/integration-register.md`  | ba          | tl                 |
 | `ba-output/data-register.md`         | ba          | tl                 |
+| `context/features/*` (BA files)      | ba          | tl, doc, qa        |
+| `context/features/<slug>/tl-plan.md` | tl (feature-compose) | dev, doc, qa · pushed verbatim to `MC.Task.implementationDetails` by `/jetrix:push implementation` |
+| `context/frontend/*` `context/backend/*` `context/database/*` | tl (feature-planning forward, or codebase-map reverse for brownfield) | tl (spec-review, feature-compose), doc, qa, coding |
 | `context/features/*`                 | ba          | tl, doc, qa        |
 | `context/frontend/*` `context/backend/*` `context/database/*` | tl (feature-planning, forward) | tl (spec-review), doc, qa, coding |
 | `<repo>/context/code-context/*` (brownfield, committed in the repo) | tl (code-map, reverse) | tl (feature-planning reuse), dev, doc, qa, coding agents |

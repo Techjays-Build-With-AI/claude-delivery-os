@@ -13,8 +13,9 @@ The defining behaviour of this skill is the **state-driven loop with hard guardr
 
 Read the **`delivery-os-conventions`** contract first if it isn't in context — the workspace layout, the frontmatter standard, the stable-ID rules, the source-citation form, and the controlled vocabulary. Your **inputs** are published upstream work you consume and never regenerate:
 
-- BA feature folder `context/features/<slug>/` — `feature.md`, `implementation-plan.md`, `workflow.md`, `acceptance-criteria.md`, `dependencies.md`, `open-questions.md`, `status.md`.
-- TL context graph — the `PAGE-/EP-/ENT-<AREA>-NN` unit files the feature maps to (via the feature's *Related Pages / APIs / Data Entities*), the three layer indexes, and the `DEC-###` decisions in `shared-context/decision-log.md`.
+- BA feature folder `context/features/<slug>/` — `feature.md`, `workflow.md`, `acceptance-criteria.md`, `dependencies.md`, `open-questions.md`, `status.md`, and `implementation-plan.md` (BA's build-areas scoping notes — read for scoping context only, never as the buildable spec).
+- **`context/features/<slug>/tl-plan.md`** — TL's per-feature buildable implementation spec (the 9-section technical plan produced by `/tl:compose`). **When present, this is the primary buildable input** — read it first, treat it as the authoritative technical brief. When absent (e.g. an older workspace that hasn't run `/tl:compose` yet), fall back to reading `implementation-plan.md` + the TL unit files listed below and note in the run summary that the feature was built from the legacy inputs; recommend `/tl:compose` for the next run. Do NOT reconstruct a `tl-plan.md`-shaped document from those legacy inputs — the composition responsibility belongs to `/tl:compose`, not you.
+- TL context graph — the `PAGE-/EP-/ENT-<AREA>-NN` unit files the feature maps to (via the feature's *Related Pages / APIs / Data Entities*), the three layer indexes, and the `DEC-###` decisions in `shared-context/decision-log.md`. Read these as **reference** when `tl-plan.md` cites a unit id — the plan is self-contained for owned units but cites reused/external units by id. **Self-heal missing files:** the three indexes and each cited unit file may not be present on a fresh workspace — the readiness gate (§0 in `readiness-and-planning.md`) already patch-pulls missing indexes via `/jetrix:pull context` and missing unit files via `/jetrix:pull context --unit=<ids>` before deciding whether the feature is planned. If a cited unit still isn't local after patch-pull, treat it as a real graph gap (not a workspace-bootstrap issue) and escalate.
 - `shared-context/` (actors, systems, glossary, decisions) and the BA registers in `ba-output/` (data, integration, workflow, business-rule) for the rules your code must honour.
 - The **product repository** you implement in — its `coding-standards.md`/`architecture.md` (from `context/project/` or the repo), its test/lint/build tooling, and its git state.
 
@@ -24,6 +25,7 @@ You **write** your dev context alongside the feature, under a `dev/` subfolder s
 context/features/<slug>/
   feature.md  implementation-plan.md  workflow.md  acceptance-criteria.md
   dependencies.md  open-questions.md  status.md            # BA (input, read-only)
+  tl-plan.md                                                # TL (input, read-only) — primary buildable spec
   dev/                                                      # you write these (produced_by: dev)
     dev-plan.md              # the technical implementation plan
     impacted-components.md   # concrete code-level impact analysis

@@ -103,7 +103,7 @@ Every feature's `feature.md` carries **Source References** back to the scope sec
 The feature breakdown is complete when:
 
 - [ ] Every major scope item maps to one or more features.
-- [ ] Every feature has a dedicated folder with all seven files.
+- [ ] Every feature has a dedicated folder with all ten files.
 - [ ] Every feature includes business purpose, user context, workflow, acceptance criteria, dependencies, assumptions, and open questions.
 - [ ] Features are indexed in `feature-index.md`.
 - [ ] Features have a preliminary implementation sequence.

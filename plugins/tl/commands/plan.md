@@ -14,7 +14,33 @@ You are the entry point for TL feature planning. Parse the arguments and **deleg
 - An optional **`initiative=<name>`** — restrict planning to the features in that work-batch (the `initiative` stamped by `/ba:features`). This is how a developer plans **only their own scoping batch** when `context/features/` holds many developers' features: `/tl:plan initiative=payments-v2` plans just those, ignoring everyone else's. Combine with a target to narrow further, or use it alone against `context/features/` to mean "plan all features in this initiative."
 - An optional **`layers=`** filter (`frontend`, `backend`, `database`, comma-separated) to restrict which layers to build. Default: all three, only creating a layer a feature actually needs.
 
-If no target is given and intent is ambiguous, ask which feature(s) to plan and stop. If the path doesn't resolve, say so and ask for a valid one rather than guessing. If there's no `context/features/` at all, tell the user the BA feature breakdown must run first (`/ba:features`), and offer to plan against a path they point you to.
+If no target is given and intent is ambiguous, ask which feature(s) to plan and stop. If the path doesn't resolve, say so and ask for a valid one rather than guessing.
+
+## 1a. Prereq check — never crash on missing files
+
+Before delegating to `tl-agent`, verify the BA feature files exist locally for every feature in the target set. `/tl:plan` reads `feature.md`, `implementation-plan.md`, `workflow.md`, `dependencies.md` from each folder, plus BA registers (`data-register.md`, `integration-register.md`, etc.) from `ba-output/`. Two failure modes to handle explicitly:
+
+- **`context/features/` doesn't exist** — halt with:
+  ```
+  ✗ /tl:plan requires the BA feature breakdown, which this workspace doesn't have.
+    Run one of:
+      /ba:features                 (generate the breakdown from local scope)
+      /jetrix:pull scope           (pull an existing breakdown from Jetrix)
+    Then re-run /tl:plan.
+  ```
+- **Target feature is missing a required BA file** (`feature.md` or the register files it cites) — halt for that feature with:
+  ```
+  ✗ /tl:plan: feature '<slug>' is missing required BA files.
+    Missing:
+      context/features/<slug>/feature.md
+      ba-output/data-register.md
+    Run one of:
+      /jetrix:pull scope           (pull all BA output from Jetrix)
+      /jetrix:pull task <ref>      (pull just this feature's folder)
+      /ba:features <slug>          (regenerate locally)
+    Then re-run /tl:plan.
+  ```
+- **Never let the tl-agent proceed against a partial input set.** A silent partial run produces a partial graph that later `/tl:compose` runs will fail on, hiding the real root cause. Halt-with-ask is the honest path.
 
 ## 2. Delegate
 
@@ -25,3 +51,5 @@ Invoke the **tl-agent** subagent with the feature target. Pass it this instructi
 ## 3. Surface the result
 
 When the agent returns, present its **summary**: features planned, the created-vs-reused counts per layer, the three index tables (or their deltas), any evals designed for AI-bearing features (`EVAL-###`), the design decisions logged (`DEC-###`), the open questions raised (with owners), and any link-integrity findings. Link to the three indexes (`page-index.md`, `endpoint-index.md`, `entity-index.md`) and note that each unit file is self-contained. Keep it tight — the detail lives in the files.
+
+Remind the user of the **next step**: run `/tl:compose <target>` to turn the graph into per-feature buildable `tl-plan.md` files, then `/jetrix:push implementation` to ship them to Mission Control. `/tl:plan` produces the reusable graph; `/tl:compose` produces the per-feature developer handoff — they are separate steps.

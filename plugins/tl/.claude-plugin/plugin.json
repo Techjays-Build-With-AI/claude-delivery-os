@@ -6,5 +6,5 @@
     "name": "Techjays",
     "email": "delivery@techjays.com"
   },
-  "keywords": ["technical-lead", "feature-planning", "context-graph", "spec-review", "architecture", "applied-ai", "llm", "cost-projection", "scaffold", "bootstrap", "reverse-map", "brownfield", "codebase-onboarding", "maturity-audit", "production-readiness", "audit-confidence", "code-quality", "security", "observability"]
+  "keywords": ["technical-lead", "feature-planning", "feature-compose", "implementation-plan", "context-graph", "spec-review", "architecture", "applied-ai", "llm", "cost-projection", "scaffold", "bootstrap", "reverse-map", "brownfield", "codebase-onboarding", "maturity-audit", "production-readiness", "audit-confidence", "code-quality", "security", "observability"]
 }
