@@ -128,7 +128,7 @@ Missing `task_object_id` returns `{ok: false, error: "…run /jetrix:push featur
 
 > **Known task-mcp defects (as of 2026-07-27) — do not misread these as your own failure:**
 > - **Read tools return empty for tasks that demonstrably exist.** `feature_pull_bundle`, `feature_list_bundle` and `get_task_by_id_or_number` all return nothing for a Solution whose tasks are writable by object id; a raw-oid lookup fails upstream with `"Please select a solution to continue"`, suggesting a missing solution-context header on the read path. **Do not use a read tool to verify a push, and do not treat an empty read as evidence the write failed.** Verify from the write response's `ok`/`updated`/`task_number` instead — `task_number` is echoed from the stored record, so its presence proves the task was found.
-> - **`version` comes back `null`** on every write, where scope-mcp and context-mcp both return an integer. Does not appear to affect the write; record `null` in sync-state rather than inventing a number.
+> - **`version` comes back `null`** on every write, where scope-mcp returns an integer. Does not appear to affect the write; record `null` in sync-state rather than inventing a number.
 
 ### 6. Update sync-state — **incrementally, after EACH successful push**
 

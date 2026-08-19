@@ -81,9 +81,9 @@ Per-file mapping:
 | `shared-context/decision-log.md` | `["scope-context"]` |
 | `context/features/feature-index.md` | `["scope-context"]` |
 
-scope-mcp does **not** auto-add any identity tag — the plugin owns the tag semantics. Every future stage (context-mcp, task-mcp, deliverable-mcp) mirrors this two-level pattern with its own primary/support pair (`context`/`context-support`, `tasks`/`tasks-support`, etc.).
+scope-mcp does **not** auto-add any identity tag — the plugin owns the tag semantics. Every future stage (task-mcp, deliverable-mcp) mirrors this two-level pattern with its own primary/support pair (`tasks`/`tasks-support`, etc.).
 
-> **sync-state contract (applies to every stage below — read carefully).** `sync-state.json` is the **single shared file** for ALL stages — scope, feature, context, implementation. Every write is a MERGE, never a REPLACE. The correct pattern in every stage's write-back step is:
+> **sync-state contract (applies to every stage below — read carefully).** `sync-state.json` is the **single shared file** for ALL stages — scope, feature, implementation. Every write is a MERGE, never a REPLACE. The correct pattern in every stage's write-back step is:
 >
 > 1. **Read** `<workspace_root>/.jetrix/cache/sync-state.json` (treat missing/empty as `{}`).
 > 2. **Merge** your new/updated keys into that object (do NOT drop any existing keys).

@@ -46,16 +46,16 @@ For each targeted feature, compute the `inputs_hash` — sha256 over the concate
 ### 3. Read the feature and its graph slice
 For each feature to compose:
 - Read `feature.md`, `workflow.md`, `acceptance-criteria.md`, `business-rules.md`, `nfrs.md`, `test-scenarios.md`, `dependencies.md`, `open-questions.md`. (`implementation-plan.md` and `status.md` are local-only and irrelevant here — do NOT read them.)
-- **Ensure the graph is local.** If any of the 3 indexes (`context/frontend/page-index.md`, `context/backend/endpoint-index.md`, `context/database/entity-index.md`) is missing, invoke `/jetrix:pull context` once (default = every context doc in the env) and retry. If still missing after pull, tell the user to run `/tl:plan` first (no indexes = no graph) and stop.
+- **Ensure the graph is local.** The graph lives per-repo under `<repo>/context/code-context/{frontend|backend|database}/`. If any of the 3 indexes is missing for a required repo, tell the user to run `/tl:plan` (for missing units) or `/tl:code-map` (to reverse-map an existing repo) first — no indexes, no graph — and stop.
 - Resolve owned units from the three indexes using the awk recipe from `references/index-resolution.md` (same matching rule `/jetrix:push implementation` uses — feature-cell word-boundary match, and the 2-hop endpoint→entity chain via each endpoint row's `Reads/Writes Entities` cell). Reject a feature with **zero owned units** — tell the user to run `/tl:plan` first, do not fabricate units.
-- **Patch-pull only what's still missing.** The default `/jetrix:pull context` above already brought down every doc in the env. In the rare case a specific unit is referenced by the index but its file didn't come through (transient GCS 404, or the unit was created since the last full pull), batch-invoke `/jetrix:pull context --unit=<missing-ids>` once. Any unit still missing after that becomes `[HELD · unit file unavailable — pull failed for <id>]` in §9 with `TBD — unit-detail file unavailable` at its heading.
+- **Any unit file whose path resolves in an index but doesn't exist locally** becomes `[HELD · unit file unavailable — <id>]` in §9 with `TBD — unit-detail file unavailable` at its heading. Ask the user to sync the involved repo (`git pull` inside it) and re-run.
 - Read every owned page, endpoint, and entity file.
 
 ### 4. Repo-scan preflight
-Read `.jetrix/cache/repolocation.json`. For each app declared:
-- If the local path exists → `ls` the top-level and one level down to discover the routing / handler / model layout. Look for the entry points: `app/`, `src/`, `pages/`, `routes/`, `controllers/`, `domains/`, `models/`, `entities/`, `schemas/`, and their language-specific analogues.
+For each app declared in `.jetrix/project.json`, resolve its absolute local path following **`plugins/jetrix/references/repo-paths.md`** — read `.jetrix/cache/repolocation.json`; if a path is missing or its folder has moved, ask the teammate and update the JSON; if it's marked `"SKIPPED"`, treat it as unavailable without asking. Then, for each resolved path:
+- `ls` the top-level and one level down to discover the routing / handler / model layout. Look for the entry points: `app/`, `src/`, `pages/`, `routes/`, `controllers/`, `domains/`, `models/`, `entities/`, `schemas/`, and their language-specific analogues.
 - **Never recurse further, never `Read` a source file, and never touch anything matching the off-limits patterns above.** This is a *shape* check to name plausible target file paths in §2/§3 — not to grep the codebase.
-- If the repo is missing locally → mark every file path in §2 and §3 as `TBD — repo not cloned locally, resolve at build time` and surface the missing repo as an open item in §9.
+- For an app that ends up unavailable (missing or `SKIPPED`) → mark every file path in §2 and §3 that would have landed in that repo as `TBD — repo not cloned locally, resolve at build time` and surface it as an open item in §9.
 
 ### 5. Compose the Implementation-tab content
 Follow `references/implementation-plan-template.md`. The composed `tl-plan.md` populates **only** the Implementation tab of the Jetrix Task via `/jetrix:push implementation`. Description, Business Rules, Acceptance Criteria, NFRs, Test Scenarios, and Dependencies are populated by BA push from other files and never appear in this document.
