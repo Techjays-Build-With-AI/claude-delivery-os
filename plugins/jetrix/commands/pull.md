@@ -1,5 +1,5 @@
 ---
-description: Refresh local delivery-os work from Jetrix via the stage-specific MCP. Argument selects which stage to pull — `scope` (BA outputs ← scope-mcp + feature folders ← task-mcp, combined), `connection-map` (Solution architecture doc ← scope-mcp), `task <ref>` / `sprint <ref>` / `list <ref>` (single feature or a set ← task-mcp), `all` (every implemented stage). Downloads use the direct-from-GCS pattern (server issues signed URLs, local bash + curl streams bytes straight to disk), so pull is fast regardless of file count. Idempotent — files whose remote contentHash matches the local hash are left untouched.
+description: Refresh local delivery-os work from Jetrix via the stage-specific MCP. Argument selects which stage to pull — `scope` (BA outputs + feature folders + connection-map, one combined pull), `connection-map` (only the Solution architecture doc, targeted), `task <ref>` / `sprint <ref>` / `list <ref>` (single feature or a set ← task-mcp), `all` (equivalent to `scope`). Downloads use the direct-from-GCS pattern with `curl --parallel` (HTTP/2 multiplexed to GCS — same mechanism the browser uses), so pull is fast regardless of file count. Idempotent — files whose remote contentHash matches sync-state's are skipped without downloading.
 argument-hint: "<stage> [<ref>]"
 ---
 
@@ -9,14 +9,14 @@ Refresh the local delivery-os container from Jetrix. The first argument names th
 
 | Stage | MCP | What it pulls |
 |---|---|---|
-| `scope` | `scope-mcp` + `task-mcp` | BA outputs + every feature folder (combined pull) |
-| `connection-map` | `scope-mcp` | Solution's LLM-synthesised `connection-map.md` (authored via portal Connections tab). Single file, one per Solution. |
+| `scope` | `scope-mcp` + `task-mcp` | Everything Solution-scoped: BA outputs, shared-context, feature-index, **connection-map**, and every feature folder — one combined pull |
+| `connection-map` | `scope-mcp` | Targeted pull of just the Solution's `connection-map.md`. Rarely needed — `scope` already includes it. Use when you want to skip BA/feature pulls. |
 | `task <ref>` | `task-mcp` | ONE feature folder — `<ref>` is `TASK-<number>`, `FEAT-<id>`, or a MongoDB `_id` |
 | `sprint <ref>` | `task-mcp` | Every feature currently in a sprint — `<ref>` is a sprint number or MongoDB `_id` |
 | `list <ref>` | `task-mcp` | Every feature in an MC List — `<ref>` is a list name or MongoDB `_id` |
-| `all` | (all above) | Full workspace: `scope` + `connection-map`. |
+| `all` | (same as `scope`) | Alias for `scope` — the scope manifest already covers connection-map + BA outputs + features |
 
-Every stage uses a **two-phase direct-from-GCS pattern** — 1 MCP call for the manifest + 1 Bash call for the downloads. **File bytes never enter Claude's context**; they go from GCS straight to disk via signed download URLs.
+Every stage uses **one MCP call for the manifest + one Bash call for parallel downloads**. `curl --parallel` opens 8 concurrent HTTP/2 transfers over a single TCP connection to `storage.googleapis.com` — same mechanism the browser uses when the Documents-tab UI loads many files. **File bytes never enter Claude's context**; they go from GCS straight to disk via signed download URLs.
 
 The per-stage flow (manifest call, filter, curl loop, sync-state update) lives in a dedicated file under `commands/references/pull/`. Each stage file is 30–250 lines and is meant to be read verbatim when its stage runs. **Follow the stage file's instructions exactly — do NOT paraphrase, do NOT skip steps.** This top-level command handles preflight + arg parsing + routing only.
 
@@ -69,10 +69,7 @@ If the stage file cannot be read → halt and report; do NOT reconstruct the flo
 
 ## Stage: `all`
 
-Runs every implemented stage in order:
-
-1. Read + execute `references/pull/scope.md`.
-2. Read + execute `references/pull/connection-map.md`.
+Alias for `scope`. Since `scope_pull_manifest` now returns every Solution-scoped doc (BA outputs, shared-context, feature-index, connection-map) in one call, running `scope` refreshes everything the workspace needs. Just execute `references/pull/scope.md`.
 
 `task` / `sprint` / `list` are NOT part of `all` — those are targeted single-ref pulls, opt-in only.
 

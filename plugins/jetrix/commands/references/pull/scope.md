@@ -33,91 +33,76 @@ scope-mcp filters to docs whose `tags` intersect `{"scope", "scope-context"}` (b
 
 **About `path` in the response:** each doc's `path` is the `FileMeta.originalName` from Mongo — the *relative local path inside the delivery-os container* (e.g. `ba-output/scope.md`, `shared-context/glossary.md`, `context/features/feature-index.md`). It preserves the on-disk nesting from the pusher's workspace, so the puller's local layout ends up byte-identical (same subfolders, same file names). The signed download URL points at the flattened GCS object (`project-context/<sol>/scope/<ts>-<flattened>`), but writers don't need to think about that — always write bytes to `<project_root>/<path>`.
 
-### 3. Phase 2 — skip unchanged, then download the rest (via Bash — never `Read`)
+### 3. Phase 2 — skip unchanged + parallel download + apply (one Bash call)
 
-**Hard rule: do NOT use the `Read` tool to open any of the local scope files.** The whole point of this design is that Claude never handles file bytes. Compute the local-file hashes via Bash (`sha256sum`) so the bytes stay on disk.
+**One Bash tool call**: writes a curl config + a manifest sidecar as heredocs, runs `curl --parallel` (HTTP/2 multiplexed to GCS — same mechanism the browser uses), then invokes the plugin's apply script to atomically move successful downloads into place and update sync-state.
 
-`sync-state.json` is a tiny metadata file — safe to read with `Read`. Read `<workspace_root>/.jetrix/cache/sync-state.json` (create empty `{}` if missing).
+**Skip-unchanged decision is made in Claude, not in Bash.** Before emitting the script, iterate the manifest docs where `ok:true`:
 
-Then hash the on-disk copies via ONE Bash call:
+- If `manifest.contentHash` matches `sync-state[doc.path].contentHash` (both are server-authoritative — we recorded manifest.contentHash on the last successful pull) → **skip**. Don't add to the curl config.
+- Otherwise → **needs download**. Add to curl config + manifest sidecar.
 
-```bash
-#!/usr/bin/env bash
-set -e
-PROJECT_ROOT="<absolute project_root>"
-cd "$PROJECT_ROOT"
-for f in <paths from manifest>; do
-  if [[ -f "$f" ]]; then
-    hash=$(sha256sum "$f" | cut -d' ' -f1)
-    echo "$f|$hash"
-  else
-    echo "$f|MISSING"
-  fi
-done
-```
+No local-file hashing needed. `sync-state.json` is a tiny JSON file — safe to `Read` for the comparison. Manifest.contentHash beats sync-state on any drift (someone else pushed a newer version → their hash differs from ours → we download).
 
-For each manifest doc where `ok:true`:
-
-- If the manifest returns `contentHash` (server-side hash sidecar tag) → compare `local_sha256[:40] == manifest.contentHash`. Match → **skip** (bytes on disk match bytes on server). Mismatch → download regardless of what sync-state says (someone else pushed a newer version).
-- If the manifest has NO `contentHash` (older push predates the tag) → fall back to comparing local hash against `sync-state[doc.path].contentHash`. Match → skip. Mismatch → download.
-- Otherwise mark as **needs download**.
-
-Preferring manifest.contentHash over sync-state.contentHash is what catches teammate-pushed drift — a fresh clone or a workspace whose sync-state got out of date will still notice a newer server version and pull it.
-
-Generate ONE shell script that curl-GETs every needs-download doc from its `signed_download_url` and writes to `<project_root>/<doc.path>` — where `<doc.path>` is the relative local path from the manifest response. `mkdir -p` on the *directory* portion of that path reconstructs `ba-output/`, `shared-context/`, `context/features/`, etc. from scratch on a fresh clone, so a teammate who just cloned an empty repo ends up with the same folder tree as the pusher had.
+If everything skips (all hashes match), the download step is a no-op and this whole section costs one 200-line Bash script that runs in <100ms.
 
 ```bash
 #!/usr/bin/env bash
 set +e
-RESULT_LOG=$(mktemp)
+WORKSPACE_ROOT="<absolute workspace_root>"
+PROJECT_ROOT="<absolute project_root>"
 
-download_one() {
-  local abs_path="$1" signed_url="$2" rel_path="$3"
-  mkdir -p "$(dirname "$abs_path")"
-  local http_code
-  http_code=$(curl -sS -o "$abs_path" -w "%{http_code}" "$signed_url")
-  if [[ "$http_code" == "200" ]]; then
-    echo "OK  $rel_path" >> "$RESULT_LOG"
-  else
-    echo "FAIL $rel_path (HTTP $http_code)" >> "$RESULT_LOG"
-    rm -f "$abs_path"  # Don't leave a partial/error-body file behind
-  fi
-}
+STAGING=$(mktemp -d)
+CFG=$(mktemp)
+LOG=$(mktemp)
+META=$(mktemp)
 
-download_one "<project_root>/ba-output/scope.md"          "<signed_download_url>" "ba-output/scope.md"
-download_one "<project_root>/ba-output/data-register.md"  "<signed_download_url>" "ba-output/data-register.md"
-# ...one line per needs-download doc
+# --- Curl config: one url+output pair per needs-download doc ---
+# The plugin fills these in from manifest response (skipping docs where
+# manifest.contentHash matches sync-state.contentHash).
+cat > "$CFG" <<'CURLCFG'
+url = "<signed_download_url_1>"
+output = "<STAGING_absolute>/ba-output/scope.md"
+url = "<signed_download_url_2>"
+output = "<STAGING_absolute>/ba-output/data-register.md"
+# ...one url+output pair per needs-download doc
+CURLCFG
 
-cat "$RESULT_LOG"
-rm -f "$RESULT_LOG"
-```
-
-- Bytes flow GCS → curl → local disk. Never through Python/scope-mcp/Claude.
-- `mkdir -p` handles first-time creation of `ba-output/`, `shared-context/`, `context/features/`.
-- Bad-response bodies get deleted so a subsequent pull retries cleanly instead of thinking the file is fine.
-
-Parse `RESULT_LOG` — lines starting `OK ` are successful writes; `FAIL ` are failures.
-
-### 4. Update sync-state.json
-
-Run ONE more Bash call to hash the newly-written files (same `sha256sum` loop as step 3, over the successfully-downloaded paths this time). For every successfully-written file, update its entry with the FRESH contentHash:
-
-```json
+# --- Manifest sidecar: per-path metadata the apply script writes to sync-state ---
+cat > "$META" <<'METAEOF'
 {
-  "ba-output/scope.md": {
-    "documentId": "<from manifest>",
-    "version": <from manifest>,
-    "contentHash": "sha256:<hash of bytes just written>",
-    "lastPulled": "<current ISO timestamp>"
-  }
+  "ba-output/scope.md":         {"documentId": "doc_abc123", "version": 3, "contentHash": "<40hex>"},
+  "ba-output/data-register.md": {"documentId": "doc_def456", "version": 1, "contentHash": "<40hex>"}
 }
+METAEOF
+
+# --- Parallel HTTP/2-multiplexed download (single curl process, 8 concurrent) ---
+# --create-dirs handles nested staging paths (ba-output/, shared-context/, context/, context/features/).
+# --write-out logs "<staged_path>|<http_code>" per completed transfer to $LOG.
+curl --parallel --parallel-max 8 --create-dirs \
+     -sS --show-error \
+     --write-out "%{filename_effective}|%{http_code}\n" \
+     --config "$CFG" > "$LOG" 2>&1
+
+# --- Apply: atomic move + sync-state update via the plugin's script ---
+# On any non-200 the staged file stays in $STAGING (dropped by rm below) so the
+# local original — if any — stays untouched. No more "curl -o truncates local
+# then rm deletes it" data-loss bug.
+python "$CLAUDE_PLUGIN_ROOT/scripts/apply-scope-manifest.py" \
+  --staging      "$STAGING" \
+  --project-root "$PROJECT_ROOT" \
+  --sync-state   "$WORKSPACE_ROOT/.jetrix/cache/sync-state.json" \
+  --curl-log     "$LOG" \
+  --manifest     "$META"
+
+rm -rf "$STAGING" "$CFG" "$LOG" "$META"
 ```
 
-For skipped-unchanged docs, just bump `lastPulled`.
+Why parallel: 15 files sequential @ ~500ms handshake each ≈ 8s. Parallel with HTTP/2 multiplexing over a single TCP+TLS connection to `storage.googleapis.com` ≈ 0.5–1s. Same mechanism the Documents-tab UI uses.
 
-Do NOT touch sync-state for docs that failed download — next pull retries.
+Why staging + atomic move: solves the earlier data-loss bug — `curl -o "$abs_path"` truncates the local file *before* seeing the HTTP status, so a 404 destroyed 5 files in one pull. Downloading to a staging dir and only `mv`ing on 200 means failed transfers leave the local original untouched.
 
-### 5. Report
+### 4. Report
 
 ```
 ✓ Pulled 12 scope-stage docs (Solution: LarkIQ).
@@ -174,11 +159,31 @@ Response:
 
 **Fields carrying record-only content** — `scope`, `dependencies`, `open_questions`. Preserved on the MC record for traceability but not surfaced in any tab; pull writes them back to their local files for anyone reconstructing the feature folder.
 
-### 6. Compose feature files locally (canonical section order)
+### 6. Compose feature files locally — invoke the materializer script
 
-For each feature in the response, write files under `<project_root>/context/features/<slug>/` (use `mkdir -p` first). Pull is symmetric to push: write each field to its local file verbatim. **No reshaping, no splitting, no restructuring** — the pushed content is already tab-shape.
+**Do NOT iterate features with per-file `Write` calls.** For 20 features that's ~140 `Write` tool round-trips ≈ 5-10 minutes wall-clock. Instead, dump the bundle JSON to disk (one Bash heredoc) then run the plugin's script (one Bash → Python). Two tool calls, constant regardless of feature count.
 
-**Seven files reconstructed on pull** (one per wire field):
+```bash
+BUNDLE="<workspace_root>/.jetrix/cache/.pull-features.json"
+mkdir -p "$(dirname "$BUNDLE")"
+
+# --- Save the feature_pull_bundle JSON response to disk ---
+cat > "$BUNDLE" <<'JETRIX_BUNDLE_EOF'
+<paste the entire feature_pull_bundle JSON response here, verbatim>
+JETRIX_BUNDLE_EOF
+
+# --- Materialize every feature + update sync-state ---
+python "$CLAUDE_PLUGIN_ROOT/scripts/materialize-features.py" \
+  --bundle       "$BUNDLE" \
+  --project-root "<absolute project_root>" \
+  --sync-state   "<workspace_root>/.jetrix/cache/sync-state.json"
+
+rm -f "$BUNDLE"
+```
+
+`'JETRIX_BUNDLE_EOF'` (quoted heredoc) keeps `$`, backticks, and backslashes in the JSON literal — no shell expansion inside the JSON body.
+
+**Contract — what the materializer writes per feature** (mechanism moved to the script; contract preserved). Seven files reconstructed on pull, one per wire field:
 
 | Wire field | Local file | Body written |
 |---|---|---|
@@ -216,9 +221,9 @@ generated_at: <today>
 - **`implementation-plan.md`** — local BA scratchpad, never pushed. Not recreated.
 - **`status.md`** — local operational tracker; task status is on the MC Task itself. Not recreated.
 
-**When a local-only file already exists** (author's machine), pull **does not touch it**. Fresh teammates simply don't have these four files — they can regenerate the rich author view by running `/ba:features` locally against the same scope.
+**When a local-only file already exists** (author's machine), pull **does not touch it** — the materializer only writes the seven files above, so `workflow.md`, `open-questions.md`, `implementation-plan.md`, `status.md` survive untouched. Fresh teammates simply don't have these four files — they can regenerate the rich author view by running `/ba:features` locally against the same scope.
 
-Update `.jetrix/cache/sync-state.json` `tasks/<feature_id>` entries with `taskNumber`, `taskObjectId`, `slug`, `contentHash` (sha256 of the newly-written folder), `lastPulled`.
+Sync-state is updated inside the materializer script — `.jetrix/cache/sync-state.json` gets one `tasks/<feature_id>` entry per feature with `taskNumber`, `taskObjectId`, `slug`, `contentHash` (sha256 of the concatenated file contents), `lastPulled`. Merge-safe: existing keys for other stages (scope docs, context units) are preserved.
 
 ### 7. Report
 
@@ -229,8 +234,12 @@ Pulled:  15 scope docs + 14 features
 
 ## Prompts count
 
-Three total per combined pull:
-1. `mcp__scope-mcp__scope_pull_manifest`
-2. `Bash <download script>`
-3. `mcp__task-mcp__feature_pull_bundle`
+Fixed cost per combined pull, regardless of doc or feature count:
+1. `mcp__scope-mcp__scope_pull_manifest` — one signed URL per doc, all Solution-scoped tags (scope + scope-context + connection-map + solution-context)
+2. `Bash <parallel curl + apply script>` — HTTP/2-multiplexed download + atomic staging + sync-state update
+3. `mcp__task-mcp__feature_pull_bundle` — feature JSON bundle
+4. `Bash <write bundle to disk>` — heredoc dump
+5. `Bash <materialize-features.py>` — feature folder writes + sync-state update
+
+Five tool calls total. Never scales with file or feature count — a 5-feature/5-doc pull and a 50-feature/50-doc pull both cost five prompts.
 

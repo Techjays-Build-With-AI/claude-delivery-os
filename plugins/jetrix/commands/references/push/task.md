@@ -89,61 +89,36 @@ Body → sent as `description` verbatim (frontmatter stripped, H1 title line str
 
 Files missing `feature_id` are **rejected** — report `error: "missing feature_id in frontmatter"` and skip. This is the identity anchor; auto-generating from filename creates silent duplicates.
 
-### 3. Walk + hash — Bash only
+### 3. Walk + parse + assemble every task — ONE Bash+Python call
+
+**Do NOT `Read` each task file individually.** Invoke the plugin's script once — it walks the target set, extracts frontmatter + body, applies the `title` fallback chain, skips unchanged files against sync-state, and emits ONE JSON blob ready for `task_upsert_bundle`.
 
 ```bash
-#!/usr/bin/env bash
-set -e
-PROJECT_ROOT="<absolute project_root>"
-cd "$PROJECT_ROOT"
+ASSEMBLED="<workspace_root>/.jetrix/cache/.push-tasks.json"
+mkdir -p "$(dirname "$ASSEMBLED")"
 
-# Target set:
-#   - explicit .md file: just that one
-#   - directory: <dir>/**/*.md
-#   - omitted: tasks/**/*.md
-TARGET="${1:-tasks}"
-
-if [[ -f "$TARGET" && "$TARGET" == *.md ]]; then
-  FILES=("$TARGET")
-else
-  mapfile -t FILES < <(find "$TARGET" -type f -name "*.md" 2>/dev/null | sort)
-fi
-
-for f in "${FILES[@]}"; do
-  size_bytes=$(wc -c < "$f")
-  size_kb=$(( (size_bytes + 1023) / 1024 ))
-  hash=$(sha256sum "$f" | cut -d' ' -f1)
-  echo "$f|$size_kb|$hash"
-done
+python "$CLAUDE_PLUGIN_ROOT/scripts/assemble-tasks.py" \
+  --project-root "<absolute project_root>" \
+  --sync-state   "<workspace_root>/.jetrix/cache/sync-state.json" \
+  --output       "$ASSEMBLED" \
+  --target       "<TARGET>"      # default: tasks   (or explicit file / directory)
 ```
 
-Parse into `[{path, size_kb, content_hash}]`.
+`<TARGET>` mirrors the arg parse in §1 — omitted uses `tasks/`, otherwise a single `.md` file or a directory.
 
-### 4. Parse frontmatter + body — one Read per file
+Claude reads the ONE JSON blob:
 
-Task files are small (a few KB each). Reading them is fine — bytes DO enter Claude's context here because we need to extract fields.
-
-For each `.md`:
-- Split off the YAML block between the first two `---` fences → parse it.
-- Body = everything after the closing `---`.
-- If body's first non-empty line is `# <heading>`, strip it and use as fallback title.
-- Compose the payload item:
-
-```
+```json
 {
-  feature_id:  <frontmatter.feature_id>,   // required
-  slug:        <frontmatter.slug>,          // required
-  title:       <frontmatter.title || H1 || slug>,
-  description: <body after H1 strip>,
-  status:      <frontmatter.status>,
-  priority:    <frontmatter.priority>,
-  initiative:  <frontmatter.initiative>,
-  task_object_id: <frontmatter.jetrix_task_object_id, if present>,
-  expected_version: <sync-state.version, if present>
+  "tasks":              [<payload>, ...],
+  "skipped_unchanged":  ["tasks/foo.md", ...],
+  "halts":              [{"path": "tasks/bar.md", "reason": "missing feature_id in frontmatter"}]
 }
 ```
 
-Skip a file when `sync-state[<relative-path>].contentHash === current contentHash` (unchanged).
+- **Halts** → report each and skip that file. Do not silently push; the halt reason is authoritative (missing `feature_id` = "identity anchor" per §2's contract).
+- **Skipped unchanged** → include in the final report only.
+- **Tasks** → payloads shaped exactly for `task_upsert_bundle`. Each carries an internal `_local_content_hash` + `_local_rel_path` — leave them in place; `apply-task-responses.py` reads them for sync-state.
 
 ### 5. Single MCP call — `task_upsert_bundle`
 
@@ -161,27 +136,33 @@ mcp__task-mcp__task_upsert_bundle(
 
 Response per task: `{slug, feature_id, task_object_id, task_number, version, action ('created' | 'updated' | 'recreated'), ok}`.
 
-### 6. Write-back — patch each .md's frontmatter
+### 6. Apply response — write-back frontmatter + sync-state (ONE Bash+Python call)
 
-For every `ok:true` result whose `action` is `created` or `recreated`: `sed`-patch the task's own frontmatter to set `jetrix_task_id: <task_number>` and `jetrix_task_object_id: <task_object_id>`. Do NOT re-Read the file just to write it.
+Dump the `task_upsert_bundle` response to disk and invoke the plugin's apply script — patches each task file's frontmatter (for `created`/`recreated` rows) and updates sync-state, merge-safe.
 
-### 7. Update `.jetrix/cache/sync-state.json`
+```bash
+RESPONSES="<workspace_root>/.jetrix/cache/.push-tasks-responses.json"
+mkdir -p "$(dirname "$RESPONSES")"
 
-**MERGE, do not replace.** Read the current file first (contains scope/context/feature/other keys). For each pushed task, set the key `tasks/<relative-path>` to:
+cat > "$RESPONSES" <<'JETRIX_RESP_EOF'
+[
+  {"_local_rel_path":"tasks/login-bug.md","slug":"login-bug","feature_id":"TASK-LOGIN-BUG","task_object_id":"6a61...","task_number":42,"version":1,"action":"created","ok":true,"_local_content_hash":"<sha256 from assemble step>"},
+  ...one row per task...
+]
+JETRIX_RESP_EOF
 
-```json
-{
-  "taskNumber": <from response>,
-  "taskObjectId": "<from response>",
-  "featureId": "<feature_id>",
-  "slug": "<slug>",
-  "contentHash": "<sha256 from step 3>",
-  "version": <from response>,
-  "lastPushed": "<iso>"
-}
+python "$CLAUDE_PLUGIN_ROOT/scripts/apply-task-responses.py" \
+  --responses    "$RESPONSES" \
+  --project-root "<absolute project_root>" \
+  --sync-state   "<workspace_root>/.jetrix/cache/sync-state.json"
+
+rm -f "$RESPONSES"
 ```
 
-Note the sync-state key is the file path, not `tasks/<feature_id>` — that keeps task-stage entries distinct from feature-stage entries, so a task file at `tasks/foo.md` and a feature folder at `context/features/foo/` never collide.
+The script:
+- Patches each `<rel-path>` .md's frontmatter — sets `jetrix_task_id` + `jetrix_task_object_id` for rows whose `action` is `created` or `recreated` (regex upsert, no Read).
+- Writes per-task entries under `tasks/<rel-path>` in sync-state (file-path-keyed, not feature-id-keyed — keeps task-stage entries distinct from feature-stage entries under the same `tasks/` namespace).
+- Prints per-task status to stdout.
 
 ### 8. Report
 
