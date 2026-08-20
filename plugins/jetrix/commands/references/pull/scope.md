@@ -31,7 +31,12 @@ Response:
 
 scope-mcp filters to docs whose `tags` intersect `{"scope", "scope-context"}` (both the UI-visible primary doc AND the background support files) and issues one signed download URL per doc. If `ready == 0`, report "nothing to pull" and stop.
 
-**About `path` in the response:** each doc's `path` is the `FileMeta.originalName` from Mongo — the *relative local path inside the delivery-os container* (e.g. `ba-output/scope.md`, `shared-context/glossary.md`, `context/features/feature-index.md`). It preserves the on-disk nesting from the pusher's workspace, so the puller's local layout ends up byte-identical (same subfolders, same file names). The signed download URL points at the flattened GCS object (`project-context/<sol>/scope/<ts>-<flattened>`), but writers don't need to think about that — always write bytes to `<project_root>/<path>`.
+**About `path` in the response:** each doc's `path` is a *relative local path*, but the write root depends on the shape:
+
+- **`.jetrix/…` prefix** → **workspace-root-relative**. Write to `<workspace_root>/<path>`. Reserved for Solution-scoped singletons that don't belong under `<slug>/`. Currently only `connection-map.md` uses this shape (path = `.jetrix/connection-map.md`, tags include `connection-map`).
+- **Anything else** → **project-root-relative**. Write to `<project_root>/<path>`. All BA docs, registers, shared-context, feature-index (e.g. `ba-output/scope.md`, `shared-context/glossary.md`, `context/features/feature-index.md`).
+
+Path shape → write root. Do NOT interpret tags client-side; the manifest already applied the override. The apply script (`apply-scope-manifest.py`) does this routing automatically — you just pass both roots on the command line.
 
 ### 3. Phase 2 — skip unchanged + parallel download + apply (one Bash call)
 
@@ -60,11 +65,17 @@ META=$(mktemp)
 # --- Curl config: one url+output pair per needs-download doc ---
 # The plugin fills these in from manifest response (skipping docs where
 # manifest.contentHash matches sync-state.contentHash).
+#
+# The `output` path is <STAGING>/<manifest.path> — verbatim, including any
+# `.jetrix/…` prefix. The apply script below re-roots those against
+# workspace_root vs project_root when moving out of staging.
 cat > "$CFG" <<'CURLCFG'
 url = "<signed_download_url_1>"
 output = "<STAGING_absolute>/ba-output/scope.md"
 url = "<signed_download_url_2>"
 output = "<STAGING_absolute>/ba-output/data-register.md"
+url = "<signed_download_url_3>"
+output = "<STAGING_absolute>/.jetrix/connection-map.md"
 # ...one url+output pair per needs-download doc
 CURLCFG
 
@@ -88,12 +99,18 @@ curl --parallel --parallel-max 8 --create-dirs \
 # On any non-200 the staged file stays in $STAGING (dropped by rm below) so the
 # local original — if any — stays untouched. No more "curl -o truncates local
 # then rm deletes it" data-loss bug.
+#
+# --workspace-root is required for docs whose path starts with `.jetrix/`
+# (e.g. connection-map.md). The script routes:
+#   `.jetrix/<x>`  → <workspace_root>/.jetrix/<x>
+#   `<other>`      → <project_root>/<other>
 python "$CLAUDE_PLUGIN_ROOT/scripts/apply-scope-manifest.py" \
-  --staging      "$STAGING" \
-  --project-root "$PROJECT_ROOT" \
-  --sync-state   "$WORKSPACE_ROOT/.jetrix/cache/sync-state.json" \
-  --curl-log     "$LOG" \
-  --manifest     "$META"
+  --staging        "$STAGING" \
+  --workspace-root "$WORKSPACE_ROOT" \
+  --project-root   "$PROJECT_ROOT" \
+  --sync-state     "$WORKSPACE_ROOT/.jetrix/cache/sync-state.json" \
+  --curl-log       "$LOG" \
+  --manifest       "$META"
 
 rm -rf "$STAGING" "$CFG" "$LOG" "$META"
 ```
