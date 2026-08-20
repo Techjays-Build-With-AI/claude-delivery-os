@@ -184,9 +184,41 @@ Answers → `<workspace_root>/.jetrix/cache/repolocation.json`:
 
 Keys = `projectId`. Values = absolute path OR literal `"SKIPPED"`.
 
-## 10. Pull the connection-map (if the portal has built one)
+## 10. Pull the connection-map — ONLY if the portal has built one
 
 The connection-map is the LLM-synthesised architecture doc for the Solution, authored via the portal's Connections tab. Its canonical local path is **`<workspace_root>/.jetrix/connection-map.md`** — at the `.jetrix/` root, NOT under `<slug>/context/`. Rationale: `.jetrix/` root is stable across future plugin folder-reorgs; the connection-map is one file per Solution, not per feature/page/entity, so it belongs alongside `project.json`.
+
+### 10a. Gate on the metadata we already have
+
+**Do NOT call `scope_pull_connection_map` blindly.** The Solution bundle fetched in §7 already carries `solution.connection_map_ref` — a `null` value means the portal has never built a map, so there is nothing to fetch. Skipping the MCP call in that case saves a full round-trip on the common "not built yet" path.
+
+Check:
+
+```
+if bundle.solution.connection_map_ref is null (or missing):
+    print "· No connection-map yet — open the portal → Connections tab → Build map."
+    skip §10b + §10c + §10d entirely
+    continue to §11
+```
+
+Only if `connection_map_ref` is set (has `gcs_path` + `updated_at`) do you proceed with §10b onwards. Apply the same pattern to any future doc: if the metadata says it doesn't exist, don't call the fetch. Never make an "empty" pull call just to discover it's empty.
+
+### 10b. Migration (soft) — if the file is still at the old location, move it
+
+Only runs when a build exists, right before the download so we don't leave a stale file behind:
+
+```bash
+OLD="<workspace_root>/.jetrix/<solutionSlug>/context/connection-map.md"
+NEW="<workspace_root>/.jetrix/connection-map.md"
+if [[ -f "$OLD" && ! -f "$NEW" ]]; then
+  mv "$OLD" "$NEW"
+  echo "Migrated connection-map to new canonical path: $NEW"
+fi
+```
+
+### 10c. Fetch a fresh signed URL
+
+Now that we know a build exists, ONE MCP call gets us a signed URL:
 
 ```
 mcp__scope-mcp__scope_pull_connection_map(solution_id=<solutionId>)
@@ -201,22 +233,13 @@ Response contract:
   "size_kb": 3,
   "updated_at": "2026-08-19T10:14:22.000Z",
   "signed_download_url": "https://storage.googleapis.com/...",
-  "tags": ["scope-context", "connection-map"]
+  "tags": ["connection-map", "solution-context"]
 }
 ```
 
-**Migration (soft, run BEFORE the pull):** if a previous plugin version wrote to the old location, move it to the new one:
+If this tool errors with "No connection-map found" (race between §7 and §10c — someone deleted the ref, or a permissions issue) → soft-fail with the same message from §10a. Do NOT retry.
 
-```bash
-OLD="<workspace_root>/.jetrix/<solutionSlug>/context/connection-map.md"
-NEW="<workspace_root>/.jetrix/connection-map.md"
-if [[ -f "$OLD" && ! -f "$NEW" ]]; then
-  mv "$OLD" "$NEW"
-  echo "Migrated connection-map to new canonical path: $NEW"
-fi
-```
-
-**Download (single curl, direct-from-GCS):**
+### 10d. Download + update sync-state
 
 ```bash
 mkdir -p "<workspace_root>/.jetrix"
@@ -225,7 +248,7 @@ curl --fail --silent --show-error \
      "<signed_download_url>"
 ```
 
-**Update sync-state** — record the pull under the top-level `connection_map` key of `<workspace_root>/.jetrix/cache/sync-state.json` (merge, don't clobber other stages' keys):
+Update `<workspace_root>/.jetrix/cache/sync-state.json` under the top-level `connection_map` key (merge, don't clobber other stages' keys):
 
 ```json
 {
@@ -242,7 +265,6 @@ curl --fail --silent --show-error \
 
 **Failure handling** — never block init on connection-map problems:
 
-- `scope_pull_connection_map` errors with "No connection-map found" → soft-fail with `· No connection-map yet — open the portal → Connections tab → Build map.` Continue to §11.
 - curl exits non-zero (network, 4xx, 5xx from GCS) → print `· connection-map download failed (HTTP <code>) — will retry on next /jetrix:pull scope.` Continue to §11. Do NOT update sync-state on a failed download so the next pull naturally retries.
 - Any other error → same soft-fail behavior. Init is done either way.
 
