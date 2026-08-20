@@ -81,9 +81,9 @@ Per-file mapping:
 | `shared-context/decision-log.md` | `["scope-context"]` |
 | `context/features/feature-index.md` | `["scope-context"]` |
 
-scope-mcp does **not** auto-add any identity tag — the plugin owns the tag semantics. Every future stage (context-mcp, task-mcp, deliverable-mcp) mirrors this two-level pattern with its own primary/support pair (`context`/`context-support`, `tasks`/`tasks-support`, etc.).
+scope-mcp does **not** auto-add any identity tag — the plugin owns the tag semantics. Every future stage (task-mcp, deliverable-mcp) mirrors this two-level pattern with its own primary/support pair (`tasks`/`tasks-support`, etc.).
 
-> **sync-state contract (applies to every stage below — read carefully).** `sync-state.json` is the **single shared file** for ALL stages — scope, feature, context, implementation. Every write is a MERGE, never a REPLACE. The correct pattern in every stage's write-back step is:
+> **sync-state contract (applies to every stage below — read carefully).** `sync-state.json` is the **single shared file** for ALL stages — scope, feature, implementation. Every write is a MERGE, never a REPLACE. The correct pattern in every stage's write-back step is:
 >
 > 1. **Read** `<workspace_root>/.jetrix/cache/sync-state.json` (treat missing/empty as `{}`).
 > 2. **Merge** your new/updated keys into that object (do NOT drop any existing keys).
@@ -141,45 +141,46 @@ Response:
 
 Skip any doc whose `ok:false` from this response and record the error to report later.
 
-### 5. Phase 2 — upload bytes directly to GCS (single Bash call)
+### 5. Phase 2 — upload bytes directly to GCS (single Bash call, parallel)
 
-Generate ONE shell script that curl-PUTs every prepared file from local disk to its signed URL. **This is what removes bytes from Claude's context** — the bytes go from disk to `storage.googleapis.com` directly, not through the model.
-
-Script skeleton (write to a temp file to keep the Bash tool call clean — never inline dozens of curl commands in a single command string):
+Generate ONE curl config file and ONE `curl --parallel` invocation that PUTs every prepared file from local disk to its signed URL, concurrently over HTTP/2 to `storage.googleapis.com`. **Bytes flow disk → curl → HTTPS → GCS**, never through Python/scope-mcp/Claude. Same mechanism the browser uses for multi-file uploads.
 
 ```bash
 #!/usr/bin/env bash
 set +e
-RESULT_LOG=$(mktemp)
+CFG=$(mktemp)
+LOG=$(mktemp)
 
-upload_one() {
-  local abs_path="$1" signed_url="$2" mime="$3" rel_path="$4"
-  local http_code
-  http_code=$(curl -sS -o /dev/null -w "%{http_code}" \
-    -X PUT -T "$abs_path" \
-    -H "Content-Type: $mime" \
-    "$signed_url")
-  if [[ "$http_code" == "200" ]]; then
-    echo "OK  $rel_path" >> "$RESULT_LOG"
-  else
-    echo "FAIL $rel_path (HTTP $http_code)" >> "$RESULT_LOG"
-  fi
-}
+# One block per doc that came back ok:true from scope_prepare_push.
+# --upload-file selects PUT-via-file (same as `-T` on the command line).
+cat > "$CFG" <<'CURLCFG'
+url = "<signed_upload_url_1>"
+upload-file = "<project_root_absolute>/ba-output/scope.md"
+header = "Content-Type: text/markdown"
 
-# One line per doc that came back ok:true from scope_prepare_push
-upload_one "<project_root>/ba-output/scope.md"          "<signed_upload_url>" "text/markdown" "ba-output/scope.md"
-upload_one "<project_root>/ba-output/data-register.md"  "<signed_upload_url>" "text/markdown" "ba-output/data-register.md"
-# ...one line per file
+url = "<signed_upload_url_2>"
+upload-file = "<project_root_absolute>/ba-output/data-register.md"
+header = "Content-Type: text/markdown"
 
-cat "$RESULT_LOG"
-rm -f "$RESULT_LOG"
+# ...one block per prepared doc
+CURLCFG
+
+# One curl process, 8 concurrent HTTP/2 transfers, connection reuse to GCS.
+# --write-out emits "<upload_file_path>|<http_code>" per completed transfer.
+curl --parallel --parallel-max 8 \
+     -sS --show-error \
+     --write-out "%{filename_effective}|%{http_code}\n" \
+     --config "$CFG" > "$LOG" 2>&1
+
+cat "$LOG"
+rm -f "$CFG" "$LOG"
 ```
 
 - Use quotes around every path/url (Windows paths contain spaces; signed URLs contain `&` `?` `=`).
-- Use `curl -sS -T` (PUT via file). The bytes flow OS → curl → HTTPS → GCS, never through Python/scope-mcp/Claude.
-- Uploads can run **sequentially** — GCS is fast; parallelization here is a marginal win and complicates error handling. Only add `&` + `wait` if a specific push routinely exceeds ~30 s.
+- One 15-file push takes ~1s instead of ~8s serial. GCS supports many parallel PUTs per connection.
+- HTTP 200 → success. Any other code (or missing log line) → failure.
 
-Parse `RESULT_LOG` output — lines starting `OK ` are successful uploads; `FAIL ` are failures. Only successful uploads move to Phase 3.
+Parse the log — `<path>|200` lines are successful uploads; anything else is a failure. Only successful uploads move to Phase 3.
 
 ### 6. Phase 3 — finalize (single MCP call)
 

@@ -20,9 +20,26 @@ Plugin recipe:
      task_number = 42    # OR feature_id="FEAT-CLSF-01" OR task_object_id="..."
    )
    ```
-3. Response has `pulled: 0 | 1` and a `features[0]` record (or none if the ref didn't match).
-4. **Reconstruct the local feature folder** at `<project_root>/context/features/<slug>/` from the record's fields — same shape as the combined `scope` pull.
-5. **Update sync-state** (merge, not replace) — set `tasks/<FEAT-...>` entry with new `contentHash` + `lastPulled`.
+3. Response has `pulled: 0 | 1` and a `features[0]` record (or none if the ref didn't match). If `pulled: 0`, report "no match for `<ref>`" and stop — do not run the materializer with an empty bundle.
+4. **Materialize the feature folder** — do NOT iterate the fields with `Write` calls. Dump the response JSON to disk (one Bash heredoc) then invoke `materialize-features.py` (one Bash → Python). Same script and same on-disk contract as `pull scope` §6 — one feature or fifty, identical mechanism.
+
+    ```bash
+    BUNDLE="<workspace_root>/.jetrix/cache/.pull-features.json"
+    mkdir -p "$(dirname "$BUNDLE")"
+
+    cat > "$BUNDLE" <<'JETRIX_BUNDLE_EOF'
+    <paste the entire feature_pull_bundle JSON response here, verbatim>
+    JETRIX_BUNDLE_EOF
+
+    python "$CLAUDE_PLUGIN_ROOT/scripts/materialize-features.py" \
+      --bundle       "$BUNDLE" \
+      --project-root "<absolute project_root>" \
+      --sync-state   "<workspace_root>/.jetrix/cache/sync-state.json"
+
+    rm -f "$BUNDLE"
+    ```
+
+5. **sync-state is updated inside the script** — no separate Bash pass. Merge-safe: only this feature's `tasks/<feature_id>` entry is touched, every other stage's key is preserved.
 
 Report:
 ```

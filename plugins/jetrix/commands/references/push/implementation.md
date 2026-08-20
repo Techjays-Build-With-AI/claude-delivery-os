@@ -9,97 +9,54 @@ If a feature folder has no `tl-plan.md`, this stage skips it with a clear messag
 
 Never compose silently, never guess, never fall back to the old concat-of-units mode.
 
-### 2. Batch-read every feature's needed data in ONE Bash call
+### 2. Assemble every feature — ONE Bash+Python call
 
-**Do NOT `Read` files individually.** For a workspace with N features, individual Reads mean N LLM turns per file at ~5-10s each — a 5-feature push burns 5+ minutes just reading. Instead, this single Bash call emits everything needed:
+**Do NOT `Read` feature files individually.** Invoke the plugin's script — it walks `context/features/*/`, extracts `feature_id` + `jetrix_task_object_id` from each feature.md, strips frontmatter + CRLF + leading blanks from tl-plan.md, applies the 60 KB size gate, detects blocker signals, skips features whose hash matches `sync-state.implementation_hash`, and emits ONE JSON blob ready for `feature_update_implementation`.
 
 ```bash
-#!/usr/bin/env bash
-set -e
-PROJECT_ROOT="<absolute project_root>"
-cd "$PROJECT_ROOT"
+ASSEMBLED="<workspace_root>/.jetrix/cache/.push-implementation.json"
+mkdir -p "$(dirname "$ASSEMBLED")"
 
-for dir in context/features/*/; do
-  slug=$(basename "$dir")
-  [[ "$slug" == "feature-index.md" ]] && continue
-  [[ -f "$dir/feature.md" && -f "$dir/tl-plan.md" ]] || {
-    if [[ -f "$dir/feature.md" && ! -f "$dir/tl-plan.md" ]]; then
-      printf "===SKIP:%s:no-tl-plan===\n" "$slug"
-    fi
-    continue
-  }
-
-  fid=$(awk '/^feature_id:/{sub(/^feature_id:[[:space:]]*/, ""); sub(/[[:space:]"]+$/, ""); print; exit}' "$dir/feature.md")
-  toid=$(awk '/^jetrix_task_object_id:/{sub(/^jetrix_task_object_id:[[:space:]]*/, ""); sub(/[[:space:]"]+$/, ""); print; exit}' "$dir/feature.md")
-
-  [[ -z "$fid" ]]  && { printf "===SKIP:%s:no-feature-id===\n" "$slug"; continue; }
-  [[ -z "$toid" ]] && { printf "===SKIP:%s:no-task-object-id===\n" "$slug"; continue; }
-
-  # Strip frontmatter + CRLF-normalise. First two `---` lines bound the frontmatter.
-  body=$(awk 'BEGIN{p=0; c=0} /^---\r?$/{c++; if(c==2){p=1; next}} p{print}' "$dir/tl-plan.md" | tr -d '\r')
-
-  # Strip leading blank lines left after frontmatter removal.
-  body=$(printf "%s" "$body" | awk 'NR==1 && /^[[:space:]]*$/ {skip=1; next} skip && /^[[:space:]]*$/ {next} {skip=0; print}')
-
-  size=$(printf "%s" "$body" | wc -c)
-  hash=$(printf "%s" "$body" | sha256sum | cut -d' ' -f1)
-
-  # Emit one block per feature. Agent parses these markers.
-  printf "===FEATURE:%s===\n" "$slug"
-  printf "feature_id: %s\n" "$fid"
-  printf "task_object_id: %s\n" "$toid"
-  printf "size: %s\n" "$size"
-  printf "hash: %s\n" "$hash"
-  printf "===BODY-BEGIN===\n"
-  printf "%s\n" "$body"
-  printf "===BODY-END===\n"
-done
+python "$CLAUDE_PLUGIN_ROOT/scripts/assemble-implementation.py" \
+  --project-root "<absolute project_root>" \
+  --sync-state   "<workspace_root>/.jetrix/cache/sync-state.json" \
+  --output       "$ASSEMBLED"
 ```
 
-**One Bash call. One LLM turn to parse.** The agent gets slug + feature_id + task_object_id + size + hash + full body for every feature that has both `feature.md` and `tl-plan.md`. Missing-file skips are surfaced with their own `===SKIP:<slug>:<reason>===` marker so the agent can report them without any extra file reads.
+Claude reads the ONE JSON blob:
 
-### 3. Skip reporting
+```json
+{
+  "features": [
+    {"feature_id": "FEAT-CLSF-01", "slug": "...", "task_object_id": "6a61...",
+     "implementation_details": "...", "status": "readyForDev",
+     "_local_impl_hash": "...", "_local_size": 14392}
+  ],
+  "skipped":  [{"slug": "foo", "reason": "no-tl-plan"|"no-feature-id"|"no-task-object-id"|"size-cap (67300 > 60000)"|"unchanged (hash=abcd...)"}],
+  "warnings": [{"slug": "bar", "message": "58210 chars, near 60000 cap"}],
+  "halts":    []
+}
+```
 
-For every `===SKIP:<slug>:<reason>===` marker from step 2, emit the exact user-facing message:
+Every check the old §3/§4/§4a spec used to walk in Claude context is done inside the script:
+  - Missing `tl-plan.md` / `feature_id` / `jetrix_task_object_id` → surfaced as `skipped.reason`
+  - Body integrity — frontmatter/CRLF strip + leaked-frontmatter-key detection (surfaced as warnings)
+  - 60 KB cap → surfaced as `skipped.reason = size-cap (...)`; the size-warn threshold (55K-60K) → warning
+  - Skip-unchanged via `sync-state[tasks/<feature_id>].implementation_hash` vs freshly-computed body hash
+  - Blocker-aware status — open-questions Impact starts with 'Blocks', dependencies unavailable/blocked/TBD, `[HELD]` in tl-plan.md → `status: "blocked"`; else `"readyForDev"`
 
-- `no-tl-plan` → `[skip] context/features/<slug>/ — no tl-plan.md. Run /tl:compose <slug> or /jetrix:pull task <slug>.`
-- `no-feature-id` → `[skip] context/features/<slug>/ — feature.md has no feature_id frontmatter. Re-run /ba:features.`
-- `no-task-object-id` → `[skip] context/features/<slug>/ — feature.md has no jetrix_task_object_id. Run /jetrix:push feature first.`
+### 3. Report skips + warnings before pushing
 
-### 4. Verify each `===FEATURE:<slug>===` block from the batch
+For each row in `skipped` and `warnings`, print the matching user-facing message. Emit these **before** the MCP call so the user sees them regardless of whether the MCP call runs:
 
-For each block emitted by step 2:
+- `reason == "no-tl-plan"` → `[skip] context/features/<slug>/ — no tl-plan.md. Run /tl:compose <slug> or /jetrix:pull task <slug>.`
+- `reason == "no-feature-id"` → `[skip] context/features/<slug>/ — feature.md has no feature_id frontmatter. Re-run /ba:features.`
+- `reason == "no-task-object-id"` → `[skip] context/features/<slug>/ — feature.md has no jetrix_task_object_id. Run /jetrix:push feature first.`
+- `reason.startswith("size-cap")` → `[skip] <slug> — tl-plan.md is <N> chars, cap is 60000. Split the feature via /tl:compose or /ba:features and re-run.`
+- `reason.startswith("unchanged")` → `[skip] TASK-<n> <slug> — unchanged (hash=<sha16>)` (task number pulled from sync-state if needed for the report)
+- Any warning → `[warn] <slug> — <message>`
 
-**(a) Body integrity.** The awk in step 2 already stripped frontmatter and CRLF. Sanity-check: body contains zero `\r`, and no line starts with a leaked frontmatter key (`doc_type:`, `schema_version:`, `produced_by:`, `feature_id:`, `composed_at:`, `inputs_hash:`).
-
-**(b) Size cap — 60 000 char hard limit.** Mission Control's Joi validator on `implementationDetails` rejects anything longer, returning `{ok: false, updated: 0, error: "\"implementationDetails\" length must be less than or equal to 60000 characters long"}` and writing nothing.
-
-The `size:` field from the batch is authoritative:
-- `size > 60000` → **skip this feature and fail loud.** Do NOT truncate. Report:
-  ```
-  [skip] FEAT-XXX-YY — tl-plan.md is <N> chars, cap is 60000.
-                     Split the feature via /tl:compose or /ba:features and re-run.
-  ```
-- `55000 < size ≤ 60000` → push, but warn: `[warn] FEAT-XXX-YY — <N> chars, near the 60 KB cap`.
-
-**(c) Skip-unchanged.** Compare the `hash:` field from the batch against `sync-state.json[tasks/<feature_id>].implementation_hash`:
-
-- Match → skip, print `[skip] TASK-<n> <slug> — unchanged (hash=<sha16>)`, do not call the MCP.
-- Mismatch (or missing) → include this feature in the batched MCP call in step 5. Update sync-state on success (step 6).
-
-### 4. Drift summary
-
-Before assembling MCP rows, invoke the shared drift helper (see `../drift.md`). The push already skips clean features via `implementation_hash` — this helper's role here is to give the user an up-front `N drifted, M clean` summary, no interactive prompt.
-
-### 4a. Blocker-aware status
-
-Before assembling each feature's MCP row, decide the outgoing `status` by scanning the same local blocker signals BA push checks, plus one TL-specific signal:
-
-- `open-questions.md` has any row whose `Status` is `Open` AND whose `Impact` column starts with `Blocks` (case-insensitive).
-- `dependencies.md` has any Depends-on entry marked `unavailable`, `not available`, `blocked`, or `TBD`.
-- `tl-plan.md` contains any `[HELD]` marker — the TL themselves marked steps as blocked waiting on an OQ.
-
-If any signal fires → `status: "blocked"`. Otherwise → `status: "readyForDev"` (the implementation-push default). This is per-feature — pushing 10 features in one call can produce a mix of `readyForDev` and `blocked` outgoing statuses.
+If `features` is empty (nothing needs push), print `nothing to push` and stop.
 
 ### 5. Single MCP call — use the dedicated implementation tool
 
@@ -128,36 +85,41 @@ Missing `task_object_id` returns `{ok: false, error: "…run /jetrix:push featur
 
 > **Known task-mcp defects (as of 2026-07-27) — do not misread these as your own failure:**
 > - **Read tools return empty for tasks that demonstrably exist.** `feature_pull_bundle`, `feature_list_bundle` and `get_task_by_id_or_number` all return nothing for a Solution whose tasks are writable by object id; a raw-oid lookup fails upstream with `"Please select a solution to continue"`, suggesting a missing solution-context header on the read path. **Do not use a read tool to verify a push, and do not treat an empty read as evidence the write failed.** Verify from the write response's `ok`/`updated`/`task_number` instead — `task_number` is echoed from the stored record, so its presence proves the task was found.
-> - **`version` comes back `null`** on every write, where scope-mcp and context-mcp both return an integer. Does not appear to affect the write; record `null` in sync-state rather than inventing a number.
+> - **`version` comes back `null`** on every write, where scope-mcp returns an integer. Does not appear to affect the write; record `null` in sync-state rather than inventing a number.
 
-### 6. Update sync-state — **incrementally, after EACH successful push**
+### 6. Apply response — sync-state update (ONE Bash+Python call)
 
-**Do NOT batch sync-state writes to the end of the run.** For every feature whose `feature_update_implementation` returned `ok: true`, immediately:
+`feature_update_implementation` returns all rows in one response, so sync-state can safely be batched to the end. Dump the response to disk and invoke the apply script — it updates `implementation_hash` per `tasks/<feature_id>` entry, merge-safe.
 
-1. Read `<workspace_root>/.jetrix/cache/sync-state.json` (MERGE, not replace).
-2. Set the `implementation_hash` on that ONE feature's `tasks/<feature_id>` entry.
-3. Write the merged object back.
+```bash
+RESPONSES="<workspace_root>/.jetrix/cache/.push-implementation-responses.json"
+mkdir -p "$(dirname "$RESPONSES")"
 
-Then move on to the next feature. This runs sync-state one write per successful push, not one at the end.
+cat > "$RESPONSES" <<'JETRIX_RESP_EOF'
+[
+  {"feature_id":"FEAT-CLSF-01","slug":"...","task_object_id":"6a61...","task_number":11,"version":null,"ok":true,"_local_impl_hash":"<sha256>"},
+  ...one row per feature from the MCP response (echo _local_impl_hash back from the payload)...
+]
+JETRIX_RESP_EOF
 
-**Why incremental matters.** Implementation pushes relay 10–15 KB per feature through session context (the tool takes the spec as an inline string). On a 10-feature module that's ~150 KB total, and it's not unusual for the run to stop mid-way (session limits, network, an ambiguous input the agent surfaces). If sync-state is batched to the end and the run stops at 5/10:
+python "$CLAUDE_PLUGIN_ROOT/scripts/apply-implementation-responses.py" \
+  --responses  "$RESPONSES" \
+  --sync-state "<workspace_root>/.jetrix/cache/sync-state.json"
 
-- Sync-state has ZERO entries → next run re-pushes all 10, even the 5 that landed cleanly.
-- 5 wasted network calls and each identical write bumps the Task's `version` field.
+rm -f "$RESPONSES"
+```
 
-With incremental updates: the same interrupted run leaves sync-state with 5 entries. Next run computes fresh hashes, sees 5 matches, skips those, and pushes only the remaining 5. Clean resume.
-
-**Report format.** Print progress per feature as you go, not one summary at the end:
+**Report format.** Print progress per feature (constructed from the response + `skipped`/`warnings` from step 2's assemble output):
 
 ```
-[1/10] TASK-11 opening-balance-import      pushed   (12.4 KB, hash=<sha16>)
+[1/10] TASK-11 opening-balance-import       pushed   (12.4 KB, hash=<sha16>)
 [2/10] TASK-14 leave-balance-administration skip     (unchanged, hash=<sha16>)
-[3/10] TASK-16 leave-request-submission    pushed   (14.1 KB, hash=<sha16>)
-[4/10] TASK-19 approvals-workflow          skip     (no tl-plan.md — run /tl:compose)
-[5/10] TASK-22 monster-report              skip     (67.3 KB > 60 KB cap — split the feature)
+[3/10] TASK-16 leave-request-submission     pushed   (14.1 KB, hash=<sha16>)
+[4/10] TASK-19 approvals-workflow           skip     (no tl-plan.md — run /tl:compose)
+[5/10] TASK-22 monster-report               skip     (67.3 KB > 60 KB cap — split the feature)
 ```
 
-Final report is a two-line summary — `updated: N`, `skipped: M`, `failed: K`, plus a list of any skips/failures with their reason.
+Final line: `updated: N   skipped: M   failed: K` plus a list of skips/failures with their reasons.
 
 ### 7. Never fall back to the old concat mode
 

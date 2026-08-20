@@ -1,5 +1,5 @@
 ---
-description: Refresh local delivery-os work from Jetrix via the stage-specific MCP. Argument selects which stage to pull — `scope` (BA outputs ← scope-mcp + feature folders ← task-mcp, combined), `context` (TL graph ← context-mcp), `task <ref>` / `sprint <ref>` / `list <ref>` (single feature or a set ← task-mcp), `all` (every implemented stage). Downloads use the direct-from-GCS pattern (server issues signed URLs, local bash + curl streams bytes straight to disk), so pull is fast regardless of file count. Idempotent — files whose remote contentHash matches the local hash are left untouched.
+description: Refresh local delivery-os work from Jetrix via the stage-specific MCP. Argument selects which stage to pull — `scope` (BA outputs + feature folders + connection-map, one combined pull), `connection-map` (only the Solution architecture doc, targeted), `task <ref>` / `sprint <ref>` / `list <ref>` (single feature or a set ← task-mcp), `all` (equivalent to `scope`). Downloads use the direct-from-GCS pattern with `curl --parallel` (HTTP/2 multiplexed to GCS — same mechanism the browser uses), so pull is fast regardless of file count. Idempotent — files whose remote contentHash matches sync-state's are skipped without downloading.
 argument-hint: "<stage> [<ref>]"
 ---
 
@@ -9,14 +9,14 @@ Refresh the local delivery-os container from Jetrix. The first argument names th
 
 | Stage | MCP | What it pulls |
 |---|---|---|
-| `scope` | `scope-mcp` + `task-mcp` | BA outputs + every feature folder (combined pull) |
-| `context` | `context-mcp` | TL knowledge graph (env-scoped; default `main`). Optional `--unit=<ids>` or `--path=<glob>` for patch pulls. |
+| `scope` | `scope-mcp` + `task-mcp` | Everything Solution-scoped: BA outputs, shared-context, feature-index, **connection-map**, and every feature folder — one combined pull |
+| `connection-map` | `scope-mcp` | Targeted pull of just the Solution's `connection-map.md`. Rarely needed — `scope` already includes it. Use when you want to skip BA/feature pulls. |
 | `task <ref>` | `task-mcp` | ONE feature folder — `<ref>` is `TASK-<number>`, `FEAT-<id>`, or a MongoDB `_id` |
 | `sprint <ref>` | `task-mcp` | Every feature currently in a sprint — `<ref>` is a sprint number or MongoDB `_id` |
 | `list <ref>` | `task-mcp` | Every feature in an MC List — `<ref>` is a list name or MongoDB `_id` |
-| `all` | (all above) | Full workspace: `scope` + `context`. |
+| `all` | (same as `scope`) | Alias for `scope` — the scope manifest already covers connection-map + BA outputs + features |
 
-Every stage uses a **two-phase direct-from-GCS pattern** — 1 MCP call for the manifest + 1 Bash call for the downloads. **File bytes never enter Claude's context**; they go from GCS straight to disk via signed download URLs.
+Every stage uses **one MCP call for the manifest + one Bash call for parallel downloads**. `curl --parallel` opens 8 concurrent HTTP/2 transfers over a single TCP connection to `storage.googleapis.com` — same mechanism the browser uses when the Documents-tab UI loads many files. **File bytes never enter Claude's context**; they go from GCS straight to disk via signed download URLs.
 
 The per-stage flow (manifest call, filter, curl loop, sync-state update) lives in a dedicated file under `commands/references/pull/`. Each stage file is 30–250 lines and is meant to be read verbatim when its stage runs. **Follow the stage file's instructions exactly — do NOT paraphrase, do NOT skip steps.** This top-level command handles preflight + arg parsing + routing only.
 
@@ -50,9 +50,8 @@ The per-stage flow (manifest call, filter, curl loop, sync-state update) lives i
 /jetrix:pull <stage> [<ref>]
 ```
 
-- `<stage>` (required): `scope` | `context` | `task <ref>` | `sprint <ref>` | `list <ref>` | `all`. If missing or unknown, print the table above and stop.
+- `<stage>` (required): `scope` | `connection-map` | `task <ref>` | `sprint <ref>` | `list <ref>` | `all`. If missing or unknown, print the table above and stop.
 - `<ref>` (required for `task`/`sprint`/`list` stages): identifier — accepts human forms (`TASK-42`, `FEAT-CLSF-01`, sprint number, list name) or a MongoDB `_id`. Plugin routes the ref to the right filter param on `feature_pull_bundle`.
-- `--unit=<ids>` / `--path=<glob>` (context stage only): narrow the pull to specific unit files. Default is every context doc in the env.
 
 ## 2. Route to the stage-specific flow
 
@@ -61,7 +60,7 @@ Once the stage is resolved, `Read` the corresponding file and execute its instru
 | Stage | Full flow lives at |
 |---|---|
 | `scope` | `plugins/jetrix/commands/references/pull/scope.md` |
-| `context` | `plugins/jetrix/commands/references/pull/context.md` |
+| `connection-map` | `plugins/jetrix/commands/references/pull/connection-map.md` |
 | `task <ref>` | `plugins/jetrix/commands/references/pull/task.md` |
 | `sprint <ref>` | `plugins/jetrix/commands/references/pull/sprint.md` |
 | `list <ref>` | `plugins/jetrix/commands/references/pull/list.md` |
@@ -70,10 +69,7 @@ If the stage file cannot be read → halt and report; do NOT reconstruct the flo
 
 ## Stage: `all`
 
-Runs every implemented stage in order:
-
-1. Read + execute `references/pull/scope.md`.
-2. Read + execute `references/pull/context.md`.
+Alias for `scope`. Since `scope_pull_manifest` now returns every Solution-scoped doc (BA outputs, shared-context, feature-index, connection-map) in one call, running `scope` refreshes everything the workspace needs. Just execute `references/pull/scope.md`.
 
 `task` / `sprint` / `list` are NOT part of `all` — those are targeted single-ref pulls, opt-in only.
 

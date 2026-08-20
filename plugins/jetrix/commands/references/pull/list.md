@@ -24,8 +24,35 @@ Plugin recipe — TWO calls in parallel, one per task type:
      # task_type omitted → returns ALL types; MC returns each type in one shot
    )
    ```
-   → for each task where `task_type != "feature"`, write a single `tasks/<slug-or-taskNum>.md` (see file layout below).
-4. Same idempotent sync-state check as `sprint` stage — hash the composed file, skip if unchanged.
+
+4. **Materialize both sides via the plugin scripts** — do NOT iterate features or tasks with per-file `Write` calls. Dump each MCP response to disk (Bash heredocs) then invoke the appropriate script once. Skip whichever script has no rows to write:
+
+    ```bash
+    # --- Feature side (materialize-features.py) — skip if features[] was empty ---
+    FBUNDLE="<workspace_root>/.jetrix/cache/.pull-features.json"
+    mkdir -p "$(dirname "$FBUNDLE")"
+    cat > "$FBUNDLE" <<'JETRIX_BUNDLE_EOF'
+    <paste feature_pull_bundle JSON, verbatim>
+    JETRIX_BUNDLE_EOF
+    python "$CLAUDE_PLUGIN_ROOT/scripts/materialize-features.py" \
+      --bundle       "$FBUNDLE" \
+      --project-root "<absolute project_root>" \
+      --sync-state   "<workspace_root>/.jetrix/cache/sync-state.json"
+    rm -f "$FBUNDLE"
+
+    # --- Task side (materialize-tasks.py) — skip if tasks[] was empty ---
+    TBUNDLE="<workspace_root>/.jetrix/cache/.pull-tasks.json"
+    cat > "$TBUNDLE" <<'JETRIX_TASKS_EOF'
+    <paste task_pull_bundle JSON, verbatim>
+    JETRIX_TASKS_EOF
+    python "$CLAUDE_PLUGIN_ROOT/scripts/materialize-tasks.py" \
+      --bundle       "$TBUNDLE" \
+      --project-root "<absolute project_root>" \
+      --sync-state   "<workspace_root>/.jetrix/cache/sync-state.json"
+    rm -f "$TBUNDLE"
+    ```
+
+    Both scripts do their own skip-unchanged (compare freshly-composed content vs on-disk); no separate hash step needed. Sync-state merges from both scripts land in the same file — merge-safe, no key collisions (features live under `tasks/<feature_id>`, tasks under `tasks/<slug>.md`).
 
 ### Non-feature task file layout (one file per task)
 

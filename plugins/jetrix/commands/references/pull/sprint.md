@@ -15,8 +15,25 @@ Plugin recipe:
      sprint_number = 3        # OR sprint_id="..."
    )
    ```
-3. Iterate `features[]` in the response → reconstruct each `context/features/<slug>/` folder.
-4. Merge into sync-state per feature.
+3. **Materialize every feature folder** — do NOT iterate `features[]` with `Write` calls (for a 15-feature sprint that's ~105 tool round-trips). Dump the response JSON to disk (one Bash heredoc), then invoke `materialize-features.py` (one Bash → Python). Same script as `pull scope` §6 — the sprint case is just fewer features going in.
+
+    ```bash
+    BUNDLE="<workspace_root>/.jetrix/cache/.pull-features.json"
+    mkdir -p "$(dirname "$BUNDLE")"
+
+    cat > "$BUNDLE" <<'JETRIX_BUNDLE_EOF'
+    <paste the entire feature_pull_bundle JSON response here, verbatim>
+    JETRIX_BUNDLE_EOF
+
+    python "$CLAUDE_PLUGIN_ROOT/scripts/materialize-features.py" \
+      --bundle       "$BUNDLE" \
+      --project-root "<absolute project_root>" \
+      --sync-state   "<workspace_root>/.jetrix/cache/sync-state.json"
+
+    rm -f "$BUNDLE"
+    ```
+
+4. **sync-state merges inside the script** — per-feature `tasks/<feature_id>` entries updated with fresh `contentHash` + `lastPulled`. Other stages' keys preserved.
 
 Report:
 ```

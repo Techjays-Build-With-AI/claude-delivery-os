@@ -1,5 +1,5 @@
 ---
-description: Publish local delivery-os work up to Jetrix via the stage-specific MCP. Argument selects which stage to sync — `scope` (BA outputs → scope-mcp), `context` (TL graph → context-mcp), `feature` (BA feature folders → task-mcp), `task` (any .md file or folder of .md files → task-mcp, with optional --list / --sprint targeting), `implementation` (TL plan → Task's implementation tab), `deliverable` (client HTMLs → deliverable-mcp). Uploads use the direct-to-GCS pattern (server brokers signed URLs, local bash + curl streams bytes from disk straight to GCS), so pushes never route file bytes through Claude's context — a 100-file push is as fast as a 1-file push.
+description: Publish local delivery-os work up to Jetrix via the stage-specific MCP. Argument selects which stage to sync — `scope` (BA outputs → scope-mcp), `feature` (BA feature folders → task-mcp), `task` (any .md file or folder of .md files → task-mcp, with optional --list / --sprint targeting), `implementation` (TL plan → Task's implementation tab), `deliverable` (client HTMLs → deliverable-mcp). Uploads use the direct-to-GCS pattern (server brokers signed URLs, local bash + curl streams bytes from disk straight to GCS), so pushes never route file bytes through Claude's context — a 100-file push is as fast as a 1-file push.
 argument-hint: "<stage> [<path>] [--list=<name|id>] [--sprint=<id>]"
 ---
 
@@ -10,7 +10,6 @@ Publish local delivery-os work to Jetrix. The first argument names the **stage**
 | Stage | MCP | What it pushes |
 |---|---|---|
 | `scope` | `scope-mcp` | BA outputs — `ba-output/*.md`, `shared-context/*.md`, `context/features/feature-index.md` |
-| `context` | `context-mcp` | TL knowledge graph — 3 knowledge indexes (env-scoped) |
 | `feature` | `task-mcp` | Per-feature MC Tasks — creates ONE Task per `context/features/<slug>/` folder |
 | `task` | `task-mcp` | Ad-hoc tasks — ONE MC Task per `.md` file. Accepts a file, a folder, or omit for `tasks/**/*.md`. Optional `--list=<name\|id>` or `--sprint=<id>` chooses the target. |
 | `implementation` | `task-mcp` | TL plan → each Task's Implementation tab (`implementationDetails`), status → `READY_FOR_DEV` |
@@ -52,7 +51,7 @@ The per-stage flow (walk / hash / MCP call sequence / skip-unchanged rules / pre
 /jetrix:push <stage> [<filename>]
 ```
 
-- `<stage>` (required): `scope` | `context` | `feature` | `task` | `implementation` | `deliverable` | `all`. If missing or unknown, print the table above and stop.
+- `<stage>` (required): `scope` | `feature` | `task` | `implementation` | `deliverable` | `all`. If missing or unknown, print the table above and stop.
 - `<filename>` (optional, scope only): push a single file at that relative path instead of the whole stage.
 - `<path>` (optional, task only): `.md` file or folder; see the `task` stage below.
 - `--list=<name|id>` / `--sprint=<id>` (task only): target selector — see the `task` stage below.
@@ -64,7 +63,6 @@ Once the stage is resolved, `Read` the corresponding file and execute its instru
 | Stage | Full flow lives at |
 |---|---|
 | `scope` | `plugins/jetrix/commands/references/push/scope.md` |
-| `context` | `plugins/jetrix/commands/references/push/context.md` |
 | `feature` | `plugins/jetrix/commands/references/push/feature.md` |
 | `task` | `plugins/jetrix/commands/references/push/task.md` |
 | `implementation` | `plugins/jetrix/commands/references/push/implementation.md` |
@@ -77,9 +75,8 @@ If the stage file cannot be read → halt and report; do NOT reconstruct the flo
 Runs every implemented stage in order:
 
 1. Read + execute `references/push/scope.md`.
-2. Read + execute `references/push/context.md`.
-3. Read + execute `references/push/feature.md`.
-4. Read + execute `references/push/implementation.md`.
+2. Read + execute `references/push/feature.md`.
+3. Read + execute `references/push/implementation.md`.
 
 Skip any stage whose prereqs (per its file's own prereq check) don't hold — surface the skip with the same "run X first" message the stage file itself defines.
 
