@@ -113,7 +113,142 @@ Call `mcp__project-mcp__get_solution_bundle(solution_id)`. This returns everythi
 
 Per-app failures inside the bundle are already swallowed by project-mcp — apps whose env-configs or repo-integration fetch failed still appear in the response with `envConfigs: []` / `repositoryIntegration: null`. Not fatal for `/jetrix:init` — write the app with `envConfigs: []` if it came back empty. `repositoryIntegration` is **not** persisted locally either way (see the `project.json` shape below — `repoUrl` is the only repo field kept).
 
-## 7a. Confirm the Solution with the user before binding
+## 7a. If `apps[]` is empty — interactive app creation (no portal visit needed)
+
+**Trigger:** the Solution exists but has zero apps yet. Rather than sending the teammate to the portal, walk them through creating each app right here.
+
+```
+Solution "<name>" has no apps yet. Add one now? [Y/n]
+```
+
+- `n` → skip this section; `project.json` gets written with `apps: []`. The teammate can re-run `/jetrix:init` any time to fill this in.
+- `Y` (default) → proceed with the loop below.
+
+For each app the teammate wants to add, run through **four steps**:
+
+### Step 1 — collect app metadata
+
+```
+App name?          → e.g. "Nutrina API"
+Description?       → one line, e.g. "REST API for Nutrina supplier onboarding"
+Project type?      → number picker:
+                      [1] backend api
+                      [2] web application
+                      [3] mobile application
+                      [4] fullstack
+                      [5] workflow
+                      [6] database
+                      [7] desktop application
+```
+
+Then call:
+
+```
+mcp__project-mcp__project_create_project(
+  solution_id  = <solutionId>,
+  name         = "<name>",
+  description  = "<description>",
+  project_type = "<picked value>"
+)
+```
+
+Capture the returned `_id` — you'll need it for steps 2-4.
+
+### Step 2 — link a GitHub repo
+
+Ask which repo, then discover what's available:
+
+```
+GitHub repo for "<app name>" (owner/name, e.g. techjays/nutrina):
+```
+
+Call:
+
+```
+mcp__project-mcp__project_list_available_repositories(
+  solution_id = <solutionId>,
+  project_id  = <new app _id>
+)
+```
+
+**Two branches:**
+
+- Response contains repos → find the row where `repository_id` matches the teammate's `owner/name` input (case-insensitive). If a match exists, extract `repository_name` + `repository_url` from that row and jump to §Step 2c below.
+
+- Response is empty (or the teammate's repo isn't in it) → the Jetrix GitHub App either isn't installed on the target org yet, or hasn't been granted access to that repo. Print:
+
+  ```
+  ⚠ The Jetrix GitHub App isn't installed on the "<org>" GitHub org yet
+    (or hasn't been granted access to "<repo>").
+
+    Open this URL in your browser to install / grant access:
+      https://github.com/apps/techjays-jetrix-code-reviewer/installations/new
+
+    (After you finish on github.com, GitHub redirects you briefly to the
+    Jetrix portal to record the install, then you can close that tab.)
+
+    Once done, come back here and answer "installed" to continue.
+  ```
+
+  Wait for the teammate to answer `installed`. Then **re-run `project_list_available_repositories`** and try the match again. If it still doesn't come back, ask if they want to skip repo linking for this app (`project.json` will save `repoUrl: null`) or retry.
+
+### Step 2c — link it
+
+```
+mcp__project-mcp__project_integrate_repository(
+  solution_id     = <solutionId>,
+  project_id      = <new app _id>,
+  repository_id   = "<owner/name>",
+  repository_name = "<name>",
+  repository_url  = "https://github.com/<owner>/<name>"
+)
+```
+
+### Step 3 — set env branches (dev / staging / prod)
+
+For each of the three canonical environments, ask for the branch name. Use `main` or `master` as sensible defaults for prod; `develop` / `staging` for the others.
+
+```
+dev branch?       → develop
+staging branch?   → staging
+prod branch?      → main
+```
+
+Also ask for the deployed URLs — required by upstream validator. Use `https://tbd.example.com` as a placeholder if the env isn't deployed yet; the teammate can update it later.
+
+```
+dev URL?          → https://dev.nutrina.com   (or 'skip' → https://tbd.example.com)
+staging URL?      → https://staging.nutrina.com
+prod URL?         → https://nutrina.com
+```
+
+Then three calls (once per env):
+
+```
+mcp__project-mcp__project_save_env_config(
+  solution_id      = <solutionId>,
+  project_id       = <new app _id>,
+  environment_name = "dev",
+  branch_name      = "<dev branch>",
+  url              = "<dev url>",
+  auto_deploy      = false
+)
+```
+
+Repeat for `staging` and `prod`.
+
+### Step 4 — loop
+
+```
+Add another app? [y/N]
+```
+
+- `y` → back to Step 1 with a fresh app
+- `N` (default) → exit the loop, continue to §7b
+
+Once the loop exits, **re-fetch the bundle** with `project_get_solution_bundle` so §8 writes `project.json` with the freshly-created apps + env configs + repo integrations. Do NOT try to hand-merge the individual create responses into the bundle shape — one clean re-fetch is simpler and self-verifying.
+
+## 7b. Confirm the Solution with the user before binding
 
 **Before writing ANY file to disk**, print the resolved Solution and ask for an explicit `Y`. Users typo Solution ids/slugs and the wrong binding is expensive to undo (every subsequent `/jetrix:push` writes against the wrong Solution).
 
