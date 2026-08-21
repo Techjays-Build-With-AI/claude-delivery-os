@@ -83,11 +83,44 @@ claude mcp add --transport http task-mcp    https://task-mcp-prod-423614975588.a
 
 `--staging` and `--local` use the same three names against the staging / local URLs in the table above.
 
-## 4. First OAuth handshake
+## 4. Kick off the OAuth handshake
 
-The FIRST invocation of any tool from a newly-registered MCP triggers Claude Code's OAuth flow — browser opens, teammate signs in to Jetrix, consent, token cached locally. All three prod MCPs share the same auth server, so one sign-in covers everything. Nothing this command does — happens automatically on the first `mcp__project-mcp__*` (or scope / task) tool call.
+`claude mcp add` only stores a name → URL row in `~/.claude.json`. It does NOT sign the teammate in. The first tool call from each MCP triggers a browser-based OAuth flow — that's when the actual Jetrix login happens and a token gets cached locally.
 
-Staging has its own auth server (separate Cloud Run environment); switching a machine from prod to staging (via remove + re-run) triggers a fresh OAuth flow. Same for local (each local MCP binds its own OAuth server on 127.0.0.1).
+**Do this next, in this exact order:**
+
+```
+1. In THIS Claude Code session, run one MCP tool to force the handshake.
+   The safest one is a read that has no side effects — pick either:
+
+     /jetrix:init             (tries project_list_solutions → triggers OAuth)
+     mcp__project-mcp__project_list_solutions   (direct tool call)
+
+2. A browser tab will open pointing at the MCP's authorization server:
+     Production →  project-mcp-prod-423614975588.asia-south1.run.app
+     Staging    →  project-mcp-staging-771850316307.asia-south1.run.app
+     Local      →  127.0.0.1:8788
+
+3. Sign in to Jetrix with the teammate's normal credentials.
+   Grant the consent screen — this authorizes Claude Code to call the MCP
+   on the teammate's behalf. Token gets cached in ~/.claude.json.
+
+4. Repeat steps 1-3 for scope-mcp and task-mcp:
+     mcp__scope-mcp__scope_list_documents solution_id=<anything>
+     mcp__task-mcp__list_all_lists solution_id=<anything>
+
+   (In practice, running /jetrix:project-setup end-to-end touches all
+   three MCPs — one setup command triggers all three handshakes back
+   to back, so a teammate rarely notices the split.)
+```
+
+**Only ONE sign-in per MCP per environment.** After that the cached token gets reused until it expires (long-lived by design). Second and third runs of any command hit the MCP silently — no browser.
+
+**Switching envs re-triggers OAuth.** Staging has a separate auth server from prod (different Cloud Run environment); switching a machine via remove + re-setup drops the cached token, so the next tool call opens the browser again. Same for `--local` (each local MCP binds its own OAuth server on 127.0.0.1).
+
+**If the browser doesn't open** (headless machine, sandbox, remote SSH): Claude Code prints an auth URL in the terminal instead. Copy it, open on another device with a browser, sign in, paste the resulting code back into Claude Code's prompt. Same three MCPs, same three handshakes.
+
+**Something failed silently?** Check `claude mcp list` — a `! Needs authentication` next to a name means the token isn't cached yet. Run any tool that hits that MCP and complete the browser flow.
 
 ## 5. Report
 
@@ -107,7 +140,22 @@ Delivery-OS MCP setup complete — production.
   + scope-mcp       (production)
   + task-mcp        (production)
 
-Next: use commands normally (/jetrix:init, /ba:scope, etc.). No further setup needed.
+NEXT — sign in to each MCP (one-time per environment):
+
+  A browser tab will open the first time each MCP is called. Sign in
+  to Jetrix, grant consent, and Claude Code caches the token. After
+  that, you're done.
+
+  Fastest way: run /jetrix:project-setup — it touches all three MCPs
+  back-to-back, so all three OAuth flows fire in one session.
+
+  Or trigger them one by one:
+    mcp__project-mcp__project_list_solutions
+    mcp__scope-mcp__scope_list_documents solution_id=<any>
+    mcp__task-mcp__list_all_lists solution_id=<any>
+
+  Verify anytime with:  claude mcp list
+  (Names showing `! Needs authentication` still need the browser step.)
 ```
 
 Example (production request, but names are already registered against staging):
@@ -144,7 +192,9 @@ Delivery-OS MCP setup complete — staging.
   = task-mcp        (already at staging)
 
 Next: normal commands use the staging environment (that's what these MCPs
-resolve to on this machine).
+resolve to on this machine). If `claude mcp list` shows
+`! Needs authentication` on any name, run the corresponding tool once
+to trigger the OAuth browser flow (see §4).
 ```
 
 If any row failed (`✗`), print a short note at the bottom telling the teammate to retry that specific line, e.g. `claude mcp add --transport http task-mcp <url>`. Do not automatically retry — a failure is usually a config or network issue the teammate has to see.
