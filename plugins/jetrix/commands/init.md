@@ -163,11 +163,9 @@ Print this block AFTER all apps are created — don't repeat it per app:
   Next: link a GitHub repo + set env branches for each app
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  1. Open Jetrix in your browser and go to Solution Explorer:
-        <your Jetrix portal>/solutions/explorer
-
-     (Same portal you sign in to for Mission Control — pick the
-      environment your MCPs are pointing at: prod or staging.)
+  1. Open your Jetrix portal in the browser and go to
+     "Solution Explorer" (same portal you sign in to normally —
+     use whichever environment your MCPs are pointing at).
 
   2. Find Solution "<solutionName>" (Project ID: <solutionId>).
 
