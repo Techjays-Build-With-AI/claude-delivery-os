@@ -1,11 +1,11 @@
 ---
-description: One-command onboarding — creates a Solution, adds apps, links GitHub repos, saves env branches, binds the workspace, and scaffolds the delivery-os folder tree. All from CLI. The only browser step is a one-time GitHub App install per GitHub org (unavoidable — GitHub auth flows can't be scripted). Use this instead of /jetrix:init when starting from zero.
+description: One-command onboarding — creates a Solution + apps via CLI Q&A, binds the workspace, and scaffolds the delivery-os folder tree. Prints a portal handoff block so the teammate links each app's GitHub repo + sets env branches in one sitting in Jetrix Solution Explorer → Integration tab. Use this instead of /jetrix:init when starting from zero.
 argument-hint: "[<solution-name>]"
 ---
 
 # /jetrix:project-setup
 
-The single command a teammate runs to go from **empty workspace folder + no Jetrix Solution** to **ready to work** — Solution + apps + env branches + GitHub links + `.jetrix/project.json` + delivery-os folder tree — without a single portal visit.
+The single command a teammate runs to go from **empty workspace folder + no Jetrix Solution** to **ready to work** — Solution + apps + `.jetrix/project.json` + delivery-os folder tree — with one portal visit at the end for repo linking and env branches (Integration tab, one sitting).
 
 Use this instead of `/jetrix:init` **only when starting from zero** (no Solution created yet in Jetrix). If the Solution already exists, `/jetrix:init <slug>` is the right entry point — it handles bind + empty-apps + connection-map pull.
 
@@ -14,9 +14,9 @@ Use this instead of `/jetrix:init` **only when starting from zero** (no Solution
 | Old flow | New flow |
 |---|---|
 | Portal → New Solution → fill 7-section profile → invite members | (skipped — Solution created via CLI Q&A) |
-| Portal → Solution → Apps → New App × N | (one Q&A loop) |
-| Portal → App → Integrate Repository × N (with GitHub App install per org) | Same Q&A loop; GitHub App install still browser (unavoidable) |
-| Portal → App → Env Configs → set dev / staging / prod × N | Same Q&A loop |
+| Portal → Solution → Apps → New App × N | (one Q&A loop — CLI creates the apps) |
+| Portal → App → Integrate Repository × N (with GitHub App install per org) | Portal handoff block prints the exact clicks — CLI does NOT try to link repos |
+| Portal → App → Env Configs → set dev / staging / prod × N | Same portal handoff — set on the Integration tab in one sitting |
 | CLI: `/jetrix:init <slug>` | Rolled into this command |
 | CLI: `/delivery-os:init` | Rolled into this command |
 
@@ -96,7 +96,7 @@ How many apps in this Solution?
 How many? [default 2]
 ```
 
-Then for each app run the **four-step app loop** (identical to `/jetrix:init` §7a):
+Then for each app run just the **metadata step** (matches `/jetrix:init` §7a). Repo linking + env branches happen in the Jetrix portal after — one clear place, no split-brain.
 
 ### 3a. App metadata
 
@@ -122,113 +122,52 @@ mcp__project-mcp__project_create_project(
 )
 ```
 
-Capture the returned `_id` as `projectId`.
+Capture the returned `_id` as `projectId`. **That's it for the CLI on this app** — no repo prompt, no env-branch prompt.
 
-### 3b. GitHub repo link
+### 3b. Loop or done
 
-```
-GitHub repo for "<app name>" (owner/name, e.g. techjays/nutrina-api):
-```
+After each app: `Add another app? [y/N]`. On `y`, back to 3a with a fresh app. On `N`, exit the loop and print the portal handoff block below.
 
-Call:
-```
-mcp__project-mcp__project_list_available_repositories(
-  solution_id = <solutionId>,
-  project_id  = <projectId>
-)
-```
+### 3c. Portal handoff — link repos + set env branches
 
-**If the repo is in the response** → jump to 3c.
-
-**If the response is empty OR the repo isn't in it** → the Jetrix GitHub App isn't installed on that GitHub org yet (or hasn't been granted access to that repo). Print a **summary block** with all the info the teammate needs:
+Print this ONCE after all apps are created (never per-app — the teammate does the whole batch in the portal in a single sitting):
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  GitHub App install needed for "<owner>" org
+  Next: link a GitHub repo + set env branches for each app
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  App:     Techjays Jetrix Code Reviewer
-  Org:     <owner>
-  Repo:    <owner>/<name>
+  1. Open Jetrix in your browser and go to Solution Explorer:
+        <your Jetrix portal>/solutions/explorer
 
-  Steps:
-    1. Open this URL in your browser:
-       https://github.com/apps/techjays-jetrix-code-reviewer/installations/new
+     (Same portal you sign in to for Mission Control — pick the
+      environment your MCPs are pointing at: prod or staging.)
 
-    2. Pick the "<owner>" org (or your personal account if the repo
-       is under your username).
+  2. Find Solution "<solutionName>" (Project ID: <solutionId>).
 
-    3. Under "Repository access", choose either:
-         · All repositories             (easy — grants access to every repo
-                                        in the org, including future ones)
-         · Only select repositories     (safer — pick "<name>" and any other
-                                        Jetrix-linked repos in this org)
+  3. For EACH app below, click it → open the "Integration" tab →
+     paste the repo URL → click "Connect" → in the GitHub popup,
+     grant access to that repo (one repo per app — GitHub asks
+     each time, that's expected):
 
-    4. Click "Install & Authorize". GitHub will redirect you briefly to
-       the Jetrix portal to record the install — you can close that tab
-       as soon as it loads.
+<one line per created app, e.g.>
+       · Nutrina API      (backend api)     → paste https://github.com/<owner>/<repo>
+       · Nutrina Web      (web application) → paste https://github.com/<owner>/<repo>
 
-    5. Come back here and type "installed" to continue.
+  4. In the same Integration tab, set the env branches (dev /
+     staging / prod → develop / staging / main are the common
+     defaults) and hit Save.
 
-  This install is a ONE-TIME step per GitHub org — subsequent apps in
-  the same org don't need it. If another teammate already installed it,
-  just make sure this repo is included in the granted repos (step 3).
+  This is a one-time click per app. Everything below (bind +
+  scaffold) works fine without it; you can come back later.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-installed?
+Continue to bind the workspace now, or come back to Jetrix
+first? [continue/wait]
 ```
 
-Wait for the teammate to answer `installed`. Then **re-run `project_list_available_repositories`**. If the repo is now in the response, proceed. If still not, ask:
-
-```
-Repo "<owner>/<name>" is still not visible. Options:
-  [1] Retry (I installed the App now / added the repo to granted list)
-  [2] Skip repo linking for this app (repoUrl stays null; link later)
-  [3] Try a different repo
-```
-
-### 3c. Link the repo
-
-```
-mcp__project-mcp__project_integrate_repository(
-  solution_id     = <solutionId>,
-  project_id      = <projectId>,
-  repository_id   = "<owner/name>",
-  repository_name = "<name>",
-  repository_url  = "https://github.com/<owner>/<name>"
-)
-```
-
-### 3d. Env branches + URLs
-
-```
-dev branch?       → develop
-dev URL?          → https://dev.nutrina.com  (or type 'skip' → placeholder)
-
-staging branch?   → staging
-staging URL?      → https://staging.nutrina.com
-
-prod branch?      → main
-prod URL?         → https://nutrina.com
-```
-
-If URL is `skip`, substitute `https://tbd.example.com` — the upstream validator requires a valid URL, and this placeholder can be updated later.
-
-Three calls (once per env):
-```
-mcp__project-mcp__project_save_env_config(
-  solution_id      = <solutionId>,
-  project_id       = <projectId>,
-  environment_name = "dev",     # then "staging", then "prod"
-  branch_name      = "<branch>",
-  url              = "<url>",
-  auto_deploy      = false
-)
-```
-
-### 3e. Loop or done
-
-After each app: `Add another app? [y/N]`. On `y`, back to 3a with a fresh app. On `N`, exit the loop and continue to §4.
+- `continue` (default) → proceed to §4 with the apps as-is; `.jetrix/project.json` will save `repoUrl: null` and empty `env_branches` for each app. Next `/jetrix:init <slug>` picks up whatever the teammate filled in via the portal.
+- `wait` → halt with `OK — finish repo linking + env branches in the portal, then re-run /jetrix:init <slug> to bind the workspace.` and stop.
 
 ## 4. Bind the workspace — same as `/jetrix:init` §7 through §10
 
@@ -260,10 +199,16 @@ Environments:    dev, staging, prod
 
 Apps (<N>):
   ✓ <projectName>  (<projectType>)
-    Repo:     github.com/<owner>/<name>
+    Repo:     <repoUrl or "· not linked yet — Integration tab in portal">
     Local:    <path or SKIPPED>
-    Env:      dev=develop / staging=staging / prod=main
+    Env:      <"dev=… / staging=… / prod=…" if the teammate set them in the portal
+              before typing 'continue', else "· not set yet — Integration tab in portal">
   ✓ ...
+
+Pending in portal (open Solution Explorer → each app → Integration tab):
+  · Link GitHub repos + set env branches for each app
+    (Not blocking — /ba:scope and everything else works without it.
+     Do it whenever; next /jetrix:init <slug> picks up the changes.)
 
 Connection map:  · Not built yet — open portal → Connections tab → Build map.
                    (Or, if you know the wiring already, we can add a
@@ -293,8 +238,7 @@ Next:
 If ANY step in §2-5 errors halfway through:
 
 - Solution create fails → nothing to clean up; teammate re-runs.
-- App create succeeds but repo link fails → app is created but empty of integrations; teammate can re-run `/jetrix:init <slug>` and use the empty-apps flow to link the repo later.
-- Env config fails → same; env configs can be added later via `/jetrix:init` (empty-apps flow) or `/jetrix:app add` if we build that as a follow-up.
+- App create fails → previously-created apps stay; teammate can re-run `/jetrix:init <slug>` and the empty-apps flow will add the remaining ones.
 - Bundle re-fetch fails → the created Solution + apps still exist in Jetrix; teammate just runs `/jetrix:init <slug>` to complete the workspace binding.
 
 Never rollback creates on failure — leaves the teammate in a recoverable state instead of forcing them to start over. Always print the exact error message and the specific command to re-run.

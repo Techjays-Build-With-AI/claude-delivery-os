@@ -124,7 +124,7 @@ Solution "<name>" has no apps yet. Add one now? [Y/n]
 - `n` → skip this section; `project.json` gets written with `apps: []`. The teammate can re-run `/jetrix:init` any time to fill this in.
 - `Y` (default) → proceed with the loop below.
 
-For each app the teammate wants to add, run through **four steps**:
+For each app the teammate wants to add, run just the **metadata step** in the CLI — repo linking and env branches happen in the portal (one clear place, no split-brain state).
 
 ### Step 1 — collect app metadata
 
@@ -152,101 +152,50 @@ mcp__project-mcp__project_create_project(
 )
 ```
 
-Capture the returned `_id` — you'll need it for steps 2-4.
+Capture the returned `_id`. **That's it for the CLI** — no repo prompt, no env branches prompt. Ask `Add another app? [y/N]`; on `y` restart Step 1, on `N` exit the loop and print the portal handoff block below.
 
-### Step 2 — link a GitHub repo
+### Step 2 — portal handoff (repo linking + env branches happen ONCE per app in Jetrix)
 
-Ask which repo, then discover what's available:
-
-```
-GitHub repo for "<app name>" (owner/name, e.g. techjays/nutrina):
-```
-
-Call:
+Print this block AFTER all apps are created — don't repeat it per app:
 
 ```
-mcp__project-mcp__project_list_available_repositories(
-  solution_id = <solutionId>,
-  project_id  = <new app _id>
-)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Next: link a GitHub repo + set env branches for each app
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  1. Open Jetrix in your browser and go to Solution Explorer:
+        <your Jetrix portal>/solutions/explorer
+
+     (Same portal you sign in to for Mission Control — pick the
+      environment your MCPs are pointing at: prod or staging.)
+
+  2. Find Solution "<solutionName>" (Project ID: <solutionId>).
+
+  3. For EACH app below, click it → open the "Integration" tab →
+     paste the repo URL → click "Connect" → in the GitHub popup,
+     grant access to that repo (one repo per app — GitHub asks
+     each time, that's expected):
+
+<one line per created app, e.g.>
+       · Nutrina API      (backend api)     → paste https://github.com/<owner>/<repo>
+       · Nutrina Web      (web application) → paste https://github.com/<owner>/<repo>
+
+  4. In the same Integration tab, set the env branches (dev /
+     staging / prod → develop / staging / main are the common
+     defaults) and hit Save.
+
+  This is a one-time click per app. Everything below (bind +
+  scaffold) works fine without it; you can come back later.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Continue to bind the workspace now, or come back to Jetrix
+first? [continue/wait]
 ```
 
-**Two branches:**
+- `continue` (default) → proceed to §7b with `apps[]` that have empty repos / envs — the fields exist as nulls, the teammate fills them via the portal later, and next `/jetrix:init <slug>` will pick up the changes.
+- `wait` → halt with `OK — finish repo linking + env branches in the portal, then re-run /jetrix:init <slug> to bind.` and stop.
 
-- Response contains repos → find the row where `repository_id` matches the teammate's `owner/name` input (case-insensitive). If a match exists, extract `repository_name` + `repository_url` from that row and jump to §Step 2c below.
-
-- Response is empty (or the teammate's repo isn't in it) → the Jetrix GitHub App either isn't installed on the target org yet, or hasn't been granted access to that repo. Print:
-
-  ```
-  ⚠ The Jetrix GitHub App isn't installed on the "<org>" GitHub org yet
-    (or hasn't been granted access to "<repo>").
-
-    Open this URL in your browser to install / grant access:
-      https://github.com/apps/techjays-jetrix-code-reviewer/installations/new
-
-    (After you finish on github.com, GitHub redirects you briefly to the
-    Jetrix portal to record the install, then you can close that tab.)
-
-    Once done, come back here and answer "installed" to continue.
-  ```
-
-  Wait for the teammate to answer `installed`. Then **re-run `project_list_available_repositories`** and try the match again. If it still doesn't come back, ask if they want to skip repo linking for this app (`project.json` will save `repoUrl: null`) or retry.
-
-### Step 2c — link it
-
-```
-mcp__project-mcp__project_integrate_repository(
-  solution_id     = <solutionId>,
-  project_id      = <new app _id>,
-  repository_id   = "<owner/name>",
-  repository_name = "<name>",
-  repository_url  = "https://github.com/<owner>/<name>"
-)
-```
-
-### Step 3 — set env branches (dev / staging / prod)
-
-For each of the three canonical environments, ask for the branch name. Use `main` or `master` as sensible defaults for prod; `develop` / `staging` for the others.
-
-```
-dev branch?       → develop
-staging branch?   → staging
-prod branch?      → main
-```
-
-Also ask for the deployed URLs — required by upstream validator. Use `https://tbd.example.com` as a placeholder if the env isn't deployed yet; the teammate can update it later.
-
-```
-dev URL?          → https://dev.nutrina.com   (or 'skip' → https://tbd.example.com)
-staging URL?      → https://staging.nutrina.com
-prod URL?         → https://nutrina.com
-```
-
-Then three calls (once per env):
-
-```
-mcp__project-mcp__project_save_env_config(
-  solution_id      = <solutionId>,
-  project_id       = <new app _id>,
-  environment_name = "dev",
-  branch_name      = "<dev branch>",
-  url              = "<dev url>",
-  auto_deploy      = false
-)
-```
-
-Repeat for `staging` and `prod`.
-
-### Step 4 — loop
-
-```
-Add another app? [y/N]
-```
-
-- `y` → back to Step 1 with a fresh app
-- `N` (default) → exit the loop, continue to §7b
-
-Once the loop exits, **re-fetch the bundle** with `project_get_solution_bundle` so §8 writes `project.json` with the freshly-created apps + env configs + repo integrations. Do NOT try to hand-merge the individual create responses into the bundle shape — one clean re-fetch is simpler and self-verifying.
+Once the loop exits (either path), **re-fetch the bundle** with `project_get_solution_bundle` so §8 writes `project.json` with the freshly-created apps (plus any repos/envs the teammate DID complete during the portal step before typing `continue`). Do NOT try to hand-merge — one clean re-fetch is simpler and self-verifying.
 
 ## 7b. Confirm the Solution with the user before binding
 
