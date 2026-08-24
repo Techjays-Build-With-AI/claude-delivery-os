@@ -113,7 +113,7 @@ def apply(
 
         # Write-back frontmatter on create / recreate only.
         if action in ("created", "recreated") and slug and task_number is not None and task_oid:
-            feature_md = project_root / "context" / "features" / slug / "feature.md"
+            feature_md = project_root / "features" / slug / "feature.md"
             if feature_md.exists():
                 if _patch_frontmatter(feature_md, task_number, task_oid):
                     patched.append(slug)

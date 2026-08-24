@@ -41,7 +41,7 @@ Body:
 8. **Mocking / test doubles** — add utilities to stub external services/APIs/time/randomness deterministically. Prove: an example test mocks a dependency.
 9. **E2E harness** (apps with a UI) — install the e2e tool, add a base config that runs headless in CI, and a **page-object/fixtures skeleton**; add one smoke spec (e.g. app loads). Prove: the e2e smoke runs headless and is green. `N/A` for headless services — note why.
 10. **Contract/API tests** (services with an API surface) — add a schema/contract-assertion approach mapped to the TL `EP-<AREA>-NN` endpoints; add one example. `N/A` if no API.
-11. **Testing conventions doc** — a short `qa-output/testing-conventions.md` (or the repo's docs): where tests live, naming, what each level covers, and the single commands to run each — so the dev agent writes feature tests into the harness consistently.
+11. **Testing conventions doc** — a short `qa/testing-conventions.md` (or the repo's docs): where tests live, naming, what each level covers, and the single commands to run each — so the dev agent writes feature tests into the harness consistently.
 
 Mark any step `N/A` with a reason rather than skipping silently. Only build steps whose `QAF-###` the human approved.
 
@@ -56,7 +56,7 @@ install → lint → format:check → typecheck → unit → coverage(threshold)
 ```
 
 - Run it in the shell against the real repo; **never fabricate** a result.
-- Every command in the sequence goes into `qa-output/quality-gates.md` as the canonical command for that gate.
+- Every command in the sequence goes into `qa/quality-gates.md` as the canonical command for that gate.
 - If a step can't pass **without weakening a check**, stop and escalate — name the trade-off; don't lower the bar to go green.
 - Smoke tests prove the *harness* runs; they are not feature tests and are not evidence any feature works.
 
@@ -64,4 +64,4 @@ install → lint → format:check → typecheck → unit → coverage(threshold)
 
 ## 4. Handoff to the quality gates
 
-Once green, `qa-quality-gates` promotes `qa-output/quality-gates.md` to `Active` with the proven commands and thresholds. That file is the contract the **dev readiness gate** checks (does a harness exist?) and **dev-validation** reads (which suites are required, to what bar). Keeping it accurate is what makes the dev loop's "verify properly" concrete.
+Once green, `qa-quality-gates` promotes `qa/quality-gates.md` to `Active` with the proven commands and thresholds. That file is the contract the **dev readiness gate** checks (does a harness exist?) and **dev-validation** reads (which suites are required, to what bar). Keeping it accurate is what makes the dev loop's "verify properly" concrete.

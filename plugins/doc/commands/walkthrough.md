@@ -1,5 +1,5 @@
 ---
-description: Turn a specification or scope document into an interactive HTML spec walkthrough — a top overview state diagram of the phases the system moves through (hover for detail, click to trace transitions), then a drill-down section per feature/module with its own workflow diagram and worked examples, plus a command/object catalog and success criteria. One self-contained HTML file written to doc-output/.
+description: Turn a specification or scope document into an interactive HTML spec walkthrough — a top overview state diagram of the phases the system moves through (hover for detail, click to trace transitions), then a drill-down section per feature/module with its own workflow diagram and worked examples, plus a command/object catalog and success criteria. One self-contained HTML file written to doc/.
 argument-hint: "spec=\"<path or topic>\" [title=\"<Title>\"] [\"<source material / custom rules>\"]"
 ---
 
@@ -21,13 +21,13 @@ context.
 - **`title="<Title>"`** — the header title. Optional; inferred from the spec's
   own title when present.
 - **`out=<prefix>`** — optional output-prefix override (default follows the
-  skill's `walkthrough-<topic>-<DDMonYYYY>` naming in `doc-output/`).
+  skill's `walkthrough-<topic>-<DDMonYYYY>` naming in `doc/`).
 - **Free-text** — any extra source material, emphasis, or custom rules (which
   lifecycle is the spine, which sections to feature, brand/accent overrides).
   Passed through verbatim.
 
 If a Delivery OS workspace exists and no explicit spec is given, tell the agent
-to source from `ba-output/scope.md` and `shared-context/`.
+to source from `ba/scope.md` and `shared-context/`.
 
 ## 2. Delegate
 
@@ -57,7 +57,7 @@ Invoke the **doc-agent** subagent. Pass it this instruction:
 > coloured borders, unique SVG marker ids per diagram, `body{padding-left:180px}`,
 > tooltip div first in `<body>`, scroll-spy nav, no external dependencies) and the
 > voice rules (no em-dashes, no contrastive negation). Write to
-> `doc-output/walkthrough-<topic>-<DDMonYYYY>.html` (create `doc-output/` if
+> `doc/walkthroughs/walkthrough-<topic>-<DDMonYYYY>.html` (create `doc/` if
 > absent), save UTF-8 with no mojibake. Then QA in a browser (scroll-spy tracks
 > sections, every state/step tooltip fires, click-to-highlight lights the right
 > edges, no clipped SVG) and return a short summary, any `[[NEEDS: …]]`

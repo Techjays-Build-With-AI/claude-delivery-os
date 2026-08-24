@@ -96,4 +96,4 @@ The report renders the score + tier + **Audit Confidence** in the hero, a domain
 
 ## Output location
 
-Inside a workspace: `tl-output/maturity-<timestamp>.{html,md,json}` (create `tl-output/` on first run). No workspace: beside the repo, with a note that no workspace was found. The timestamp (`YYYY-MM-DD-HHMMSS`, from the system clock) means a re-audit never overwrites a prior one.
+Inside a workspace: `tl/maturity-<timestamp>.{html,md,json}` (create `tl/` on first run). No workspace: beside the repo, with a note that no workspace was found. The timestamp (`YYYY-MM-DD-HHMMSS`, from the system clock) means a re-audit never overwrites a prior one.

@@ -15,7 +15,7 @@ Plugin recipe — TWO calls in parallel, one per task type:
      list_name   = "larkiq"     # OR list_id="..."
    )
    ```
-   → materializes `context/features/<slug>/*.md` (the 8-file folder layout).
+   → materializes `features/<slug>/*.md` (the 8-file folder layout).
 3. **Fetch non-FEATURE tasks** — for single-file tasks:
    ```
    mcp__task-mcp__task_pull_bundle(

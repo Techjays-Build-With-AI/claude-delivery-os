@@ -21,7 +21,7 @@ Severity guide: **Blocker** = unsafe to operate / ship as-is. **Major** = a real
 | D1.6 Architectural adherence | Agreed patterns/layering respected; no massive deadline shortcuts | attested + spot-evidence |
 
 ## D2 — Test Quality & Verifiability
-*Can features be proven? **Consumes `/qa:audit` + `qa-output/quality-gates.md` — does not re-score testability.***
+*Can features be proven? **Consumes `/qa:audit` + `qa/quality-gates.md` — does not re-score testability.***
 
 | Sub-area | What good looks like | Evidence |
 |---|---|---|

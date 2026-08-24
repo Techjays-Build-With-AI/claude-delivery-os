@@ -12,17 +12,17 @@ You are the entry point for TL feature composition. Parse the arguments and **de
 ## 1. Parse arguments
 
 `$ARGUMENTS` may contain:
-- A **feature target** — a path to one feature folder (`context/features/<slug>/`), a feature slug, a `FEAT-<AREA>-NN` id, or the whole set (`context/features/` / `feature-index.md`). Default: `context/features/` (compose all features).
+- A **feature target** — a path to one feature folder (`features/<slug>/`), a feature slug, a `FEAT-<AREA>-NN` id, or the whole set (`features/` / `feature-index.md`). Default: `features/` (compose all features).
 - An optional **`initiative=<name>`** — restrict composition to features whose `feature.md` frontmatter `initiative` matches (same filter `/tl:plan` uses).
 - An optional **`--force`** — recompose every targeted feature even if its `tl-plan.md` is already up-to-date. Default: skip a feature whose graph inputs haven't changed since the last compose (checked via content-hash).
 
-If no target and intent is ambiguous, ask which feature(s) to compose and stop. If there's no `context/features/`, tell the user to run `/ba:features` and `/tl:plan` first.
+If no target and intent is ambiguous, ask which feature(s) to compose and stop. If there's no `features/`, tell the user to run `/ba:features` and `/tl:plan` first.
 
 ## 2. Delegate
 
 Invoke the **tl-agent** subagent with the target. Pass it this instruction:
 
-> Compose the Implementation-tab content for `<target>` using the `tl-feature-compose` skill. The output goes to `context/features/<slug>/tl-plan.md` and populates **only** the Implementation tab of the MC Task — Description, Business Rules, Acceptance Criteria, NFRs, Test Scenarios, and Dependencies come from BA push and must never appear in what you write.
+> Compose the Implementation-tab content for `<target>` using the `tl-feature-compose` skill. The output goes to `features/<slug>/tl-plan.md` and populates **only** the Implementation tab of the MC Task — Description, Business Rules, Acceptance Criteria, NFRs, Test Scenarios, and Dependencies come from BA push and must never appear in what you write.
 >
 > **If an `initiative=<name>` was given, compose only the features whose `feature.md` frontmatter `initiative` matches** — skip all others and report which features the filter selected.
 >
@@ -41,7 +41,7 @@ Invoke the **tl-agent** subagent with the target. Pass it this instruction:
 > - **No file paths**, anywhere. Not in Touch points, not in headings, not in prose, not in code fences. Every component is named by its role — *"the leave controller"*, *"the decision dialog"*, *"the API service layer"*, *"the leave list"*, *"the row action"*. Repo paths in the graph are TL design detail — the dev-agent maps role names back to files via the local graph at build time.
 > - **No framework, library, or version names**, anywhere. No `React`, `Vite`, `Express`, `Mongoose`, `mongoose.Schema`, `TipTap`, `Redux`, `Playwright`, `Jest`, `Prisma`, `SQLAlchemy`, `React 18`, `Node 20`. Describe the data object by role and fields written; do not include a schema code fence in any framework's syntax.
 > - **No duplication of other tabs.** No Business Goal, no user-flow narrative, no mermaid workflow diagram (Description owns it), no AC list, no NFR list, no Business Rule list, no Test Scenarios, no Dependencies. If a fact belongs in another tab, do not restate it here.
-> - **No feature identity in visible content.** Feature id, initiative, slug, and provenance live in the frontmatter and MC task metadata — never in headings or prose. No `# FEAT-…` H1. No "Provenance:" line. No reference to `feature.md`, `workflow.md`, `acceptance-criteria.md`, `ba-output/*`, `context/*`, or any scope-review filename.
+> - **No feature identity in visible content.** Feature id, initiative, slug, and provenance live in the frontmatter and MC task metadata — never in headings or prose. No `# FEAT-…` H1. No "Provenance:" line. No reference to `feature.md`, `workflow.md`, `acceptance-criteria.md`, `ba/*`, `context/*`, or any scope-review filename.
 > - **Existing schema fields the feature does not write** are named on one boundary line — not tabled.
 > - **Response codes and messages are discriminated explicitly** — one row per distinct `message`.
 > - **No client-narrative, no provenance callouts, no author commentary.** No *"the client chose transparency knowingly"*, no `⚠ PROVENANCE — PLANNED, NOT BUILD-READY` blocks, no *"acceptance criteria are authored as bullets without ids"*, no *"SIMULATED response round"* preambles.
@@ -50,7 +50,7 @@ Invoke the **tl-agent** subagent with the target. Pass it this instruction:
 > - **Size budget** — target 10–15 KB, warn at 55 KB, refuse above 60 KB (MC's `implementationDetails` cap). Do not truncate; surface the overflow and ask the user to split the feature.
 > - **No invention.** Every fact traces to the context graph or the feature files. When silent, mark the step `[HELD · waiting on OQ-<id>]` and name the gap.
 >
-> Write the file to `context/features/<slug>/tl-plan.md` with the frontmatter (`doc_type: tl-plan`, `schema_version`, `produced_by: tl`, `feature_id`, `composed_at`, `inputs_hash`). On re-runs, update in place, preserve `<!-- KEEP -->` blocks, and log any material design choice as a `DEC-###`.
+> Write the file to `features/<slug>/tl-plan.md` with the frontmatter (`doc_type: tl-plan`, `schema_version`, `produced_by: tl`, `feature_id`, `composed_at`, `inputs_hash`). On re-runs, update in place, preserve `<!-- KEEP -->` blocks, and log any material design choice as a `DEC-###`.
 >
 > Return: features composed vs skipped-unchanged (with reason each), size per feature, any features where the graph is incomplete (missing owned units), and any steps marked `[HELD]`.
 

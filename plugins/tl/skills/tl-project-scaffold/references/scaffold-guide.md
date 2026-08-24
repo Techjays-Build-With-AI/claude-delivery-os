@@ -66,7 +66,7 @@ Keep the scaffold **minimal and idiomatic** — a skeleton with a green build, n
 
 ---
 
-## 4. Project design docs (context/project/)
+## 4. Project design docs (shared-context/)
 
 Write these so the dev agent (and future TL runs) build against a confirmed foundation:
 

@@ -1,4 +1,4 @@
-"""Materialize `context/features/<slug>/*.md` from a feature_pull_bundle JSON.
+"""Materialize `features/<slug>/*.md` from a feature_pull_bundle JSON.
 
 Invoked by `/jetrix:pull scope` (see plugins/jetrix/commands/references/pull/scope.md)
 after task-mcp returns the feature bundle. Replaces the "for each feature, write
@@ -96,7 +96,7 @@ def materialize(bundle_path: pathlib.Path, project_root: pathlib.Path, sync_stat
             skipped.append("(missing slug/feature_id)")
             continue
 
-        feat_dir = project_root / "context" / "features" / slug
+        feat_dir = project_root / "features" / slug
         feat_dir.mkdir(parents=True, exist_ok=True)
 
         changed_any = False
@@ -148,7 +148,7 @@ def materialize(bundle_path: pathlib.Path, project_root: pathlib.Path, sync_stat
 def main() -> int:
     ap = argparse.ArgumentParser(description="Materialize feature folders from a feature_pull_bundle JSON.")
     ap.add_argument("--bundle",       required=True, help="Path to the feature_pull_bundle JSON on disk.")
-    ap.add_argument("--project-root", required=True, help="Absolute path to <workspace>/.jetrix/<slug>/.")
+    ap.add_argument("--project-root", required=True, help="Absolute path to <workspace>/.jetrix/.")
     ap.add_argument("--sync-state",   required=True, help="Absolute path to <workspace>/.jetrix/cache/sync-state.json.")
     args = ap.parse_args()
 

@@ -95,7 +95,7 @@ flowchart TD
 ```
 
 #### 3.x.4 Use Cases
-> ✎ One `##### ` block per distinct scenario/route. Keep every labelled field — write "None identified yet" rather than deleting one. Route-specific edge cases live *inside* the use case; cross-cutting module exceptions stay in §3.x.10. Each use case is mirrored in `use-case-register.md` under the same `MOD-UC-##` id.
+> ✎ One `##### ` block per distinct scenario/route. Keep every labelled field — write "None identified yet" rather than deleting one. Route-specific edge cases live *inside* the use case; cross-cutting module exceptions stay in §3.x.10. Each use case is mirrored in `ba/registers/use-cases.md` under the same `MOD-UC-##` id.
 
 ##### 3.x.4.a [MOD-UC-01] — [Use Case Name]
 - **Actor / Persona:** [who initiates / owns this route]
@@ -134,7 +134,7 @@ flowchart TD
 > ✎ Repeat the block above for every distinct route. Keep the ids sequential within the module.
 
 #### 3.x.5 Functional Requirements
-> ✎ Capability-level requirements for the module. The **Use Cases** column ties each requirement to the route(s) it serves; the same id is used in `requirement-register.md`.
+> ✎ Capability-level requirements for the module. The **Use Cases** column ties each requirement to the route(s) it serves; the same id is used in `ba/registers/requirements.md`.
 
 | ID | Requirement | Use Cases | Resp. | Pri. | Acceptance criteria |
 |----|-------------|-----------|-------|------|---------------------|
@@ -205,7 +205,7 @@ flowchart TD
 
 ## 7. Assumptions & Dependencies
 
-> ✎ Assumptions and dependencies are owned in the **RAID Register** — reference it here rather than duplicating, so there is one source of truth. The BA `assumption-register.md` and `clarification-log.md` feed the RAID Register (Assumptions `A-##`, Dependencies `D-##`, Open Questions `Q-##`).
+> ✎ Assumptions and dependencies are owned in the **RAID Register** — reference it here rather than duplicating, so there is one source of truth. The BA `ba/registers/assumptions.md` and `ba/logs/clarifications.md` feed the RAID Register (Assumptions `A-##`, Dependencies `D-##`, Open Questions `Q-##`).
 
 See the RAID Register for the full, living list of assumptions, dependencies, risks, and open questions that this scope depends on.
 

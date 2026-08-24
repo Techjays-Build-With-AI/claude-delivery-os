@@ -1,93 +1,161 @@
 ---
 name: delivery-os-conventions
-description: The Techjays Delivery OS shared document contract. Read this before producing or consuming any Delivery OS document (scope, registers, shared-context, run summaries). Defines the project workspace layout, the document frontmatter standard, stable ID conventions, and the shared vocabulary (artifact statuses, confidence values, usage modes) that every agent — ba, doc, tl, qa — must speak so their outputs stay interoperable.
+description: The Techjays Delivery OS shared document contract. Read this before producing or consuming any Delivery OS document (scope, registers, shared, run summaries). Defines the workspace layout (v2.0 — role-centric, no <slug>/ wrapper), the document frontmatter standard, stable ID conventions, and the shared vocabulary (artifact statuses, confidence values, usage modes) that every agent — ba, doc, tl, qa — must speak so their outputs stay interoperable.
 ---
 
 # Delivery OS — Shared Document Contract
 
 This is the single source of truth that makes Delivery OS documents **shareable across agents and across weeks**. The BA Agent produces documents today; the Doc, TL, and QA agents consume them later. They only interoperate if every agent honors this contract.
 
-> **Contract version: 1.3.** Bump `schema_version` in document frontmatter and update this file together when the contract changes.
+> **Contract version: 2.0.** Bump `schema_version` in document frontmatter and update this file together when the contract changes.
+>
+> **2.0 (role-centric workspace layout).** Major rework of the workspace tree — the `<slug>/` folder wrapper inside `.jetrix/` is retired (a workspace binds one Solution; the slug lives in `project.json`). Every path drops two segments. Role folders drop the `-output` suffix (`ba/`, `tl/`, `qa/`, `doc/`); `shared-context/` keeps its name and simply moves up out of `<slug>/`. `context/features/` is promoted to `features/` at the top level (features are a deliverable, not code context). Workspace-level `context/frontend|backend|database|project/` folders are deleted — that graph lives per-repo at `<repo>/context/code-context/` (Model B, unchanged from 1.3). BA registers are grouped under `ba/registers/`; BA logs under `ba/logs/`; QA under `qa/{audits,health,escalations}/`; DOC under `doc/{decks,walkthroughs,workflows,boards}/`. `/jetrix:init §0.5` performs a soft, idempotent migration from v1 to v2 layouts on first run.
+>
+> **1.3 (in-repo code context).** Added the brownfield **code-context** layer: a committed `<repo>/context/code-context/` tree written by the TL's `tl-code-map` **inside the mapped repository** — a `context/` folder at the repo root with `code-context/` inside it (not in the workspace, and not inside `.jetrix/`, which is gitignored), holding one markdown unit per page, endpoint and database object, grouped by business domain — with database objects grouped on disk by **kind** (`tables/ collections/ views/ procedures/ functions/ triggers/`) — plus **semantic layer indexes** (a `## Domain Map` in prose alongside the unit table) that exist so a consumer can pick the right file without opening any other. New doc_types: `code-context-readme`, `code-context-index`, `code-map-registry`, `map-coverage`; the layer indexes keep the existing `page-index` / `endpoint-index` / `entity-index` doc_types so current consumers keep working by doc_type rather than filename. Workspace-level pointer file: `tl/code-map-registry.md` (v2.0 path; was `context/code-map-registry.md` in v1.3). IDs are unchanged. Additive: greenfield projects that never run `/tl:code-map` are unaffected.
+>
+> **1.2 (eval layer).** Added the applied-AI **eval** layer: the `EVAL-<AREA>-NN` id (§3) and the *applied-AI / LLM feature* classification (§5) that gates it. Eval units live per-feature under `features/<slug>/evals/` (v2.0 path; was `context/evals/<feature-slug>/` in v1.2). The TL's `tl-feature-planning` **designs** eval units for AI-bearing features, the dev `feature-delivery-loop` **runs and inspects** them, and QA's harness hosts them — see the core **`eval-engineering`** skill. Additive — deterministic features are unaffected.
 >
 > **1.1 (use-case model).** Made **use cases** first-class: added the `<MODULE>-UC-NN` id and `use-case-register.md`; the scope §3.x now carries a **§3.x.3 Master Flow** and a **§3.x.4 Use Cases** layer (renumbered through §3.x.11); added the **Mermaid diagram convention** (§8) where Mermaid is the living source and the Doc Agent's branded SVG swimlane is its projection. The change is **additive** — a `schema_version: 1.1` document remains readable; new documents are written at `1.1`.
->
-> **1.2 (eval layer).** Added the applied-AI **eval** layer: the `EVAL-<AREA>-NN` id (§3), the `context/evals/` sub-tree (§1), and the *applied-AI / LLM feature* classification (§5) that gates it. The TL's `tl-feature-planning` **designs** eval units for AI-bearing features, the dev `feature-delivery-loop` **runs and inspects** them, and QA's harness hosts them — see the core **`eval-engineering`** skill. Additive — deterministic features are unaffected.
->
-> **1.3 (in-repo code context).** Added the brownfield **code-context** layer: a committed `<repo>/context/code-context/` tree written by the TL's `tl-code-map` **inside the mapped repository** — a `context/` folder at the repo root with `code-context/` inside it (not in the workspace, and not inside `.jetrix/`, which is gitignored), holding one markdown unit per page, endpoint and database object, grouped by business domain — with database objects grouped on disk by **kind** (`tables/ collections/ views/ procedures/ functions/ triggers/`) — plus **semantic layer indexes** (a `## Domain Map` in prose alongside the unit table) that exist so a consumer can pick the right file without opening any other. New doc_types: `code-context-readme`, `code-context-index`, `code-map-registry`, `map-coverage`; the layer indexes keep the existing `page-index` / `endpoint-index` / `entity-index` doc_types so current consumers keep working by doc_type rather than filename. New workspace file: `context/code-map-registry.md`, the pointer from the workspace to each mapped repo's tree (§1). IDs are unchanged — `PAGE-`/`EP-`/`ENT-<AREA>-NN` on the same match keys — so `/tl:plan` reuses as-built units instead of duplicating them. Additive: greenfield projects that never run `/tl:code-map` are unaffected.
 
 ---
 
-## 1. Workspace layout
+## 1. Workspace layout (v2.0 — role-centric)
 
-Every Delivery OS project lives under a **single named container folder** at `<workspace>/.jetrix/<project-name>/` — nested inside `.jetrix/` (the entire `.jetrix/` folder is gitignored and treated as a local working copy of Jetrix state). Agents read and write **only** at these paths.
+Every Delivery OS workspace is bound to **one** Jetrix Solution. Everything lives at the `.jetrix/` root — no `<slug>/` wrapper. The entire `.jetrix/` folder is gitignored; it is a local working copy of Jetrix state. Agents read and write **only** at these paths.
 
 ```text
-<workspace>/.jetrix/<project-name>/   # the one container — everything Delivery OS owns lives here
-├── README.md                    # what init created + how to use it (the workspace manifest)
-├── intake.index.md              # LIVING source registry — maintained by /ba:scope (human-editable)
-├── artifacts/                   # generated normalized summaries — categories created on demand
-│   ├── <category>/              # emergent (e.g. meeting-transcripts/, requirements/) — NOT pre-made
-│   │   └── <name>.summary.md    # markdown summary of one source doc (traces to the original)
-│   └── ...
-├── shared-context/              # cross-agent context (BA writes, everyone reads)
-│   ├── project-profile.md
-│   ├── glossary.md
-│   ├── stakeholder-map.md
-│   ├── system-landscape.md
-│   └── decision-log.md
-├── ba-output/                   # Business Analyst Agent outputs
-│   ├── scope.md                 # the living scope document (primary handoff)
-│   ├── client-questions.md      # clean, handover-ready open questions for the client
-│   ├── requirement-register.md
-│   ├── workflow-register.md
-│   ├── use-case-register.md
-│   ├── business-rule-register.md
-│   ├── example-register.md
-│   ├── data-register.md
-│   ├── integration-register.md
-│   ├── assumption-register.md
-│   ├── clarification-log.md
-│   ├── contradiction-log.md
-│   ├── indexing-assistance-needed.md
-│   ├── change-log.md
-│   └── intake-runs/
-│       └── run-001.md ...
-├── context/                     # shared implementation context (the whole build team reads)
-│   ├── features/                # BA feature breakdown (ba-feature-breakdown) + TL per-feature spec (tl-feature-compose)
-│   │   ├── feature-index.md
-│   │   └── <feature-slug>/
-│   │       ├── feature.md · workflow.md · acceptance-criteria.md · business-rules.md · nfrs.md · test-scenarios.md · dependencies.md · open-questions.md · status.md · implementation-plan.md   # ba
-│   │       └── tl-plan.md        # tl-feature-compose — Implementation-tab spec, pushed to MC.Task.implementationDetails
-│   ├── frontend/                # TL feature planning (tl-feature-planning)
-│   │   ├── page-index.md
-│   │   └── pages/<area>/<page-slug>.md          # PAGE-<AREA>-NN
-│   ├── backend/
-│   │   ├── endpoint-index.md
-│   │   └── domains/<domain>/endpoints/<slug>.md # EP-<AREA>-NN
-│   ├── database/
-│   │   ├── entity-index.md
-│   │   └── entities/<entity-slug>.md            # ENT-<AREA>-NN → DATA-###
-│   ├── evals/                # TL eval design for applied-AI features — dev runs these
-│   │   ├── eval-index.md
-│   │   └── <feature-slug>/<eval-slug>.md        # EVAL-<AREA>-NN → verifies an AC, exercises EP-/ENT-
-│   └── code-map-registry.md  # brownfield only — pointer to each mapped repo's in-repo code-context/ tree
-├── doc-output/                  # Doc Agent outputs (Phase 2) — created on demand
-├── tl-output/                   # TL Agent outputs (Phase 3) — created on demand
-└── final/                       # approved, client-facing deliverables
+<workspace>/
+└── .jetrix/                              # gitignored (whole folder)
+    ├── README.md                         # workspace map — seeded by /delivery-os:init
+    ├── project.json                      # Jetrix binding (solutionId, apps, envs) — /jetrix:init writes this
+    ├── connection-map.md                 # solution-level architecture doc (if the portal built one)
+    ├── cache/
+    │   ├── repolocation.json             # per-app local repo paths
+    │   └── sync-state.json               # drift hashes for /jetrix:push and /jetrix:pull
+    │
+    ├── shared-context/                           # cross-role context — BA writes, everyone reads
+    │   ├── project-profile.md
+    │   ├── glossary.md
+    │   ├── stakeholder-map.md
+    │   ├── system-landscape.md
+    │   ├── decision-log.md               # append-only DEC-### from every role
+    │   └── baseline-profile.md           # optional QA baseline override
+    │
+    ├── ba/                               # STAGE 01 — Business Analyst
+    │   ├── intake.index.md               # LIVING source registry — maintained by /ba:scope
+    │   ├── scope.md                      # the living scope document (primary handoff)
+    │   ├── client-questions.md
+    │   ├── artifacts/                    # generated normalized summaries — categories created on demand
+    │   │   └── <category>/<name>.summary.md
+    │   ├── registers/                    # the eight canonical registers
+    │   │   ├── requirements.md
+    │   │   ├── workflows.md
+    │   │   ├── use-cases.md
+    │   │   ├── business-rules.md
+    │   │   ├── examples.md
+    │   │   ├── data.md
+    │   │   ├── integrations.md
+    │   │   └── assumptions.md
+    │   ├── logs/                         # the four canonical logs
+    │   │   ├── clarifications.md
+    │   │   ├── contradictions.md
+    │   │   ├── indexing-assistance-needed.md
+    │   │   └── changes.md
+    │   ├── intake-runs/
+    │   │   └── run-###.md
+    │   └── reviews/                      # /ba:review output triples (html + md + json)
+    │       └── scope-review-<ts>.{html,md,json}
+    │
+    ├── features/                         # BA authors, TL enriches, Dev delivers
+    │   ├── feature-index.md              # roll-up (pushed as scope-context doc)
+    │   ├── tracker.md                    # cross-feature dev roll-up (state per feature)
+    │   └── <feature-slug>/
+    │       ├── feature.md                # BA — Description tab source
+    │       ├── workflow.md               # BA — folds into feature.md at push
+    │       ├── acceptance-criteria.md    # BA — Acceptance tab
+    │       ├── business-rules.md         # BA — Business Rules tab
+    │       ├── nfrs.md                   # BA — NFRs tab
+    │       ├── test-scenarios.md         # BA — Test Scenarios tab
+    │       ├── dependencies.md           # BA — Dependencies tab
+    │       ├── open-questions.md         # BA — folds into dependencies at push
+    │       ├── status.md                 # BA — local-only, state field on MC Task
+    │       ├── implementation-plan.md    # BA scratchpad, local-only
+    │       ├── tl-plan.md                # TL — Implementation tab, pushed via /jetrix:push implementation
+    │       ├── evals/                    # TL — applied-AI features only (EVAL-<AREA>-NN)
+    │       │   ├── eval-index.md
+    │       │   └── <eval-slug>.md
+    │       └── dev/                      # Dev — per-feature delivery artifacts, LOCAL-only
+    │           ├── dev-plan.md
+    │           ├── impacted-components.md
+    │           ├── acceptance-map.md
+    │           ├── implementation-log.md
+    │           ├── delivery-status.md
+    │           ├── decisions.md
+    │           ├── pr-summary.md
+    │           └── escalation-<n>.md
+    │
+    ├── tl/                               # STAGE 02 — Tech Lead outputs (cross-feature)
+    │   ├── code-map-registry.md          # pointer to each mapped repo's <repo>/context/code-context/ tree
+    │   ├── reviews/                      # /tl:review output triples
+    │   │   └── spec-review-<ts>.{html,md,json}
+    │   └── maturity/                     # /tl:maturity check-in triples
+    │       └── maturity-<ts>.{html,md,json}
+    │
+    ├── qa/                               # STAGE 03 — Quality Assurance
+    │   ├── quality-gates.md              # the harness contract every dev iteration reads
+    │   ├── test-setup-plan.md
+    │   ├── setup-log.md
+    │   ├── testing-conventions.md
+    │   ├── decisions.md
+    │   ├── audits/                       # /qa:audit output rounds
+    │   │   └── test-audit-<ts>.{html,md,json}
+    │   ├── health/                       # /qa:health check-in reports
+    │   │   └── health-<ts>.md
+    │   └── escalations/
+    │       └── escalation-<n>.md
+    │
+    ├── doc/                              # STAGE 05 — Documentation deliverables, grouped by artifact kind
+    │   ├── decks/                        # /doc:deck, /doc:proposal — pptx
+    │   │   └── deck-<name>-<ts>.pptx
+    │   ├── walkthroughs/                 # /doc:walkthrough — html
+    │   │   └── walkthrough-<topic>-<ts>.html
+    │   ├── workflows/                    # /doc:workflow — html
+    │   │   └── workflow-<topic>-<ts>.html
+    │   └── boards/                       # /doc:magic-board — html
+    │       └── board-<topic>-<ts>.html
+    │
+    └── tasks/                            # non-feature MC tasks (ad-hoc)
+        └── <slug>.md
 ```
 
-### 1.c Brownfield — the in-repo `context/code-context/` tree (owned by **`tl-code-map`**)
+### 1.b The per-repo code-context tree (Model B — TL owns the graph, but it lives with the code)
 
-For a project that already has code, `/tl:code-map` writes its as-built context **inside the mapped repository** at `<repo>/context/code-context/`, committed with the code — not under `<workspace>/.jetrix/…`, which is gitignored and would strand the context away from the repo it describes. The tree holds a `README.md` and root `code-context-index.md`, a `map-coverage.md` manifest, and per-layer `backend/`, `frontend/`, `database/` folders: endpoints under `domains/<domain>/endpoints/`, pages under `pages/<area>/`, and database objects under a folder per **kind** (`tables/`, `collections/`, `views/`, `procedures/`, `functions/`, `triggers/`). Each layer index pairs a **semantic Domain Map** with the unit table, so the intended read order is index → domain → one unit file. The workspace keeps only `context/code-map-registry.md`, listing each mapped repo, its context root, its indexes and its area tokens — which is how `/tl:plan` finds as-built units to reuse and how cross-repo links resolve. Unit IDs and match keys are identical to the forward-planned ones; reverse-mapped units add `origin: reverse-mapped`, `mapped_from`, `mapped_from_commit` and `map_confidence`. Nothing sensitive is ever written into this tree — it is committed and shared.
+The **as-built code graph** (pages, endpoints, entities) does NOT live under `.jetrix/`. Each linked app repo carries its own `<repo>/context/code-context/` tree, committed with the code. Written by `/tl:code-map` (brownfield reverse-map) and extended by `/tl:plan` (forward planning of new units), read by `/tl:compose`, `/dev:build`, `/dev:validate`, and doc/qa consumers. Structure:
 
-The `context/` tree is the shared implementation-context layer, distinct from each agent's private `*-output/`. The BA writes `context/features/`; the TL's `tl-feature-planning` skill writes the `frontend/`, `backend/`, and `database/` sub-trees and links them into a bidirectional graph (page → endpoint → entity, and back), and — for **applied-AI features** — also designs the `evals/` sub-tree of runnable verifiers (see the core `eval-engineering` skill). It is created on demand by the first skill that writes to it — `init` does not pre-make it.
+```text
+<repo>/context/code-context/
+├── README.md
+├── code-context-index.md
+├── map-coverage.md
+├── backend/
+│   ├── backend-index.md                  # endpoint-index doc_type
+│   ├── _overview.md
+│   └── domains/<domain>/endpoints/<slug>.md      # EP-<AREA>-NN
+├── frontend/
+│   ├── frontend-index.md                 # page-index doc_type
+│   ├── _overview.md
+│   └── pages/<area>/<slug>.md            # PAGE-<AREA>-NN
+└── database/
+    ├── database-index.md                 # entity-index doc_type
+    ├── _overview.md
+    └── {tables,collections,views,procedures,functions,triggers}/<slug>.md    # ENT-<AREA>-NN
+```
 
-### Output-folder creation rule
-`/delivery-os:init` seeds only the BA-phase essentials — `shared-context/` and `ba-output/` — because the Business Analyst runs immediately after init. Every **downstream** agent creates its own output folder the first time it produces something: `tl-output/` on the first `/tl:review`, `doc-output/` on the first Doc run, `qa-output/` later. This is deliberate — it keeps a fresh workspace minimal and avoids empty, speculative folders for agents a given project may never use. An agent must therefore create its output folder if absent, never assume `init` made it.
+The workspace `.jetrix/tl/code-map-registry.md` is the one workspace-level TL file — it lists each mapped repo, its context root, its indexes and its area tokens, so `/tl:plan` can find as-built units to reuse and cross-repo links resolve. Unit IDs and match keys are identical to forward-planned ones; reverse-mapped units add `origin: reverse-mapped`, `mapped_from`, `mapped_from_commit`, and `map_confidence`. Nothing sensitive is written into this tree — it is committed and shared.
 
-### 1.b Jetrix binding — `.jetrix/` (owned by the **jetrix** plugin)
+### 1.c Jetrix binding — `.jetrix/` (owned by the **jetrix** plugin)
 
-Jetrix is the **single source of truth** for all project context (glossary, scope, registers, feature breakdown, and the `context/` graph). The local `.jetrix/` folder is a disposable **working copy** — the ENTIRE folder is gitignored, including `project.json`, the cache, and the `<project-name>/` container this skill describes. Binding a workspace and syncing it are owned by the separate **`jetrix`** plugin — read its **`jetrix-sync`** skill for the full contract: `.jetrix/project.json` (regenerable identity + app/environment→branch wiring — no secrets), the cache, and the pull/push model. Commands: `/jetrix:init` (bind), `/jetrix:pull` (refresh the cache from Jetrix, incremental), `/jetrix:push` (publish local work back as structured records — upsert by stable id, transactional, pull-before-push). The canonical form in Jetrix is **structured records** (the IDs in §3); `scope.md` and the branded `.docx` are projections rendered from them. `/delivery-os:init` scaffolds `<workspace>/.jetrix/<project-name>/` — the working copy directly inside `.jetrix/`.
+Jetrix is the **single source of truth** for all project context (glossary, scope, registers, feature breakdown). The local `.jetrix/` folder is a disposable **working copy** — the ENTIRE folder is gitignored, including `project.json`, the cache, and every role subfolder. Binding a workspace and syncing it are owned by the separate **`jetrix`** plugin — read its **`jetrix-sync`** skill for the full contract: `.jetrix/project.json` (regenerable identity + app/environment→branch wiring — no secrets), the cache, and the pull/push model. Commands: `/jetrix:init` (bind + run the v1→v2 migration on old workspaces), `/jetrix:pull` (refresh the cache from Jetrix, incremental), `/jetrix:push` (publish local work back as structured records — upsert by stable id, transactional, pull-before-push). The canonical form in Jetrix is **structured records** (the IDs in §3); `scope.md` and the branded `.docx` are projections rendered from them.
 
 ### Source handling — reference, never copy or move
 Original source files (local folders/files, Google Drive, etc.) **stay where they are**. The workspace never copies, moves, or deletes a user's originals. Intake only:
@@ -95,10 +163,10 @@ Original source files (local folders/files, Google Drive, etc.) **stay where the
 2. **generates** a normalized markdown summary under `artifacts/<category>/` for eligible sources.
 So the workspace holds only the **index + generated summaries** — it is a knowledge layer *over* the user's files, not a copy of them.
 
-### `intake.index.md` is the single source registry
+### `ba/intake.index.md` is the single source registry
 It is **agent-maintained** (the user can still hand-edit it) and folds together what were previously separate artifact-map / artifact-ledger / source-classification files: each source's description, original location, detected category, usage mode (the classification + reason), summary path, content hash, and status all live in one registry. Add sources conversationally via `/ba:scope add "..."` — the agent classifies, summarizes, and registers them.
 
-**Handoff rule:** an agent reads another agent's **published** files (`ba-output/`, `shared-context/`, `artifacts/`); it never reaches into another agent's working notes. `shared-context/` and `ba-output/scope.md` are the primary handoff surfaces.
+**Handoff rule:** an agent reads another agent's **published** files (`ba/`, `shared-context/`, `features/`); it never reaches into another agent's working notes. `shared-context/` and `ba/scope.md` are the primary handoff surfaces.
 
 ---
 
@@ -144,26 +212,26 @@ IDs are the threads that let one agent cite what another produced. They are **ap
 
 | Entity            | Prefix | Example  | Lives in                     |
 |-------------------|--------|----------|------------------------------|
-| Requirement       | `<MODULE>-<FR\|AI\|DET\|HUM>` | INTK-AI-02 | requirement-register.md / scope §3 |
-| Use case          | `<MODULE>-UC` | INVP-UC-01 | use-case-register.md / scope §3.x.4 |
-| Workflow          | `WF`   | WF-001   | workflow-register.md         |
-| Business rule     | `BR`   | BR-001   | business-rule-register.md    |
-| Data entity       | `DATA` | DATA-001 | data-register.md             |
-| Integration       | `INT`  | INT-001  | integration-register.md      |
-| Example/scenario  | `EX`   | EX-001   | example-register.md          |
-| Assumption        | `ASM`  | ASM-001  | assumption-register.md       |
-| Clarification     | `CLR`  | CLR-001  | clarification-log.md         |
-| Contradiction     | `CON`  | CON-001  | contradiction-log.md         |
-| Decision          | `DEC`  | DEC-001  | shared-context/decision-log.md |
-| Artifact source   | `SRC`  | SRC-001  | intake.index.md (registry)   |
-| Feature           | `FEAT-<AREA>` | FEAT-SUP-001 | context/features/ (ba)   |
-| Page              | `PAGE-<AREA>` | PAGE-SUP-01 | context/frontend/ (tl)    |
-| Endpoint          | `EP-<AREA>`   | EP-SUP-02   | context/backend/ (tl)     |
-| Entity            | `ENT-<AREA>`  | ENT-SUP-01  | context/database/ (tl) — realises a `DATA-###` |
-| Eval              | `EVAL-<AREA>` | EVAL-SUP-01 | context/evals/ (tl) — verifies an AC, exercises EP-/ENT- (applied-AI features) |
-| QA finding        | `QAF`  | QAF-001  | qa-output/test-audit-*.md (qa)   |
-| Quality gate      | `QG`   | QG-001   | qa-output/quality-gates.md (qa)  |
-| Initiative        | *(human slug)* | payments-v2 | feature frontmatter + feature-index (ba) |
+| Requirement       | `<MODULE>-<FR\|AI\|DET\|HUM>` | INTK-AI-02 | ba/registers/requirements.md / scope §3 |
+| Use case          | `<MODULE>-UC` | INVP-UC-01 | ba/registers/use-cases.md / scope §3.x.4 |
+| Workflow          | `WF`   | WF-001   | ba/registers/workflows.md    |
+| Business rule     | `BR`   | BR-001   | ba/registers/business-rules.md |
+| Data entity       | `DATA` | DATA-001 | ba/registers/data.md         |
+| Integration       | `INT`  | INT-001  | ba/registers/integrations.md |
+| Example/scenario  | `EX`   | EX-001   | ba/registers/examples.md     |
+| Assumption        | `ASM`  | ASM-001  | ba/registers/assumptions.md  |
+| Clarification     | `CLR`  | CLR-001  | ba/logs/clarifications.md    |
+| Contradiction     | `CON`  | CON-001  | ba/logs/contradictions.md    |
+| Decision          | `DEC`  | DEC-001  | shared-context/decision-log.md       |
+| Artifact source   | `SRC`  | SRC-001  | ba/intake.index.md (registry) |
+| Feature           | `FEAT-<AREA>` | FEAT-SUP-001 | features/ (ba)         |
+| Page              | `PAGE-<AREA>` | PAGE-SUP-01 | <repo>/context/code-context/frontend/ (tl) |
+| Endpoint          | `EP-<AREA>`   | EP-SUP-02   | <repo>/context/code-context/backend/ (tl) |
+| Entity            | `ENT-<AREA>`  | ENT-SUP-01  | <repo>/context/code-context/database/ (tl) — realises a `DATA-###` |
+| Eval              | `EVAL-<AREA>` | EVAL-SUP-01 | features/<slug>/evals/ (tl) — verifies an AC, exercises EP-/ENT- (applied-AI features) |
+| QA finding        | `QAF`  | QAF-001  | qa/audits/test-audit-*.md (qa)    |
+| Quality gate      | `QG`   | QG-001   | qa/quality-gates.md (qa)           |
+| Initiative        | *(human slug)* | payments-v2 | feature frontmatter + features/feature-index.md (ba) |
 
 ### Initiative — grouping features by work batch (multi-developer)
 
@@ -222,28 +290,26 @@ A feature is **AI-bearing** when its behaviour depends on a model's output — g
 
 | Surface                              | Produced by | Consumed by        |
 |--------------------------------------|-------------|--------------------|
-| `intake.index.md` (source registry)  | ba (human-editable) | ba           |
-| `artifacts/**/*.summary.md`          | ba          | ba (extraction)    |
-| `shared-context/*`                   | ba          | doc, tl, qa        |
-| `ba-output/scope.md`                 | ba          | doc, tl, qa        |
-| `ba-output/requirement-register.md`  | ba          | doc, tl, qa        |
-| `ba-output/use-case-register.md`     | ba          | doc, tl, qa        |
-| `ba-output/integration-register.md`  | ba          | tl                 |
-| `ba-output/data-register.md`         | ba          | tl                 |
-| `context/features/*` (BA files)      | ba          | tl, doc, qa        |
-| `context/features/<slug>/tl-plan.md` | tl (feature-compose) | dev, doc, qa · pushed verbatim to `MC.Task.implementationDetails` by `/jetrix:push implementation` |
-| `context/frontend/*` `context/backend/*` `context/database/*` | tl (feature-planning forward, or codebase-map reverse for brownfield) | tl (spec-review, feature-compose), doc, qa, coding |
-| `context/features/*`                 | ba          | tl, doc, qa        |
-| `context/frontend/*` `context/backend/*` `context/database/*` | tl (feature-planning, forward) | tl (spec-review), doc, qa, coding |
-| `<repo>/context/code-context/*` (brownfield, committed in the repo) | tl (code-map, reverse) | tl (feature-planning reuse), dev, doc, qa, coding agents |
-| `context/code-map-registry.md` | tl (code-map) | tl (feature-planning), dev |
-| `context/evals/*` (applied-AI features) | tl (feature-planning designs) | dev (feature-delivery-loop runs + inspects), qa (harness hosts) |
-| `doc-output/*`                       | doc         | human, final       |
-| `tl-output/*`                        | tl          | human, delivery    |
-| `qa-output/quality-gates.md`         | qa          | dev (readiness gate + dev-validation) |
-| `qa-output/test-audit-*` `qa-output/test-setup-plan.md` | qa | human, qa          |
+| `ba/intake.index.md` (source registry) | ba (human-editable) | ba         |
+| `ba/artifacts/**/*.summary.md`       | ba          | ba (extraction)    |
+| `shared-context/*`                           | ba          | doc, tl, qa        |
+| `ba/scope.md`                        | ba          | doc, tl, qa        |
+| `ba/registers/requirements.md`       | ba          | doc, tl, qa        |
+| `ba/registers/use-cases.md`          | ba          | doc, tl, qa        |
+| `ba/registers/integrations.md`       | ba          | tl                 |
+| `ba/registers/data.md`               | ba          | tl                 |
+| `features/*` (BA files)              | ba          | tl, doc, qa        |
+| `features/<slug>/tl-plan.md`         | tl (feature-compose) | dev, doc, qa · pushed verbatim to `MC.Task.implementationDetails` by `/jetrix:push implementation` |
+| `<repo>/context/code-context/*` (committed with the code — Model B) | tl (code-map reverse, feature-planning forward) | tl (spec-review, feature-compose), dev, doc, qa, coding agents |
+| `tl/code-map-registry.md`            | tl (code-map) | tl (feature-planning), dev |
+| `features/<slug>/evals/*` (applied-AI) | tl (feature-planning designs) | dev (feature-delivery-loop runs + inspects), qa (harness hosts) |
+| `features/tracker.md`                | dev         | dev, tl (roll-up)  |
+| `doc/**/*`                           | doc         | human, final       |
+| `tl/reviews/*` `tl/maturity/*`       | tl          | human, delivery    |
+| `qa/quality-gates.md`                | qa          | dev (readiness gate + dev-validation) |
+| `qa/audits/*` `qa/test-setup-plan.md` | qa         | human, qa          |
 
-When a downstream agent (doc/tl/qa) runs, it should prefer `ba-output/scope.md` as its primary input and **not re-run BA analysis** unless explicitly asked.
+When a downstream agent (doc/tl/qa) runs, it should prefer `ba/scope.md` as its primary input and **not re-run BA analysis** unless explicitly asked.
 
 ---
 
@@ -253,11 +319,11 @@ Client-facing deliverables conform to the Techjays **Design & Discovery** templa
 
 | Deliverable | D&D template | Maintained as | Owner |
 |-------------|--------------|---------------|-------|
-| Scope Document | **bundled** → `templates/d&d/scope-document/scope-document-template.docx` | `ba-output/scope.md` (module-centric) | ba |
-| RAID Register | `docs/…/04 - RAID Register Template.docx` | assumption-register + clarification-log + contradiction-log (feeds A/D/R/Q rows) | ba |
-| Executive Summary | `docs/…/01 - Executive Summary Template.docx` | `doc-output/` | doc (Phase 2) |
-| Technical Architecture | `docs/…/03 - Technical Architecture Template.docx` | `tl-output/` | tl (Phase 3) |
-| Implementation Plan | `docs/…/05 - Implementation Plan Template.docx` | `doc-output/` | doc (Phase 2) |
+| Scope Document | **bundled** → `templates/d&d/scope-document/scope-document-template.docx` | `ba/scope.md` (module-centric) | ba |
+| RAID Register | `docs/…/04 - RAID Register Template.docx` | ba/registers/assumptions + ba/logs/clarifications + ba/logs/contradictions (feeds A/D/R/Q rows) | ba |
+| Executive Summary | `docs/…/01 - Executive Summary Template.docx` | `doc/decks/` | doc (Phase 2) |
+| Technical Architecture | `docs/…/03 - Technical Architecture Template.docx` | `tl/reviews/` or handoff to doc | tl (Phase 3) |
+| Implementation Plan | `docs/…/05 - Implementation Plan Template.docx` | `doc/decks/` | doc (Phase 2) |
 
 **RAID alignment** — the BA registers map onto the RAID Register's four registers:
 `assumption-register.md` → Assumptions `A-##` · dependencies → Dependencies `D-##` · `contradiction-log.md` / risk notes → Risks `R-##` · `clarification-log.md` → Open Questions `Q-##` (classified: *Must close before estimate · Proceed with assumption · Minor implementation detail · Too uncertain (exclude/T&M) · Future phase*). Scope §7 only references RAID — it never duplicates these.

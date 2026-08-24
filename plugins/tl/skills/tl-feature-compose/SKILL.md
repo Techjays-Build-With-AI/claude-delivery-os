@@ -1,6 +1,6 @@
 ---
 name: tl-feature-compose
-description: Compose a self-contained, buildable per-feature implementation plan (`tl-plan.md`) from the TL context graph and the BA feature breakdown. Use whenever a feature has been planned technically (units exist in `context/frontend|backend|database/`) and needs a single document a developer or coding agent can build from without opening five other files. Point it at one feature folder, a `FEAT-<AREA>-NN` id, an `initiative=<name>` slice, or the whole `context/features/` set; it reads the feature, its owned pages/endpoints/entities, and (when the repo is cloned locally) the target repo's file layout, and writes a 9-section technical spec inlining every endpoint contract, entity column, and page shape. It never restates business rationale (that's in `feature.md`), never invents an endpoint/contract/schema/path the source can't ground, and never composes above Mission Control's 60 KB `implementationDetails` cap.
+description: Compose a self-contained, buildable per-feature implementation plan (`tl-plan.md`) from the TL context graph and the BA feature breakdown. Use whenever a feature has been planned technically (units exist in `context/frontend|backend|database/`) and needs a single document a developer or coding agent can build from without opening five other files. Point it at one feature folder, a `FEAT-<AREA>-NN` id, an `initiative=<name>` slice, or the whole `features/` set; it reads the feature, its owned pages/endpoints/entities, and (when the repo is cloned locally) the target repo's file layout, and writes a 9-section technical spec inlining every endpoint contract, entity column, and page shape. It never restates business rationale (that's in `feature.md`), never invents an endpoint/contract/schema/path the source can't ground, and never composes above Mission Control's 60 KB `implementationDetails` cap.
 ---
 
 # TL Feature Compose (context graph + feature breakdown → buildable per-feature plan)
@@ -15,12 +15,12 @@ This skill **authors context, not code**. It produces the per-feature buildable 
 
 Read the **`delivery-os-conventions`** contract first if it isn't already in context — the workspace layout, frontmatter standard, stable-ID rules, source-citation form, and controlled vocabulary. Your inputs are:
 
-- The feature folder — `context/features/<slug>/feature.md`, `implementation-plan.md` (BA's build-areas, optional context), `workflow.md`, `acceptance-criteria.md`, `dependencies.md`, `open-questions.md`.
-- The feature's **owned unit files** — pages under `context/frontend/pages/`, endpoints under `context/backend/domains/`, entities under `context/database/entities/` — resolved via the three layer indexes and the feature-cell matching rule (`Used by Features` cell can hold multiple ids, comma-separated; match on word boundary).
-- The BA registers the units cite (`data-register.md`, `integration-register.md`, `workflow-register.md`, `business-rule-register.md`) and `shared-context/decision-log.md`.
+- The feature folder — `features/<slug>/feature.md`, `implementation-plan.md` (BA's build-areas, optional context), `workflow.md`, `acceptance-criteria.md`, `dependencies.md`, `open-questions.md`.
+- The feature's **owned unit files** — pages under `<repo>/context/code-context/frontend/pages/`, endpoints under `<repo>/context/code-context/backend/domains/`, entities under `<repo>/context/code-context/database/entities/` — resolved via the three layer indexes and the feature-cell matching rule (`Used by Features` cell can hold multiple ids, comma-separated; match on word boundary).
+- The BA registers the units cite (`ba/registers/data.md`, `ba/registers/integrations.md`, `ba/registers/workflows.md`, `ba/registers/business-rules.md`) and `shared-context/decision-log.md`.
 - The target app repos declared in `.jetrix/cache/repolocation.json` — read the file, and for each repo that exists locally, do a shallow layout scan (top-level + one level down) to establish routing/handler/model conventions. Never read env files, secrets, credentials, or files that look like credentials — treat any file matching `.env*`, `*.pem`, `*.key`, `*credentials*`, `*secret*` as off-limits.
 
-**Output.** For each feature composed, write `context/features/<slug>/tl-plan.md` with the frontmatter:
+**Output.** For each feature composed, write `features/<slug>/tl-plan.md` with the frontmatter:
 
 ```yaml
 ---
@@ -77,7 +77,7 @@ Before writing the file. These are absolute — any violation means the composit
 
 **Rule 3 — No duplication of other tabs.** This document contains ONLY the five subsections above (Build sequence · API endpoints · Database modifications · Frontend UI · Touch points). No Business Goal, no user-flow narrative, no mermaid workflow diagram (Description owns that), no AC list, no NFR list, no Business Rule list, no Test Scenarios, no Dependencies / Assumptions / Open Questions, no Prerequisites section (cross-feature waits live in the Dependencies tab; code-reuse targets live in Touch points). If a fact belongs in another tab, do not restate it here — even briefly.
 
-**Rule 4 — No feature identity in visible content.** Feature id, initiative, slug, and provenance live in the frontmatter and MC task metadata. Never a `# FEAT-…` H1. Never a "Provenance:" line. Never a reference to `feature.md`, `workflow.md`, `acceptance-criteria.md`, `ba-output/*`, `context/*`, or any scope-review filename. The Description and Dependencies tabs (BA-owned) carry any provenance the reader needs.
+**Rule 4 — No feature identity in visible content.** Feature id, initiative, slug, and provenance live in the frontmatter and MC task metadata. Never a `# FEAT-…` H1. Never a "Provenance:" line. Never a reference to `feature.md`, `workflow.md`, `acceptance-criteria.md`, `ba/*`, `context/*`, or any scope-review filename. The Description and Dependencies tabs (BA-owned) carry any provenance the reader needs.
 
 **Rule 5 — Existing schema fields the feature does not write are named in one line, not tabled.** If the feature writes four fields on an existing data object, the Database modifications table contains those four — and only those four. Fields not written are named on a single "Never touched: `<field-a>`, `<field-b>`, `<field-c>`" line. That is the whole allowance.
 
@@ -94,7 +94,7 @@ Before writing the file. These are absolute — any violation means the composit
 **Rule 11 — No invention.** Every endpoint contract, every DB field, every UI surface traces to the context graph or the feature files. When silent, mark the affected step `[HELD · waiting on OQ-<id>]` and name the gap. Do not guess.
 
 ### 7. Write the file + update inputs_hash
-Write `context/features/<slug>/tl-plan.md` with the frontmatter above (`inputs_hash` set to the sha256 computed in step 2). Use CRLF-safe I/O — write with `\n` line endings; the push stage handles CRLF normalisation.
+Write `features/<slug>/tl-plan.md` with the frontmatter above (`inputs_hash` set to the sha256 computed in step 2). Use CRLF-safe I/O — write with `\n` line endings; the push stage handles CRLF normalisation.
 
 Preserve any manual developer edits marked with `<!-- KEEP -->` HTML comment sentinels — read the existing file first, extract fenced regions between `<!-- KEEP -->` and `<!-- /KEEP -->`, and reinsert them at the same section anchor on write. If a KEEP region has no matching anchor in the newly composed body, keep it at the section tail and warn the user.
 
@@ -106,7 +106,7 @@ Return: features composed vs skipped-unchanged (with reason each), the size per 
 
 ## Completion criteria
 
-A feature is composed when: `tl-plan.md` exists at `context/features/<slug>/tl-plan.md` with the correct frontmatter; the file contains exactly the five subsections (Build sequence · API endpoints · Database modifications · Frontend UI · Touch points); the Build sequence has intro paragraph + mermaid (no step table); every endpoint the feature owns has its Execution-order and Refusals tables with one row per distinct response `message`; the Database modifications table lists only the fields this feature writes with a one-line "Never touched" boundary; every UI surface is named by role with its API wiring; every REUSE from the context graph is captured in Touch points (not a separate Prerequisites section); the file is ≤ 60 KB; and none of the Rules 1–11 above are violated.
+A feature is composed when: `tl-plan.md` exists at `features/<slug>/tl-plan.md` with the correct frontmatter; the file contains exactly the five subsections (Build sequence · API endpoints · Database modifications · Frontend UI · Touch points); the Build sequence has intro paragraph + mermaid (no step table); every endpoint the feature owns has its Execution-order and Refusals tables with one row per distinct response `message`; the Database modifications table lists only the fields this feature writes with a one-line "Never touched" boundary; every UI surface is named by role with its API wiring; every REUSE from the context graph is captured in Touch points (not a separate Prerequisites section); the file is ≤ 60 KB; and none of the Rules 1–11 above are violated.
 
 **Path / framework / duplication pre-write scan.** Before writing, verify the document does NOT contain any of these patterns:
 - File-path fragments: `src/`, `app/`, `controllers/`, `routes/`, `models/`, `components/`, `.js`, `.jsx`, `.ts`, `.tsx`, `.py`, `.go`.

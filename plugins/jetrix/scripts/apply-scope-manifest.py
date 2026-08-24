@@ -14,7 +14,7 @@ Two write roots — decided from the relative path shape:
   * `.jetrix/…` paths are Solution-scoped singletons (e.g. `connection-map.md`)
     and land at `<workspace_root>/<rel>`.
   * every other path lands at `<project_root>/<rel>` (BA docs, registers,
-    shared-context, feature-index).
+    shared-context/, features/feature-index.md).
 See scope-mcp/app/tools/scope/pull_manifest.py — the manifest emits the
 `.jetrix/…` prefix for docs tagged `connection-map`, so the plugin never
 has to interpret tags here.
@@ -23,7 +23,7 @@ Usage:
     python apply-scope-manifest.py \
         --staging        /tmp/jetrix-pull-XXXX \
         --workspace-root <workspace> \
-        --project-root   <workspace>/.jetrix/<solution-slug> \
+        --project-root   <workspace>/.jetrix \
         --sync-state     <workspace>/.jetrix/cache/sync-state.json \
         --curl-log       /tmp/curl-log-XXXX \
         --manifest       /tmp/manifest-XXXX.json
@@ -36,7 +36,7 @@ under `project_root` unless it explicitly starts with `.jetrix/`).
 The curl log is a series of `<staged_absolute_path>|<http_code>` lines
 (produced by `-w "%{filename_effective}|%{http_code}\n" --parallel`).
 The manifest file is a JSON object keyed by relative path:
-    { "ba-output/scope.md": { "documentId": "...", "version": 3, "contentHash": "..." }, ... }
+    { "ba/scope.md": { "documentId": "...", "version": 3, "contentHash": "..." }, ... }
 """
 from __future__ import annotations
 
@@ -79,14 +79,18 @@ def _resolve_target(rel_path: str, workspace_root: pathlib.Path, project_root: p
 
 
 def _infer_workspace_root(project_root: pathlib.Path) -> pathlib.Path:
-    """Given `<workspace>/.jetrix/<slug>`, return `<workspace>`.
+    """Given `<workspace>/.jetrix`, return `<workspace>`.
 
-    Callers that don't pass --workspace-root fall back here. If the shape
-    doesn't match (e.g. someone re-purposed --project-root), we return
-    project_root itself — the workspace-root branch simply won't be used
-    for any doc since no rel path will resolve inside it.
+    Callers that don't pass --workspace-root fall back here. Handles both
+    v2 (`project_root == .jetrix`) and legacy v1 (`project_root == .jetrix/<slug>`).
+    If neither shape matches, we return project_root itself — the
+    workspace-root branch simply won't be used for any doc since no rel
+    path will resolve inside it.
     """
+    if project_root.name == ".jetrix":
+        return project_root.parent
     if project_root.parent.name == ".jetrix":
+        # v1 legacy: <workspace>/.jetrix/<slug>
         return project_root.parent.parent
     return project_root
 

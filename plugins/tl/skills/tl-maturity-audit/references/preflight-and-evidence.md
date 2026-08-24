@@ -9,7 +9,7 @@ How the audit decides *how good a review it can give*, where each number comes f
 Run this **first**, read-only. It answers "how good can this review be, and is the baseline in place?"
 
 1. **Detect the stack(s)** from manifests (`stack-bindings.md` detection keys). Multi-language repos: detect all, bind each.
-2. **Check the baseline** — read `qa-output/quality-gates.md` and the active `baseline-profile.md` (workspace override, else the org default). Is every mandatory `BL-##` present **and enforced**? Is `baseline_status: Met`?
+2. **Check the baseline** — read `qa/quality-gates.md` and the active `baseline-profile.md` (workspace override, else the org default). Is every mandatory `BL-##` present **and enforced**? Is `baseline_status: Met`?
 3. **Probe capability** — for each thing the rubric wants to measure, can it be measured *now*? A runtime/SDK present? deps restored? the project's own tool wired? a Tier-1 fallback available?
 4. **Estimate audit coverage** — the share of applicable checks measurable now vs. needing setup.
 

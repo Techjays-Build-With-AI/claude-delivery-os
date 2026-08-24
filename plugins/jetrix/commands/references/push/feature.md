@@ -1,6 +1,6 @@
 ## Stage: `feature` (implemented — uses task-mcp)
 
-Creates ONE MC Task per `context/features/<slug>/` folder. Features are grouped into MC Lists by resolved `list_name` — one Task per feature, one MC List per unique `list_name` value, one `feature_upsert_bundle` call per group (task-mcp's `solution_slug` parameter carries the resolved List name for that batch). First push per Task = POST (create); repush = PUT (update by `jetrix_task_object_id` stored in `feature.md` frontmatter).
+Creates ONE MC Task per `features/<slug>/` folder. Features are grouped into MC Lists by resolved `list_name` — one Task per feature, one MC List per unique `list_name` value, one `feature_upsert_bundle` call per group (task-mcp's `solution_slug` parameter carries the resolved List name for that batch). First push per Task = POST (create); repush = PUT (update by `jetrix_task_object_id` stored in `feature.md` frontmatter).
 
 ### ⚠️ Operating rule for the agent running this stage — NEVER prompt the user mid-push
 
@@ -19,12 +19,12 @@ The only allowed halt is a **prereq failure** (see §1a below) — missing BA fi
 
 ### 1a. Prereq check — do NOT crash on missing files, tell the user what to pull
 
-Before walking, verify `context/features/` exists and has at least one feature folder with a `feature.md`. Two failure modes to handle explicitly:
+Before walking, verify `features/` exists and has at least one feature folder with a `feature.md`. Two failure modes to handle explicitly:
 
-- **`context/features/` doesn't exist** — halt with:
+- **`features/` doesn't exist** — halt with:
   ```
   ✗ /jetrix:push feature requires the BA feature breakdown.
-    This workspace has no context/features/ folder.
+    This workspace has no features/ folder.
     Run one of:
       /ba:features                 (generate the breakdown from local scope)
       /jetrix:pull scope           (pull an existing breakdown from Jetrix)
@@ -34,8 +34,8 @@ Before walking, verify `context/features/` exists and has at least one feature f
   ```
   ✗ /jetrix:push feature: feature '<slug>' is missing required BA files.
     Missing:
-      context/features/<slug>/business-rules.md
-      context/features/<slug>/nfrs.md
+      features/<slug>/business-rules.md
+      features/<slug>/nfrs.md
     Run one of:
       /jetrix:pull scope           (pull all feature folders from Jetrix)
       /jetrix:pull task <ref>      (pull just this feature)
@@ -48,7 +48,7 @@ Only after all prereq checks pass do you walk the folders in step 2.
 
 ### 2. Walk + read + assemble every feature — ONE Bash+Python call
 
-**Do NOT `Read` each feature's files individually.** For 20 features that's 160 `Read` tool round-trips ≈ 5-10 minutes wall-clock. Instead, invoke the plugin's script — it walks `context/features/*/`, reads each folder's `.md` files, applies every transform (`strip_file_paths` + `rewrite_feat_to_task`), resolves `list_name` per feature (fallback chain), detects blocker signals, groups by `list_name`, skips folders whose hash matches sync-state, and emits ONE JSON blob ready to hand to `feature_upsert_bundle`.
+**Do NOT `Read` each feature's files individually.** For 20 features that's 160 `Read` tool round-trips ≈ 5-10 minutes wall-clock. Instead, invoke the plugin's script — it walks `features/*/`, reads each folder's `.md` files, applies every transform (`strip_file_paths` + `rewrite_feat_to_task`), resolves `list_name` per feature (fallback chain), detects blocker signals, groups by `list_name`, skips folders whose hash matches sync-state, and emits ONE JSON blob ready to hand to `feature_upsert_bundle`.
 
 ```bash
 ASSEMBLED="<workspace_root>/.jetrix/cache/.push-features.json"
@@ -224,11 +224,11 @@ rm -f "$RESPONSES"
 ```
 
 The script:
-- Patches `context/features/<slug>/feature.md`'s frontmatter — sets `jetrix_task_id` + `jetrix_task_object_id` for rows whose `action` is `created` or `recreated`. Never re-Reads the file for this (regex-based rewrite).
+- Patches `features/<slug>/feature.md`'s frontmatter — sets `jetrix_task_id` + `jetrix_task_object_id` for rows whose `action` is `created` or `recreated`. Never re-Reads the file for this (regex-based rewrite).
 - Writes per-feature entries under `tasks/<feature_id>` in sync-state with `taskNumber`, `taskObjectId`, `slug`, `contentHash` (from `_local_content_hash`), `version`, `lastPushed`. Merge-safe.
 - Prints per-feature status to stdout — `recorded` / `patched` / `failed`.
 
-### 6. Update `context/features/feature-index.md`
+### 6. Update `features/feature-index.md`
 
 Add/update the `Task ID` column so rows show `TASK-<taskNumber>` next to each feature slug. (This file is scope-stage; push it separately via `/jetrix:push scope` after — sync-state will pick up the change.)
 

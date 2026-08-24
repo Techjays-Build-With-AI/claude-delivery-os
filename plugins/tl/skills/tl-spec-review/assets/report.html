@@ -232,7 +232,7 @@
   </tr></thead><tbody id="findings-body"></tbody></table></div>
 
   <div class="section-label">Open items — respond &amp; export</div>
-  <p class="progress-line" style="margin:4px 0 0">Type a response under each open finding, choose an intent, then <b>Export responses</b> — the page downloads a Markdown file named for this review. Save it in <code>tl-output/</code> and run <code>/tl:resolve</code> on it to have the agent adjudicate and close items.</p>
+  <p class="progress-line" style="margin:4px 0 0">Type a response under each open finding, choose an intent, then <b>Export responses</b> — the page downloads a Markdown file named for this review. Save it in <code>tl/</code> and run <code>/tl:resolve</code> on it to have the agent adjudicate and close items.</p>
   <div id="respond-list"></div>
   <div class="respond-actions">
     <button class="btn primary" id="exportBtn">Export responses</button>
@@ -539,7 +539,7 @@
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     setTimeout(function () { URL.revokeObjectURL(url); }, 1500);
     if (exportNote) exportNote.textContent = answered
-      ? "Downloaded spec-review-" + reviewId + "-responses.md (" + answered + " answered) — save it in tl-output/ and run /tl:resolve on it."
+      ? "Downloaded spec-review-" + reviewId + "-responses.md (" + answered + " answered) — save it in tl/ and run /tl:resolve on it."
       : "Downloaded, but no responses were filled in yet — add some and export again.";
   });
 

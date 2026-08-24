@@ -1,6 +1,6 @@
 ---
 description: Fold human reviewer feedback back into an open PR — re-enter the delivery loop at the review-fixes step, address actionable comments within the retry limits, re-validate against acceptance criteria, and refresh the PR summary. Escalates comments that need a product/architecture/security decision instead of guessing. Never merges or deploys.
-argument-hint: "<FEAT-<AREA>-NN | context/features/<slug>> [feedback=<path-to-review-comments> | pr=<link>]"
+argument-hint: "<FEAT-<AREA>-NN | features/<slug>> [feedback=<path-to-review-comments> | pr=<link>]"
 ---
 
 # /dev:fix-review

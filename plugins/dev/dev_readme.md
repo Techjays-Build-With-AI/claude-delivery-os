@@ -6,8 +6,8 @@ The **Developer Agent** takes an approved, TL-planned feature and **builds it** 
 |---|---|
 | **Namespace** | `/dev:` |
 | **Commands** | `/dev:bootstrap [spec]` · `/dev:build <feature>` · `/dev:validate <feature>` · `/dev:fix-review <feature> feedback=<...>` · `/dev:pr <feature>` |
-| **Input** | The BA feature breakdown (`context/features/<slug>/`), the TL context graph (`context/frontend|backend|database`), and the product repository |
-| **Output** | Working code on `feature/FEAT-<AREA>-NN-<slug>`, the `dev/` context files per feature, `dev-output/feature-tracker.md`, and a `dev/pr-summary.md` review handoff |
+| **Input** | The BA feature breakdown (`features/<slug>/`), the TL context graph (`context/frontend|backend|database`), and the product repository |
+| **Output** | Working code on `feature/FEAT-<AREA>-NN-<slug>`, the `dev/` context files per feature, `features/tracker.md`, and a `dev/pr-summary.md` review handoff |
 | **Skills** | `feature-delivery-loop` · `dev-validation` · `dev-code-review` · `dev-pr-handoff` |
 
 ---
@@ -27,7 +27,7 @@ Select feature (or next READY_FOR_DEV) → acquire lock
 → Hand off for HUMAN_REVIEW   (never merges or deploys)
 ```
 
-Each feature moves through an explicit **state model** — `BACKLOG → READY_FOR_DEV → IN_PLANNING → BLOCKED → IN_DEVELOPMENT → TESTING → REVIEW_FIXES → READY_FOR_PR → HUMAN_REVIEW → APPROVED → MERGED → RELEASED`. The fine-grained state lives in each feature's `dev/delivery-status.md`; it is mirrored into the BA `status.md`/`feature-index.md` using the shared vocabulary, and rolled up into `dev-output/feature-tracker.md`.
+Each feature moves through an explicit **state model** — `BACKLOG → READY_FOR_DEV → IN_PLANNING → BLOCKED → IN_DEVELOPMENT → TESTING → REVIEW_FIXES → READY_FOR_PR → HUMAN_REVIEW → APPROVED → MERGED → RELEASED`. The fine-grained state lives in each feature's `dev/delivery-status.md`; it is mirrored into the BA `status.md`/`feature-index.md` using the shared vocabulary, and rolled up into `features/tracker.md`.
 
 | State | Meaning | Owner |
 |---|---|---|
@@ -71,7 +71,7 @@ If the **tl plugin isn't installed**, bootstrap blocks and asks you to run `/tl:
 | `/dev:fix-review <feature> feedback=<path\|PR>` | Folds reviewer comments back in, re-validates, refreshes the PR summary | `HUMAN_REVIEW` (or `BLOCKED`) |
 | `/dev:pr <feature>` | Verifies completion criteria and writes the PR handoff | `HUMAN_REVIEW` |
 
-`<feature>` is a `FEAT-<AREA>-NN` id, a `context/features/<slug>/` folder, or a slug. `/dev:build` with no target picks the next feature at `READY_FOR_DEV`.
+`<feature>` is a `FEAT-<AREA>-NN` id, a `features/<slug>/` folder, or a slug. `/dev:build` with no target picks the next feature at `READY_FOR_DEV`.
 
 ---
 
@@ -90,7 +90,7 @@ Alongside the BA's seven files, under a `dev/` subfolder so nothing collides:
 | `dev/pr-summary.md` | The review-ready PR handoff |
 | `dev/escalation-<n>.md` | A structured blocker note when the feature goes `BLOCKED` |
 
-Plus the cross-feature `dev-output/feature-tracker.md`.
+Plus the cross-feature `features/tracker.md`.
 
 ---
 
@@ -139,7 +139,7 @@ The agent acquires the lock, reads the seven BA files and the TL units, and vali
 > **Recommended** — Option 1, if the internal service exists.
 > **Can continue in parallel** — front-end form, draft supplier creation, admin approval workflow.
 
-The feature goes `BLOCKED`, mirrored to `In Development → Blocked` in `feature-index.md`, with the row and next action in `dev-output/feature-tracker.md`. The headline it returns leads with the decision you need to make.
+The feature goes `BLOCKED`, mirrored to `In Development → Blocked` in `feature-index.md`, with the row and next action in `features/tracker.md`. The headline it returns leads with the decision you need to make.
 
 You answer *"use the internal compliance service, duplicate = same tax ID in the same country"*. You re-run `/dev:build FEAT-SUP-001`; the agent folds the decision in (`DEC-###`), clears the blocker, wires the duplicate check, and finishes the loop — validation green, every acceptance criterion mapped to evidence in `dev/acceptance-map.md`, a self-review + security pass, and `dev/pr-summary.md` written. The feature lands at `HUMAN_REVIEW` on branch `feature/FEAT-SUP-001-supplier-onboarding`, ready for you to review and merge. It never merges or deploys.
 
@@ -147,7 +147,7 @@ You answer *"use the internal compliance service, duplicate = same tax ID in the
 
 ## How it fits Delivery OS
 
-The dev agent is a **consumer** in the Delivery OS contract: it reads the BA feature folders, the TL `context/frontend|backend|database` graph, `shared-context/`, and the BA registers, and never re-runs BA discovery or TL planning. It writes `produced_by: dev` files under each feature's `dev/` folder and `dev-output/`, mirrors feature state into the BA `feature-index.md`/`status.md` using the shared vocabulary, and appends its `DEC-###` decisions to the shared `decision-log.md`. See the shared [`delivery-os-conventions`](../delivery-os-core/skills/delivery-os-conventions/SKILL.md) skill for the full document contract.
+The dev agent is a **consumer** in the Delivery OS contract: it reads the BA feature folders, the TL `context/frontend|backend|database` graph, `shared-context/`, and the BA registers, and never re-runs BA discovery or TL planning. It writes `produced_by: dev` files under each feature's `dev/` folder and `dev/`, mirrors feature state into the BA `feature-index.md`/`status.md` using the shared vocabulary, and appends its `DEC-###` decisions to the shared `decision-log.md`. See the shared [`delivery-os-conventions`](../delivery-os-core/skills/delivery-os-conventions/SKILL.md) skill for the full document contract.
 
 ---
 

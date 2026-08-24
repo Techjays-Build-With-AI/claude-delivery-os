@@ -8,7 +8,7 @@ The north star: **the unit files you write from code must be indistinguishable i
 
 ## 0. Where the output goes
 
-`<repo>/context/code-context/` — a `context/` folder at the root of the mapped repository, with `code-context/` inside it, committed with the code. Not the workspace, and **not** inside `.jetrix/` — that folder is gitignored, so a tree written there would never reach a teammate's clone. When several repos are mapped from one workspace, each gets its own tree, and `<workspace>/.jetrix/<project-name>/context/code-map-registry.md` points at all of them. Two consequences for extraction:
+`<repo>/context/code-context/` — a `context/` folder at the root of the mapped repository, with `code-context/` inside it, committed with the code. Not the workspace, and **not** inside `.jetrix/` — that folder is gitignored, so a tree written there would never reach a teammate's clone. When several repos are mapped from one workspace, each gets its own tree, and `<workspace>/.jetrix/<project-name>/tl/code-map-registry.md` points at all of them. Two consequences for extraction:
 
 - **A repo is mapped as a whole system in its own right.** Its `code-context-index.md` says what the repo is and which layers it has; a backend-only repo says "frontend lives in `<other-repo>`" rather than leaving the layer silently absent.
 - **The tree will be read in review.** Write for a human reviewer as well as an agent — and never write a secret, connection string, credential, or customer data row into it.
@@ -96,7 +96,7 @@ Record the table it fires on, the **timing and events** (`BEFORE/AFTER INSERT/UP
 Every database object file carries one. It answers *why the business has this object*: what it means, what depends on it, what invariant it protects, what it is **not** for. Derive it from how the object is used across endpoints, procedures and triggers — a table read by one endpoint and written by a nightly job is a different animal from one on every request path. This is interpretation, so keep it grounded: if you can't ground a claim in a call site or a constraint, don't make it.
 
 ### DATA-### linkage
-If the workspace has a BA `data-register.md`, link the `DATA-###` the object realises. Brownfield-only projects usually have none — that's fine and expected; write `—` and note why. Views, procedures, functions and triggers rarely have a business-register counterpart.
+If the workspace has a BA `ba/registers/data.md`, link the `DATA-###` the object realises. Brownfield-only projects usually have none — that's fine and expected; write `—` and note why. Views, procedures, functions and triggers rarely have a business-register counterpart.
 
 ---
 

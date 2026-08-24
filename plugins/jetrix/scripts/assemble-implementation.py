@@ -1,4 +1,4 @@
-"""Assemble `feature_update_implementation` payloads from `context/features/*/tl-plan.md`.
+"""Assemble `feature_update_implementation` payloads from `features/*/tl-plan.md`.
 
 Invoked by `/jetrix:push implementation` (see plugins/jetrix/commands/references/push/implementation.md)
 before the MCP call. Walks feature folders, extracts feature_id + task_object_id
@@ -96,13 +96,13 @@ def main() -> int:
     project_root    = pathlib.Path(args.project_root).resolve()
     sync_state_path = pathlib.Path(args.sync_state).resolve()
 
-    features_root = project_root / "context" / "features"
+    features_root = project_root / "features"
     if not features_root.exists():
         pathlib.Path(args.output).write_text(json.dumps({
             "features": [], "skipped": [], "warnings": [],
-            "halts": [{"reason": "context/features/ missing"}],
+            "halts": [{"reason": "features/ missing"}],
         }, indent=2), encoding="utf-8")
-        print("no context/features/")
+        print("no features/")
         return 0
 
     sync_state = {}

@@ -9,7 +9,7 @@ You make a **greenfield** workspace build-ready. The dev loop can't implement in
 
 ## 1. Parse arguments
 
-`$ARGUMENTS` may contain an optional **architecture / tech-spec** source and an optional **`repo=`** target for the scaffolded code. Both are optional — the scaffold reads `context/project/` + `shared-context/` if no spec is given, and asks (with a recommendation) for a repo target if none is passed.
+`$ARGUMENTS` may contain an optional **architecture / tech-spec** source and an optional **`repo=`** target for the scaffolded code. Both are optional — the scaffold reads `shared-context/` + `shared-context/` if no spec is given, and asks (with a recommendation) for a repo target if none is passed.
 
 ## 2. Delegate
 
@@ -17,7 +17,7 @@ Invoke the **dev-agent** subagent. Pass it this instruction:
 
 > Bootstrap this workspace for development. First **detect the repository state**: is there a usable product repo (an app skeleton, package-manager files, runnable lint/test/build, a green base build)? 
 > - **Brownfield (repo already usable)** — nothing to scaffold. Report the repo location and that it's build-ready, and tell the user to run `/dev:build <feature>`. Stop.
-> - **Project-zero (no repo / no usable base)** — scaffold one by delegating to the TL `tl-project-scaffold` skill (the same work `/tl:scaffold` does): read the architecture / `context/project/` + `shared-context/` and the context graph, extract the confirmed stack, **ask the user with a recommendation for any required stack decision the architecture doesn't pin down** (never guess a critical one), scaffold the skeleton + lint/format/type/test/build tooling + `.gitignore` + README, write `context/project/{technology-stack.md, architecture.md, coding-standards.md}`, log each stack decision as `DEC-###`, and run `install → lint → type-check → test → build` to confirm a **green base**. If the TL scaffold skill/plugin isn't available, stop and tell the user to run `/tl:scaffold` (or install the tl plugin) — do not scaffold with a guessed stack.
+> - **Project-zero (no repo / no usable base)** — scaffold one by delegating to the TL `tl-project-scaffold` skill (the same work `/tl:scaffold` does): read the architecture / `shared-context/` + `shared-context/` and the context graph, extract the confirmed stack, **ask the user with a recommendation for any required stack decision the architecture doesn't pin down** (never guess a critical one), scaffold the skeleton + lint/format/type/test/build tooling + `.gitignore` + README, write `shared-context/{technology-stack.md, architecture.md, coding-standards.md}`, log each stack decision as `DEC-###`, and run `install → lint → type-check → test → build` to confirm a **green base**. If the TL scaffold skill/plugin isn't available, stop and tell the user to run `/tl:scaffold` (or install the tl plugin) — do not scaffold with a guessed stack.
 > - **Re-verify** the base build is green after scaffolding.
 >
 > Architecture source: `<source or context/project>` · Repo target: `<repo or ask>`

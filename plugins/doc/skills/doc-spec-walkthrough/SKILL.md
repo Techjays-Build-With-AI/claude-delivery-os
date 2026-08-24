@@ -59,7 +59,7 @@ an email attachment with the network unplugged.
   required).
 - **The source is the spec.** Draft every state, module, workflow step, command,
   and example from the supplied document (a `.md`, `.docx`, `.pdf`, or pasted
-  text) or, when a Delivery OS workspace exists, from `ba-output/scope.md` and
+  text) or, when a Delivery OS workspace exists, from `ba/scope.md` and
   `shared-context/`. Use the spec's real names, IDs, and numbers. **Never
   fabricate.** If the spec states a fact, use it verbatim; if a number or detail
   the page needs is absent, mark it `[[NEEDS: …]]` and list it back to the user.
@@ -73,8 +73,8 @@ an email attachment with the network unplugged.
   branch labels and decision points so the page and the scope stay 1:1.
 - **Do not invent metrics or outcomes.** This page explains what the spec says.
   Where the spec has no KPI, omit the KPI strip rather than inventing figures.
-- **Write the output to `doc-output/`** (create it on first use), timestamped so
-  runs never collide: `doc-output/walkthrough-<topic>-<timestamp>.html`. If
+- **Write the output to `doc/`** (create it on first use), timestamped so
+  runs never collide: `doc/walkthroughs/walkthrough-<topic>-<timestamp>.html`. If
   there's no workspace, write beside the working directory and note it.
 - **Encoding:** Save the HTML as **UTF-8 (no BOM)**; don't route it through a
   shell/editor that re-encodes it — non-ASCII glyphs (§, ×, →, …) double-encode
@@ -115,7 +115,7 @@ down (even as a scratch outline) so the page is faithful:
    captured as `[[NEEDS: …]]`.
 
 If the user passed a document, extract all of the above from it. If a Delivery
-OS workspace exists, prefer `ba-output/scope.md` (modules, workflows) and
+OS workspace exists, prefer `ba/scope.md` (modules, workflows) and
 `shared-context/`. Ask the user only for what you truly cannot infer (usually
 just: which lifecycle is the spine, or confirmation of the title).
 
@@ -142,10 +142,10 @@ no CDN calls, no webfonts.
 
 ### File naming convention
 
-Write to `doc-output/` (create it if absent):
-`doc-output/walkthrough-<topic>-<DDMonYYYY>.html`
+Write to `doc/` (create it if absent):
+`doc/walkthroughs/walkthrough-<topic>-<DDMonYYYY>.html`
 
-Example: `doc-output/walkthrough-jetrix-14Jul2026.html`
+Example: `doc/walkthroughs/walkthrough-jetrix-14Jul2026.html`
 
 ---
 

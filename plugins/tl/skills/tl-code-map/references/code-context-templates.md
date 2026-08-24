@@ -106,7 +106,7 @@ Mapped from commit `a1b2c3d` on YYYY-MM-DD. Re-run `/tl:code-map` after signific
 
 ## Boundaries
 This describes what the code **does**, not what the product **should** do. Business
-requirements live in the Delivery OS workspace (`ba-output/`), not here.
+requirements live in the Delivery OS workspace (`ba/`), not here.
 ```
 
 ### 2.b `code-context/code-context-index.md` — the root hop
@@ -157,7 +157,7 @@ Confidence: 71% Confirmed, 22% Likely, 7% Assumed.
 
 ## Cross-repo
 This repo's endpoints are consumed by `acme-web`. Resolve cross-repo links through
-the workspace registry: `<workspace>/.jetrix/<project-name>/context/code-map-registry.md`.
+the workspace registry: `<workspace>/.jetrix/<project-name>/tl/code-map-registry.md`.
 ```
 
 ### 2.c `<layer>/_overview.md` — one per layer
@@ -549,7 +549,7 @@ Called by page(s) — see *Called by*.
 | outbox_events | Table | Direct Query | W | same transaction as the invoice | ../../../../database/tables/outbox-events.md (ENT-CORE-04) | Confirmed |
 | invoice_lines (via trg_invoice_line_recalc) | Trigger | Trigger | — | fires on the line insert | ../../../../database/triggers/trg-invoice-line-recalc.md (ENT-BIL-15) | Confirmed |
 
-<!-- File paths: this file is code-context/backend/domains/<domain>/endpoints/<slug>.md
+<!-- File paths: this file is code-<repo>/context/code-context/backend/domains/<domain>/endpoints/<slug>.md
      → four levels up reaches code-context/.
      Indirect rows (Mode `—`) matter: a reader tracing "what writes audit_log" must find this
      endpoint even though its own code never names the table. -->
@@ -670,7 +670,7 @@ status at a glance, and act on it (activate, deactivate, open detail).
 
 ## Consumes Endpoints
 <!-- Same-repo endpoints are relative paths — this file is
-     code-context/frontend/pages/<area>/<slug>.md → three levels up to code-context/, e.g.
+     code-<repo>/context/code-context/frontend/pages/<area>/<slug>.md → three levels up to code-context/, e.g.
        - GET /accounts — ../../../backend/domains/account/endpoints/list-accounts.md (EP-ACC-01)
      This page lives in acme-web and its endpoints live in acme-api, so both use the
      [repo:<key>] form, resolved through the registry (§8). -->
@@ -785,7 +785,7 @@ immutable once `status = 'Issued'` (corrections are credit notes, never edits).
 
 ## Used by Endpoints
 <!-- Forward planning's heading, kept verbatim. This file is
-     code-context/database/<kind>/<slug>.md → two levels up reaches code-context/. -->
+     code-<repo>/context/code-context/database/<kind>/<slug>.md → two levels up reaches code-context/. -->
 - EP-BIL-03 POST /accounts/{id}/invoices (RW) — ../../backend/domains/billing/endpoints/generate-invoice.md
 - EP-BIL-05 GET /accounts/{id}/invoices (R) — ../../backend/domains/billing/endpoints/list-invoices.md
 - EP-BIL-14 (Schedule) nightly-invoice-run (W) — ../../backend/domains/billing/endpoints/nightly-invoice-run.md
@@ -961,7 +961,7 @@ generated_at: YYYY-MM-DD
 
 ---
 
-## 8. Workspace registry — `<workspace>/.jetrix/<project-name>/context/code-map-registry.md`
+## 8. Workspace registry — `<workspace>/.jetrix/<project-name>/tl/code-map-registry.md`
 
 Each repo owns its full `code-context/`. The workspace owns one small file that says which repos exist, where their context is, and what they cover — so `/tl:plan` can find and **reuse** as-built units instead of duplicating them, and so a page in one repo can link to an endpoint in another.
 
@@ -988,8 +988,8 @@ new unit, `/tl:plan` resolves match keys through these indexes.
 ## Indexes
 | Repo key | Root | Backend | Frontend | Database |
 |---|---|---|---|---|
-| acme-api | code-context/code-context-index.md | code-context/backend/backend-index.md | — | code-context/database/database-index.md |
-| acme-web | code-context/code-context-index.md | — | code-context/frontend/frontend-index.md | — |
+| acme-api | code-context/code-context-index.md | code-<repo>/context/code-context/backend/backend-index.md | — | code-<repo>/context/code-context/database/database-index.md |
+| acme-web | code-context/code-context-index.md | — | code-<repo>/context/code-context/frontend/frontend-index.md | — |
 
 ## Cross-repo links
 Within a repo, links are relative paths. Across repos, prefix the repo key and give the

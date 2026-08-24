@@ -77,7 +77,7 @@ The inline block carries the same facts a good escalation note carries (§5); th
 
 ### State → BA/index vocabulary mapping
 
-`context/features/feature-index.md` and each feature's `status.md` use the BA controlled values (`Proposed · Ready for Planning · In Development · In QA · UAT · Released · Blocked`). Keep the fine-grained loop state in `dev/delivery-status.md` and **mirror** it into the BA files using this mapping, so the index the whole team reads stays accurate without inventing new vocabulary:
+`features/feature-index.md` and each feature's `status.md` use the BA controlled values (`Proposed · Ready for Planning · In Development · In QA · UAT · Released · Blocked`). Keep the fine-grained loop state in `dev/delivery-status.md` and **mirror** it into the BA files using this mapping, so the index the whole team reads stays accurate without inventing new vocabulary:
 
 | Dev loop state | BA status.md / feature-index value |
 |---|---|

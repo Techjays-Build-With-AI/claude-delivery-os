@@ -8,7 +8,7 @@ Slugs are **lowercase kebab-case**. IDs are stable and append-only: `PAGE-<AREA>
 
 ## _overview.md (one per layer)
 
-`context/frontend/_overview.md`, `context/backend/_overview.md`, `context/database/_overview.md` — a short orientation doc at the head of each layer folder so a reader (or a coding agent) landing in the layer sees its stack and conventions **once**, and every unit file below stays lean instead of repeating them. Written by `tl-code-map` from the detected stack (reverse) or by `tl-feature-planning` from the confirmed architecture (forward); it holds no per-unit facts and never duplicates a unit.
+`<repo>/context/code-context/frontend/_overview.md`, `<repo>/context/code-context/backend/_overview.md`, `<repo>/context/code-context/database/_overview.md` — a short orientation doc at the head of each layer folder so a reader (or a coding agent) landing in the layer sees its stack and conventions **once**, and every unit file below stays lean instead of repeating them. Written by `tl-code-map` from the detected stack (reverse) or by `tl-feature-planning` from the confirmed architecture (forward); it holds no per-unit facts and never duplicates a unit.
 
 ```md
 ---
@@ -39,7 +39,7 @@ Anything a unit file would otherwise have to restate — recorded here instead.
 
 ## page-index.md
 
-`context/frontend/page-index.md` — the map of all pages. One row per page. On re-runs update in place; keep retired pages visible with a status.
+`<repo>/context/code-context/frontend/page-index.md` — the map of all pages. One row per page. On re-runs update in place; keep retired pages visible with a status.
 
 ```md
 ---
@@ -65,7 +65,7 @@ generated_at: YYYY-MM-DD
 
 ## endpoint-index.md
 
-`context/backend/endpoint-index.md` — the map of all endpoints.
+`<repo>/context/code-context/backend/endpoint-index.md` — the map of all endpoints.
 
 ```md
 ---
@@ -91,7 +91,7 @@ generated_at: YYYY-MM-DD
 
 ## entity-index.md
 
-`context/database/entity-index.md` — the map of all data entities.
+`<repo>/context/code-context/database/entity-index.md` — the map of all data entities.
 
 ```md
 ---
@@ -166,7 +166,7 @@ Show a single supplier's profile, contacts, documents, and approval status; the 
 - Approved / Rejected (with reason)
 
 ## Consumes Endpoints
-<!-- this file is context/frontend/pages/<area>/<slug>.md → three levels up to context/ -->
+<!-- this file is <repo>/context/code-context/frontend/pages/<area>/<slug>.md → three levels up to context/ -->
 - GET supplier — ../../../backend/domains/supplier/endpoints/get-supplier.md (EP-SUP-03)
 - Update supplier — ../../../backend/domains/supplier/endpoints/update-supplier.md (EP-SUP-04)
 - Upload document — ../../../backend/domains/supplier/endpoints/upload-supplier-document.md (EP-SUP-05)
@@ -248,7 +248,7 @@ Requires `supplier.create`. | Confidence: Assumed — auth model not yet confirm
 - Writes an audit entry.
 
 ## Called by
-<!-- this file is context/backend/domains/<domain>/endpoints/<slug>.md → four levels up to context/ -->
+<!-- this file is <repo>/context/code-context/backend/domains/<domain>/endpoints/<slug>.md → four levels up to context/ -->
 - PAGE-SUP-02 Create Supplier — ../../../../frontend/pages/supplier/create-supplier.md
 
 ## Reads / Writes Entities
@@ -297,7 +297,7 @@ Proposed | Designed | In Development | Released | Blocked
 Table | Collection | View | Stored Procedure | Function | Trigger
 
 ## Source Data Entity
-DATA-004 (ba-output/data-register.md) — the business entity this realises. `—` if none; note why.
+DATA-004 (ba/registers/data.md) — the business entity this realises. `—` if none; note why.
 
 ## Purpose
 Stores the core supplier profile and its lifecycle status.
@@ -323,7 +323,7 @@ Stores the core supplier profile and its lifecycle status.
 - 1—N supplier_status_history (ENT-SUP-04)
 
 ## Used by Endpoints
-<!-- this file is context/database/entities/<slug>.md → two levels up to context/ -->
+<!-- this file is <repo>/context/code-context/database/entities/<slug>.md → two levels up to context/ -->
 - EP-SUP-01 GET /suppliers — ../../backend/domains/supplier/endpoints/list-suppliers.md
 - EP-SUP-02 POST /suppliers — ../../backend/domains/supplier/endpoints/create-supplier.md
 - EP-SUP-03 GET /suppliers/{id} — ../../backend/domains/supplier/endpoints/get-supplier.md

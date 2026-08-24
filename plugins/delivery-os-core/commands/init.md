@@ -1,95 +1,131 @@
 ---
-description: Scaffold the Delivery-OS output workspace inside `.jetrix/<name>/`. Folder name comes from `.jetrix/project.json` (Solution slug) if `/jetrix:init` has run; otherwise pass a `<name>` argument. Creates `.jetrix/<name>/` with `ba-output/`, `artifacts/`, `context/`, `shared-context/` (with seeded templates), `tl-output/`, `qa-output/`, `dev-output/`, `doc-output/`. Entire `.jetrix/` is gitignored — this is the local working copy that syncs with Jetrix via `/jetrix:push` and `/jetrix:pull`. Does NOT touch Jetrix.
-argument-hint: "[<name>]"
+description: Scaffold the Delivery-OS working tree at `.jetrix/` root — role folders (ba/ tl/ qa/ dev/ doc/), shared-context/ (seeded), features/ (empty), tasks/ (empty). No <slug>/ wrapper. Entire `.jetrix/` is gitignored. Idempotent — never clobbers existing files. Requires `.jetrix/` to already exist (via `/jetrix:init`).
+argument-hint: ""
 ---
 
 # /delivery-os:init
 
-Scaffold the Delivery-OS project workspace at `<workspace>/.jetrix/<name>/`. Nested inside `.jetrix/` — the entire `.jetrix/` folder is gitignored (via `/jetrix:init`), so nothing this command creates lands in the workspace repo. Sync back to Jetrix via `/jetrix:push`; hydrate from Jetrix via `/jetrix:pull`.
+Scaffold the Delivery-OS working tree at `<workspace>/.jetrix/`. Nested inside `.jetrix/` — the entire folder is gitignored (via `/jetrix:init`). Sync back to Jetrix via `/jetrix:push`; hydrate from Jetrix via `/jetrix:pull`.
+
+**Layout — v2.0 (role-centric, no `<slug>/` wrapper):**
 
 ```
 <workspace>/
-└── .jetrix/                    ← gitignored
+└── .jetrix/                    ← gitignored (whole folder)
     ├── project.json            (from /jetrix:init)
-    ├── cache/                  (from /jetrix:init)
-    └── <name>/                 ← this command creates this
-        ├── ba-output/
-        ├── artifacts/
-        ├── context/
-        ├── shared-context/
-        ├── tl-output/
-        ├── qa-output/
-        ├── dev-output/
-        └── doc-output/
+    ├── connection-map.md       (from /jetrix:init if the portal built one)
+    ├── cache/                  (from /jetrix:init — repolocation, sync-state)
+    │
+    ├── shared-context/                 ← cross-role context (seeded)
+    ├── ba/                     ← Business Analyst outputs
+    ├── features/               ← Feature bundles (BA authors, TL enriches, Dev delivers)
+    ├── tl/                     ← Tech Lead outputs (reviews, maturity, code-map registry)
+    ├── qa/                     ← QA outputs (gates, audits, health)
+    ├── doc/                    ← Documentation deliverables
+    └── tasks/                  ← Non-feature MC tasks
 ```
+
+The per-feature `dev/` sub-tree lives under `features/<slug>/dev/` (owned by the feature). There is **no** top-level `dev/` folder — dev has one workspace-level file, `features/tracker.md`, and everything else is per-feature.
 
 Read the `delivery-os-conventions` skill first if it's not already in context.
 
-## 1. Resolve the container name
+## 1. Precheck — .jetrix/ must exist
 
-The name for the new folder comes from one of these, in order:
+`<cwd>/.jetrix/` must already exist (`/jetrix:init` writes it with `project.json` + `cache/`). If missing → stop with `Run /jetrix:init first — this command scaffolds the working tree INSIDE .jetrix/, but does not create .jetrix/ itself.`
 
-1. **`.jetrix/project.json` exists** (workspace already bound via `/jetrix:init`) → use `solutionSlug` from that file. **No argument needed.** This is the standard path.
-2. **`$ARGUMENTS` provided** → use it as the name (kebab-case recommended). Standalone / no-Jetrix mode.
-3. **Neither** → ask the teammate for a name. Do NOT scaffold into cwd itself (that pollutes the parent).
+## 2. Rerun handling
 
-## 2. Resolve target path
-
-`<target>` = `<cwd>/.jetrix/<name>/`. Ensure `<cwd>/.jetrix/` already exists (created by `/jetrix:init`); if missing, tell the teammate to run `/jetrix:init` first — this command does NOT create `.jetrix/` on its own.
-
-**Rerun handling:**
-
-- If `<target>/` exists AND contains a `ba-output/` folder or seeded `shared-context/*.md` → treat as an existing Delivery-OS container. Fill in only missing pieces; never clobber existing files.
-- If `<target>/` exists but has NO Delivery-OS markers → report *"Folder `<name>` already exists but doesn't look like a Delivery-OS workspace. Continue anyway? [y/n]"*.
+If the workspace has already been scaffolded (`.jetrix/ba/` or `.jetrix/shared-context/decision-log.md` exists) → treat as an existing Delivery-OS workspace. **Fill in only missing pieces; never clobber existing files.** The seeded templates in `shared-context/` are copied only when the destination file is absent.
 
 ## 3. Create the folder tree
 
-Under `<target>/`, create (all idempotent — never overwrite existing files):
+Under `<cwd>/.jetrix/`, create (all idempotent — never overwrite existing files):
 
 ```
-<target>/
-├── ba-output/                          (empty; .gitkeep)
-├── artifacts/                          (empty; .gitkeep)
-├── context/
-│   ├── features/                       (empty; .gitkeep)
-│   ├── frontend/pages/                 (empty; .gitkeep)
-│   ├── backend/domains/                (empty; .gitkeep)
-│   ├── database/entities/              (empty; .gitkeep)
-│   └── project/                        (empty; .gitkeep)
+.jetrix/
+├── README.md                          (seeded — the map, "what lives where")
+│
 ├── shared-context/
-│   ├── project-profile.md              (seeded)
-│   ├── glossary.md                     (seeded)
-│   ├── stakeholder-map.md              (seeded)
-│   ├── system-landscape.md             (seeded)
-│   └── decision-log.md                 (seeded)
-├── tl-output/                          (empty; .gitkeep)
-├── qa-output/                          (empty; .gitkeep)
-├── dev-output/                         (empty; .gitkeep)
-└── doc-output/                         (empty; .gitkeep)
+│   ├── project-profile.md             (seeded from template)
+│   ├── glossary.md                    (seeded)
+│   ├── stakeholder-map.md             (seeded)
+│   ├── system-landscape.md            (seeded)
+│   ├── decision-log.md                (seeded — append-only DEC-###)
+│   └── baseline-profile.md            (seeded — optional QA baseline override)
+│
+├── ba/
+│   ├── intake.index.md                (seeded)
+│   ├── scope.md                       (empty; .gitkeep)
+│   ├── client-questions.md            (empty; .gitkeep)
+│   ├── artifacts/                     (empty; .gitkeep — raw intake by category)
+│   ├── registers/                     (empty; .gitkeep — 8 canonical registers)
+│   ├── logs/                          (empty; .gitkeep — 4 canonical logs)
+│   ├── intake-runs/                   (empty; .gitkeep)
+│   └── reviews/                       (empty; .gitkeep)
+│
+├── features/                          (empty; .gitkeep — per-feature bundles land here)
+│
+├── tl/
+│   ├── code-map-registry.md           (empty; .gitkeep — feature ↔ app-repo map)
+│   ├── reviews/                       (empty; .gitkeep)
+│   └── maturity/                      (empty; .gitkeep)
+│
+├── qa/
+│   ├── quality-gates.md               (empty; .gitkeep — the harness contract)
+│   ├── audits/                        (empty; .gitkeep)
+│   ├── health/                        (empty; .gitkeep)
+│   └── escalations/                   (empty; .gitkeep)
+│
+├── doc/
+│   ├── decks/                         (empty; .gitkeep — pptx)
+│   ├── walkthroughs/                  (empty; .gitkeep — html)
+│   ├── workflows/                     (empty; .gitkeep — html)
+│   └── boards/                        (empty; .gitkeep — html)
+│
+└── tasks/                             (empty; .gitkeep — non-feature MC tasks)
 ```
 
-Seed `shared-context/` templates from `${CLAUDE_PLUGIN_ROOT}/templates/shared-context/`. Stamp `generated_at: <today>` and `status: Draft` on each. Skip files that already exist.
+Seed templates from `${CLAUDE_PLUGIN_ROOT}/templates/` (relative to the `delivery-os-core` plugin root):
+
+| Target                                    | Template                                    |
+|-------------------------------------------|---------------------------------------------|
+| `.jetrix/README.md`                       | `templates/workspace-readme.md`             |
+| `.jetrix/shared-context/project-profile.md`       | `templates/shared-context/project-profile.md`       |
+| `.jetrix/shared-context/glossary.md`              | `templates/shared-context/glossary.md`              |
+| `.jetrix/shared-context/stakeholder-map.md`       | `templates/shared-context/stakeholder-map.md`       |
+| `.jetrix/shared-context/system-landscape.md`      | `templates/shared-context/system-landscape.md`      |
+| `.jetrix/shared-context/decision-log.md`          | `templates/shared-context/decision-log.md`          |
+| `.jetrix/shared-context/baseline-profile.md`      | `templates/baseline-profile.md`             |
+| `.jetrix/ba/intake.index.md`              | `templates/intake.index.md`                 |
+
+Stamp `generated_at: <today>` and `status: Draft` on each seeded doc where the frontmatter has those fields. **Skip files that already exist** — never overwrite the teammate's work.
+
+(v2.0 note — `shared-context/` keeps its name; only `-output`-suffixed role folders were renamed, and the workspace `<slug>/` wrapper was dropped.)
 
 ## 4. Report
 
-Print the tree that now exists. Note that original source files are never moved or copied — Delivery-OS only indexes and summarizes them. Give the next step:
+Print the tree that now exists (only new folders/files; skip ones that already existed). Give the next step:
 
 ```
-✓ Delivery-OS workspace scaffolded.
+✓ Delivery-OS workspace scaffolded (v2.0 layout).
 
-Container:  ./.jetrix/<name>/   (gitignored — local working copy)
+Location:  ./.jetrix/   (gitignored — local working copy)
 
 Layout:
-  .jetrix/<name>/ba-output/, artifacts/, context/, shared-context/ (5 seeded templates),
-                 tl-output/, qa-output/, dev-output/, doc-output/
+  .jetrix/shared-context/         (5 seeded templates + baseline-profile)
+  .jetrix/ba/             (intake.index seeded; registers/ logs/ reviews/ artifacts/ intake-runs/)
+  .jetrix/features/       (empty — per-feature bundles created by /ba:features)
+  .jetrix/tl/             (reviews/ maturity/ code-map-registry.md)
+  .jetrix/qa/             (audits/ health/ escalations/ + quality-gates placeholder)
+  .jetrix/doc/            (decks/ walkthroughs/ workflows/ boards/)
+  .jetrix/tasks/          (empty — non-feature MC tasks)
 
 Next:
-  cd .jetrix/<name>
   BA:  /ba:scope  →  /ba:features
   TL:  /tl:code-map (brownfield)  or  /tl:scaffold (greenfield)
   QA:  /qa:audit
   Dev: /dev:build FEAT-<n>
-  Doc: /doc:proposal / /doc:magic-board / /doc:walkthrough / /doc:workflow
+  Doc: /doc:proposal · /doc:magic-board · /doc:walkthrough · /doc:workflow
 ```
 
 Keep it idempotent — re-runs never clobber existing work; they only fill in missing pieces.

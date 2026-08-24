@@ -15,13 +15,13 @@ Read **`delivery-os-conventions`** and the delivery loop's `references/dev-conte
 
 1. **Gate on completion.** Before writing a PR summary, confirm every **mandatory** completion criterion in `loop-control.md` holds — scope implemented, required acceptance criteria `Passed`/`Waived`, tests + build + static checks green, docs updated, no unresolved critical/high defect, no unresolved blocker, tracker current. If any fails, **stop** — the feature isn't ready; return it to the loop or escalate. Do not paper over a gap with a hopeful summary.
 2. **Write `dev/pr-summary.md`** from the template: feature purpose, scope of changes, technical approach, affected pages/APIs/services (cite the TL `PAGE-/EP-/ENT-` units), tests run, acceptance-criteria status (the `acceptance-map` table), risks/rollout considerations, known limitations and open follow-ups, and explicit reviewer instructions (what to focus on, how to run it). Name the branch.
-3. **Advance the state** to `READY_FOR_PR` → `HUMAN_REVIEW`, mirror the mapped value into `status.md`/`feature-index.md`, and update `dev-output/feature-tracker.md` with the PR reference and next action ("await human review").
+3. **Advance the state** to `READY_FOR_PR` → `HUMAN_REVIEW`, mirror the mapped value into `status.md`/`feature-index.md`, and update `features/tracker.md` with the PR reference and next action ("await human review").
 4. **Hand off** — return the summary and the link; the human reviews and merges. You stop here.
 
 ## Escalation
 
 1. **Write `dev/escalation-<n>.md`** from the template: the feature and current state, what was attempted, the precise blocker, its impact (which acceptance criteria it stalls), the decision needed framed as concrete options, a recommended option with rationale, and the work that can safely continue in parallel.
-2. **Set state `BLOCKED`**, mirror it to `status.md`/`feature-index.md`, and record the blocker + escalation link in `dev/delivery-status.md` and `dev-output/feature-tracker.md`.
+2. **Set state `BLOCKED`**, mirror it to `status.md`/`feature-index.md`, and record the blocker + escalation link in `dev/delivery-status.md` and `features/tracker.md`.
 3. **Hand off** — return the escalation so the human can decide. When the decision comes back, the delivery loop folds it in (logs the `DEC-###`), clears the blocker, and resumes.
 
 ## Boundaries

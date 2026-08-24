@@ -9,11 +9,11 @@ Publish local delivery-os work to Jetrix. The first argument names the **stage**
 
 | Stage | MCP | What it pushes |
 |---|---|---|
-| `scope` | `scope-mcp` | BA outputs — `ba-output/*.md`, `shared-context/*.md`, `context/features/feature-index.md` |
-| `feature` | `task-mcp` | Per-feature MC Tasks — creates ONE Task per `context/features/<slug>/` folder |
+| `scope` | `scope-mcp` | BA outputs — `ba/*.md`, `shared-context/*.md`, `features/feature-index.md` |
+| `feature` | `task-mcp` | Per-feature MC Tasks — creates ONE Task per `features/<slug>/` folder |
 | `task` | `task-mcp` | Ad-hoc tasks — ONE MC Task per `.md` file. Accepts a file, a folder, or omit for `tasks/**/*.md`. Optional `--list=<name\|id>` or `--sprint=<id>` chooses the target. |
 | `implementation` | `task-mcp` | TL plan → each Task's Implementation tab (`implementationDetails`), status → `READY_FOR_DEV` |
-| `deliverable` | `deliverable-mcp` | Client HTMLs — `doc-output/*.html` |
+| `deliverable` | `deliverable-mcp` | Client HTMLs — `doc/*.html` |
 | `all` | (all above) | Runs every implemented stage in order. |
 
 Every stage uses a **three-phase direct-to-GCS pattern** on its MCP (`*_prepare_push` → local `curl` PUTs → `*_finalize_push`) so the plugin does at most 2 MCP calls + 1 Bash call per push, regardless of file count. **File bytes never enter Claude's context**; they go straight from local disk to GCS via signed URLs (same pattern the UI's KnowledgeHubService uses).
@@ -28,7 +28,7 @@ The per-stage flow (walk / hash / MCP call sequence / skip-unchanged rules / pre
 
 1. Walk up from `$PWD` looking for **`.jetrix/project.json`** (up to 3 parent levels). If missing everywhere → stop and tell the user to run `/jetrix:init <projectId | slug>` first.
 2. Read `solutionId` + `solutionSlug` from it. Note the folder that CONTAINS `.jetrix/` as **`workspace_root`** — the entire `.jetrix/` is gitignored; it's the local working copy.
-3. The delivery-os container is the nested folder `<workspace_root>/.jetrix/<solutionSlug>/` (e.g. if `solutionSlug: "larkiq"` then `.jetrix/larkiq/`). Note this as **`project_root`** — every content file walk below is relative to it.
+3. The delivery-os container is the nested folder `<workspace_root>/.jetrix/` (e.g. if `solutionSlug: "larkiq"` then `.jetrix/larkiq/`). Note this as **`project_root`** — every content file walk below is relative to it.
 4. Verify the container exists. If missing → tell the user to run `/delivery-os:init`.
 
 > **Directory contract (referenced throughout every stage file):**
@@ -38,7 +38,7 @@ The per-stage flow (walk / hash / MCP call sequence / skip-unchanged rules / pre
 >     ├── project.json
 >     ├── cache/sync-state.json        ← sync-state ALWAYS lives here
 >     └── <solutionSlug>/              ← project_root
->         ├── ba-output/
+>         ├── ba/
 >         ├── shared-context/
 >         ├── context/
 >         └── ...
@@ -88,4 +88,4 @@ Every stage file assumes:
 - `.jetrix/project.json` exists (verified by preflight §0 above).
 - `.jetrix/cache/sync-state.json` exists (create empty `{}` if absent — done once at first push).
 
-Any stage-specific prereq (e.g. `context/features/` for `feature` stage) is checked inside that stage's file. Failures produce a clear "run this command first" message; never a silent crash.
+Any stage-specific prereq (e.g. `features/` for `feature` stage) is checked inside that stage's file. Failures produce a clear "run this command first" message; never a silent crash.

@@ -1,4 +1,4 @@
-"""Assemble `feature_upsert_bundle` payloads from `context/features/*/`.
+"""Assemble `feature_upsert_bundle` payloads from `features/*/`.
 
 Invoked by `/jetrix:push feature` (see plugins/jetrix/commands/references/push/feature.md)
 before the MCP call. Replaces the "for each folder, Read every file, assemble
@@ -409,9 +409,9 @@ def main() -> int:
     project_root = pathlib.Path(args.project_root).resolve()
     sync_state_path = pathlib.Path(args.sync_state).resolve()
 
-    features_root = project_root / "context" / "features"
+    features_root = project_root / "features"
     if not features_root.exists():
-        print(json.dumps({"error": "context/features/ missing", "solution_slug": args.solution_slug}))
+        print(json.dumps({"error": "features/ missing", "solution_slug": args.solution_slug}))
         return 2
 
     sync_state = {}

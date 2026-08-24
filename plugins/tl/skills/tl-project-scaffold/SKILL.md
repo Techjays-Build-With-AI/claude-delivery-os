@@ -1,6 +1,6 @@
 ---
 name: tl-project-scaffold
-description: Scaffold the initial application repository for a project from its confirmed architecture, so a greenfield workspace has a real, green codebase for the dev agent to build features into. Use whenever there is no product repo yet and one is needed — "scaffold the project", "set up the codebase", "bootstrap the app", "create the initial repo", or when the dev loop reports project-zero (no repository to implement into). It reads the architecture / technology-stack from the tech spec, the TL context graph, and shared-context; determines the base stack and project structure; and — for any required decision the architecture does not pin down (frontend framework, backend language/framework, database engine, package manager, test/lint/build tooling, hosting/CDN, repo layout, auth approach) — asks the user with a clear recommendation rather than guessing. It then creates the skeleton, package-manager manifests, lint/format/type/test/build tooling, a minimal passing test and green build, a README, and writes context/project/{architecture.md, technology-stack.md, coding-standards.md}, logging each stack decision as DEC-###. It executes a confirmed stack; it never silently invents one, and it does not implement product features (that is the dev agent's job).
+description: Scaffold the initial application repository for a project from its confirmed architecture, so a greenfield workspace has a real, green codebase for the dev agent to build features into. Use whenever there is no product repo yet and one is needed — "scaffold the project", "set up the codebase", "bootstrap the app", "create the initial repo", or when the dev loop reports project-zero (no repository to implement into). It reads the architecture / technology-stack from the tech spec, the TL context graph, and shared-context/; determines the base stack and project structure; and — for any required decision the architecture does not pin down (frontend framework, backend language/framework, database engine, package manager, test/lint/build tooling, hosting/CDN, repo layout, auth approach) — asks the user with a clear recommendation rather than guessing. It then creates the skeleton, package-manager manifests, lint/format/type/test/build tooling, a minimal passing test and green build, a README, and writes shared-context/{architecture.md, technology-stack.md, coding-standards.md}, logging each stack decision as DEC-###. It executes a confirmed stack; it never silently invents one, and it does not implement product features (that is the dev agent's job).
 ---
 
 # TL Project Scaffold (confirmed architecture → initial green repository)
@@ -13,7 +13,7 @@ Your defining constraint is the same guardrail the dev agent respects: **you exe
 
 Read the **`delivery-os-conventions`** contract first if it isn't in context — the workspace layout, the frontmatter standard, stable IDs, and the controlled vocabulary. Your **inputs**, in priority order:
 
-1. The **architecture / tech spec** — a spec document the user points you at, or `context/project/architecture.md` / `context/project/technology-stack.md` if they exist. This is the primary source of the intended stack and structure. Use the `docx`/`pdf` skills to extract it if it isn't Markdown.
+1. The **architecture / tech spec** — a spec document the user points you at, or `shared-context/architecture.md` / `shared-context/technology-stack.md` if they exist. This is the primary source of the intended stack and structure. Use the `docx`/`pdf` skills to extract it if it isn't Markdown.
 2. The **TL context graph** (`context/frontend|backend|database` indexes) — the shape of what will be built (how many frontend surfaces, backend domains, entities) informs the skeleton's structure and whether it's a frontend app, an API service, a full-stack app, or a monorepo.
 3. **`shared-context/`** — `project-profile.md` (platform, constraints), `system-landscape.md` (systems it must fit), `glossary.md`.
 4. The **user** — for any required decision the sources above leave open (see the decision list in `references/scaffold-guide.md`).
@@ -27,7 +27,7 @@ Your **output** is a real repository plus the project design docs that describe 
   <lint/format/type/test/build config>
   <one trivial passing test>     # proves the base build is green
   README.md
-context/project/               # the design docs that pin the stack (created on demand)
+shared-context/               # the design docs that pin the stack (created on demand)
   architecture.md              # the architecture the scaffold realises (confirmed)
   technology-stack.md          # the exact stack + versions chosen
   coding-standards.md          # conventions the dev agent will follow
@@ -52,7 +52,7 @@ From the confirmed stack and the context graph, decide the layout: single app vs
 Create the skeleton, package-manager manifests, and the lint/format/type-check/test/build tooling for the stack. Add a minimal **passing** test and confirm a **green base build**. Initialise git (don't commit secrets; add a `.gitignore`). Add a README describing how to install, run, test, and build. Prefer official generators/starters for the stack where they exist (e.g. `create-vite`, `create-next-app`, `spring init`, `poetry new`) over hand-rolling.
 
 ### 5. Write the project design docs and log decisions
-Write `context/project/technology-stack.md` (the exact stack + versions), `context/project/architecture.md` (the architecture the scaffold realises — confirmed, or reconciled with the spec), and `context/project/coding-standards.md` (naming, structure, lint/format rules, test conventions — the conventions the dev agent will follow). Append a `DEC-###` row to `shared-context/decision-log.md` for **every** stack decision made — both the ones the spec confirmed and the ones the user just answered — with confidence (`Confirmed` where the spec/user pinned it, `Assumed` only where explicitly accepted as a default).
+Write `shared-context/technology-stack.md` (the exact stack + versions), `shared-context/architecture.md` (the architecture the scaffold realises — confirmed, or reconciled with the spec), and `shared-context/coding-standards.md` (naming, structure, lint/format rules, test conventions — the conventions the dev agent will follow). Append a `DEC-###` row to `shared-context/decision-log.md` for **every** stack decision made — both the ones the spec confirmed and the ones the user just answered — with confidence (`Confirmed` where the spec/user pinned it, `Assumed` only where explicitly accepted as a default).
 
 ### 6. Verify the base is green
 Run install → lint → type-check → test → build in the shell. The base build **must be green** before you hand off — that is the exact readiness item the dev agent checks. If it isn't green, fix the scaffold or report precisely what fails; don't declare the repo ready.

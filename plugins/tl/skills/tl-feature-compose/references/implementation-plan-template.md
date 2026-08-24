@@ -199,7 +199,7 @@ The visible content of this document is: **Build sequence · API endpoints · Da
 
 ### 4. Feature identity in visible headings or prose
 
-Feature id, initiative, slug, provenance, and file-source annotations live in the frontmatter and the MC task metadata. Never in headings, never in prose. No `# FEAT-…` H1. No "Provenance: …" line. No mention of `feature.md`, `workflow.md`, `acceptance-criteria.md`, any `ba-output/…` file, any `context/…` file, or any scope-review filename. Ever.
+Feature id, initiative, slug, provenance, and file-source annotations live in the frontmatter and the MC task metadata. Never in headings, never in prose. No `# FEAT-…` H1. No "Provenance: …" line. No mention of `feature.md`, `workflow.md`, `acceptance-criteria.md`, any `ba/…` file, any `context/…` file, or any scope-review filename. Ever.
 
 ### 5. Existing schema fields the feature does not write
 

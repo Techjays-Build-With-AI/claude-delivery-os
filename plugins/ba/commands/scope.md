@@ -24,7 +24,7 @@ Mode table:
 |---|---|
 | `auto` | Default. Classify sources, deep-analyze primary artifacts, safely index/skip large or reference artifacts, and update the scope. |
 | `incremental` | Process only **new or changed** sources (compare against the hashes in the `intake.index.md` registry). The normal mode for an ongoing project. |
-| `full-refresh` | Rebuild scope from all eligible artifacts; back up previous `ba-output/` first. |
+| `full-refresh` | Rebuild scope from all eligible artifacts; back up previous `ba/` first. |
 | `dry-run` | Report what *would* be ingested/processed and changed. **Write nothing.** |
 | `index-only` | Register + classify sources in `intake.index.md` only; no summaries, no extraction. |
 | `classify-only` | Classify sources and produce user guidance; no summaries, no analysis. |
@@ -35,10 +35,10 @@ If the token is unrecognized, tell the user the valid modes and stop.
 
 Invoke the **ba-agent** subagent with the project root, the resolved mode, and the `add` payload (if any). Pass it this instruction:
 
-> Run a BA scope build/update in `<project-root>` using mode `<mode>`. If an `add` payload is provided, ingest those sources first: classify, normalize to summaries under `artifacts/`, and register them in `intake.index.md`, **referencing originals — never copy, move, or delete them**. Then process the registered sources: extract from the summaries, and produce/refresh the **module-centric living scope document** (`ba-output/scope.md`, conforming to the evolved, use-case-first Techjays Scope Document Template), the supporting registers, and the shared-context files. For every module that **forks by type/category/condition**, expand each materially-different route into its own **use case** (§3.x.4 — explanation, workflow, Mermaid flow diagram, worked example), draw the module **master flow** (§3.x.3) with branches mapping 1:1 to those use cases, and mirror each in `use-case-register.md`.
+> Run a BA scope build/update in `<project-root>` using mode `<mode>`. If an `add` payload is provided, ingest those sources first: classify, normalize to summaries under `artifacts/`, and register them in `intake.index.md`, **referencing originals — never copy, move, or delete them**. Then process the registered sources: extract from the summaries, and produce/refresh the **module-centric living scope document** (`ba/scope.md`, conforming to the evolved, use-case-first Techjays Scope Document Template), the supporting registers, and the shared-context/ files. For every module that **forks by type/category/condition**, expand each materially-different route into its own **use case** (§3.x.4 — explanation, workflow, Mermaid flow diagram, worked example), draw the module **master flow** (§3.x.3) with branches mapping 1:1 to those use cases, and mirror each in `ba/registers/use-cases.md`.
 >
 > Two things must always happen:
-> 1. **Raise every open item.** Surface all open questions, ambiguities, and assumptions as clarifications (`CLR`) / assumptions (`ASM`) / contradictions (`CON`), and (re)generate the clean, client-facing **`ba-output/client-questions.md`** deliverable from the open clarifications — grouped and prioritized so the team can take it straight to the client.
+> 1. **Raise every open item.** Surface all open questions, ambiguities, and assumptions as clarifications (`CLR`) / assumptions (`ASM`) / contradictions (`CON`), and (re)generate the clean, client-facing **`ba/client-questions.md`** deliverable from the open clarifications — grouped and prioritized so the team can take it straight to the client.
 > 2. **Fold client answers back in (answer round-trip).** If any ingested source answers open questions (a filled-in `client-questions.md`, a client-answers doc, or meeting notes), match each answer to its open `CLR` id, record the answer and close it, apply the resulting edit to the relevant scope §3.x, log a decision (`DEC`) or assumption (`ASM`) as appropriate, and refresh `client-questions.md` so answered items drop off.
 >
 > Finish with a run summary. Honor all safety safeguards and never fabricate access to inaccessible sources.
@@ -47,6 +47,6 @@ Invoke the **ba-agent** subagent with the project root, the resolved mode, and t
 
 ## 3. Surface the result
 
-When the agent returns, present its **run summary**: sources added/processed (new/changed/unchanged/inaccessible/reference-indexed), summaries generated, scope updates, **use cases identified/expanded this run** (with their module master flows), **open questions raised** and **questions answered/closed this run**, contradictions, assumptions, anything needing user guidance, and recommended next actions. Link to `ba-output/scope.md`, `ba-output/use-case-register.md`, the client-facing `ba-output/client-questions.md`, the run file under `ba-output/intake-runs/`, and `intake.index.md`.
+When the agent returns, present its **run summary**: sources added/processed (new/changed/unchanged/inaccessible/reference-indexed), summaries generated, scope updates, **use cases identified/expanded this run** (with their module master flows), **open questions raised** and **questions answered/closed this run**, contradictions, assumptions, anything needing user guidance, and recommended next actions. Link to `ba/scope.md`, `ba/registers/use-cases.md`, the client-facing `ba/client-questions.md`, the run file under `ba/intake-runs/`, and `intake.index.md`.
 
 > **Tip — the living-scope loop:** `/ba:scope add "…material…"` to build → hand `client-questions.md` to the client → `/ba:scope add "answers in <path>"` (or new notes) to fold responses in and close questions → repeat. For a scored critique of how estimate-ready the scope is, run `/ba:review`.

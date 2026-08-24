@@ -6,7 +6,7 @@ This guide covers both: **building the living scope** (`/ba:scope`, below) and t
 
 ## Building the living scope — `/ba:scope`
 
-`/ba:scope` is the living-scope engine. You point it at client material — folders or Google Drive — and it references the originals in place, maps everything out into markdown summaries, and writes the module-centric **scope document** in the Techjays template (`ba-output/scope.md`). It's built to be run again and again: as new meeting notes, documents, examples, or client answers arrive, it updates the same living document rather than starting over.
+`/ba:scope` is the living-scope engine. You point it at client material — folders or Google Drive — and it references the originals in place, maps everything out into markdown summaries, and writes the module-centric **scope document** in the Techjays template (`ba/scope.md`). It's built to be run again and again: as new meeting notes, documents, examples, or client answers arrive, it updates the same living document rather than starting over.
 
 ```text
 # build the scope from the first batch of material
@@ -19,7 +19,7 @@ This guide covers both: **building the living scope** (`/ba:scope`, below) and t
 
 Two things happen on every run:
 
-- **It raises every open item.** All ambiguities, open questions, and assumptions become clarifications / assumptions, and it (re)generates **`ba-output/client-questions.md`** — a clean, handover-ready list grouped by module and prioritized (*Must close before estimate → Future phase*), with a blank space for each answer. Hand it to the client as-is.
+- **It raises every open item.** All ambiguities, open questions, and assumptions become clarifications / assumptions, and it (re)generates **`ba/client-questions.md`** — a clean, handover-ready list grouped by module and prioritized (*Must close before estimate → Future phase*), with a blank space for each answer. Hand it to the client as-is.
 - **It folds client answers back in (the answer round-trip).** Point it at a filled-in `client-questions.md`, a client-answers document, or fresh meeting notes, and it matches each answer to its open question by `CLR` id, closes it, applies the resulting edit to the scope, logs the decision or assumption, and drops the question off `client-questions.md`.
 
 So the loop is: **`/ba:scope` to build → hand `client-questions.md` to the client → `/ba:scope add "answers…"` to fold responses in and close questions → repeat.** One living scope document that keeps getting sharper. Modes: `auto` (default) · `incremental` · `full-refresh` · `dry-run` · `index-only` · `classify-only`. When you want a scored critique of how estimate-ready the scope is, run `/ba:review` (below).
@@ -28,8 +28,8 @@ So the loop is: **`/ba:scope` to build → hand `client-questions.md` to the cli
 |---|---|
 | **Namespace** | `/ba:` |
 | **Commands** | `/ba:scope …` · `/ba:review [<scope-doc>] [out=<prefix>]` · `/ba:resolve <responses-file>` |
-| **Review input** | A scope document (`.md`, `.docx`, `.pdf`) — defaults to `ba-output/scope.md` — plus the scope knowledge base (registers, examples, shared-context) when a workspace exists |
-| **Review output** | `ba-output/scope-reviews/scope-review-<timestamp>.{html, md, json}` — interactive dashboard + Markdown artifact + data sidecar |
+| **Review input** | A scope document (`.md`, `.docx`, `.pdf`) — defaults to `ba/scope.md` — plus the scope knowledge base (registers, examples, shared-context/) when a workspace exists |
+| **Review output** | `ba/reviews/scope-review-<timestamp>.{html, md, json}` — interactive dashboard + Markdown artifact + data sidecar |
 | **Skills** | `ba-classification` · `ba-extraction` (scope build) · `ba-scope-review` (review) |
 
 ---
@@ -105,10 +105,10 @@ A workspace is **recommended but optional** for `/ba:review`:
 
 | | With a workspace (`init` + `/ba:scope` were run) | Standalone (no workspace) |
 |---|---|---|
-| **Default input** | `ba-output/scope.md` if you give no path | you must point it at a scope file |
-| **Knowledge base** | also reads `example-register.md` + the other registers, `clarification-log.md`, `contradiction-log.md`, `shared-context/` — so it can validate against examples and detect register↔scope drift | reviews only the document you point it at; example-compliance is limited to what's in that file |
-| **Report location** | `ba-output/scope-reviews/scope-review-<timestamp>.{html,md,json}` | written **beside the reviewed document**, with a note that no workspace was found |
-| **Resolution promotion** | `/ba:resolve` folds answers back into `scope.md`, `decision-log.md`, `assumption-register.md`, `clarification-log.md` | resolution stays in the report; it lists the edits to apply by hand |
+| **Default input** | `ba/scope.md` if you give no path | you must point it at a scope file |
+| **Knowledge base** | also reads `ba/registers/examples.md` + the other registers, `ba/logs/clarifications.md`, `ba/logs/contradictions.md`, `shared-context/` — so it can validate against examples and detect register↔scope drift | reviews only the document you point it at; example-compliance is limited to what's in that file |
+| **Report location** | `ba/reviews/scope-review-<timestamp>.{html,md,json}` | written **beside the reviewed document**, with a note that no workspace was found |
+| **Resolution promotion** | `/ba:resolve` folds answers back into `scope.md`, `decision-log.md`, `ba/registers/assumptions.md`, `ba/logs/clarifications.md` | resolution stays in the report; it lists the edits to apply by hand |
 
 So: run the full discovery flow if you want the review grounded in the client's examples and the answers folded back into the scope; skip it for a quick one-off review of any scope file.
 
@@ -120,10 +120,10 @@ So: run the full discovery flow if you want the review grounded in the client's 
 /ba:review [<path-or-link-to-scope>] [out=<output-prefix>]
 ```
 
-- **`<scope-doc>`** — optional. Defaults to `ba-output/scope.md` inside a workspace. Accepts `.md`, `.docx`, `.pdf`, or a link.
+- **`<scope-doc>`** — optional. Defaults to `ba/scope.md` inside a workspace. Accepts `.md`, `.docx`, `.pdf`, or a link.
 - **`out=<prefix>`** — optional. Overrides where the report is written. A run timestamp is **always** appended, so repeated reviews never overwrite each other.
 
-Each run is timestamped (`scope-review-2026-06-30-143012.html`), so `ba-output/scope-reviews/` accumulates a full review history — re-review after the scope is revised and compare.
+Each run is timestamped (`scope-review-2026-06-30-143012.html`), so `ba/reviews/` accumulates a full review history — re-review after the scope is revised and compare.
 
 ---
 
@@ -135,7 +135,7 @@ You've run discovery for an **Acme Customer Portal** and produced a first scope.
 /ba:review
 ```
 
-The agent reads `ba-output/scope.md`, loads the example-register and the other registers, decomposes the scope into features, and writes the report. The headline it returns:
+The agent reads `ba/scope.md`, loads the example-register and the other registers, decomposes the scope into features, and writes the report. The headline it returns:
 
 > **Overall score: 3.4/10 — Significant gaps — clarify before estimate.**
 > Clean module breakdown, but the Login feature is a one-liner and conflicts with a client example, and the CRM integration names no system. Two Blockers gate the estimate.
@@ -184,8 +184,8 @@ A review *raises* scope questions; the loop *closes* them — and, uniquely for 
 **The flow:**
 
 1. **Respond in the report.** Open `scope-review-<timestamp>.html`, scroll to **Open questions**, and under each one type your answer and pick an intent (`resolve` / `accept-assumption` / `need-info` / `wont-fix`).
-2. **Export.** Click **Export responses**. The page downloads `scope-review-<timestamp>-responses.md` — named with the **same timestamp** as the review, which ties the answers back to it. (Browsers can't write to disk, so it lands in Downloads — move it into `ba-output/scope-reviews/`.)
-3. **Resolve.** Run `/ba:resolve ba-output/scope-reviews/scope-review-<timestamp>-responses.md`. The agent matches the timestamp to the review's `.json`, then **adjudicates each answer**:
+2. **Export.** Click **Export responses**. The page downloads `scope-review-<timestamp>-responses.md` — named with the **same timestamp** as the review, which ties the answers back to it. (Browsers can't write to disk, so it lands in Downloads — move it into `ba/reviews/`.)
+3. **Resolve.** Run `/ba:resolve ba/reviews/scope-review-<timestamp>-responses.md`. The agent matches the timestamp to the review's `.json`, then **adjudicates each answer**:
    - **Resolved** — answers the question with specifics a team could estimate against; records the exact scope edit and a `DEC-###` decision.
    - **Accepted-assumption** — the client can't confirm now, so the team proceeds on an explicit, logged assumption (`ASM-###` / RAID A-##), with the residual risk noted.
    - **Needs-verification** — plausible but thin; it asks 1–3 targeted follow-ups and keeps the item open.
@@ -201,7 +201,7 @@ A review *raises* scope questions; the loop *closes* them — and, uniquely for 
 
 ## How it fits Delivery OS
 
-The scope review is the BA reviewing **its own deliverable** before handoff — distinct from the TL agent's `tl-spec-review`, which is a *technical* review of a spec/architecture and consumes `ba-output/scope.md` as input. The review writes only to `ba-output/scope-reviews/` (and, on resolve, the registers/decision-log it promotes into); it never silently edits the living scope — it *recommends* the exact edits, which a subsequent `/ba:scope` or a manual edit applies. All outputs carry standard frontmatter (`doc_type: scope-review`, `produced_by: ba`).
+The scope review is the BA reviewing **its own deliverable** before handoff — distinct from the TL agent's `tl-spec-review`, which is a *technical* review of a spec/architecture and consumes `ba/scope.md` as input. The review writes only to `ba/reviews/` (and, on resolve, the registers/decision-log it promotes into); it never silently edits the living scope — it *recommends* the exact edits, which a subsequent `/ba:scope` or a manual edit applies. All outputs carry standard frontmatter (`doc_type: scope-review`, `produced_by: ba`).
 
 See the shared [`delivery-os-conventions`](../delivery-os-core/skills/delivery-os-conventions/SKILL.md) skill for the full document contract.
 

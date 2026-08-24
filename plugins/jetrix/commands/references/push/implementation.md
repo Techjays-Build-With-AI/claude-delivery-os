@@ -11,7 +11,7 @@ Never compose silently, never guess, never fall back to the old concat-of-units 
 
 ### 2. Assemble every feature — ONE Bash+Python call
 
-**Do NOT `Read` feature files individually.** Invoke the plugin's script — it walks `context/features/*/`, extracts `feature_id` + `jetrix_task_object_id` from each feature.md, strips frontmatter + CRLF + leading blanks from tl-plan.md, applies the 60 KB size gate, detects blocker signals, skips features whose hash matches `sync-state.implementation_hash`, and emits ONE JSON blob ready for `feature_update_implementation`.
+**Do NOT `Read` feature files individually.** Invoke the plugin's script — it walks `features/*/`, extracts `feature_id` + `jetrix_task_object_id` from each feature.md, strips frontmatter + CRLF + leading blanks from tl-plan.md, applies the 60 KB size gate, detects blocker signals, skips features whose hash matches `sync-state.implementation_hash`, and emits ONE JSON blob ready for `feature_update_implementation`.
 
 ```bash
 ASSEMBLED="<workspace_root>/.jetrix/cache/.push-implementation.json"
@@ -49,9 +49,9 @@ Every check the old §3/§4/§4a spec used to walk in Claude context is done ins
 
 For each row in `skipped` and `warnings`, print the matching user-facing message. Emit these **before** the MCP call so the user sees them regardless of whether the MCP call runs:
 
-- `reason == "no-tl-plan"` → `[skip] context/features/<slug>/ — no tl-plan.md. Run /tl:compose <slug> or /jetrix:pull task <slug>.`
-- `reason == "no-feature-id"` → `[skip] context/features/<slug>/ — feature.md has no feature_id frontmatter. Re-run /ba:features.`
-- `reason == "no-task-object-id"` → `[skip] context/features/<slug>/ — feature.md has no jetrix_task_object_id. Run /jetrix:push feature first.`
+- `reason == "no-tl-plan"` → `[skip] features/<slug>/ — no tl-plan.md. Run /tl:compose <slug> or /jetrix:pull task <slug>.`
+- `reason == "no-feature-id"` → `[skip] features/<slug>/ — feature.md has no feature_id frontmatter. Re-run /ba:features.`
+- `reason == "no-task-object-id"` → `[skip] features/<slug>/ — feature.md has no jetrix_task_object_id. Run /jetrix:push feature first.`
 - `reason.startswith("size-cap")` → `[skip] <slug> — tl-plan.md is <N> chars, cap is 60000. Split the feature via /tl:compose or /ba:features and re-run.`
 - `reason.startswith("unchanged")` → `[skip] TASK-<n> <slug> — unchanged (hash=<sha16>)` (task number pulled from sync-state if needed for the report)
 - Any warning → `[warn] <slug> — <message>`

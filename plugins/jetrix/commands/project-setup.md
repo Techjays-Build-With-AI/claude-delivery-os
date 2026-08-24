@@ -180,7 +180,7 @@ Now that the Solution + apps exist in Jetrix, re-run the standard init sequence:
 
 ## 5. Scaffold the delivery-os folder tree — inline `/delivery-os:init`
 
-Rather than telling the teammate to run a second command, invoke `/delivery-os:init` inline. That creates `.jetrix/<solutionSlug>/` with `ba-output/`, `context/`, `tl-output/`, `qa-output/`, `dev-output/`, `doc-output/`, `shared-context/` (with seeded templates), and `artifacts/`.
+Rather than telling the teammate to run a second command, invoke `/delivery-os:init` inline. That creates `.jetrix/` with `ba/`, `context/`, `tl/`, `qa/`, `dev/`, `doc/`, `shared-context/` (with seeded templates), and `artifacts/`.
 
 ## 6. Final summary
 
@@ -215,13 +215,13 @@ Connection map:  · Not built yet — open portal → Connections tab → Build 
 Workspace layout:
   .jetrix/project.json
   .jetrix/cache/                  (repolocation.json + sync-state.json)
-  .jetrix/<slug>/                 (delivery-os working tree)
-    ├── ba-output/
+  .jetrix/                 (delivery-os working tree)
+    ├── ba/
     ├── context/
-    ├── tl-output/
-    ├── qa-output/
-    ├── dev-output/
-    ├── doc-output/
+    ├── tl/
+    ├── qa/
+    ├── dev/
+    ├── doc/
     ├── shared-context/           (seeded templates)
     └── artifacts/
 

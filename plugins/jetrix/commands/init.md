@@ -11,13 +11,14 @@ After running both, the workspace looks like:
 
 ```
 <workspace>/
-└── .jetrix/                    ← ENTIRELY gitignored
+└── .jetrix/                    ← ENTIRELY gitignored (whole folder)
     ├── project.json            (this command writes this)
     ├── connection-map.md       (this command writes this if the portal built one)
     ├── cache/                  (this command writes repolocation.json here)
-    └── <solutionSlug>/         (/delivery-os:init creates this)
-        └── ...
+    └── shared-context/ ba/ features/ tl/ qa/ doc/ tasks/    (/delivery-os:init scaffolds these)
 ```
+
+**Layout note (v2.0):** Everything sits at `.jetrix/` root — no `<solutionSlug>/` wrapper. Role folders (`ba/`, `tl/`, `qa/`, `doc/`) hold each role's outputs; `features/` holds per-feature bundles that BA, TL, and Dev all write into; `shared-context/` holds cross-role docs (project profile, glossary, decision log). See `delivery-os-conventions` for the full contract.
 
 Use the LOCAL MCP tool `project-mcp` registered in `~/.claude/settings.json` or workspace `.mcp.json`. Never call server URLs directly.
 
@@ -44,6 +45,96 @@ Use the LOCAL MCP tool `project-mcp` registered in `~/.claude/settings.json` or 
    - `n` → exit cleanly with `Cancelled — nothing written.`
 
 Once confirmed, treat `workspace_root` as immutable for the rest of this command. Every file path is built as `<workspace_root>/.jetrix/...`.
+
+## 0.5. v2 layout migration (soft, idempotent)
+
+**Runs BEFORE any Jetrix calls.** Detects the old v1 layout — where role folders lived under `.jetrix/<slug>/` — and moves them up to the workspace-level `.jetrix/`. Safe to re-run on a v2 workspace (short-circuits when nothing matches).
+
+**Detection:** loop through every subfolder of `.jetrix/` (excluding `cache/`, `shared-context/`, `ba/`, `features/`, `tl/`, `qa/`, `dev/`, `doc/`, `tasks/`). If a subfolder contains any of `ba-output/`, `tl-output/`, `qa-output/`, `dev-output/`, `doc-output/`, `shared-context/`, or `context/features/` — it's a v1 slug folder. Migrate it.
+
+**Migration steps (per detected slug folder — usually exactly one):**
+
+1. **Rename role folders (drop `-output` suffix):**
+   ```
+   .jetrix/<slug>/ba-output/    → .jetrix/ba/
+   .jetrix/<slug>/tl-output/    → .jetrix/tl/
+   .jetrix/<slug>/qa-output/    → .jetrix/qa/
+   .jetrix/<slug>/dev-output/   → .jetrix/dev-legacy/   (see step 6)
+   .jetrix/<slug>/doc-output/   → .jetrix/doc/
+   ```
+
+2. **Promote shared-context/ to the top level** (name unchanged, wrapper removed):
+   ```
+   .jetrix/<slug>/shared-context/ → .jetrix/shared-context/
+   ```
+
+3. **Promote features/ to top level:**
+   ```
+   .jetrix/<slug>/context/features/ → .jetrix/features/
+   ```
+
+4. **Move code-map registry under tl/:**
+   ```
+   .jetrix/<slug>/context/code-map-registry.md → .jetrix/tl/code-map-registry.md
+   ```
+
+5. **Move artifacts/ under ba/:**
+   ```
+   .jetrix/<slug>/artifacts/ → .jetrix/ba/artifacts/
+   ```
+
+6. **Move `dev-legacy/feature-tracker.md` to `features/tracker.md`; delete the (now empty) `dev-legacy/`:**
+   ```
+   .jetrix/dev-legacy/feature-tracker.md → .jetrix/features/tracker.md
+   rmdir .jetrix/dev-legacy/
+   ```
+
+7. **Group BA flat files into subfolders:**
+   ```
+   .jetrix/ba/requirement-register.md    → .jetrix/ba/registers/requirements.md
+   .jetrix/ba/workflow-register.md       → .jetrix/ba/registers/workflows.md
+   .jetrix/ba/use-case-register.md       → .jetrix/ba/registers/use-cases.md
+   .jetrix/ba/business-rule-register.md  → .jetrix/ba/registers/business-rules.md
+   .jetrix/ba/example-register.md        → .jetrix/ba/registers/examples.md
+   .jetrix/ba/data-register.md           → .jetrix/ba/registers/data.md
+   .jetrix/ba/integration-register.md    → .jetrix/ba/registers/integrations.md
+   .jetrix/ba/assumption-register.md     → .jetrix/ba/registers/assumptions.md
+   .jetrix/ba/clarification-log.md       → .jetrix/ba/logs/clarifications.md
+   .jetrix/ba/contradiction-log.md       → .jetrix/ba/logs/contradictions.md
+   .jetrix/ba/indexing-assistance-needed.md → .jetrix/ba/logs/indexing-assistance-needed.md
+   .jetrix/ba/change-log.md              → .jetrix/ba/logs/changes.md
+   .jetrix/ba/scope-reviews/             → .jetrix/ba/reviews/
+   ```
+
+8. **Group QA + DOC files:**
+   ```
+   .jetrix/qa/test-audit-*.{html,md,json}  → .jetrix/qa/audits/
+   .jetrix/qa/health-*.md                  → .jetrix/qa/health/
+   .jetrix/qa/escalation-*.md              → .jetrix/qa/escalations/
+   .jetrix/doc/deck-*.pptx                 → .jetrix/doc/decks/
+   .jetrix/doc/walkthrough-*.html          → .jetrix/doc/walkthroughs/
+   .jetrix/doc/workflow-*.html             → .jetrix/doc/workflows/
+   .jetrix/doc/board-*.html                → .jetrix/doc/boards/
+   ```
+
+9. **Delete empty v1-only folders:**
+   ```
+   .jetrix/<slug>/context/frontend/     (empty since Model B — the code graph moved to <repo>/context/code-context/)
+   .jetrix/<slug>/context/backend/
+   .jetrix/<slug>/context/database/
+   .jetrix/<slug>/context/project/
+   .jetrix/<slug>/context/               (wrapper, now empty)
+   .jetrix/<slug>/                       (last)
+   ```
+   Only delete these if they are actually empty after the moves above. Non-empty folders stay put and print a warning.
+
+10. **Rewrite sync-state keys** — `.jetrix/cache/sync-state.json` had per-file keys like `ba-output/scope.md`. Rewrite each key using the same rename table above (`ba-output/scope.md` → `ba/scope.md`, `ba-output/requirement-register.md` → `ba/registers/requirements.md`, etc.). Content hashes and Jetrix task IDs stay identical; only the string keys change.
+
+11. **Report** — print a summary: `Migrated <slug>: <N> folders moved, <M> BA register/log files grouped, <K> sync-state keys rewritten.`
+
+**Idempotency:** re-runs are safe. If none of the v1 markers are present, the whole section is a no-op. Each individual move is a `test -e OLD && ! -e NEW` guard.
+
+**Failure handling:** if any step fails partway (e.g., file exists at both old and new location) — print the specific error, halt with `Migration incomplete. Fix the conflict listed above and re-run /jetrix:init.` and do NOT continue to §1. Never leave the workspace in a half-migrated state without telling the teammate.
 
 ## 1. Parse arguments
 
@@ -285,18 +376,9 @@ if bundle.solution.connection_map_ref is null (or missing):
 
 Only if `connection_map_ref` is set (has `gcs_path` + `updated_at`) do you proceed with §10b onwards. Apply the same pattern to any future doc: if the metadata says it doesn't exist, don't call the fetch. Never make an "empty" pull call just to discover it's empty.
 
-### 10b. Migration (soft) — if the file is still at the old location, move it
+### 10b. Migration (already covered by §0.5)
 
-Only runs when a build exists, right before the download so we don't leave a stale file behind:
-
-```bash
-OLD="<workspace_root>/.jetrix/<solutionSlug>/context/connection-map.md"
-NEW="<workspace_root>/.jetrix/connection-map.md"
-if [[ -f "$OLD" && ! -f "$NEW" ]]; then
-  mv "$OLD" "$NEW"
-  echo "Migrated connection-map to new canonical path: $NEW"
-fi
-```
+The v2 layout migration in §0.5 handles the old connection-map path (`<slug>/context/connection-map.md` → `.jetrix/connection-map.md`). Nothing extra to do here for workspaces that were bound before v2.0. If you skipped §0.5 (edge case), the fallback `mv` is safe to run inline: `[[ -f "<workspace_root>/.jetrix/<slug>/context/connection-map.md" && ! -f "<workspace_root>/.jetrix/connection-map.md" ]] && mv <old> <new>`.
 
 ### 10c. Fetch a fresh signed URL
 
@@ -377,8 +459,8 @@ Workspace layout (so far):
   .jetrix/cache/             ← repolocation.json + sync-state.json
 
 Next:
-  Scaffold delivery-os folder:  /delivery-os:init
-                                  (reads .jetrix/project.json — creates .jetrix/<slug>/ working tree)
+  Scaffold delivery-os folders:  /delivery-os:init
+                                   (creates shared-context/ ba/ features/ tl/ qa/ doc/ tasks/ at .jetrix/ root)
 ```
 
 Keep it idempotent — a rerun for the same solutionId refreshes without clobbering hand-edits, migrates the connection-map to the new path if needed, and re-attempts the connection-map download if the last run failed.

@@ -11,9 +11,9 @@ A good review is **specific and actionable**. "The API section is weak (4/10)" h
 
 ## Operating contract
 
-This skill produces a **Delivery OS artifact**. Read the **`delivery-os-conventions`** contract first if it isn't already in context (frontmatter standard, stable-ID rules, controlled vocabulary). Each review is written as a **timestamped pair** — `tl-output/spec-review-<timestamp>.html` (interactive) and `tl-output/spec-review-<timestamp>.md` (the Markdown artifact, with frontmatter `doc_type: spec-review`, `produced_by: tl`) — so re-running a review never overwrites an earlier one and `tl-output/` keeps the full history (see step 6 for the timestamp format).
+This skill produces a **Delivery OS artifact**. Read the **`delivery-os-conventions`** contract first if it isn't already in context (frontmatter standard, stable-ID rules, controlled vocabulary). Each review is written as a **timestamped pair** — `tl/spec-review-<timestamp>.html` (interactive) and `tl/spec-review-<timestamp>.md` (the Markdown artifact, with frontmatter `doc_type: spec-review`, `produced_by: tl`) — so re-running a review never overwrites an earlier one and `tl/` keeps the full history (see step 6 for the timestamp format).
 
-If there is no Delivery OS workspace (no `tl-output/` and no `intake.index.md` nearby), don't block — write both files next to the document being reviewed (e.g. `<doc-dir>/spec-review-<timestamp>.{html,md}`) and note in the report that a workspace wasn't found. Keep the standard frontmatter in the Markdown either way (it's what makes the report a recognizable Delivery OS artifact if the workspace appears later); only the file *location* changes. The review itself is what matters.
+If there is no Delivery OS workspace (no `tl/` and no `intake.index.md` nearby), don't block — write both files next to the document being reviewed (e.g. `<doc-dir>/spec-review-<timestamp>.{html,md}`) and note in the report that a workspace wasn't found. Keep the standard frontmatter in the Markdown either way (it's what makes the report a recognizable Delivery OS artifact if the workspace appears later); only the file *location* changes. The review itself is what matters.
 
 The review is delivered in **two forms from one source**: an **interactive HTML report** (`spec-review-<timestamp>.html`) for a human to browse, and a **Markdown artifact** (`spec-review-<timestamp>.md`) that stays a clean Delivery OS document (frontmatter, IDs, greppable/diffable). Both are rendered from the same structured **review data object** you build during the review, so they never drift, and both carry a run timestamp so repeated reviews never overwrite each other (see step 6).
 
@@ -95,17 +95,17 @@ The report **basename is `spec-review-<timestamp>`** and all files share it, so 
 
 Write **three files** with that basename. **Write the JSON sidecar first, then generate the HTML from it — do not hand-assemble the HTML.**
 
-- **JSON sidecar** — `tl-output/spec-review-<timestamp>.json`: the exact data object you built (write it with the file-write tool so it is clean UTF-8). It is both the source for the HTML injection and the machine-readable state `/tl:resolve` reads to carry findings forward.
-- **Interactive HTML** — `tl-output/spec-review-<timestamp>.html`: generate it by injecting the sidecar into the bundled template with the bundled script — **do not paste the assembled HTML through a shell or editor**, because the report contains non-ASCII glyphs (§, —, →) that a Windows code page will double-encode into mojibake (`§`→`Â§`, `—`→`â€"`) even though `<meta charset="utf-8">` is present. Run:
+- **JSON sidecar** — `tl/spec-review-<timestamp>.json`: the exact data object you built (write it with the file-write tool so it is clean UTF-8). It is both the source for the HTML injection and the machine-readable state `/tl:resolve` reads to carry findings forward.
+- **Interactive HTML** — `tl/spec-review-<timestamp>.html`: generate it by injecting the sidecar into the bundled template with the bundled script — **do not paste the assembled HTML through a shell or editor**, because the report contains non-ASCII glyphs (§, —, →) that a Windows code page will double-encode into mojibake (`§`→`Â§`, `—`→`â€"`) even though `<meta charset="utf-8">` is present. Run:
 
   ```
-  node assets/inject.js assets/report.html tl-output/spec-review-<timestamp>.json __REVIEW_DATA__ tl-output/spec-review-<timestamp>.html
+  node assets/inject.js assets/report.html tl/spec-review-<timestamp>.json __REVIEW_DATA__ tl/spec-review-<timestamp>.html
   ```
 
   `inject.js` reads and writes UTF-8 deterministically, validates the JSON, and aborts if it detects mojibake. It replaces the single token `__REVIEW_DATA__` (inside the `<script id="review-data">` block) and changes **nothing else** — all styling and interactivity (scorecard, expand/collapse areas, live severity filtering, area↔finding links, **and the per-finding response boxes + "Export responses" button**) are already wired and render client-side from your data. (If Node is unavailable, do the same replacement but save the output as **UTF-8, no BOM**, then confirm the file shows `§`/`—` and not `Â§`/`â€"` before moving on.)
-- **Markdown artifact** — `tl-output/spec-review-<timestamp>.md`: assemble from `references/report-template.md` (frontmatter, executive summary, scorecard table, per-area detail, the severity-sorted findings register, clarifying questions). Same content as the data object, in document form.
+- **Markdown artifact** — `tl/spec-review-<timestamp>.md`: assemble from `references/report-template.md` (frontmatter, executive summary, scorecard table, per-area detail, the severity-sorted findings register, clarifying questions). Same content as the data object, in document form.
 
-The `out=` argument overrides the **prefix/location** (e.g. `out=reports/acme` → `reports/acme-<timestamp>.{html,md,json}`); the timestamp is always appended so conflicts are impossible. Default prefix is `tl-output/spec-review`, or `<doc-dir>/spec-review` beside the reviewed doc when there's no workspace.
+The `out=` argument overrides the **prefix/location** (e.g. `out=reports/acme` → `reports/acme-<timestamp>.{html,md,json}`); the timestamp is always appended so conflicts are impossible. Default prefix is `tl/spec-review`, or `<doc-dir>/spec-review` beside the reviewed doc when there's no workspace.
 
 ### 7. Summarize in chat
 Give the user the headline: overall score, readiness verdict, the scorecard table, and the top 3–5 findings that matter most. Link to the files and point out that `spec-review-<timestamp>.html` is the interactive one to open in a browser — and that they can **respond to findings inside it and click "Export responses"** to drive the resolution loop below. Keep it tight — the detail lives in the files.
@@ -114,7 +114,7 @@ Give the user the headline: overall score, readiness verdict, the scorecard tabl
 
 A review raises findings; the loop **closes** them. Findings are open items the author answers, the agent adjudicates each answer (accept, accept-as-risk, or ask for verification), and closed items are documented — so the review converges from "here are the gaps" to "here's what was decided and why." The full method (lifecycle states, adjudication rules, re-scoring, decision-log export) is in **`references/resolution-loop.md`** — read it before running a resolve round.
 
-In brief: the author opens the HTML report, types a response per finding, and clicks **Export responses** → the page downloads `spec-review-<reviewId>-responses.md` (named with the review's timestamp). They save it in `tl-output/` and run `/tl:resolve <that-file>`. You then:
+In brief: the author opens the HTML report, types a response per finding, and clicks **Export responses** → the page downloads `spec-review-<reviewId>-responses.md` (named with the review's timestamp). They save it in `tl/` and run `/tl:resolve <that-file>`. You then:
 1. Read the responses file's `source_review` (the `reviewId`) and load the matching `spec-review-<reviewId>.json` — the authoritative prior state.
 2. **Adjudicate** each responded finding → `Resolved` / `Accepted-risk` / `Needs-verification` (with follow-up questions) / `Won't-fix` / still `Open`, with a one-line rationale each. Be skeptical: require specifics, don't close on vague assurances. Where a resolution implies a spec change, give the exact edit so the answer lives in the document.
 3. **Recompute** area scores and the overall verdict (a resolved Blocker lifts the cap), carrying findings forward by their stable `FND-###` IDs.

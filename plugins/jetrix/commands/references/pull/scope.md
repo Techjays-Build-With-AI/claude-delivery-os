@@ -15,7 +15,7 @@ Response:
   "ready": N,
   "docs": [
     {
-      "path": "ba-output/scope.md",
+      "path": "ba/scope.md",
       "documentId": "doc_abc123",
       "version": 3,
       "tags": ["scope"],
@@ -23,7 +23,7 @@ Response:
       "signed_download_url": "https://storage.googleapis.com/...",
       "ok": true
     },
-    { "path": "ba-output/foo.md", "ok": false, "error": "..." },
+    { "path": "ba/foo.md", "ok": false, "error": "..." },
     ...
   ]
 }
@@ -34,7 +34,7 @@ scope-mcp filters to docs whose `tags` intersect `{"scope", "scope-context"}` (b
 **About `path` in the response:** each doc's `path` is a *relative local path*, but the write root depends on the shape:
 
 - **`.jetrix/…` prefix** → **workspace-root-relative**. Write to `<workspace_root>/<path>`. Reserved for Solution-scoped singletons that don't belong under `<slug>/`. Currently only `connection-map.md` uses this shape (path = `.jetrix/connection-map.md`, tags include `connection-map`).
-- **Anything else** → **project-root-relative**. Write to `<project_root>/<path>`. All BA docs, registers, shared-context, feature-index (e.g. `ba-output/scope.md`, `shared-context/glossary.md`, `context/features/feature-index.md`).
+- **Anything else** → **project-root-relative**. Write to `<project_root>/<path>`. All BA docs, registers, shared-context/, feature-index (e.g. `ba/scope.md`, `shared-context/glossary.md`, `features/feature-index.md`).
 
 Path shape → write root. Do NOT interpret tags client-side; the manifest already applied the override. The apply script (`apply-scope-manifest.py`) does this routing automatically — you just pass both roots on the command line.
 
@@ -71,9 +71,9 @@ META=$(mktemp)
 # workspace_root vs project_root when moving out of staging.
 cat > "$CFG" <<'CURLCFG'
 url = "<signed_download_url_1>"
-output = "<STAGING_absolute>/ba-output/scope.md"
+output = "<STAGING_absolute>/ba/scope.md"
 url = "<signed_download_url_2>"
-output = "<STAGING_absolute>/ba-output/data-register.md"
+output = "<STAGING_absolute>/ba/registers/data.md"
 url = "<signed_download_url_3>"
 output = "<STAGING_absolute>/.jetrix/connection-map.md"
 # ...one url+output pair per needs-download doc
@@ -82,13 +82,13 @@ CURLCFG
 # --- Manifest sidecar: per-path metadata the apply script writes to sync-state ---
 cat > "$META" <<'METAEOF'
 {
-  "ba-output/scope.md":         {"documentId": "doc_abc123", "version": 3, "contentHash": "<40hex>"},
-  "ba-output/data-register.md": {"documentId": "doc_def456", "version": 1, "contentHash": "<40hex>"}
+  "ba/scope.md":         {"documentId": "doc_abc123", "version": 3, "contentHash": "<40hex>"},
+  "ba/registers/data.md": {"documentId": "doc_def456", "version": 1, "contentHash": "<40hex>"}
 }
 METAEOF
 
 # --- Parallel HTTP/2-multiplexed download (single curl process, 8 concurrent) ---
-# --create-dirs handles nested staging paths (ba-output/, shared-context/, context/, context/features/).
+# --create-dirs handles nested staging paths (ba/, shared-context/, context/, features/).
 # --write-out logs "<staged_path>|<http_code>" per completed transfer to $LOG.
 curl --parallel --parallel-max 8 --create-dirs \
      -sS --show-error \
@@ -124,11 +124,11 @@ Why staging + atomic move: solves the earlier data-loss bug — `curl -o "$abs_p
 ```
 ✓ Pulled 12 scope-stage docs (Solution: LarkIQ).
 
-  ba-output/scope.md                       ← doc_abc123 (v3, updated)
-  ba-output/data-register.md               ← doc_def456 (v1, first pull)
-  ba-output/workflow-register.md           ← unchanged (local matches remote)
+  ba/scope.md                       ← doc_abc123 (v3, updated)
+  ba/registers/data.md               ← doc_def456 (v1, first pull)
+  ba/registers/workflows.md           ← unchanged (local matches remote)
   shared-context/glossary.md               ← doc_ghi789 (v2, updated)
-  context/features/feature-index.md        ← doc_jkl012 (v1, first pull)
+  features/feature-index.md        ← doc_jkl012 (v1, first pull)
   ...
 
 Updated:  8    Unchanged:  4    Failed:  0
@@ -138,7 +138,7 @@ Failed pulls: list each with its error message; sync-state.json NOT updated for 
 
 ### 5. Phase 3 — feature-folder materialization (single MCP call to task-mcp)
 
-`/jetrix:pull scope` is COMBINED — after scope-mcp finishes writing docs, invoke task-mcp to reconstruct `context/features/<slug>/*.md` folders from MC Tasks. This is what makes a fresh clone look byte-identical to the pusher's workspace.
+`/jetrix:pull scope` is COMBINED — after scope-mcp finishes writing docs, invoke task-mcp to reconstruct `features/<slug>/*.md` folders from MC Tasks. This is what makes a fresh clone look byte-identical to the pusher's workspace.
 
 ```
 mcp__task-mcp__feature_pull_bundle(solution_id = <from project.json>)

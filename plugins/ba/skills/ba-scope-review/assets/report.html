@@ -256,7 +256,7 @@
   </tr></thead><tbody id="findings-body"></tbody></table></div>
 
   <div class="section-label">Open questions — respond &amp; export</div>
-  <p class="progress-line" style="margin:4px 0 0">Type an answer under each open question, choose an intent, then <b>Export responses</b> — the page downloads a Markdown file named for this review. Save it in <code>ba-output/scope-reviews/</code> and run <code>/ba:resolve</code> on it to have the agent adjudicate, close items, and fold the answers back into the scope.</p>
+  <p class="progress-line" style="margin:4px 0 0">Type an answer under each open question, choose an intent, then <b>Export responses</b> — the page downloads a Markdown file named for this review. Save it in <code>ba/reviews/</code> and run <code>/ba:resolve</code> on it to have the agent adjudicate, close items, and fold the answers back into the scope.</p>
   <div id="respond-list"></div>
   <div class="respond-actions">
     <button class="btn primary" id="exportBtn">Export responses</button>
@@ -629,7 +629,7 @@
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     setTimeout(function () { URL.revokeObjectURL(url); }, 1500);
     if (exportNote) exportNote.textContent = answered
-      ? "Downloaded scope-review-" + reviewId + "-responses.md (" + answered + " answered) — save it in ba-output/scope-reviews/ and run /ba:resolve on it."
+      ? "Downloaded scope-review-" + reviewId + "-responses.md (" + answered + " answered) — save it in ba/reviews/ and run /ba:resolve on it."
       : "Downloaded, but no answers were filled in yet — add some and export again.";
   });
 

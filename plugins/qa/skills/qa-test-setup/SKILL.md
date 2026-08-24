@@ -9,10 +9,10 @@ You stand up the test infrastructure the audit recommended and the human approve
 
 ## Operating contract
 
-Read **`delivery-os-conventions`** if it isn't in context. Your inputs: the **approvals file** (`test-audit-<auditId>-approvals.md`) and, via its `source_audit`, the full `test-audit-<auditId>.json`; the **product repository** and its tooling; and `context/project/{architecture.md, technology-stack.md, coding-standards.md}` where present. Your outputs live in `qa-output/`:
+Read **`delivery-os-conventions`** if it isn't in context. Your inputs: the **approvals file** (`test-audit-<auditId>-approvals.md`) and, via its `source_audit`, the full `test-audit-<auditId>.json`; the **product repository** and its tooling; and `shared-context/{architecture.md, technology-stack.md, coding-standards.md}` where present. Your outputs live in `qa/`:
 
 ```text
-qa-output/
+qa/
   test-setup-plan.md     # the ordered implementation plan (produced_by: qa)
   quality-gates.md       # the machine-readable quality-gate contract (finalized by qa-quality-gates)
   setup-log.md           # per-step / verification / failure / next-action log
@@ -20,22 +20,22 @@ qa-output/
   escalation-<n>.md       # structured note when a strategy decision or blocker stops you
 ```
 
-Create `qa-output/` if absent. If there's no workspace, write these beside the repo and note it.
+Create `qa/` if absent. If there's no workspace, write these beside the repo and note it.
 
 ## `/qa:plan` — approved recommendations → plan
 
 1. **Load approvals.** Read the approvals file, take `source_audit`, and reload the audit JSON so you have each `QAF-###`'s full detail. Plan **only** the `Adopt` rows. Note `Defer` rows as "future" and ignore `Skip`.
-2. **Write `qa-output/test-setup-plan.md`** (schema in `references/setup-guide.md`): ordered setup steps, the frameworks/tools to install (honouring the human's chosen option per finding), config files to add, CI changes, fixtures/mocks to introduce, coverage thresholds to set, and the smoke tests that will prove each piece runs. Order it cheap-to-stand-up-first (runner → lint/format/type → coverage → CI → fixtures/mocks → e2e), so the harness is runnable as early as possible.
-3. **Draft the quality gates.** Produce a first `qa-output/quality-gates.md` (via `qa-quality-gates`) capturing which checks will be required vs optional and their thresholds — marked `Draft` until `/qa:setup` proves them.
+2. **Write `qa/test-setup-plan.md`** (schema in `references/setup-guide.md`): ordered setup steps, the frameworks/tools to install (honouring the human's chosen option per finding), config files to add, CI changes, fixtures/mocks to introduce, coverage thresholds to set, and the smoke tests that will prove each piece runs. Order it cheap-to-stand-up-first (runner → lint/format/type → coverage → CI → fixtures/mocks → e2e), so the harness is runnable as early as possible.
+3. **Draft the quality gates.** Produce a first `qa/quality-gates.md` (via `qa-quality-gates`) capturing which checks will be required vs optional and their thresholds — marked `Draft` until `/qa:setup` proves them.
 4. **Where the human deferred a choice**, don't invent it: leave it out and note it as an open decision. Return the plan summary and the draft gates.
 
 ## `/qa:setup` — build the harness, prove it green
 
 1. **Isolate.** Work in a branch/worktree (`qa/test-setup-<n>`, off the integration branch). Confirm the working tree is clean first. Never commit setup changes directly to `main`/`master`/`production`.
 2. **Implement the plan step by step** (`references/setup-guide.md`): install and configure each framework, add its config, wire it into package scripts and CI, add fixtures/factories and mocking utilities, set (and enforce) coverage thresholds, scaffold the e2e harness (base config + a page-object/fixtures skeleton), and write the short testing-conventions doc. Add **example/smoke** tests only — enough to prove each layer runs. **Do not** write tests for any specific feature's business logic.
-3. **Verify (implement→verify loop).** After each meaningful piece, run its command and confirm it passes; at the end run the full smoke suite (install → lint → format-check → type-check → unit → coverage-threshold → build → e2e-smoke where applicable) and confirm it is **green**. Record every attempt in `qa-output/setup-log.md`. Honour the limits below.
-4. **Finalize the gates.** Hand off to `qa-quality-gates` to promote `qa-output/quality-gates.md` from `Draft` to `Active`, filling in the exact commands and thresholds now proven to run. Log setup decisions as `DEC-###`.
-5. **Hand off.** Do not merge or deploy. Return what was stood up, the green smoke result, the `DEC-###` logged, and that the dev loop can now verify against `qa-output/quality-gates.md`. Move to human review.
+3. **Verify (implement→verify loop).** After each meaningful piece, run its command and confirm it passes; at the end run the full smoke suite (install → lint → format-check → type-check → unit → coverage-threshold → build → e2e-smoke where applicable) and confirm it is **green**. Record every attempt in `qa/setup-log.md`. Honour the limits below.
+4. **Finalize the gates.** Hand off to `qa-quality-gates` to promote `qa/quality-gates.md` from `Draft` to `Active`, filling in the exact commands and thresholds now proven to run. Log setup decisions as `DEC-###`.
+5. **Hand off.** Do not merge or deploy. Return what was stood up, the green smoke result, the `DEC-###` logged, and that the dev loop can now verify against `qa/quality-gates.md`. Move to human review.
 
 ## Retry limits and guardrails
 
@@ -45,8 +45,8 @@ Create `qa-output/` if absent. If there's no workspace, write these beside the r
 - **Never green-by-weakening.** You may not disable, `.skip`, delete, or loosen a check or threshold to pass. If the repo can't meet an approved gate, that's an escalation with the trade-off named.
 - **Never touch product/business logic**, commit secrets, provision live infra, merge, or deploy.
 
-Record every attempt in `setup-log.md`; escalate with a structured `qa-output/escalation-<n>.md` (what was attempted, the precise blocker, its impact on which gate, the decision needed with options and a recommendation, and what can proceed in parallel).
+Record every attempt in `setup-log.md`; escalate with a structured `qa/escalations/escalation-<n>.md` (what was attempted, the precise blocker, its impact on which gate, the decision needed with options and a recommendation, and what can proceed in parallel).
 
 ## Return value
 
-For `/qa:plan`: the setup-plan summary and the draft gates, with the next action (`/qa:setup`). For `/qa:setup`: the harness stood up, the green smoke result, `DEC-###` logged, the finalized `qa-output/quality-gates.md`, and that the dev delivery loop now has a real bar to verify against.
+For `/qa:plan`: the setup-plan summary and the draft gates, with the next action (`/qa:setup`). For `/qa:setup`: the harness stood up, the green smoke result, `DEC-###` logged, the finalized `qa/quality-gates.md`, and that the dev delivery loop now has a real bar to verify against.

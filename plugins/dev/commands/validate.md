@@ -1,6 +1,6 @@
 ---
 description: Validate a feature without implementing it — run the applicable checks (lint, type, unit, integration, API-contract, build, migration, security, e2e) and map every result to the feature's acceptance criteria as evidence. Reports the acceptance pass/fail table and flags failures as actionable (repair) or blocking (escalate). Does not change code, merge, or deploy.
-argument-hint: "<FEAT-<AREA>-NN | context/features/<slug>> [repo=<path>]"
+argument-hint: "<FEAT-<AREA>-NN | features/<slug>> [repo=<path>]"
 ---
 
 # /dev:validate
