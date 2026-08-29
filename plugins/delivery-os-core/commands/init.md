@@ -1,11 +1,16 @@
 ---
-description: Scaffold the Delivery-OS working tree at `.jetrix/` root — role folders (ba/ tl/ qa/ dev/ doc/), shared-context/ (seeded), features/ (empty), tasks/ (empty). No <slug>/ wrapper. Entire `.jetrix/` is gitignored. Idempotent — never clobbers existing files. Requires `.jetrix/` to already exist (via `/jetrix:init`).
+description: Seed or re-seed the Delivery-OS working tree at `.jetrix/` root — role folders (ba/, tl/, qa/, doc/), shared-context/ (seeded templates), features/, tasks/. No <slug>/ wrapper. Entire `.jetrix/` is gitignored. Idempotent — never clobbers existing files. USUALLY RUNS AUTOMATICALLY as the final step of `/jetrix:init`; invoke this command directly to re-seed an existing workspace, or to seed a workspace bound with `/jetrix:init --skip-scaffold`. Requires `.jetrix/` to already exist (via `/jetrix:init`).
 argument-hint: ""
 ---
 
 # /delivery-os:init
 
-Scaffold the Delivery-OS working tree at `<workspace>/.jetrix/`. Nested inside `.jetrix/` — the entire folder is gitignored (via `/jetrix:init`). Sync back to Jetrix via `/jetrix:push`; hydrate from Jetrix via `/jetrix:pull`.
+Seed the Delivery-OS working tree at `<workspace>/.jetrix/`. Nested inside `.jetrix/` — the entire folder is gitignored (via `/jetrix:init`). Sync back to Jetrix via `/jetrix:push`; hydrate from Jetrix via `/jetrix:pull`.
+
+> **Usually you don't run this directly.** `/jetrix:init` invokes this same logic inline as its final step, so a standard bind already seeds the tree. Reach for `/delivery-os:init` when you want to:
+> - Re-seed missing files on an existing workspace (e.g. a teammate deleted a seeded template by accident).
+> - Finish a workspace that was bound with `/jetrix:init --skip-scaffold`.
+> - Refresh after a plugin update that added new template files (seeding is idempotent — existing files stay put).
 
 **Layout — v2.0 (role-centric, no `<slug>/` wrapper):**
 
@@ -107,7 +112,7 @@ Stamp `generated_at: <today>` and `status: Draft` on each seeded doc where the f
 Print the tree that now exists (only new folders/files; skip ones that already existed). Give the next step:
 
 ```
-✓ Delivery-OS workspace scaffolded (v2.0 layout).
+✓ Delivery-OS workspace seeded (v2.0 layout).
 
 Location:  ./.jetrix/   (gitignored — local working copy)
 

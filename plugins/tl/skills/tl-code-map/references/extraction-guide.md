@@ -8,7 +8,7 @@ The north star: **the unit files you write from code must be indistinguishable i
 
 ## 0. Where the output goes
 
-`<repo>/context/code-context/` — a `context/` folder at the root of the mapped repository, with `code-context/` inside it, committed with the code. Not the workspace, and **not** inside `.jetrix/` — that folder is gitignored, so a tree written there would never reach a teammate's clone. When several repos are mapped from one workspace, each gets its own tree, and `<workspace>/.jetrix/<project-name>/tl/code-map-registry.md` points at all of them. Two consequences for extraction:
+`<repo>/context/code-context/` — a `context/` folder at the root of the mapped repository, with `code-context/` inside it, committed with the code. Not the workspace, and **not** inside `.jetrix/` — that folder is gitignored, so a tree written there would never reach a teammate's clone. When several repos are mapped from one workspace, each gets its own tree, and `<workspace>/.jetrix/tl/code-map-registry.md` points at all of them. Two consequences for extraction:
 
 - **A repo is mapped as a whole system in its own right.** Its `code-context-index.md` says what the repo is and which layers it has; a backend-only repo says "frontend lives in `<other-repo>`" rather than leaving the layer silently absent.
 - **The tree will be read in review.** Write for a human reviewer as well as an agent — and never write a secret, connection string, credential, or customer data row into it.

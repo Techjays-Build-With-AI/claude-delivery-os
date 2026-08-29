@@ -34,14 +34,20 @@ The per-stage flow (manifest call, filter, curl loop, sync-state update) lives i
 > **Directory contract:**
 > ```
 > <workspace_root>/
-> └── .jetrix/                         ← ENTIRELY gitignored
+> └── .jetrix/                         ← project_root, ENTIRELY gitignored
 >     ├── project.json
+>     ├── connection-map.md            (if the portal built one)
 >     ├── cache/sync-state.json        ← sync-state ALWAYS lives here
->     └── <solutionSlug>/              ← project_root
->         ├── ba/
->         ├── shared-context/
->         └── context/
+>     ├── shared-context/
+>     ├── ba/                          (scope.md, registers/, logs/, artifacts/, reviews/, …)
+>     ├── features/                    (feature-index.md + per-feature <slug>/{feature.md, dev/, …})
+>     ├── tl/                          (reviews/, maturity/, code-map-registry.md)
+>     ├── qa/                          (quality-gates.md, audits/, health/, escalations/)
+>     ├── doc/                         (decks/, walkthroughs/, workflows/, boards/)
+>     └── tasks/
 > ```
+> (Legacy v1 workspaces nested content under `.jetrix/<solutionSlug>/`; `/jetrix:init` §0.5 migrates those to v2 on the next run.)
+>
 > Sync-state reads/writes in any stage file resolve to `<workspace_root>/.jetrix/cache/sync-state.json` — NEVER inside `<project_root>/`.
 
 ## 1. Parse the stage argument

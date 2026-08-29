@@ -21,9 +21,12 @@ Contract preserved verbatim:
 
 Usage:
     python assemble-implementation.py \
-        --project-root .jetrix/<slug> \
+        --project-root .jetrix \
         --sync-state   .jetrix/cache/sync-state.json \
         --output       /tmp/impl-assembled.json
+
+    (Legacy v1 workspaces pass `--project-root .jetrix/<slug>` instead; the
+    caller auto-detects either shape.)
 """
 from __future__ import annotations
 

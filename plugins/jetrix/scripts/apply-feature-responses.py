@@ -15,8 +15,11 @@ Contract preserved:
 Usage:
     python apply-feature-responses.py \
         --responses    /tmp/feature-responses.json \
-        --project-root .jetrix/<slug> \
+        --project-root .jetrix \
         --sync-state   .jetrix/cache/sync-state.json
+
+    (Legacy v1 workspaces pass `--project-root .jetrix/<slug>` instead; the
+    caller auto-detects either shape.)
 
 The --responses file is a JSON list of items with shape:
     [{"slug": ..., "feature_id": ..., "task_object_id": ..., "task_number": ...,

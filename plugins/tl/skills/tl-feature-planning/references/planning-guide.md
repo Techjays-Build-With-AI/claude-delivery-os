@@ -46,7 +46,7 @@ When you reuse, you **add** back-links and extend — you never overwrite existi
 
 ### Brownfield — look up the as-built code context too
 
-On a project that has been through `/tl:code-map`, the as-built units do **not** live in the workspace `context/` tree: each mapped repository owns its own committed `context/code-context/` tree, and `<workspace>/.jetrix/<project-name>/tl/code-map-registry.md` lists them. So the reuse lookup has two hops, and the second is not optional — skipping it is how a brownfield project ends up with a designed `POST /accounts` sitting beside the one that already exists in the code.
+On a project that has been through `/tl:code-map`, the as-built units do **not** live in the workspace `context/` tree: each mapped repository owns its own committed `context/code-context/` tree, and `<workspace>/.jetrix/tl/code-map-registry.md` lists them. So the reuse lookup has two hops, and the second is not optional — skipping it is how a brownfield project ends up with a designed `POST /accounts` sitting beside the one that already exists in the code.
 
 1. Read the registry if it exists. For every repo it lists, read the layer indexes it points at — **the `## Domain Map` first**, then the `## Units` table; those files are built to be read index-first, so you can resolve a match key without opening unit files.
 2. Match on the **same keys** as above (route, normalised `METHOD + path`, object name). An as-built unit is a normal unit: link the feature to it, add the `FEAT-…` to its *Used by Features*, and extend it in place.

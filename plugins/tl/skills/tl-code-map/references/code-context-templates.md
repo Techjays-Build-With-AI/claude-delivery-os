@@ -157,7 +157,7 @@ Confidence: 71% Confirmed, 22% Likely, 7% Assumed.
 
 ## Cross-repo
 This repo's endpoints are consumed by `acme-web`. Resolve cross-repo links through
-the workspace registry: `<workspace>/.jetrix/<project-name>/tl/code-map-registry.md`.
+the workspace registry: `<workspace>/.jetrix/tl/code-map-registry.md`.
 ```
 
 ### 2.c `<layer>/_overview.md` — one per layer
@@ -961,7 +961,7 @@ generated_at: YYYY-MM-DD
 
 ---
 
-## 8. Workspace registry — `<workspace>/.jetrix/<project-name>/tl/code-map-registry.md`
+## 8. Workspace registry — `<workspace>/.jetrix/tl/code-map-registry.md`
 
 Each repo owns its full `code-context/`. The workspace owns one small file that says which repos exist, where their context is, and what they cover — so `/tl:plan` can find and **reuse** as-built units instead of duplicating them, and so a page in one repo can link to an endpoint in another.
 

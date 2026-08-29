@@ -13,10 +13,13 @@ Contract preserved:
 
 Usage:
     python assemble-tasks.py \
-        --project-root .jetrix/<slug> \
+        --project-root .jetrix \
         --sync-state   .jetrix/cache/sync-state.json \
         --output       /tmp/tasks-assembled.json \
         [--target tasks/foo.md | tasks/subdir | tasks]
+
+    (Legacy v1 workspaces pass `--project-root .jetrix/<slug>` instead; the
+    caller auto-detects either shape.)
 
 The output JSON shape:
 {

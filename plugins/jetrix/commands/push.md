@@ -28,20 +28,23 @@ The per-stage flow (walk / hash / MCP call sequence / skip-unchanged rules / pre
 
 1. Walk up from `$PWD` looking for **`.jetrix/project.json`** (up to 3 parent levels). If missing everywhere → stop and tell the user to run `/jetrix:init <projectId | slug>` first.
 2. Read `solutionId` + `solutionSlug` from it. Note the folder that CONTAINS `.jetrix/` as **`workspace_root`** — the entire `.jetrix/` is gitignored; it's the local working copy.
-3. The delivery-os container is the nested folder `<workspace_root>/.jetrix/` (e.g. if `solutionSlug: "larkiq"` then `.jetrix/larkiq/`). Note this as **`project_root`** — every content file walk below is relative to it.
-4. Verify the container exists. If missing → tell the user to run `/delivery-os:init`.
+3. Note `<workspace_root>/.jetrix/` as **`project_root`** — every content file walk below is relative to it. (Legacy v1 workspaces nested content under `.jetrix/<solutionSlug>/`; `/jetrix:init` §0.5 migrates those to v2 on the next run, so you never build a v1 path yourself.)
+4. Verify the role folders exist (`ba/`, `shared-context/`, `features/`, …). If missing → tell the user to run `/delivery-os:init` (or re-run `/jetrix:init` without `--skip-scaffold`).
 
 > **Directory contract (referenced throughout every stage file):**
 > ```
 > <workspace_root>/
-> └── .jetrix/                         ← ENTIRELY gitignored
+> └── .jetrix/                         ← project_root, ENTIRELY gitignored
 >     ├── project.json
+>     ├── connection-map.md            (if the portal built one)
 >     ├── cache/sync-state.json        ← sync-state ALWAYS lives here
->     └── <solutionSlug>/              ← project_root
->         ├── ba/
->         ├── shared-context/
->         ├── context/
->         └── ...
+>     ├── shared-context/
+>     ├── ba/                          (scope.md, registers/, logs/, artifacts/, reviews/, …)
+>     ├── features/                    (feature-index.md + per-feature <slug>/{feature.md, dev/, …})
+>     ├── tl/                          (reviews/, maturity/, code-map-registry.md)
+>     ├── qa/                          (quality-gates.md, audits/, health/, escalations/)
+>     ├── doc/                         (decks/, walkthroughs/, workflows/, boards/)
+>     └── tasks/
 > ```
 > Every `sync-state.json` reference in any stage file resolves to `<workspace_root>/.jetrix/cache/sync-state.json` — NEVER inside `<project_root>/`.
 

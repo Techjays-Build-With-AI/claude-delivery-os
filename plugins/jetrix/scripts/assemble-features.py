@@ -23,11 +23,14 @@ Enforces every existing contract:
 
 Usage:
     python assemble-features.py \
-        --project-root .jetrix/<slug> \
+        --project-root .jetrix \
         --sync-state   .jetrix/cache/sync-state.json \
         --solution-slug PluginTest \
         --output       /tmp/features-assembled.json \
         [--slug user-auth ...]     # optional; default = every folder
+
+    (Legacy v1 workspaces pass `--project-root .jetrix/<slug>` instead; the
+    script's `_infer_workspace_root` auto-detects either shape.)
 
 The output JSON shape:
 {
