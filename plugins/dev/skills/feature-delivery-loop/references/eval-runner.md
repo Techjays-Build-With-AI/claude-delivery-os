@@ -6,7 +6,7 @@ How the delivery loop **materializes, runs, and inspects** the evals the TL desi
 
 ## 1. Detect — are there evals to run?
 
-After the standard `dev-validation` suite, check whether the feature is AI-bearing (`delivery-os-conventions` §5) and has eval units in `context/evals/<feature-slug>/` (via `context/evals/eval-index.md`). If it's AI-bearing but has **no** evals, that's a planning gap — the planning gate (`readiness-and-planning.md` §0) should have had the TL design them; if it didn't, re-delegate to `tl-feature-planning` for this feature rather than proving an AI criterion with a deterministic assertion. If it's not AI-bearing, there's nothing to do here.
+After `/dev:build` Stage 7 runs the standard local test suite, check whether the feature is AI-bearing (`delivery-os-conventions` §5) and has eval units in `context/evals/<feature-slug>/` (via `context/evals/eval-index.md`). If it's AI-bearing but has **no** evals, that's a planning gap — the planning gate (`readiness-and-planning.md` §0) should have had the TL design them; if it didn't, re-delegate to `tl-feature-planning` for this feature at `/dev:plan` time rather than proving an AI criterion with a deterministic assertion. If it's not AI-bearing, there's nothing to do here.
 
 ## 2. Materialize — build a runnable verifier from each unit
 

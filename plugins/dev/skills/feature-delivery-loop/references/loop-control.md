@@ -1,35 +1,43 @@
 # Loop control — state model, retry limits, guardrails, escalation
 
-The rules that keep the delivery loop controlled. Read this before running the loop. It defines the feature **state model** and how it maps onto the shared BA/index vocabulary, the **retry and cycle limits**, the **permission and scope boundaries**, the **escalation rules**, and the **completion criteria**.
+The rules that keep the delivery loop controlled. Read this before running the loop. It defines the task **state model** (v2.2) and how it maps onto MC's status enum, the **retry and cycle limits**, the **permission and scope boundaries**, the **escalation rules**, and the **completion criteria**.
+
+Authoritative state model reference: `delivery-os-conventions` §status. This file mirrors it for loop-runtime use.
 
 ---
 
-## 1. Feature state model
+## 1. Task state model (v2.2)
 
-The dev loop tracks a fine-grained state in `dev/delivery-status.md`:
+The dev loop tracks a fine-grained state in `dev/delivery-status.md`. In v2.2 the model simplified to six local states, driven by three commands (`/dev:plan` → `/dev:build` → `/dev:commit`):
 
 ```text
-BACKLOG → READY_FOR_DEV → IN_PLANNING → BLOCKED → IN_DEVELOPMENT
-        → TESTING → REVIEW_FIXES → READY_FOR_PR → HUMAN_REVIEW
-        → APPROVED → MERGED → RELEASED
+PLANNED ──(→BLOCKED_ON_PLAN if plan-blockers.md OPEN)──
+   │                                         │
+   ▼                                         ▼ (user resolves via /dev:plan --resume)
+IN_PROGRESS  (build phase)              PLANNED
+   │
+   ▼
+REVIEW  ──(MERGE_CONFLICT if Stage 7 halt)──
+   │                                    │
+   ▼                                    ▼ (user resolves via /dev:commit --resume)
+DONE                                REVIEW
+
+BLOCKED (execution-time) — reachable from any working state
 ```
 
-| State | Meaning | Who moves it |
-|---|---|---|
-| BACKLOG | Feature exists but is not ready for implementation. | BA / TL |
-| READY_FOR_DEV | Sufficient context, approved for development. | TL / human |
-| IN_PLANNING | Agent is reading context and preparing the implementation plan. | dev |
-| BLOCKED | Cannot continue without a decision, dependency, or clarification. | dev |
-| IN_DEVELOPMENT | Agent is actively making code changes. | dev |
-| TESTING | Automated and manual validation is running. | dev |
-| REVIEW_FIXES | Agent is resolving validation failures or review feedback. | dev |
-| READY_FOR_PR | Implementation and validation complete; handoff prepared. | dev |
-| HUMAN_REVIEW | PR is waiting for human review/approval. | dev → human |
-| APPROVED | Human reviewer approved the implementation. | human |
-| MERGED | Code merged into the target branch. | human |
-| RELEASED | Deployed and release validation complete. | human / deploy skill |
+| Local state | Meaning | MC status | Who sets it |
+|---|---|---|---|
+| PLANNED | `/dev:plan` complete, blockers resolved, ready to `/dev:build` | `readyForDev` | `/dev:plan` |
+| BLOCKED_ON_PLAN | `dev/plan-blockers.md` has OPEN entries — user resolves at plan time | `blocked` | `/dev:plan` Stage 3.5 |
+| IN_PROGRESS | `/dev:build` finished cleanly; ready for local verification + `/dev:commit` | `inProgress` | `/dev:build` (Stage 1 flip + Stage 11 finish) |
+| REVIEW | `/dev:commit` finished cleanly; PR opened; awaiting human review | `devReview` | `/dev:commit` Stage 1 |
+| MERGE_CONFLICT | `/dev:commit` Stage 7 semantic-context-merge halted for human resolution | `devReview` (unchanged) | `/dev:commit` Stage 7 |
+| BLOCKED | Execution-time escalation (bounds exceeded, unresolvable finding, dependency gap) | `blocked` | any stage's escalation |
+| DONE | PR merged | `done` | PR-merge webhook (v2.3) |
 
-`BLOCKED` is reachable from any working state and returns to the state it left once the blocker resolves. The agent owns transitions up to `HUMAN_REVIEW`; `APPROVED`/`MERGED`/`RELEASED` are human- or deploy-owned and the dev agent only records them.
+Transient intermediate labels used inside `/dev:build` (`IN_PLANNING` at Stage 1 mount, `IN_DEVELOPMENT` at Stage 5, `TESTING` at Stage 7) map to MC `inProgress` and are visible only in `dev/delivery-status.md` and progress broadcasts — they don't need MC round-trips.
+
+`BLOCKED` returns to the state it left once the blocker resolves. `BLOCKED_ON_PLAN` is distinct from `BLOCKED` — it's specifically a plan-time decision the user must make; execution-time `BLOCKED` is a runtime escalation. Both map to MC `blocked`.
 
 ### Progress broadcasts (chat visibility) — mandatory
 
@@ -44,19 +52,20 @@ Emit exactly one line per transition, in this format:
 Examples:
 
 ```text
-▸ FEAT-AUTH-03 · READY_FOR_DEV → IN_PLANNING · reading BA + TL context
+▸ FEAT-AUTH-03 · PLANNED → IN_PLANNING · /dev:build mounting context
 ▸ FEAT-AUTH-03 · IN_PLANNING → IN_DEVELOPMENT · plan ready, 6 files to touch
 ▸ FEAT-AUTH-03 · IN_DEVELOPMENT → TESTING · changes done, running validation suite
-▸ FEAT-AUTH-03 · TESTING → REVIEW_FIXES · 2 of 14 acceptance checks failing
-▸ FEAT-AUTH-03 · REVIEW_FIXES → TESTING · focused fix applied, re-running suite
-▸ FEAT-AUTH-03 · REVIEW_FIXES → READY_FOR_PR · all checks green, preparing PR
+▸ FEAT-AUTH-03 · TESTING → IN_PROGRESS · all 12 acceptance rows green; local-runbook written
+▸ FEAT-AUTH-03 · IN_PROGRESS → REVIEW · /dev:commit start, MC flipped to devReview
+▸ FEAT-AUTH-03 · REVIEW → REVIEW (Stage 6 fix loop 1/3 on CR-B-002)
+▸ FEAT-AUTH-03 · REVIEW → REVIEW · PR-247 opened, awaiting reviewer
 ```
 
 Rules:
 
 - **On the state change, not after.** Print the line the moment you set the new state, before doing the work of that state.
 - **One line, no file dumps.** Keep the detail in `dev/`; the chat line is the headline only.
-- **Long-running states get a heartbeat.** `IN_DEVELOPMENT`, `TESTING`, and `REVIEW_FIXES` can run a while. Within them, print a short `  ↳` sub-line when you enter a distinct phase — e.g. `  ↳ repair attempt 2/3 on <cause>` or `  ↳ running e2e suite` — so a long phase never looks stuck. This is a heartbeat, not per-file narration.
+- **Long-running states get a heartbeat.** `IN_DEVELOPMENT`, `TESTING`, and Stage 6 fix loops can run a while. Within them, print a short `  ↳` sub-line when you enter a distinct phase — e.g. `  ↳ repair attempt 2/3 on <cause>` or `  ↳ running e2e suite` or `  ↳ semantic-context-merge downloading baseline` — so a long phase never looks stuck. This is a heartbeat, not per-file narration.
 - **Silence is a signal of trouble.** If you cannot advance the state and are not emitting a heartbeat, you are stuck — treat that as an escalation trigger (§5), not something to work through silently.
 
 ### Explicit error / blocked broadcast — mandatory
@@ -77,40 +86,41 @@ The inline block carries the same facts a good escalation note carries (§5); th
 
 ### State → BA/index vocabulary mapping
 
-`features/feature-index.md` and each feature's `status.md` use the BA controlled values (`Proposed · Ready for Planning · In Development · In QA · UAT · Released · Blocked`). Keep the fine-grained loop state in `dev/delivery-status.md` and **mirror** it into the BA files using this mapping, so the index the whole team reads stays accurate without inventing new vocabulary:
+`features/feature-index.md` and each feature's `status.md` use the BA controlled values (`Proposed · Ready for Planning · In Development · In QA · UAT · Released · Blocked`). Keep the fine-grained loop state in `dev/delivery-status.md` and **mirror** it into the BA files using this mapping:
 
-| Dev loop state | BA status.md / feature-index value |
+| v2.2 local state | BA status.md / feature-index value |
 |---|---|
-| READY_FOR_DEV | Ready for Planning |
-| IN_PLANNING, IN_DEVELOPMENT, TESTING, REVIEW_FIXES | In Development |
-| READY_FOR_PR, HUMAN_REVIEW | In QA |
-| APPROVED | UAT |
-| MERGED, RELEASED | Released |
+| PLANNED | Ready for Planning |
+| BLOCKED_ON_PLAN | Blocked |
+| IN_PROGRESS (build phase — transient IN_PLANNING / IN_DEVELOPMENT / TESTING) | In Development |
+| REVIEW | In QA |
+| MERGE_CONFLICT | In QA |
 | BLOCKED | Blocked |
+| DONE | Released |
 
 When you update `status.md`, also set its *Development* progress row and *Last Updated*, and refresh the feature's row in `feature-index.md`. Never invent index states outside the BA vocabulary.
 
-### MC Task status sync — auto-push on BLOCKED and READY_FOR_PR
+### MC Task status sync — driven by /dev:build and /dev:commit
 
-Push-time detection (in `/jetrix:push feature` and `/jetrix:push implementation`) covers the *handoff moments*, but the dev loop can hit `BLOCKED` after the TL push and take hours to reach `READY_FOR_PR`. To keep MC's board honest during that window, the loop auto-syncs status to MC on **two transitions only** — `→ BLOCKED` and `→ READY_FOR_PR` — via a direct MCP call:
+MC status transitions are owned by the two commands (v2.2), NOT by autonomous background sync. The transitions:
 
 ```
 mcp__task-mcp__update_task_status(
   task_object_id = <feature.md frontmatter jetrix_task_object_id>,
-  status         = "blocked"     # for → BLOCKED
-                 | "devReview"   # for → READY_FOR_PR (dev raised the PR, awaiting review)
+  status         = "readyForDev"  # /dev:plan end (PLANNED)
+                 | "inProgress"   # /dev:build Stage 1 (build phase start)
+                 | "devReview"    # /dev:commit Stage 1 (review start; PR raised at Stage 9)
+                 | "blocked"      # any escalation (BLOCKED) OR plan-time blockers open (BLOCKED_ON_PLAN)
 )
 ```
 
-`READY_FOR_PR` maps to MC's `devReview` wire value (see MC's `TaskStatus` enum in `task.model.ts`). What happens after the PR merges is MC-owned — MC's GitHub webhook currently sets the task to `done` on merge; the dev-agent does not push any post-merge transition.
+`DONE` / MC `done` is set by MC's GitHub webhook on PR merge (v2.3); the dev-agent never sets it.
 
 Rules:
 
-- Fires on the transition, right after writing `dev/delivery-status.md` and before the chat broadcast.
-- Failures are **non-fatal** — log the error to `dev/implementation-log.md` and continue; the next explicit `/jetrix:push` will retry.
-- No other transitions auto-sync. `IN_PLANNING`, `IN_DEVELOPMENT`, `TESTING`, `REVIEW_FIXES` stay local — they change too often, and the local `delivery-status.md` + chat broadcasts already carry the detail for the human watching the run.
-
-Only these two states are stakeholder-visible on the MC board; only they are worth the wire cost.
+- Fires on the state transition inside each command's stage, right after writing `dev/delivery-status.md` and before the chat broadcast.
+- Failures are **non-fatal** — log the error to `dev/implementation-log.md` and continue; the next explicit push will retry.
+- MERGE_CONFLICT stays at MC `devReview` (it's a resolvable state, not a full block).
 
 ---
 
@@ -190,25 +200,36 @@ A good escalation names what was attempted, the precise blocker, its impact (whi
 
 ---
 
-## 6. Completion criteria (gate to READY_FOR_PR)
+## 6. Completion criteria (v2.2 — split by command)
+
+### `/dev:build` complete (IN_PROGRESS gate)
 
 **Mandatory — all must hold:**
-- Feature scope is implemented.
-- Required acceptance criteria are validated with evidence (or formally waived by a human).
-- Relevant tests pass; build and static checks pass.
-- Required documentation is updated.
-- No unresolved critical or high-severity defect remains.
-- No unresolved blocker remains.
-- The feature tracker reflects the latest status.
-- The PR summary is prepared.
+- Task scope implemented per `dev-plan.md`
+- Every Required gate in `qa/quality-gates.md` passes (Stage 7)
+- Every parent AC + BR + TS + NFR row in `dev/acceptance-map.md` is `✅ pass` OR properly `⏸ deferred-to-e2e` (Stage 8)
+- Zero Critical security findings at build-time threshold (Stage 9)
+- Every owned code-context unit flipped `origin: designed → implemented` with valid Source References (Stage 10)
+- `dev/local-runbook.md` written (Stage 11)
+
+Fails any → task stays `TESTING` or drops to `BLOCKED` via bounded fix loop escalation. Never advances to `IN_PROGRESS` on hope.
+
+### `/dev:commit` complete (REVIEW gate = PR opened)
+
+**Mandatory — all must hold:**
+- Zero Critical AND zero High security findings at commit-time threshold (Stage 3)
+- Zero Blocker AND zero Major code-review findings (Stage 4)
+- Every acceptance-map row still `✅ pass` at commit-time re-verify OR valid `⏸ deferred-to-e2e` (Stage 5)
+- Semantic-context-merge clean (Stage 7) — zero unresolved conflicts in `dev/context-merge-conflicts.md`
+- Branch pushed successfully (Stage 8)
+- PR raised with `dev/pr-summary.md` as body (Stage 9)
+
+Fails any → Stage 6 fix loop OR halt with escalation. Never opens a PR on incomplete evidence.
 
 **Optional — where the project requires them:**
-- Accessibility checks pass.
-- Performance checks pass.
-- Security review passes.
-- End-to-end tests pass.
-- Feature-flag configuration is documented.
-- Release notes are generated.
-- Monitoring and alerts are configured.
+- Accessibility checks pass (a11y gate in `qa/quality-gates.md`)
+- Performance checks pass (perf NFR-declared thresholds)
+- Feature-flag configuration documented in `dev/local-runbook.md`
+- Release notes generated
 
-A feature that fails any mandatory criterion stays in its working state (or `BLOCKED`) — it does not advance to `READY_FOR_PR` because code was written.
+A task that fails any mandatory criterion at either gate stays in its working state (or `BLOCKED` / `MERGE_CONFLICT`) — it does not advance because code was written.

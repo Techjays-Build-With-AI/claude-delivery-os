@@ -66,7 +66,7 @@ Before writing any plan, confirm each item. A failure on a **critical** item mea
 
 | Check | Source | Critical? |
 |---|---|---|
-| Feature is approved / at READY_FOR_DEV | parent's `status.md`, `feature-index.md` | ✕-critical |
+| Feature is approved / at MC `readyForDev` (local `PLANNED`) | parent's `status.md`, `feature-index.md` | ✕-critical |
 | Acceptance criteria exist and are non-empty | parent's `acceptance-criteria.md` | ✕-critical |
 | No blocking open question is still `Open` | parent's `open-questions.md` (Impact = "Blocks…") | ✕-critical |
 | TL technical context exists for the feature's units | `<repo>/context/code-context/` + indexes | ✕-critical → **already satisfied by Stage 1** (planning gate); revalidate quickly, don't repeat the full check |
@@ -105,8 +105,8 @@ The dev agent never chooses the stack itself — bootstrap executes a confirmed 
 
 Before implementing, confirm a usable test harness exists and the loop knows the bar:
 
-1. **Read `qa/quality-gates.md`.** If it exists with `harness_status: Active` → the harness is proven and the file tells `dev-validation` which checks are **Required**, their commands, and the thresholds. Carry the required gates into `dev-plan.md`. Proceed.
-2. **No contract, or `harness_status` is `Draft`/`Broken`** → not a per-feature bug (it blocks every feature); the fix — which frameworks, what coverage floor — is a QA strategy decision. Route to QA rather than plain-blocking: tell the user to run `/qa:audit` → `/qa:plan` → `/qa:setup`. If the QA plugin isn't installed → degrade: fall back to detecting the repo's own tooling for this run, note in the summary that no quality-gate contract was found — recommend installing `qa`.
+1. **Read `qa/quality-gates.md`.** If it exists with `harness_status: Active` → the harness is proven and the file tells `/dev:build` Stages 7-8 which checks are **Required**, their commands, and the thresholds. Carry the required gates into `dev-plan.md`. Proceed.
+2. **No contract, or `harness_status` is `Draft`/`Broken`** → not a per-feature bug (it blocks every feature); the fix — which frameworks, what coverage floor — is a QA strategy decision. In v2.2, `/dev:build` Stage 4 auto-bootstraps a greenfield harness via `qa-greenfield-harness` inline (deterministic, no prompts) — plan proceeds normally. Note in the plan summary that harness was Draft/missing → will be auto-bootstrapped at build. If the QA plugin isn't installed → degrade: fall back to detecting the repo's own tooling for this run.
 3. **A `Broken` harness** (Required gate red before changes) → genuine escalation — `BLOCKED`, tell the user to run `/qa:health` and fix the harness first.
 
 The dev agent never designs the test strategy itself — QA owns that.
@@ -181,9 +181,33 @@ generated_at: <ISO>
 
 ---
 
+### 3e.5 — Blocker detection (v2.2, before finalise)
+
+**After §3e writes `dev-plan.md` + `impacted-components.md`, run blocker detection.** This is what makes `/dev:build` safe to run without prompts — every plan-time decision that would need user input is surfaced here.
+
+**Read [`blocker-detection.md`](blocker-detection.md) and execute verbatim on THIS task.**
+
+Two possible outcomes per task:
+
+- **No blockers detected** → continue to §3f Finalise (task lands at `PLANNED` / MC `readyForDev`).
+- **Blockers detected** → the reference file writes `dev/plan-blockers.md` (`status: OPEN`), sets `delivery-status.md` `current_state: BLOCKED_ON_PLAN`, pushes MC status `blocked`. **HALT §3f for this task** — it does NOT reach `PLANNED`. Print the halt message from `/dev:plan` §6c. Siblings continue in parallel.
+
+**On `/dev:plan --resume`** — before running §3e (impact/dev-plan) at all, check for `dev/plan-blockers.md`:
+
+- **Exists, `status: OPEN` or `RESOLVING`** → read [`blocker-fold.md`](blocker-fold.md) and execute verbatim.
+  - Fold succeeds (all PBs had Resolutions, all folds applied) → file → `RESOLVED`, task → `PLANNED`, MC → `readyForDev`. Proceed to §3f finalise.
+  - Fold partially succeeds (some PBs still unresolved) → halt with the §6d partial-resolution message. Task stays `BLOCKED_ON_PLAN`.
+  - Fold error (target file/section missing) → per `blocker-fold.md` §6.4, halt this task; siblings continue.
+- **Exists, `status: RESOLVED`** → nothing to fold; continue to §3f finalise.
+- **Doesn't exist** → normal resume; re-run detection (§3e.5) at the end of §3e as usual.
+
+**Idempotency:** re-running a plain `/dev:plan` (not `--resume`) on a task with an existing `plan-blockers.md` never wipes the file. Per `blocker-detection.md` §5.8, new blockers append to the file; user's Resolutions are preserved.
+
+---
+
 ### 3f. Finalise — status transition + MC push
 
-For each task:
+For each task **whose §3e.5 came back clean** (no blockers OR all folded):
 
 1. **Write `delivery-status.md`** (parent's `dev/` OR sub-task's `dev/`):
    ```yaml

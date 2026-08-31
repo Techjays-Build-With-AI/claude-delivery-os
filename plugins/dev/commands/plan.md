@@ -1,5 +1,5 @@
 ---
-description: Just-in-time planning for one or many tasks. Verifies the technical context graph is current (auto-runs /tl:plan if missing), decides whether each task needs sub-tasks (multi-repo → one sub-task per repo, single-repo or bug/story → parent alone), composes each sub-task's Description + Implementation and creates them in Mission Control, and writes the local development plan. Accepts a single MC task number (Task-N, Feature-N, Subtask-N), a local feature slug or folder path, the internal FEAT-<AREA>-NN id, or a multi-target form — an MC List name, initiative=<name>, or --all — which fans out across every matching feature in parallel. Runs 4 stages: identity resolution (expands multi-targets, prompts to /jetrix:pull if BA files are missing) → code-context readiness → implementation preparation → development planning. Two parallelism axes: across features (bounded by --concurrency, default 5) and within a feature (per-sub-task compose + per-task planning). One consolidated user checkpoint after stage 1 to confirm the split for every targeted feature. Failure of one feature never halts the batch — failed features report at the end with escalations. Never merges, never runs code — leaves each task at status PLANNED for /dev:build.
+description: Just-in-time planning for one or many tasks. Verifies the technical context graph is current (auto-runs /tl:plan if missing), decides whether each task needs sub-tasks (multi-repo → one sub-task per repo, single-repo or bug/story → parent alone), composes each sub-task's Description + Implementation and creates them in Mission Control, writes the local development plan, and (v2.2) surfaces every plan-time decision that would require build-time input as PB-### blockers in dev/plan-blockers.md — so /dev:build never has to prompt. Accepts a single MC task number (Task-N, Feature-N, Subtask-N), a local feature slug or folder path, the internal FEAT-<AREA>-NN id, or a multi-target form — an MC List name, initiative=<name>, or --all — which fans out across every matching feature in parallel. Runs 4 stages: identity resolution → code-context readiness → implementation preparation → development planning + blocker detection. With --resume: if a task has an OPEN dev/plan-blockers.md, folds every filled Resolution: field into dev-plan.md + impacted-components.md + registers deterministically per category, logs each fold as a DEC-###, and moves the task from BLOCKED_ON_PLAN to PLANNED. Two parallelism axes: across features (bounded by --concurrency, default 5) and within a feature (per-sub-task compose + per-task planning). One consolidated user checkpoint after stage 1 to confirm the split for every targeted feature. Failure of one feature never halts the batch — failed features report at the end with escalations or plan-blockers. Never merges, never runs code — leaves each task at status PLANNED for /dev:build (or BLOCKED_ON_PLAN awaiting user resolution).
 argument-hint: "<Task-N | Feature-N | Subtask-N | slug | features/<slug> | FEAT-<AREA>-NN | list=<name> | initiative=<name> | --all | (blank = next READY task)> [--split | --no-split] [--resume] [--dry-run] [--concurrency=N]"
 ---
 
@@ -33,19 +33,19 @@ Standard checks before any work:
 
 `$ARGUMENTS` may contain:
 
-**Target (required, unless blank for "next READY_FOR_DEV"):**
+**Target (required, unless blank for "next task at MC `readyForDev`"):**
 
 *Single-target forms:*
 - MC task number: `Task-N`, `Feature-N`, `Subtask-N` (case-insensitive prefix)
 - Local slug: `supplier-onboarding`
 - Local folder path: `features/supplier-onboarding`
 - Internal id: `FEAT-<AREA>-NN`
-- Blank: pick next feature at `READY_FOR_DEV`
+- Blank: pick next feature at MC `readyForDev` (v2.2)
 
 *Multi-target forms:*
 - `list=<name>` or `list="Supplier Management"` (bare quoted string with no other match also treated as list name)
 - `initiative=<name>` (matches `/tl:plan`, `/dev:build` convention)
-- `--all` (every feature at `READY_FOR_DEV`; combined with `initiative=<name>` filters to that initiative)
+- `--all` (every feature at MC `readyForDev`; combined with `initiative=<name>` filters to that initiative)
 
 **Flags:**
 - `--split` — force sub-task creation regardless of repo count
@@ -74,13 +74,13 @@ For **single-target** forms:
    - Result: `(feature_id from metadata.externalId, task_object_id, task_number)`.
 2. **Local slug or folder path** — match against `features/<slug>/`, read `feature.md` frontmatter → `(feature_id, jetrix_task_object_id, jetrix_task_number)`.
 3. **Internal `FEAT-<AREA>-NN`** — grep `features/*/feature.md` frontmatter for the id.
-4. **Blank** — scan `features/*/status.md` for `current_state: READY_FOR_DEV` → pick first (or picker if many).
+4. **Blank** — call `task-mcp.feature_list_bundle(solution_id, status='readyForDev')` → pick first (or picker if many). Fallback: scan `features/*/status.md` for `current_state: PLANNED` if MC unavailable.
 
 For **multi-target** forms:
 
 5. **`list=<name>`** — call `task-mcp.feature_list_bundle(solution_id, list_name=<arg>)` → array of features → expand to N targets.
 6. **`initiative=<name>`** — grep `features/*/feature.md` frontmatter for `initiative: <arg>` → N targets. Cross-check with MC via `feature_list_bundle` to catch features not yet local (feeds §2c).
-7. **`--all`** — scan `features/*/status.md` for `READY_FOR_DEV`; combined with `initiative=<name>`, take every feature in that initiative regardless of status.
+7. **`--all`** — call `task-mcp.feature_list_bundle(solution_id, status='readyForDev')`; combined with `initiative=<name>`, take every feature in that initiative regardless of status.
 
 Any unresolvable input → halt with the 5 nearest slugs / task numbers.
 
@@ -229,6 +229,80 @@ For each Stage-2-successful feature, spawn a worker that:
 3. Uses its own inner-axis parallelism (per-sub-task planning for split; single task for parent-alone).
 
 Each per-task worker inside Stage 3 spawns a `dev-agent` subagent to run readiness / impact / dev-plan for that task.
+
+### 6a. Stage 3.5 — Blocker detection (v2.2)
+
+After each task's Stage 3 finishes writing `dev-plan.md` + `impacted-components.md`, **immediately run the blocker detection sub-phase** — reads `plugins/dev/commands/references/plan/blocker-detection.md` and executes verbatim on that task.
+
+**Outcomes per task:**
+
+- **No blockers detected** → task proceeds to state `PLANNED`, MC status `readyForDev`. Continue.
+- **Blockers detected** → task writes `dev/plan-blockers.md` (`status: OPEN`), sets state to `BLOCKED_ON_PLAN`, MC status `blocked`. Halt THIS task's Stage 3.5; siblings continue independently.
+
+**Batch behaviour:**
+
+- Blockers on ONE task never halt the batch — same failure-isolation as Stages 1 + 2. Other tasks reach `PLANNED` normally.
+- Batch summary (§7) surfaces every task's blocker state.
+
+### 6b. Stage 3.5 on `--resume` — Blocker fold
+
+When invoked with `--resume`, for each task whose `dev/plan-blockers.md` exists AND `status: OPEN` or `RESOLVING`:
+
+1. Reads `plugins/dev/commands/references/plan/blocker-fold.md` and executes verbatim.
+2. If every `PB-###` has a filled `Resolution:` → folds each per the per-category rules, updates target files, logs `DEC-###`, sets file `status: RESOLVED`, task → `PLANNED`, MC → `readyForDev`.
+3. If any `PB-###` still has a placeholder `Resolution:` → halts THIS task's fold with a targeted message listing the unresolved PB-###; task stays `BLOCKED_ON_PLAN`.
+4. If a fold error occurs (missing target file / section) → halts, preserves user's Resolution field, sets `status: OPEN`, writes an error line.
+
+Tasks whose `plan-blockers.md` is already `RESOLVED` (or never had one) skip §6b entirely — pure Stage 3 finalise runs.
+
+### 6c. Halt output when blockers surface
+
+When Stage 3.5 detects blockers and halts, print (per task):
+
+```
+✗ /dev:plan halted for <task-ref> — <N> plan-time decisions require resolution:
+
+  PB-001  <short title>              [Blocks <AC/BR/dev-plan step>]
+  PB-002  <short title>              [Blocks <...>]
+
+Resolve them:
+  1. Open: <task-folder>/dev/plan-blockers.md
+  2. Fill in the "Resolution:" field under each PB-###
+  3. Re-run: /dev:plan --resume <task-ref>
+
+Status: BLOCKED_ON_PLAN (MC: blocked)
+```
+
+For multi-target batches, print the union of these halts at the end of the batch alongside the successes.
+
+### 6d. Halt output on `--resume` partial resolution
+
+```
+✗ /dev:plan --resume halted for <task-ref> — <M> of <N> blockers still need decisions:
+
+  Folded:      PB-001, PB-003
+  Still open:  PB-002, PB-004
+
+Fill the remaining Resolution: fields and re-run.
+```
+
+### 6e. Success output on `--resume` complete fold
+
+```
+✓ /dev:plan --resume complete for <task-ref> — <N> blockers folded into the plan
+
+  PB-001 → resolved (option 1: internal compliance service)
+            applied to: impacted-components.md §3rd-party, dev-plan.md step 3
+            logged as DEC-042
+  PB-002 → resolved (option 1: composite uniqueness)
+            applied to: impacted-components.md §Database, dev-plan.md step 1
+            logged as DEC-043
+
+Local state:  PLANNED
+MC status:    readyForDev
+
+Next: /dev:build <task-ref>
+```
 
 ---
 

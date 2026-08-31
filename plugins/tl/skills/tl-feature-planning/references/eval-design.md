@@ -30,7 +30,7 @@ Append a `DEC-###` to `shared-context/decision-log.md` for each material eval-de
 
 ## 5. You design; dev runs
 
-Stop at the design. You author the instruction, the environment (including the live/sim decisions), and the verifier intent — enough that the dev loop can materialize a runnable verifier and execute it without re-deciding what the eval measures. You do **not** run the eval, wire live infrastructure, or write production scoring code; the `feature-delivery-loop` (via `dev-validation` and the loop's `references/eval-runner.md`) does that and inspects both sides at run time.
+Stop at the design. You author the instruction, the environment (including the live/sim decisions), and the verifier intent — enough that the dev loop can materialize a runnable verifier and execute it without re-deciding what the eval measures. You do **not** run the eval, wire live infrastructure, or write production scoring code; the `feature-delivery-loop` (via `/dev:build` Stages 6-7 and the loop's `references/eval-runner.md`) does that and inspects both sides at run time.
 
 ## Completion — evals for this feature are designed when
 

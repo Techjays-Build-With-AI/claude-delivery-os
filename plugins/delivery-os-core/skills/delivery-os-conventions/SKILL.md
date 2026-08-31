@@ -7,7 +7,9 @@ description: The Techjays Delivery OS shared document contract. Read this before
 
 This is the single source of truth that makes Delivery OS documents **shareable across agents and across weeks**. The BA Agent produces documents today; the Doc, TL, and QA agents consume them later. They only interoperate if every agent honors this contract.
 
-> **Contract version: 2.1.** Bump `schema_version` in document frontmatter and update this file together when the contract changes.
+> **Contract version: 2.2.** Bump `schema_version` in document frontmatter and update this file together when the contract changes.
+>
+> **2.2 (plan-time blocker resolution — additive).** Added the plan-time blocker resolution loop so `/dev:build` never has to make build-time decisions. New per-task file `dev/plan-blockers.md` (`doc_type: plan-blockers`) captures decisions the user must make BEFORE build starts — missing integration contracts, undecided auth models, ambiguous schemas, unknown config, unclear business rule edge cases. `/dev:plan` Stage 3 detects them from 5 sources (`tl-plan.md` `[HELD]` markers, BA `open-questions.md` "Blocks build" rows, `integrations.md` unresolved entries, `system-landscape.md` gaps, `impacted-components.md` `unknown` entries). User fills `Resolution:` per blocker → `/dev:plan --resume` deterministically folds resolutions into `dev-plan.md` + `impacted-components.md` and logs each as a `DEC-###`. New state `BLOCKED_ON_PLAN` (distinct from execution-time `BLOCKED`) — both map to MC `blocked`. New ID prefix `PB-###` (Plan Blocker, sequential per task). `/dev:build` Stage 0 refuses to run if `plan-blockers.md` `status:` is `OPEN` or `RESOLVING`. Additive: features whose plan is already fully-decidable never get a `plan-blockers.md` file.
 >
 > **2.1 (sub-task delivery layer — additive).** Added the sub-task tree under each feature: `features/<slug>/subtask/<repo>/` holds one sub-task per involved repo when `/dev:plan` decides to split a multi-repo feature. Each sub-task's tab files (`description.md`, `implementation.md`, `status.md`) map 1:1 to MC's 4-tab sub-task schema (`taskType: subtask`; the `acceptanceCriteria` and `testScenarios` tabs stay empty on MC — validation reads parent). Dev artifacts for each sub-task live under `subtask/<repo>/dev/`. New `doc_type`s: `subtask-description`, `subtask-implementation`, `subtask-status`, `plan-run`, `task-decision`. `/dev:plan` batch runs write summaries under `.jetrix/dev/batch-runs/plan-run-<ts>.md`. Reverse mapping (MC metadata → local layout) uses `metadata.subtaskNumber` + `metadata.subtaskRepo` on each sub-task so `/jetrix:pull scope` can reconstruct the tree cold. Additive — single-repo and bug/story features never get a `subtask/` folder and are unaffected.
 >
@@ -161,7 +163,7 @@ Every Delivery OS workspace is bound to **one** Jetrix Solution. Everything live
 
 ### 1.b The per-repo code-context tree (Model B — TL owns the graph, but it lives with the code)
 
-The **as-built code graph** (pages, endpoints, entities) does NOT live under `.jetrix/`. Each linked app repo carries its own `<repo>/context/code-context/` tree, committed with the code. Written by `/tl:code-map` (brownfield reverse-map) and extended by `/tl:plan` (forward planning of new units), read by `/dev:plan` (Stage 2 compose), `/dev:build`, `/dev:validate`, and doc/qa consumers. Structure:
+The **as-built code graph** (pages, endpoints, entities) does NOT live under `.jetrix/`. Each linked app repo carries its own `<repo>/context/code-context/` tree, committed with the code. Written by `/tl:code-map` (brownfield reverse-map) and extended by `/tl:plan` (forward planning of new units), read by `/dev:plan` (Stage 2 compose), `/dev:build` (Stage 10 `designed → implemented` flip), `/dev:commit` (Stage 7 semantic-context-merge via `tl-semantic-context-merge`), and doc/qa consumers. Structure:
 
 ```text
 <repo>/context/code-context/
@@ -207,7 +209,7 @@ It is **agent-maintained** (the user can still hand-edit it) and folds together 
 
 ```yaml
 ---
-doc_type: scope            # scope | requirement-register | use-case-register | glossary | run-summary | source-summary | intake-index | subtask-description | subtask-implementation | subtask-status | plan-run | task-decision | ...
+doc_type: scope            # scope | requirement-register | use-case-register | glossary | run-summary | source-summary | intake-index | subtask-description | subtask-implementation | subtask-status | plan-run | task-decision | plan-blockers | ...
 schema_version: 1.3        # the contract version this file conforms to
 produced_by: ba            # ba | doc | tl | qa | delivery-os
 last_intake_run: run-003   # the run that last touched this file (omit if N/A)
@@ -258,7 +260,7 @@ inputs_hash:              sha256:…              # hash of the compose inputs; 
 
 `status.md` adds `current_state`, `owner_lock`, and `branch` for the loop-state model (§5) — same fields the parent's `status.md` uses.
 
-**MC-side reverse mapping** (set at sub-task creation via `task-mcp.subtask_upsert_bundle`):
+**MC-side reverse mapping** — the plugin sends this shape to `task-mcp.subtask_upsert_bundle`:
 
 ```json
 {
@@ -273,7 +275,16 @@ inputs_hash:              sha256:…              # hash of the compose inputs; 
 }
 ```
 
-This metadata is what `/jetrix:pull scope` reads to reconstruct the local `subtask/<repo>/` tree from MC on a cold clone.
+task-mcp **translates** this to MC's whitelisted metadata schema on the write path (MC only accepts `externalId` / `externalSlug` / `externalInitiative` / `externalUrl` / `source` / `aiGenerated` / `aiGeneratedAt`), then **reverses** the mapping in `subtask_list` so consumers read the same shape. Concretely:
+
+| Plugin field | Write path | Read path (`subtask_list`) |
+|---|---|---|
+| `externalId` | → `metadata.externalId` (whitelisted) | ← `metadata.externalId` |
+| `subtaskRepo` | → `metadata.externalSlug` (whitelisted) | ← derived from `metadata.externalSlug` |
+| `subtaskNumber` | dropped (not stored) | ← derived from sort position (`taskNumber` ascending, index+1) |
+| `parentExternalId` | dropped (parent link is URL path `:taskId`) | ← derived from parent's `metadata.externalId` (single MC lookup per listing) |
+
+This metadata is what `/jetrix:pull scope` reads to reconstruct the local `subtask/<repo>/` tree from MC on a cold clone — task-mcp's read-side derivation preserves the round-trip.
 
 ---
 
@@ -303,6 +314,7 @@ IDs are the threads that let one agent cite what another produced. They are **ap
 | QA finding        | `QAF`  | QAF-001  | qa/audits/test-audit-*.md (qa)    |
 | Quality gate      | `QG`   | QG-001   | qa/quality-gates.md (qa)           |
 | Initiative        | *(human slug)* | payments-v2 | feature frontmatter + features/feature-index.md (ba) |
+| Plan blocker      | `PB` (or `PB-<N>` for sub-task N) | PB-001 · PB-1-002 | dev/plan-blockers.md (dev) — v2.2 |
 
 ### Initiative — grouping features by work batch (multi-developer)
 
@@ -353,8 +365,8 @@ All agents use these exact values — no synonyms.
 `M` (Must) · `S` (Should) · `C` (Could) · `W` (Won't-this-phase)
 
 **Dev delivery state** (per task — parent Task or sub-task; local `status.md` + mirrored on MC's status field):
-`PLANNED` · `IN_PROGRESS` · `REVIEW` · `DONE` · `BLOCKED`
-Written by `/dev:plan` at `PLANNED`; advanced by `/dev:build` (→ `IN_PROGRESS`) and `/dev:commit` (→ `REVIEW`); flipped to `DONE` by human on merge; any stage can escalate to `BLOCKED`. For a split feature the parent's state is **derived** from its sub-tasks (all `DONE` → parent `DONE`; any `BLOCKED` → parent `BLOCKED`; any `IN_PROGRESS` → parent `IN_PROGRESS`; else `PLANNED`) — parent state is never written directly.
+`PLANNED` · `IN_PROGRESS` · `REVIEW` · `DONE` · `BLOCKED` · `BLOCKED_ON_PLAN` (v2.2)
+Written by `/dev:plan` at `PLANNED` (or `BLOCKED_ON_PLAN` when plan-blockers exist); advanced by `/dev:build` (→ `IN_PROGRESS`) and `/dev:commit` (→ `REVIEW`); flipped to `DONE` by human on merge; any stage can escalate to `BLOCKED` (execution-time blocker). `BLOCKED_ON_PLAN` is distinct — set only by `/dev:plan` when the plan itself has undecided decisions the user must resolve in `dev/plan-blockers.md` before `/dev:build` can run. Both `BLOCKED` and `BLOCKED_ON_PLAN` map to MC `blocked`. For a split feature the parent's state is **derived** from its sub-tasks (all `DONE` → parent `DONE`; any `BLOCKED` or `BLOCKED_ON_PLAN` → parent `BLOCKED`; any `IN_PROGRESS` → parent `IN_PROGRESS`; else `PLANNED`) — parent state is never written directly.
 
 **Applied-AI / LLM feature** (does a feature need eval-engineering?):
 A feature is **AI-bearing** when its behaviour depends on a model's output — generation, classification/extraction, ranking or semantic search, RAG, or agentic tool use — or it declares `ai_component: true` / cites an `INT-###` to an LLM/AI provider. AI-bearing features get an **eval layer** (`context/evals/`, `EVAL-<AREA>-NN`, see the `eval-engineering` skill); every other feature is **deterministic** and is proven by the dev acceptance-map alone. When it's genuinely unclear, record an **open question** rather than assuming — don't skip evals on a feature that turns out to be AI-bearing, or invent them for one that isn't.
@@ -381,7 +393,7 @@ A feature is **AI-bearing** when its behaviour depends on a model's output — g
 | `features/tracker.md`                | dev         | dev, tl (roll-up)  |
 | `doc/**/*`                           | doc         | human, final       |
 | `tl/reviews/*` `tl/maturity/*`       | tl          | human, delivery    |
-| `qa/quality-gates.md`                | qa          | dev (readiness gate + dev-validation) |
+| `qa/quality-gates.md`                | qa          | dev (`/dev:plan` harness gate; `/dev:build` Stages 4/7/8; `/dev:commit` Stage 5) |
 | `qa/audits/*` `qa/test-setup-plan.md` | qa         | human, qa          |
 
 When a downstream agent (doc/tl/qa) runs, it should prefer `ba/scope.md` as its primary input and **not re-run BA analysis** unless explicitly asked.

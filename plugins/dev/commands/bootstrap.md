@@ -26,4 +26,4 @@ Invoke the **dev-agent** subagent. Pass it this instruction:
 
 ## 3. Surface the result
 
-Present the outcome: whether the repo already existed or was scaffolded, the confirmed **stack and structure**, spec-supplied vs user-answered decisions, `DEC-###` logged, the **repo location**, and the **green-base verification**. Close with the next action — the workspace is now build-ready, so run `/dev:build <feature>` (or leave it blank to take the next feature at `READY_FOR_DEV`). If a critical stack decision is still open, lead with the question the user needs to answer.
+Present the outcome: whether the repo already existed or was scaffolded, the confirmed **stack and structure**, spec-supplied vs user-answered decisions, `DEC-###` logged, the **repo location**, and the **green-base verification**. Close with the next action — the workspace is now build-ready, so run `/dev:plan <feature>` first, then `/dev:build <feature>` (or leave `/dev:plan` blank to take the next feature at MC `readyForDev`). If a critical stack decision is still open, lead with the question the user needs to answer.

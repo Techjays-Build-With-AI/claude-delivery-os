@@ -52,12 +52,36 @@ subtask_upsert_bundle(
       test_scenarios:         Optional[str], # Usually omitted — parent owns TS.
 
       # Metadata (carries reverse mapping for cold-pull reconstruction)
+      #
+      # NOTE — MC's Task.metadata schema strictly whitelists only:
+      #   externalId / externalSlug / externalInitiative / externalUrl /
+      #   source / aiGenerated / aiGeneratedAt
+      # (see jetrix-mission-control/src/schemas/task.schema.ts:9-17 — Joi
+      # without .unknown(true) rejects any other key with "is not allowed").
+      #
+      # task-mcp translates the caller's convention below into MC-safe
+      # metadata on the write path, and reverses the mapping in `subtask_list`
+      # so the plugin reads the same shape it always has:
+      #   subtaskRepo      → mapped to metadata.externalSlug on write;
+      #                      reversed to metadata.subtaskRepo on read
+      #   subtaskNumber    → not written (dropped); re-derived on read as
+      #                      index+1 in taskNumber-ascending sort order
+      #                      (matches the caller's original list order,
+      #                      since MC's getNextTaskNumber is monotonic)
+      #   parentExternalId → not written (parent link is via URL path);
+      #                      re-derived on read via a single parent lookup
+      #                      per listing
       metadata: {
         externalId:       str,               # e.g. "FEAT-SUP-001-1" — stable per sub-task,
                                              # used as the idempotency key
-        parentExternalId: str,               # e.g. "FEAT-SUP-001" — matches parent.metadata.externalId
-        subtaskNumber:    int,               # 1..N execution sequence within parent
-        subtaskRepo:      str,               # repo slug, e.g. "backend" / "frontend" / "mobile"
+        parentExternalId: Optional[str],     # e.g. "FEAT-SUP-001" — plugin may send for
+                                             # symmetry with feature bundles; task-mcp ignores
+                                             # it on write and re-derives on read
+        subtaskNumber:    int,               # 1..N execution sequence within parent —
+                                             # required on write (used for response echo +
+                                             # POST ordering); not stored in MC
+        subtaskRepo:      str,               # required — mapped to metadata.externalSlug
+                                             # on write; e.g. "backend" / "frontend" / "mobile"
         source:           "ai",              # matches feature_upsert_bundle convention
         aiGenerated:      True
       },
@@ -148,14 +172,19 @@ subtask_list(
       "acceptance_criteria":    str,
       "test_scenarios":         str,
 
-      # Metadata (as written by subtask_upsert_bundle)
+      # Metadata — MC stores externalId + externalSlug + source + aiGenerated.
+      # task-mcp re-derives parentExternalId + subtaskNumber + subtaskRepo
+      # from stored fields + parent lookup + sort position so the plugin
+      # reads the same shape it always has. See the `subtask_upsert_bundle`
+      # metadata note above for the full contract.
       "metadata": {
-        "externalId":       str,
-        "parentExternalId": str,
-        "subtaskNumber":    int,
-        "subtaskRepo":      str,
-        "source":           "ai",
-        "aiGenerated":      bool
+        "externalId":       str,   # from MC (whitelisted)
+        "externalSlug":     str,   # from MC (whitelisted) — == subtaskRepo
+        "source":           "ai",  # from MC
+        "aiGenerated":      bool,  # from MC
+        "subtaskRepo":      str,   # derived from externalSlug
+        "subtaskNumber":    int,   # derived from sort position (1..N)
+        "parentExternalId": str    # derived from parent.metadata.externalId
       }
     },
     ...

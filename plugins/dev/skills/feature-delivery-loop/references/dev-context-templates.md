@@ -91,7 +91,7 @@ generated_at: YYYY-MM-DD
 
 ## 3. acceptance-map.md
 
-The evidence table — a feature cannot reach READY_FOR_PR until every mandatory row is `Passed` or human-`Waived`.
+The evidence table — a task cannot advance past `/dev:build` Stage 8 (build) or `/dev:commit` Stage 5 (commit re-verify) until every mandatory row is `Passed` or human-`Waived`.
 
 ```md
 ---

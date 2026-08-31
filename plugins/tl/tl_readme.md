@@ -8,7 +8,7 @@ The **Technical Lead Agent** does two jobs a seasoned TL does. It **authors** th
 | **Commands** | `/tl:plan <feature-or-features>` · `/tl:review <doc> [out=<prefix>]` · `/tl:resolve <responses-file>` · `/tl:scaffold [spec] [repo=<path>]` · `/tl:code-map [repo=<path>]` · `/tl:maturity [repo=<path>] [strict-baseline]` |
 | **Input** | Feature planning: the BA feature breakdown under `features/`. Spec review: a tech spec / architecture / system-design / HLD / SRS document (`.md`, `.docx`, or `.pdf`). Scaffold: the confirmed architecture (spec / `shared-context/`) + the context graph |
 | **Output** | Feature planning: the linked `<repo>/context/code-context/{frontend,backend,database}/` graph + three indexes. Spec review: `tl/spec-review-<timestamp>.{html, md, json}`. Scaffold: the initial application repository (skeleton + tooling + green base) and `shared-context/{technology-stack, architecture, coding-standards}.md` |
-| **Skills** | `tl-feature-planning` · `tl-spec-review` · `tl-project-scaffold` · `tl-code-map` · `tl-maturity-audit` |
+| **Skills** | `tl-feature-planning` · `tl-spec-review` · `tl-project-scaffold` · `tl-code-map` · `tl-maturity-audit` · `tl-semantic-context-merge` (invoked by `/dev:commit` — v2.2) |
 
 ---
 
@@ -29,6 +29,26 @@ Point it at the tech spec / architecture (or let it read `shared-context/` + `sh
 Then it scaffolds: the idiomatic skeleton (preferring official generators like `create-vite`, `spring init`, `poetry new`), package-manager manifests, lint/format/type/test/build tooling, one trivial passing test, a README and `.gitignore`, and it writes `shared-context/{technology-stack.md, architecture.md, coding-standards.md}`. Every stack decision — spec-confirmed or you-answered — is logged as a `DEC-###`. Before handing off it runs `install → lint → type-check → test → build` and confirms the **base build is green** — the exact readiness item the dev agent checks. It scaffolds the *foundation*, not features; the dev agent's `feature-delivery-loop` builds those into it.
 
 Once it's done, the workspace is build-ready: `/dev:build <feature>` (and the dev agent's `/dev:bootstrap` greenfield check) will pass.
+
+---
+
+## Semantic context merge (`tl-semantic-context-merge` — invoked by `/dev:commit` Stage 7)
+
+New in v2.2. Merges a feature branch's flipped `origin: implemented` code-context units against the `main` env baseline via `context-mcp` — **graph-aware, unit-level merge**, not a git text-level merge.
+
+- **Per-unit fields:** LWW by `updated_at`, with transition-order rules for `origin` (`deprecated > implemented > designed`; never regress)
+- **Layer indexes** (`endpoint-index.md`, `page-index.md`, `entity-index.md`): row union by `unit_id`; per-row field-level LWW using the underlying unit file's `updated_at`
+- **`Source References` sections:** append-only union
+- **Overview files:** LWW for prose, derived counts regenerated after the union
+- **Real conflicts** (tied timestamps, incompatible immutable fields like `unit_id` / `layer` / `method` / `table_name`, contract type mismatches): halt with `dev/context-merge-conflicts.md` for human resolution; `[x]`-tick a choice or hand-merge, then `/dev:commit --resume`
+
+Baseline is read-only (`context-mcp` `context_pull_manifest(env='main')`). Never invokes `git merge`. Solves the "Semantic Memory Merging" concern from the design meeting: index rows update as a set, unit files update as records, and unit ids are the merge key across branches.
+
+Full spec in `plugins/tl/skills/tl-semantic-context-merge/`:
+- `SKILL.md` — 3-phase workflow + hard rules
+- `references/field-merge-rules.md` — per-frontmatter-field + per-body-section merge rules
+- `references/index-rebuild.md` — row-union merge for the 3 layer indexes
+- `references/conflict-resolution.md` — halt sequence + `context-merge-conflicts.md` format + `--force-context-merge=ours` escape hatch
 
 ---
 
