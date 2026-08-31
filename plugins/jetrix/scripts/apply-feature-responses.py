@@ -27,7 +27,7 @@ v2.1 additions (IMPLEMENTED):
 
 Usage:
     python apply-feature-responses.py \
-        --responses    /tmp/feature-responses.json \
+        --responses    .jetrix/staging/push-features-responses.json \
         --project-root .jetrix \
         --sync-state   .jetrix/cache/sync-state.json
 

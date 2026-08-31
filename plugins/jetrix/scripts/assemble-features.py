@@ -41,8 +41,14 @@ Usage:
         --project-root .jetrix \
         --sync-state   .jetrix/cache/sync-state.json \
         --solution-slug PluginTest \
-        --output       /tmp/features-assembled.json \
+        --output       .jetrix/staging/push-features.json \
         [--slug user-auth ...]     # optional; default = every folder
+
+    Note (v2.3.2): --output should point to .jetrix/staging/, not .jetrix/cache/.
+    The output file is TRANSIENT staging (regenerated every push) — the caller
+    deletes it after the push cycle completes. Only sync-state.json is
+    persistent; it carries the contentHash + task_object_id per feature. See
+    plugins/jetrix/commands/references/push/feature.md § Cleanup.
 
     (Legacy v1 workspaces pass `--project-root .jetrix/<slug>` instead; the
     script's `_infer_workspace_root` auto-detects either shape.)

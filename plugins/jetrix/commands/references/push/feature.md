@@ -51,7 +51,14 @@ Only after all prereq checks pass do you walk the folders in step 2.
 **Do NOT `Read` each feature's files individually.** For 20 features that's 160 `Read` tool round-trips ≈ 5-10 minutes wall-clock. Instead, invoke the plugin's script — it walks `features/*/`, reads each folder's `.md` files, applies every transform (`strip_file_paths` + `rewrite_feat_to_task`), resolves `list_name` per feature (fallback chain), detects blocker signals, groups by `list_name`, skips folders whose hash matches sync-state, and emits ONE JSON blob ready to hand to `feature_upsert_bundle`.
 
 ```bash
-ASSEMBLED="<workspace_root>/.jetrix/cache/.push-features.json"
+# v2.3.2: staging path moved from .jetrix/cache/ → .jetrix/staging/
+# Rationale: .jetrix/cache/ holds PERSISTENT plugin state (sync-state, repolocation).
+# Push assembled JSON is TRANSIENT — regenerated every push, contains a full copy
+# of every changed feature's content (title + description + BR + AC + NFR + TS +
+# assumptions + metadata). Living in cache/ implied durability + hid its size
+# (20 KB per changed feature). Staging/ signals transient staging + gets cleaned
+# up after the push cycle completes (§ Cleanup at the end of this file).
+ASSEMBLED="<workspace_root>/.jetrix/staging/push-features.json"
 mkdir -p "$(dirname "$ASSEMBLED")"
 
 python "$CLAUDE_PLUGIN_ROOT/scripts/assemble-features.py" \
@@ -60,6 +67,8 @@ python "$CLAUDE_PLUGIN_ROOT/scripts/assemble-features.py" \
   --solution-slug "<solution_slug from project.json>" \
   --output        "$ASSEMBLED"
 ```
+
+**Note on skip-unchanged.** The assembled JSON contains ONLY features whose folder hash changed since the last push (per `sync-state.json` `contentHash`). Features already in sync appear in the `skipped_unchanged` list, not in `groups[].features` — so the JSON scales with CHANGE, not with total feature count. On a re-push with nothing changed, the JSON's `groups` array is empty, ~500 bytes total.
 
 Optional narrowing: append `--slug user-auth --slug password-reset` to push only specific folders (rest of the flow is unchanged; skip-unchanged still applies).
 
@@ -205,7 +214,8 @@ Concatenate every `feature_upsert_bundle` response (one per list_name group in �
 Carry the `_local_content_hash` field from each payload verbatim through the MCP round-trip into the response row, so the apply script writes the correct contentHash into sync-state.
 
 ```bash
-RESPONSES="<workspace_root>/.jetrix/cache/.push-features-responses.json"
+# v2.3.2: responses staging moved to .jetrix/staging/ + explicit cleanup
+RESPONSES="<workspace_root>/.jetrix/staging/push-features-responses.json"
 mkdir -p "$(dirname "$RESPONSES")"
 
 cat > "$RESPONSES" <<'JETRIX_RESP_EOF'
@@ -219,9 +229,30 @@ python "$CLAUDE_PLUGIN_ROOT/scripts/apply-feature-responses.py" \
   --responses         "$RESPONSES" \
   --project-root      "<absolute project_root>" \
   --sync-state        "<workspace_root>/.jetrix/cache/sync-state.json" \
-  [--subtask-responses "<workspace_root>/.jetrix/cache/.push-subtasks-responses.json"]
+  [--subtask-responses "<workspace_root>/.jetrix/staging/push-subtasks-responses.json"]
+```
 
-rm -f "$RESPONSES"
+### Cleanup — remove all staging files after successful apply (v2.3.2)
+
+```bash
+# Delete every staging file this push cycle wrote — they're transient by design.
+# sync-state.json is the ONLY persistent record of what was pushed (contentHash
+# per feature/subtask + task_object_id + lastPushed). If a re-push runs, the
+# assemble script recomputes the hash from source .md files fresh and compares
+# against sync-state.
+rm -f "<workspace_root>/.jetrix/staging/push-features.json"
+rm -f "<workspace_root>/.jetrix/staging/push-features-responses.json"
+rm -f "<workspace_root>/.jetrix/staging/push-subtasks-responses.json"
+# Remove the staging dir if it's empty (leaves it if other flows staged files)
+rmdir "<workspace_root>/.jetrix/staging" 2>/dev/null || true
+```
+
+**Migration from v2.3.1 and earlier** — if `.jetrix/cache/.push-features.json` or `.push-features-responses.json` still exist from a previous push (they were persistent in the old layout), delete them once now:
+
+```bash
+rm -f "<workspace_root>/.jetrix/cache/.push-features.json"
+rm -f "<workspace_root>/.jetrix/cache/.push-features-responses.json"
+rm -f "<workspace_root>/.jetrix/cache/.push-subtasks-responses.json"
 ```
 
 Pass `--subtask-responses` when §7 has run and produced a
