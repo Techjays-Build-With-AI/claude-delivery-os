@@ -5,7 +5,7 @@ The **Developer Agent** takes an approved, TL-planned feature and **builds + shi
 | | |
 |---|---|
 | **Namespace** | `/dev:` |
-| **Commands** | `/dev:bootstrap [spec]` · **`/dev:plan <task>`** · **`/dev:build <task>`** · **`/dev:commit <task>`** · `/dev:fix-review <task> feedback=<...>` |
+| **Commands** | `/dev:bootstrap [spec]` · **`/dev:plan <task>`** · **`/dev:resolve --plan <task>`** · **`/dev:build <task>`** · **`/dev:commit <task>`** · `/dev:fix-review <task> feedback=<...>` |
 | **Input** | BA feature breakdown (`features/<slug>/`), TL context graph (`context/frontend\|backend\|database`), product repository, and (for `/dev:build`) plan artifacts `/dev:plan` produced with `plan-blockers.md` all `RESOLVED` |
 | **Output** | Working code on `feature/FEAT-<AREA>-NN-<slug>[-<repo>]`, `dev/` context files per task, `features/tracker.md`, `implementation.md §10 How to verify locally` (developer verification guide), and a merged / mergeable PR with `dev/pr-summary.md` as body |
 | **Skills** | `feature-delivery-loop` · `dev-stack-adaptive-implementation` · `dev-stack-adaptive-code-review` · `qa-greenfield-harness` · `dev-pr-handoff` (slimmed to content-only). `dev-validation` retired (folded into `/dev:build` Stages 7–9). |
@@ -60,7 +60,8 @@ Each command is user-invoked separately — the flow never chains automatically.
 | Command | Does | Stops at |
 |---|---|---|
 | `/dev:bootstrap [spec]` | Greenfield — ensure a usable, green product repo exists (scaffolds via the TL on project-zero) | build-ready workspace |
-| **`/dev:plan <task>`** | Just-in-time planning — verify TL graph, decide sub-task split, compose Description + Implementation, create MC sub-tasks, write `implementation.md`, detect and surface plan blockers for user resolution | `PLANNED` (blockers `RESOLVED`) or `BLOCKED_ON_PLAN` |
+| **`/dev:plan <task>`** | Just-in-time planning — verify TL graph, decide sub-task split, run per-task analysis (Stage 2 scratchpad), detect plan blockers (Stage 3), compose Description + Implementation and push to MC (Stage 4 — only after blockers resolved) | `PLANNED` (blockers `RESOLVED`) or `BLOCKED_ON_PLAN` |
+| **`/dev:resolve --plan <task>`** | Interactive plan-blocker resolution — walks every OPEN PB-### across the task's `dev/*plan-blockers.md`, presents options + TL recommendation per blocker, asks you to pick / type free text / skip, writes Resolution: fields to disk, then invokes `/dev:plan --resume` to fold + compose + push | `PLANNED` (blockers `RESOLVED`) OR still `BLOCKED_ON_PLAN` if any blockers were skipped |
 | **`/dev:build <task>`** | The 11-stage build loop — branch, harness bootstrap, implement, test, security-build-gate (Critical only), acceptance-map, code-context flip, local-runbook. Refuses on unresolved blockers | local `IN_PROGRESS`, MC `inProgress` |
 | **`/dev:commit <task>`** | The 10-stage commit loop — security-commit-gate (Critical + High), code review (Blocker + Major), acceptance re-verify, semantic-context-merge, push, PR raise | local `REVIEW`, MC `devReview` |
 | `/dev:fix-review <task> feedback=<path\|PR>` | Fold reviewer PR comments back in, re-verify, update `dev/pr-summary.md`; re-run relevant `/dev:commit` stages | local `REVIEW`, MC `devReview` |
