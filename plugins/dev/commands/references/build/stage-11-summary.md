@@ -22,6 +22,10 @@ Print to stdout with clear structure:
 ```
 ✓ /dev:build FEAT-SUP-001-1 complete
 
+Task:              Subtask-7 (backend)  ·  Feature-4 Supplier Onboarding
+MC parent:         https://mission-control.techjays.com/task/6a94fe0ebc48d4e7d1cab15b
+MC sub-task:       https://mission-control.techjays.com/task/6b72a1c48d4e7d1cab2c7
+
 Branch:            feature/FEAT-SUP-001-supplier-onboarding-backend  (in acme-backend)
 Base:              develop
 Commits:           8  (7 code + 1 context-update)
@@ -61,11 +65,18 @@ Code-context:
 
 Local state:   IN_PROGRESS  (build phase complete; awaiting /dev:commit)
 MC status:     inProgress   (will transition to devReview on /dev:commit)
+MC parent:     https://mission-control.techjays.com/task/6a94fe0ebc48d4e7d1cab15b
+MC sub-task:   https://mission-control.techjays.com/task/6b72a1c48d4e7d1cab2c7
 
 Next steps:
   1. Review implementation.md §10 How to verify locally — env vars + how to run manually
   2. Verify the feature locally (see runbook)
   3. When ready, run:  /dev:commit FEAT-SUP-001-1
+
+Navigation sources:
+  · MC parent URL   ← feature.md frontmatter `jetrix_task_object_id` + UI_BASE from .jetrix/project.json
+  · MC sub-task URL ← subtask/<repo>/status.md frontmatter `jetrix_subtask_object_id` + same UI_BASE
+    (URL pattern: `<UI_BASE>/task/<object_id>` — MC's canonical short route works for BOTH parents and sub-tasks)
 
 Files written by this run:
   - dev/build-run.md

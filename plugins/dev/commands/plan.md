@@ -438,7 +438,7 @@ Next: /dev:build <task-ref>
 
 ## 7. Batch summary
 
-After all workers complete (or fail), print the summary:
+After all workers complete (or fail), print the summary. **Every parent task AND every sub-task shows its MC UI navigation link (`view_url`) inline** — pulled directly from the corresponding task-mcp response (`feature_upsert_bundle` for parents, `subtask_upsert_bundle` for sub-tasks). MC's URL builder (`task-mcp/app/view_urls.py`) uses the short canonical form `<UI_BASE>/task/<task_object_id>` for BOTH parent tasks and sub-tasks — MC's frontend `TaskDetail` component handles both.
 
 ```
 ✓ /dev:plan complete
@@ -446,26 +446,45 @@ After all workers complete (or fail), print the summary:
 Batch summary: .jetrix/dev/batch-runs/plan-run-2026-08-29-143207.md
 
 Succeeded (4):
-  · Feature-4   Supplier Onboarding      → 3 sub-tasks, PLANNED
-      · Subtask-7 (backend)  https://jetrix/…/Subtask-7
-      · Subtask-8 (frontend) https://jetrix/…/Subtask-8
-      · Subtask-9 (mobile)   https://jetrix/…/Subtask-9
-  · Feature-9   Outlet Discovery         → 2 sub-tasks, PLANNED
-  · Feature-12  RFP Generation           → parent-alone, PLANNED
-  · Feature-15  Reporting Dashboard      → 2 sub-tasks, PLANNED
+  · Feature-4  Supplier Onboarding                    → 3 sub-tasks, PLANNED
+    ↳ Parent:      https://mission-control.techjays.com/task/6a94fe0ebc48d4e7d1cab15b
+    ↳ Subtask-7 (backend)   PLANNED   https://mission-control.techjays.com/task/6b72a1...
+    ↳ Subtask-8 (frontend)  PLANNED   https://mission-control.techjays.com/task/6b72a2...
+    ↳ Subtask-9 (mobile)    PLANNED   https://mission-control.techjays.com/task/6b72a3...
+  · Feature-9  Outlet Discovery                       → 2 sub-tasks, PLANNED
+    ↳ Parent:      https://mission-control.techjays.com/task/6a94ff0e...
+    ↳ Subtask-10 (backend)  PLANNED   https://mission-control.techjays.com/task/6b72a4...
+    ↳ Subtask-11 (frontend) PLANNED   https://mission-control.techjays.com/task/6b72a5...
+  · Feature-12 RFP Generation                         → parent-alone, PLANNED
+    ↳ Parent:      https://mission-control.techjays.com/task/6a95001a...
+  · Feature-15 Reporting Dashboard                    → 2 sub-tasks, PLANNED
+    ↳ Parent:      https://mission-control.techjays.com/task/6a950122...
+    ↳ Subtask-12 (backend)  PLANNED   https://mission-control.techjays.com/task/6b72a6...
+    ↳ Subtask-13 (frontend) PLANNED   https://mission-control.techjays.com/task/6b72a7...
 
-Failed (1):
-  ✗ Feature-7  Supplier Approval        → BLOCKED_STAGE_1
-     Reason: TL auto-plan can't complete — integration contract missing for compliance service
-     See: features/supplier-approval/dev/escalation-1.md
+Blocked on plan (1):
+  ✗ Feature-7  Supplier Approval                     → BLOCKED_ON_PLAN (2 open blockers)
+    ↳ Parent:      https://mission-control.techjays.com/task/6a950230...
+    ↳ Blockers:    features/supplier-approval/dev/backend-plan-blockers.md
+    Resolve:       /dev:resolve --plan Feature-7
 
-Skipped (0)
+Failed at Stage 1 (0)
+
+Skipped unchanged (0)
 
 Next:
-  Address Feature-7's escalation, then re-run:  /dev:plan Feature-7
-  Start building:                                /dev:build Subtask-7   (Feature-4's backend)
-                                                 /dev:build Feature-12  (parent-alone)
+  · Resolve Feature-7's blockers:            /dev:resolve --plan Feature-7
+  · Start building unblocked tasks:          /dev:build Subtask-7   (Feature-4's backend)
+                                             /dev:build Feature-12  (parent-alone)
 ```
+
+**How to extract `view_url` from responses:**
+
+- Parent: `feature_upsert_bundle` response `.features[].view_url` — one per feature per group
+- Sub-task: `subtask_upsert_bundle` response `.results[].view_url` — one per sub-task
+- For skipped-unchanged features (no fresh push this run), fall back to `sync-state.json`'s stored `taskObjectId` and build with the same URL pattern (`<UI_BASE>/task/<task_object_id>`) — `UI_BASE` comes from `.jetrix/project.json` `mission_control_ui_url` field
+- For BLOCKED_ON_PLAN tasks (Stage 4 didn't run because blockers open): fall back to the same `sync-state.json` + URL-build path; the parent MAY still have been pushed (Stage 2 succeeded, MC push happened at end of Stage 4 for tasks that reached it, but for blocked ones the parent's `task_object_id` may already be set from a prior run)
+- If NO `task_object_id` is available (fresh feature never pushed), print `(not yet in MC)` instead of a URL
 
 Also write the same content to `.jetrix/dev/batch-runs/plan-run-<ts>.md` (append the `## Summary` section to the file created in §2b).
 

@@ -113,8 +113,12 @@ In-terminal summary:
 ```
 ✓ /dev:commit FEAT-SUP-001-1 complete
 
-Branch:        feature/FEAT-SUP-001-supplier-onboarding-backend  →  develop
+Task:          Subtask-7 (backend)  ·  Feature-4 Supplier Onboarding
+MC parent:     https://mission-control.techjays.com/task/6a94fe0ebc48d4e7d1cab15b
+MC sub-task:   https://mission-control.techjays.com/task/6b72a1c48d4e7d1cab2c7
 PR:            https://github.com/acme/acme-backend/pull/247
+
+Branch:        feature/FEAT-SUP-001-supplier-onboarding-backend  →  develop
 Security:      ✓ 0 Critical, 0 High  (2 Medium warnings surfaced in PR body)
 Code review:   ✓ 0 Blocker, 0 Major  (3 Minor follow-ups in PR body)
 Acceptance:    ✓ 9/9 verified at commit-time (3 deferred-to-e2e)
@@ -129,9 +133,18 @@ Local runbook: features/supplier-onboarding/subtask/backend/implementation.md §
 PR summary:    features/supplier-onboarding/dev/backend-pr-summary.md
 
 Next:
-  1. Reviewer reviews PR-247
-  2. On merge, MC status flips to `done` automatically (webhook — v2.3)
+  1. Reviewer reviews PR-247   (link above)
+  2. Track task progress on MC (sub-task link above)
+  3. On merge, MC status flips to `done` automatically (webhook — v2.3)
 ```
+
+**Navigation URL sources:**
+
+- **MC parent** — read `feature.md` frontmatter `jetrix_task_object_id`; build URL `<UI_BASE>/task/<id>` where `UI_BASE` is `.jetrix/project.json`'s `mission_control_ui_url` field
+- **MC sub-task** — read this task's `subtask/<repo>/status.md` frontmatter `jetrix_subtask_object_id`; build URL with same pattern
+- **PR** — from `dev/<repo>-commit-run.md` stage-9's `pr_url` (written by Stage 9)
+
+All three URLs are must-haves in the terminal summary — the whole point of this stage is to give the developer + reviewer clickable jumps to every relevant surface.
 
 No file writes at Stage 10 — pr-summary + commit-run + delivery-status are already written by earlier stages.
 
