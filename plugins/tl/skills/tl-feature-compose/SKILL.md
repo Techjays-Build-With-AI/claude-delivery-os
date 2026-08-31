@@ -173,7 +173,31 @@ A **professional, structured business narrative** for MC's Description tab — t
 - Bold role names: **Add a holiday**, **Duplicate holiday** — first two words of each bullet
 - No HTTP status codes (`400`, `409`, `201`), no field names (`added_by`), no file paths, no framework names, no method names (POST/GET/DELETE), no tables, no code fences, no mermaid.
 - Business vocabulary from parent's `feature.md` + `workflow.md` — actor names, system names, data terms — never technical translations
-- Length target: 800-1500 chars (each section 100-400 chars). Warn at 3 KB; longer means implementation detail leaked.
+
+### Per-section character budget (v2.3.4 — HARD budget planned upfront, not trimmed after)
+
+**Plan lengths BEFORE composing.** The description mode is intentionally short — MC's Description tab is a scanning surface, not a reading surface. Every section has a hard byte budget the compose MUST hit on the first write. If a section would exceed its budget, drop the least-load-bearing sub-claim BEFORE writing — never compose freely then trim after, because the trim step is where nuance gets flattened and where inconsistent pacing between features shows up.
+
+| Section | Target (chars) | Max (chars) | What fits |
+|---|---|---|---|
+| **Overview** | 180 | 250 | 2 short sentences — what the sub-task delivers + who benefits |
+| **What this sub-task delivers** | 500 | 700 | 3-5 bulleted operations, each 100-150 chars (bold role name + 1-2 sentence business behavior) |
+| **Business rules honored** | 250 | 400 | 4-6 BR-N references with a 1-line paraphrase each (~50 chars per row) |
+| **Distinct refusal cases** | 250 | 400 | 3-4 bulleted refusals (bold situation name + 1 short sentence, ~60-80 chars each) |
+| **Out of scope for this sub-task** | 150 | 250 | 2-3 short bullets (30-70 chars each) |
+| **Related sub-tasks** | 80 | 150 | 1-2 sibling refs (50-80 chars each), only present when split |
+| **Total (soft target)** | **~1400** | **~2000** | leaves ~1 KB headroom under the 3 KB warn line |
+
+**Composing to budget — the drop rules (apply BEFORE writing each section):**
+
+- **Overview** — if you'd write 3 sentences, drop the middle one. Keep first (what) + last (why/who).
+- **What this sub-task delivers** — if you'd write 6+ operations, group by verb ("Add / List / Remove" → 3 bullets). If a bullet needs 3+ sentences to explain, drop the third — you're leaking mechanism.
+- **Business rules honored** — cite only the BRs THIS sub-task's operations enforce. If a BR is inherited from parent scope but the code path here doesn't touch it, skip.
+- **Distinct refusal cases** — one bullet per DISTINCT business situation. Similar refusals (missing name / missing date) merge into one bullet: "Missing required field — the response names which field."
+- **Out of scope** — only list boundary items the reader would otherwise expect. If it's obviously not this sub-task (e.g. billing, admin), don't burn a bullet on it.
+- **Related sub-tasks** — one line per sibling. If parent-alone (no split), omit this section entirely.
+
+**Never do a "check size, then trim" pass.** If the first-pass size is over 2 KB, the drop rules above were violated in the compose — rewrite the offending section within budget, don't shave prose.
 
 **Full worked example** (holiday-calendar-management backend sub-task):
 
@@ -350,10 +374,10 @@ Before writing the file. These are absolute — any violation means the composit
 
 **Rule 9 — No secrets.** Env var **names** only if referenced at all — never values or credentials, even if the repo scan surfaced them.
 
-**Rule 10 — Size budget (mode-dependent).**
+**Rule 10 — Size budget (mode-dependent; description mode is HARD-planned upfront in v2.3.4).**
 - `implementation` mode: target 10–15 KB. Warn at 55 KB. **Refuse to write over 60 KB** — MC caps every tab at 60 000 characters. If oversized, do NOT truncate; surface the overflow and ask the user to split the feature.
 - `rollup` mode: target 2–5 KB (short by design — detail lives per sub-task). Warn at 20 KB. If a rollup is exceeding 20 KB, you're probably duplicating detail that belongs on sub-tasks — check for that first.
-- `description` mode: target 500–1500 characters. Warn at 3 KB. Longer means implementation detail has leaked into the narrative — cut.
+- `description` mode (v2.3.4): **HARD per-section budget, planned upfront, not trimmed after.** Total target ~1400 chars, max ~2000 chars, absolute refuse-line 3000 chars. See §"Per-section character budget" in the description mode spec above for the section-by-section allocation + drop rules. **Do NOT compose freely then trim** — trim-after produces flat, uneven prose and inconsistent pacing across features. If the compose output is > 2000 chars on first write, one of the section drop rules was violated — rewrite the offending section within its budget, don't shave prose after.
 
 **Rule 11 — No invention.** Every endpoint contract, every DB field, every UI surface traces to the context graph or the feature files. When silent, mark the affected step `[HELD · waiting on OQ-<id>]` and name the gap. Do not guess.
 
