@@ -383,6 +383,25 @@ Before writing the file. These are absolute — any violation means the composit
 
 **Rule 11 — No invention.** Every endpoint contract, every DB field, every UI surface traces to the context graph or the feature files. When silent, mark the affected step `[HELD · waiting on OQ-<id>]` and name the gap. Do not guess.
 
+**Rule 11.4 — implementation.md is a PLAN, not a code file (v2.3.7).** Every claim in this document describes something a developer will build; **the actual code goes into the repo at `/dev:build` time, via `dev-stack-adaptive-implementation`, not into this file.**
+
+- **Allowed in implementation.md:**
+  - **File paths** — "Create `src/models/Comment.js`" — WHERE the code lives
+  - **Named exports / handlers / components** — "`comment.js` exports three handlers: `createComment`, `listComments`, `deleteComment`" — the SHAPE of the public surface
+  - **API wire-format examples** — JSON request bodies and response bodies. These are CONTRACT specs (part of the plan), not code.
+  - **Signatures and props** — "CommentsPanel props: `taskId: string`. State: `comments`, `loading`, `error`" — WHAT the interface is
+  - **Integration points** — "Add one import + one JSX section entry to `src/pages/TaskDetail.jsx` — mount CommentsPanel between the description section and the activity log, pass `taskId` prop"
+  - **Invariants and hazards** — "Use `required: true`, NOT the near-miss `require:` which is silently ignored" — WHAT to avoid
+  - **Data shape tables** — request body fields, response fields, refusal codes
+  - **Order-of-operations tables** — "Step 1: validate session; Step 2: validate body; …"
+
+- **NOT allowed in implementation.md:**
+  - Actual code snippets showing implementation. NO `import { X } from Y`, NO function definitions, NO JSX blocks with actual attributes, NO SQL statements, NO shell script bodies. The code is what dev-stack-adaptive-implementation writes at `/dev:build` time based on this plan.
+  - Framework-specific idioms in code form (e.g. actual JSX, `mongoose.Schema({...})` blocks). Describe the shape in prose or tables; don't write the code.
+  - Example: describe the service layer's shape as **"`src/service/commentApi.js` exports three named calls: `create(taskId, body)` → POST to EP-CMT-01; `list(taskId)` → GET to EP-CMT-02; `remove(commentId)` → DELETE to EP-CMT-03. Each call wraps the shared request helper (`commonReq.js`), passing method + path + body + a headers object containing `Authorization: Bearer <session token from local session store>`. Response normalisation: rejections carry `{status, message}` one level below the successful response shape — service layer reads at that level, callers read the normalised shape only."** — NOT `import { commonReq } from './commonReq'; export const commentApi = { create: (taskId, body) => commonReq('POST', ...) }`.
+
+Same discipline in both directions: backend §5 didn't paste `new mongoose.Schema({body: {type: String, required: true}})` — it said "declare with `required: true` (not `require:`)". Frontend §6 shouldn't paste the JSX either.
+
 **Rule 11.5 — Markdown rendering discipline (v2.3.5 — for `implementation` mode).** MC's tab renders the markdown as-is; malformed markdown displays as garbage. The most common failure modes and their explicit rules:
 
 - **Tables MUST have exactly one row per line.** No pipe-run-on. Every `|` row ends with a `\n` before the next row starts. WRONG: `| Step | Units | Notes |\n|---|---|---| | 1 | ... | ... | | 2 | ... | ... |` (rows crammed on one line — renders as one giant messy row). RIGHT: each row on its own line, separator row (`|---|---|---|`) on its own line between header and body.
