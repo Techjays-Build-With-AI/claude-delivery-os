@@ -80,55 +80,123 @@ Sort resolution order by:
 
 ## 4. Stage 2 — Present each blocker + collect user choice
 
-For each PB-###, use the `AskUserQuestion` tool with:
+For each PB-###, invoke `AskUserQuestion`. The prompt must be self-contained — the user must be able to make the decision from the prompt alone, without opening the file. The `question` field is the primary display area (shown prominently at the top of the prompt); it MUST carry the full question + a concise explanation + a concrete real-world example so the reader has the WHOLE context in view before scanning options.
 
-- **question**: the PB-###'s title + a 1-line summary of the description (max ~200 chars for the question text)
-- **header**: `PB-1-001` (short — the tool caps at 12 chars, so use the full PB id)
-- **options**: array from the parsed options table — up to 3-4 entries
-  - `label`: option number + short name (e.g. `1. Active-only (recommended)`)
-  - `description`: the trade-off from the options table (concise)
-  - `preview`: full option text from the file (for the side-by-side view)
-- **multiSelect**: false
+### 4a. Structuring the `question` field
 
-**Add one extra option to every question:**
-- `label: "Skip this blocker for now"`
-- `description: "Task stays BLOCKED_ON_PLAN; you can re-run /dev:resolve later or edit the file manually"`
-
-**Do NOT auto-add "Other"** — the tool provides that automatically for free-text input.
-
-### 4a. Presenting the option details
-
-For each blocker, before invoking `AskUserQuestion`, print a concise stdout summary so the user has full context:
+Format (target 300-800 chars — enough to explain, short enough to scan):
 
 ```
-────────────────────────────────────────
-PB-1-001 — <title>
+<PB-### title as a question — ending with "?">
 
-Detected in: dev/backend-analysis.md § build_sequence step 1
-Category: schema-ambiguity
-Blocks: BR-1, AC-9, AC-7, test scenario 11
-Suggested owner: product / tl
+**Why this matters:** <2-3 sentences from the Description explaining what depends on this decision and why it can't be defaulted or left to the build>
 
-<the Description paragraph, verbatim>
+**Concrete example:** <one real-world scenario — 2-3 sentences — that shows the observable difference between the options; use the actual entities from this task (holiday-calendar, EP-HCAL-01, etc.), not placeholders>
 
-Options:
-  1. (recommended) <name> — <trade-off>
-  2. <name> — <trade-off>
-  3. <name> — <trade-off>
-
-Recommendation: 1 (see the file for the full reasoning if you want more depth)
-────────────────────────────────────────
+**Detected in:** dev/<repo>-analysis.md § <block> · **Blocks:** <BR-N, AC-N> · **Recommended: Option 1 (<name>)**
 ```
 
-Then invoke `AskUserQuestion` with the same options.
+Rules for the `question` text:
+- **Ends with a question mark** — one canonical question the user answers
+- **Sentence-case Markdown** allowed — bold, backticks for identifiers, no headings
+- **Real-world example is mandatory** — use the actual feature's entities (dates, endpoints, entity names, user actors). Not "user A/B" placeholders. Show what a real user SEES if this decision goes one way vs another.
+- **No file paths or code snippets** — this is a decision prompt for a stakeholder, not source
+- **Cite the recommendation** — one line at the end, so a user in a hurry can just pick the recommended option
 
-### 4b. Collecting the answer
+### 4b. Structuring each `option`
 
-- **User picks an option number (1/2/3)** → record `chosen_option: <n>`, `resolution_text: <n>` (just the number; the fold script matches by number)
-- **User picks the "Skip this blocker" option** → record `chosen_option: SKIP`, `resolution_text: null`
-- **User picks "Other" and types free text** → record `chosen_option: CUSTOM`, `resolution_text: <user's text>`
+For each option from the file's Options table, build:
 
-Log to memory. Do NOT write to disk yet — batch the writes at Stage 3 so the file is either fully-updated or unchanged.
+- **`label`** (1-5 words shown in the option list): `Option 1 — Active-only (Recommended)` OR `Option 2 — All rows` OR `Option 3 — No constraint`
+- **`description`** (1-2 sentences shown under the label — the trade-off in plain terms): what happens if this is picked, phrased around observable behaviour, NOT the mechanism
+- **`preview`** (rendered as monospace side-by-side content when the user focuses this option): a concrete real-world scenario showing the OUTCOME of picking THIS option — different from the question's example, showing how THIS option specifically plays out. 4-8 lines of prose.
+
+### 4c. Free-text input — always available
+
+The `AskUserQuestion` tool auto-provides an **"Other"** option that lets the user type free text. This IS the "type option" — you do NOT add a separate "Type your own answer" entry; the tool has it built in. Mention this in the `question` text ONCE (last line) if the options might not cover the user's case:
+
+```
+... **Or pick "Other" to type your own resolution.**
+```
+
+### 4d. Skip option (deferred resolution)
+
+Add ONE extra explicit option per blocker:
+
+- **`label`**: `Skip this blocker for now`
+- **`description`**: `Task stays BLOCKED_ON_PLAN; the Resolution field is left as-is with a comment noting this run's skip. You can re-run /dev:resolve later or edit the file manually.`
+- **`preview`**: Explanation of what happens next if skipped — build stays blocked, siblings continue, /dev:build refuses on this task until resolved.
+
+Place Skip LAST in the options array.
+
+### 4e. Example — the actual prompt for PB-1-001
+
+For your holiday-calendar backend blocker, the `AskUserQuestion` invocation should look like:
+
+```
+question: "Does one-holiday-per-date apply to *removed* holidays, or only to *active* ones?
+
+**Why this matters:** BR-1 says 'a date can hold only one holiday' but doesn't say whether a soft-deleted holiday still occupies its date. This decides the shape of the unique index on the `holidays` collection — a decision that's fixed at declaration time and expensive to reverse after data exists.
+
+**Concrete example:** Priya adds Diwali on 2026-11-08. Arjun later notices it was mis-dated and removes it. The next day Priya (or anyone) tries to add Diwali on 2026-11-08 again. Should this second add succeed (Option 1 — active-only) or be refused because the date has 'ever' held a holiday (Option 2 — all rows)? For a soft-delete design where removal is meant to preserve audit but free the calendar, Option 1 matches the mental model.
+
+**Detected in:** dev/backend-analysis.md § build_sequence step 1 · **Blocks:** BR-1, AC-9, AC-7, test scenario 11 · **Recommended: Option 1 (Active-only).** Or pick 'Other' to type your own resolution."
+
+header: "PB-1-001"
+
+options:
+  - label: "Option 1 — Active-only (Recommended)"
+    description: "A date freed by a removal can be re-used. The 409 refuses only against a live holiday. Matches the calendar mental model and the TL design (DEC-013)."
+    preview: |
+      Concrete outcome — Option 1:
+      · Priya adds Diwali 2026-11-08     → 201 (added)
+      · Arjun removes it (soft delete)   → 200 (removed, is_removed=true)
+      · Priya re-adds Diwali 2026-11-08  → 201 (added — new active row)
+      Collection ends with 2 rows for the same date:
+        one with is_removed=true, one with is_removed=false.
+      Partial unique index scoped to is_removed:false enforces BR-1.
+
+  - label: "Option 2 — All rows (permanent burn)"
+    description: "Exactly one row per date, ever. Simple to audit. But a mis-dated holiday removed by mistake permanently burns that date."
+    preview: |
+      Concrete outcome — Option 2:
+      · Priya adds Diwali 2026-11-08     → 201 (added)
+      · Arjun removes it (soft delete)   → 200 (removed, is_removed=true)
+      · Priya re-adds Diwali 2026-11-08  → 409 (already exists)
+      That date can NEVER hold a holiday again through the UI.
+      Recovery requires manual DB edit (AC-7 forbids a restore control).
+      A single misclick permanently loses a calendar slot.
+
+  - label: "Option 3 — No DB constraint"
+    description: "Application-level read-then-write. Most flexible but opens a race window under the concurrency NFR — two concurrent adds can both pass the check and both insert."
+    preview: |
+      Concrete outcome — Option 3:
+      · Two users both add Diwali 2026-11-08 concurrently
+      · Both read: 'no holiday on this date'
+      · Both insert                        → 201, 201
+      Collection ends with 2 ACTIVE rows for the same date.
+      BR-1 defeated under load. Rejected by TL on concurrency grounds.
+
+  - label: "Skip this blocker for now"
+    description: "Task stays BLOCKED_ON_PLAN. You can re-run /dev:resolve later or edit the file manually. Sibling blockers continue to be prompted."
+    preview: |
+      Skip outcome:
+      · Resolution field kept as-is with a skip comment
+      · Task remains BLOCKED_ON_PLAN
+      · /dev:plan --resume WILL NOT run (any skipped blocker halts fold)
+      · /dev:build refuses on this task
+      · Re-run /dev:resolve OR edit backend-plan-blockers.md manually
+
+multiSelect: false
+```
+
+### 4f. Collecting the answer
+
+- **User picks an option** whose label starts with `Option <n>` → record `chosen_option: <n>`, `resolution_text: <n>`
+- **User picks "Skip this blocker for now"** → record `chosen_option: SKIP`, `resolution_text: null`
+- **User picks "Other" + types free text** (auto-provided by the tool) → record `chosen_option: CUSTOM`, `resolution_text: <user's typed text>`
+
+Batch to memory. Do NOT write to disk yet — Stage 3 does the write in one atomic batch.
 
 **Repeat for every OPEN PB-### across all blocker files.**
 
