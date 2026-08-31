@@ -37,6 +37,16 @@ The curl log is a series of `<staged_absolute_path>|<http_code>` lines
 (produced by `-w "%{filename_effective}|%{http_code}\n" --parallel`).
 The manifest file is a JSON object keyed by relative path:
     { "ba/scope.md": { "documentId": "...", "version": 3, "contentHash": "..." }, ... }
+
+v2.1 note (sub-task write path is implemented as a separate script):
+  This script writes ONLY parent-scope docs (BA registers, scope.md,
+  connection-map, feature-index, shared-context) delivered by
+  `scope_pull_manifest`. Sub-tasks are NOT part of the scope-mcp manifest
+  — they come from `task-mcp.subtask_list` (called per parent by the plugin
+  after parents are materialized) and get written by
+  `materialize-subtasks.py`. Keeping the write paths in separate scripts
+  matches the MCP boundary and keeps the sync-state key namespace clean
+  (`tasks/<feature_id>` here; `subtasks/<subtask_object_id>` there).
 """
 from __future__ import annotations
 

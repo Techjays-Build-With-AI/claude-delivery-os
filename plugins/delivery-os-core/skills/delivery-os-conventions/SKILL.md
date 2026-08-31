@@ -7,7 +7,9 @@ description: The Techjays Delivery OS shared document contract. Read this before
 
 This is the single source of truth that makes Delivery OS documents **shareable across agents and across weeks**. The BA Agent produces documents today; the Doc, TL, and QA agents consume them later. They only interoperate if every agent honors this contract.
 
-> **Contract version: 2.0.** Bump `schema_version` in document frontmatter and update this file together when the contract changes.
+> **Contract version: 2.1.** Bump `schema_version` in document frontmatter and update this file together when the contract changes.
+>
+> **2.1 (sub-task delivery layer — additive).** Added the sub-task tree under each feature: `features/<slug>/subtask/<repo>/` holds one sub-task per involved repo when `/dev:plan` decides to split a multi-repo feature. Each sub-task's tab files (`description.md`, `implementation.md`, `status.md`) map 1:1 to MC's 4-tab sub-task schema (`taskType: subtask`; the `acceptanceCriteria` and `testScenarios` tabs stay empty on MC — validation reads parent). Dev artifacts for each sub-task live under `subtask/<repo>/dev/`. New `doc_type`s: `subtask-description`, `subtask-implementation`, `subtask-status`, `plan-run`, `task-decision`. `/dev:plan` batch runs write summaries under `.jetrix/dev/batch-runs/plan-run-<ts>.md`. Reverse mapping (MC metadata → local layout) uses `metadata.subtaskNumber` + `metadata.subtaskRepo` on each sub-task so `/jetrix:pull scope` can reconstruct the tree cold. Additive — single-repo and bug/story features never get a `subtask/` folder and are unaffected.
 >
 > **2.0 (role-centric workspace layout).** Major rework of the workspace tree — the `<slug>/` folder wrapper inside `.jetrix/` is retired (a workspace binds one Solution; the slug lives in `project.json`). Every path drops two segments. Role folders drop the `-output` suffix (`ba/`, `tl/`, `qa/`, `doc/`); `shared-context/` keeps its name and simply moves up out of `<slug>/`. `context/features/` is promoted to `features/` at the top level (features are a deliverable, not code context). Workspace-level `context/frontend|backend|database|project/` folders are deleted — that graph lives per-repo at `<repo>/context/code-context/` (Model B, unchanged from 1.3). BA registers are grouped under `ba/registers/`; BA logs under `ba/logs/`; QA under `qa/{audits,health,escalations}/`; DOC under `doc/{decks,walkthroughs,workflows,boards}/`. `/jetrix:init §0.5` performs a soft, idempotent migration from v1 to v2 layouts on first run.
 >
@@ -80,19 +82,44 @@ Every Delivery OS workspace is bound to **one** Jetrix Solution. Everything live
     │       ├── open-questions.md         # BA — folds into dependencies at push
     │       ├── status.md                 # BA — local-only, state field on MC Task
     │       ├── implementation-plan.md    # BA scratchpad, local-only
-    │       ├── tl-plan.md                # TL — Implementation tab, pushed via /jetrix:push implementation
+    │       ├── tl-plan.md                # TL — parent Implementation tab (rollup if split, detailed if parent-alone)
     │       ├── evals/                    # TL — applied-AI features only (EVAL-<AREA>-NN)
     │       │   ├── eval-index.md
     │       │   └── <eval-slug>.md
-    │       └── dev/                      # Dev — per-feature delivery artifacts, LOCAL-only
-    │           ├── dev-plan.md
-    │           ├── impacted-components.md
-    │           ├── acceptance-map.md
-    │           ├── implementation-log.md
-    │           ├── delivery-status.md
-    │           ├── decisions.md
-    │           ├── pr-summary.md
-    │           └── escalation-<n>.md
+    │       ├── dev/                      # Dev — per-feature delivery artifacts, LOCAL-only
+    │       │                             # (only present when the feature is parent-alone;
+    │       │                             #  when split, dev artifacts live per-sub-task under subtask/<repo>/dev/)
+    │       │   ├── plan-run.md           # /dev:plan stage log for --resume
+    │       │   ├── task-decision.md      # WHY parent-alone; rule that applied
+    │       │   ├── dev-plan.md
+    │       │   ├── impacted-components.md
+    │       │   ├── acceptance-map.md
+    │       │   ├── implementation-log.md
+    │       │   ├── delivery-status.md
+    │       │   ├── decisions.md
+    │       │   ├── pr-summary.md
+    │       │   └── escalation-<n>.md
+    │       │
+    │       └── subtask/                  # ONLY exists when /dev:plan split the feature
+    │           │                         # (multi-repo feature → one folder per repo, named by repo slug)
+    │           ├── plan-run.md           # /dev:plan stage log for the split run
+    │           ├── task-decision.md      # WHY split; which repos; rule that applied
+    │           └── <repo-slug>/          # e.g. backend/, frontend/, mobile/
+    │               │                     # matches key in .jetrix/cache/repolocation.json
+    │               ├── description.md    # sub-task Description tab (business flow narrative)
+    │               ├── implementation.md # sub-task Implementation tab (detailed 5-section)
+    │               ├── status.md         # sub-task status (5-state, mirrored to MC)
+    │               │                     # (acceptance-criteria.md, test-scenarios.md deliberately
+    │               │                     #  absent — sub-task's AC/TS tabs stay empty on MC;
+    │               │                     #  validation reads parent's tabs)
+    │               └── dev/              # this sub-task's dev work-log
+    │                   ├── dev-plan.md
+    │                   ├── impacted-components.md
+    │                   ├── delivery-status.md
+    │                   ├── acceptance-map.md   # parent AC → this sub-task's evidence
+    │                   ├── implementation-log.md
+    │                   ├── pr-summary.md
+    │                   └── escalation-<n>.md
     │
     ├── tl/                               # STAGE 02 — Tech Lead outputs (cross-feature)
     │   ├── code-map-registry.md          # pointer to each mapped repo's <repo>/context/code-context/ tree
@@ -124,13 +151,17 @@ Every Delivery OS workspace is bound to **one** Jetrix Solution. Everything live
     │   └── boards/                       # /doc:magic-board — html
     │       └── board-<topic>-<ts>.html
     │
-    └── tasks/                            # non-feature MC tasks (ad-hoc)
-        └── <slug>.md
+    ├── tasks/                            # non-feature MC tasks (ad-hoc)
+    │   └── <slug>.md
+    │
+    └── dev/                              # cross-feature dev artifacts
+        └── batch-runs/                   # /dev:plan batch run summaries (multi-target)
+            └── plan-run-<ts>.md          # per-invocation record: targets, decisions, outcomes
 ```
 
 ### 1.b The per-repo code-context tree (Model B — TL owns the graph, but it lives with the code)
 
-The **as-built code graph** (pages, endpoints, entities) does NOT live under `.jetrix/`. Each linked app repo carries its own `<repo>/context/code-context/` tree, committed with the code. Written by `/tl:code-map` (brownfield reverse-map) and extended by `/tl:plan` (forward planning of new units), read by `/tl:compose`, `/dev:build`, `/dev:validate`, and doc/qa consumers. Structure:
+The **as-built code graph** (pages, endpoints, entities) does NOT live under `.jetrix/`. Each linked app repo carries its own `<repo>/context/code-context/` tree, committed with the code. Written by `/tl:code-map` (brownfield reverse-map) and extended by `/tl:plan` (forward planning of new units), read by `/dev:plan` (Stage 2 compose), `/dev:build`, `/dev:validate`, and doc/qa consumers. Structure:
 
 ```text
 <repo>/context/code-context/
@@ -176,7 +207,7 @@ It is **agent-maintained** (the user can still hand-edit it) and folds together 
 
 ```yaml
 ---
-doc_type: scope            # scope | requirement-register | use-case-register | glossary | run-summary | source-summary | intake-index | ...
+doc_type: scope            # scope | requirement-register | use-case-register | glossary | run-summary | source-summary | intake-index | subtask-description | subtask-implementation | subtask-status | plan-run | task-decision | ...
 schema_version: 1.3        # the contract version this file conforms to
 produced_by: ba            # ba | doc | tl | qa | delivery-os
 last_intake_run: run-003   # the run that last touched this file (omit if N/A)
@@ -203,6 +234,46 @@ generated_at: 2026-06-18
 ```
 
 A consuming agent that finds `schema_version` newer than it understands must **stop and warn** rather than guess — with one standing exception, because the contract has so far only ever grown: where a minor bump is declared **additive** in the version note above (1.1, 1.2 and 1.3 all are), a consumer written for an earlier minor may read the document, use the fields it knows, and ignore the rest. It must still warn if a *major* version is newer, or if a minor bump is not marked additive. Concretely: a `/tl:plan` written against 1.1 may read, reuse and extend a 1.3 `code-context/` unit — the sections it knows are present under their original headings — and should not refuse it.
+
+### Sub-task frontmatter (written by `/dev:plan` when a feature is split)
+
+Every file inside `features/<slug>/subtask/<repo>/` carries this frontmatter. The three tab files (`description.md`, `implementation.md`, `status.md`) share the identity fields; `doc_type` distinguishes each file. **Folder name = repo slug** (matches key in `.jetrix/cache/repolocation.json`); **execution sequence lives in frontmatter** (`subtask_number`), not the folder name.
+
+```yaml
+---
+doc_type:                 subtask-description   # subtask-description | subtask-implementation | subtask-status
+schema_version:           1.0
+produced_by:              dev
+feature_id:               FEAT-SUP-001          # parent feature (matches parent feature.md)
+parent_task_object_id:    6a61…                 # parent Task's Mongo _id in MC
+parent_task_number:       Feature-4             # parent's MC display number
+subtask_number:           1                     # 1..N execution sequence within parent
+subtask_repo:             backend               # matches folder name + repolocation.json key
+jetrix_subtask_object_id: 6b72…                 # this sub-task's Mongo _id (set after /jetrix:push)
+jetrix_subtask_number:    Subtask-7             # MC display number (set after push)
+composed_at:              2026-08-29T14:24:11Z
+inputs_hash:              sha256:…              # hash of the compose inputs; used by idempotency check
+---
+```
+
+`status.md` adds `current_state`, `owner_lock`, and `branch` for the loop-state model (§5) — same fields the parent's `status.md` uses.
+
+**MC-side reverse mapping** (set at sub-task creation via `task-mcp.subtask_upsert_bundle`):
+
+```json
+{
+  "metadata": {
+    "externalId":       "FEAT-SUP-001-1",
+    "parentExternalId": "FEAT-SUP-001",
+    "subtaskNumber":    1,
+    "subtaskRepo":      "backend",
+    "source":           "ai",
+    "aiGenerated":      true
+  }
+}
+```
+
+This metadata is what `/jetrix:pull scope` reads to reconstruct the local `subtask/<repo>/` tree from MC on a cold clone.
 
 ---
 
@@ -280,6 +351,10 @@ All agents use these exact values — no synonyms.
 
 **Priority** (`Pri.`, MoSCoW):
 `M` (Must) · `S` (Should) · `C` (Could) · `W` (Won't-this-phase)
+
+**Dev delivery state** (per task — parent Task or sub-task; local `status.md` + mirrored on MC's status field):
+`PLANNED` · `IN_PROGRESS` · `REVIEW` · `DONE` · `BLOCKED`
+Written by `/dev:plan` at `PLANNED`; advanced by `/dev:build` (→ `IN_PROGRESS`) and `/dev:commit` (→ `REVIEW`); flipped to `DONE` by human on merge; any stage can escalate to `BLOCKED`. For a split feature the parent's state is **derived** from its sub-tasks (all `DONE` → parent `DONE`; any `BLOCKED` → parent `BLOCKED`; any `IN_PROGRESS` → parent `IN_PROGRESS`; else `PLANNED`) — parent state is never written directly.
 
 **Applied-AI / LLM feature** (does a feature need eval-engineering?):
 A feature is **AI-bearing** when its behaviour depends on a model's output — generation, classification/extraction, ranking or semantic search, RAG, or agentic tool use — or it declares `ai_component: true` / cites an `INT-###` to an LLM/AI provider. AI-bearing features get an **eval layer** (`context/evals/`, `EVAL-<AREA>-NN`, see the `eval-engineering` skill); every other feature is **deterministic** and is proven by the dev acceptance-map alone. When it's genuinely unclear, record an **open question** rather than assuming — don't skip evals on a feature that turns out to be AI-bearing, or invent them for one that isn't.

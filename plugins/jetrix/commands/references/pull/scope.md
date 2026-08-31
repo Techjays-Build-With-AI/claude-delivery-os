@@ -242,11 +242,90 @@ generated_at: <today>
 
 Sync-state is updated inside the materializer script — `.jetrix/cache/sync-state.json` gets one `tasks/<feature_id>` entry per feature with `taskNumber`, `taskObjectId`, `slug`, `contentHash` (sha256 of the concatenated file contents), `lastPulled`. Merge-safe: existing keys for other stages (scope docs, context units) are preserved.
 
-### 7. Report
+### 7. Sub-task materialization (v2.1+)
+
+After Phase 3 finishes and every parent feature is on disk, walk the pulled features to fetch and materialize any sub-tasks. This is what reconstructs the `features/<slug>/subtask/<repo>/` tree on a cold clone.
+
+**Detection.** For each feature just written to disk whose `feature.md` frontmatter has `jetrix_task_object_id`, call `task-mcp.subtask_list(solution_id, parent_task_id=<jetrix_task_object_id>)`. Fires per feature — for a batch pull, parallelise across features (bounded, say 5 concurrent).
+
+Response shape:
+
+```json
+{
+  "subtasks": [
+    {
+      "subtask_object_id": "6b72...",
+      "task_number":       "Subtask-7",
+      "task_type":         "subtask",
+      "title":             "Supplier Onboarding — backend",
+      "status":            "todo",
+      "description":            "<HTML/Markdown>",
+      "implementation_details": "<HTML/Markdown>",
+      "acceptance_criteria":    "",
+      "test_scenarios":         "",
+      "metadata": {
+        "externalId":       "FEAT-SUP-001-1",
+        "parentExternalId": "FEAT-SUP-001",
+        "subtaskNumber":    1,
+        "subtaskRepo":      "backend",
+        "source":           "ai",
+        "aiGenerated":      true
+      }
+    },
+    ...
+  ]
+}
+```
+
+**Skip when empty.** A feature with `subtasks: []` is parent-alone — no local sub-task tree needed. Do not create empty `subtask/` folders.
+
+**Assembly + write via script.** Do NOT `Read` / `Write` sub-task files individually — invoke `materialize-subtasks.py`. It handles frontmatter (§v2.1 sub-task frontmatter — `doc_type`, identity fields, `composed_at`, `inputs_hash`), the write for `description.md` + `implementation.md` + `status.md` under `features/<parent_slug>/subtask/<subtaskRepo>/`, optional AC/TS tab files (only when MC has non-empty content), idempotency via content-hash, sync-state update, MC status → local 5-state mapping (`todo`/`readyForDev` → `PLANNED`, `inProgress` → `IN_PROGRESS`, etc.), and detached-subtask warnings (never deletes local folders that lack MC counterparts).
+
+Per parent feature:
+
+```bash
+BUNDLE="<workspace_root>/.jetrix/cache/.pull-subtasks-<parent-slug>.json"
+mkdir -p "$(dirname "$BUNDLE")"
+
+# Compose the bundle from the parent's fetched context + this subtask_list response.
+cat > "$BUNDLE" <<'JETRIX_SUB_EOF'
+{
+  "parent_slug":            "<parent-slug>",
+  "parent_feature_id":      "<FEAT-<AREA>-NN from parent's feature.md>",
+  "parent_task_object_id":  "<parent's jetrix_task_object_id>",
+  "parent_task_number":     "<parent's jetrix_task_number, e.g. Feature-4>",
+  "subtasks":               <subtask_list.subtasks — verbatim>
+}
+JETRIX_SUB_EOF
+
+python "$CLAUDE_PLUGIN_ROOT/scripts/materialize-subtasks.py" \
+  --bundle       "$BUNDLE" \
+  --project-root "<absolute project_root>" \
+  --sync-state   "<workspace_root>/.jetrix/cache/sync-state.json"
+
+rm -f "$BUNDLE"
+```
+
+The script writes:
 
 ```
-Pulled:  15 scope docs + 14 features
-        (10 features created locally, 4 unchanged)
+features/<parent_slug>/subtask/<subtaskRepo>/
+├── description.md          # Description tab, with §v2.1 frontmatter
+├── implementation.md       # Implementation tab, with §v2.1 frontmatter
+├── status.md               # current_state / owner_lock / branch
+├── acceptance-criteria.md  # (only when MC's tab is non-empty)
+└── test-scenarios.md       # (only when MC's tab is non-empty)
+```
+
+Sync-state entries per sub-task under `subtasks/<subtask_object_id>` with `contentHash`, `implementationHash`, `taskNumber`, `parentTaskObjectId`, `subtaskRepo`, `subtaskNumber`, `lastPulled`. Merge-safe.
+
+**Cleanup for detached sub-tasks** is handled inside the script: a local `subtask/<repo>/` folder without a matching MC counterpart in this pull triggers a warning, never a delete — avoids accidental data loss if MC's list is stale.
+
+### 8. Report
+
+```
+Pulled:  15 scope docs + 14 features + 6 sub-tasks
+        (10 features created locally, 4 unchanged; 6 sub-tasks across 2 features)
 ```
 
 ## Prompts count

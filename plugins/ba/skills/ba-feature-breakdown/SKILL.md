@@ -87,7 +87,7 @@ For every feature, create the folder (`features/<feature-slug>/`) and write all 
 - **`test-scenarios.md`** — Positive / Negative / Edge tables. First column header is `No.` (not `#` — some markdown normalisers split a header row on a bare `#`). Sequential numbers across groups. Every row cites an `AC-N`.
 - **`dependencies.md`** — Depends on + Assumptions. **Downstream dependencies, data dependencies, integration dependencies, and dependency risks are NOT authored here** — TL's context graph and the Implementation-tab Touch points subsection own them. Cross-feature dependency ids live in frontmatter `depends_on_features`.
 - **`open-questions.md`** — bullet list, one line per question with owner named inline. Identity / impact / status in frontmatter `open_questions[]`.
-- **`implementation-plan.md`** — BA's build-areas working file for ongoing scoping. Never pushed; TL's `tl-plan.md` (produced by `/tl:compose`) is the Implementation-tab source.
+- **`implementation-plan.md`** — BA's build-areas working file for ongoing scoping. Never pushed; the Implementation-tab source is `tl-plan.md`, produced by `/dev:plan` Stage 2 (which invokes the `tl-feature-compose` skill internally). For split features, the parent's `tl-plan.md` is a rollup naming each sub-task; per-sub-task detailed Implementation lives at `subtask/<repo>/implementation.md`.
 - **`status.md`** — local BA-side operational tracker. Never pushed; task lifecycle status lives on the MC Task itself.
 
 Fill each file from the scope and registers. When a section has no supported content, write the labelled placeholder the template specifies — don't invent, and don't delete the heading.

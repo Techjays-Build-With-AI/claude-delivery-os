@@ -5,10 +5,10 @@ The **Developer Agent** takes an approved, TL-planned feature and **builds it** 
 | | |
 |---|---|
 | **Namespace** | `/dev:` |
-| **Commands** | `/dev:bootstrap [spec]` · `/dev:build <feature>` · `/dev:validate <feature>` · `/dev:fix-review <feature> feedback=<...>` · `/dev:pr <feature>` |
-| **Input** | The BA feature breakdown (`features/<slug>/`), the TL context graph (`context/frontend|backend|database`), and the product repository |
-| **Output** | Working code on `feature/FEAT-<AREA>-NN-<slug>`, the `dev/` context files per feature, `features/tracker.md`, and a `dev/pr-summary.md` review handoff |
-| **Skills** | `feature-delivery-loop` · `dev-validation` · `dev-code-review` · `dev-pr-handoff` |
+| **Commands** | `/dev:bootstrap [spec]` · **`/dev:plan <task>`** · `/dev:build <task>` · `/dev:validate <task>` · `/dev:fix-review <task> feedback=<...>` · `/dev:pr <task>` |
+| **Input** | The BA feature breakdown (`features/<slug>/`), the TL context graph (`context/frontend|backend|database`), the product repository, and (for `/dev:build`) the plan artifacts `/dev:plan` produced |
+| **Output** | Working code on `feature/FEAT-<AREA>-NN-<slug>` (parent) or `feature/FEAT-<AREA>-NN-<slug>-<repo>` (sub-task), the `dev/` context files per task, `features/tracker.md`, and a `dev/pr-summary.md` review handoff. For split features: sub-tasks land under `features/<slug>/subtask/<repo>/` with tab files + dev artifacts, one MC Sub-task per repo. |
+| **Skills** | `feature-delivery-loop` · `dev-validation` · `dev-code-review` · `dev-pr-handoff` (all loop skills). Planning stages (`code-context-readiness`, `implementation-preparation`, `development-planning`) live as command references under `commands/references/plan/`. |
 
 ---
 
@@ -66,12 +66,34 @@ If the **tl plugin isn't installed**, bootstrap blocks and asks you to run `/tl:
 | Command | Does | Stops at |
 |---|---|---|
 | `/dev:bootstrap [spec]` | Greenfield — ensure a usable, green product repo exists (scaffolds via the TL on project-zero) | build-ready workspace |
-| `/dev:build <feature>` | The full loop — implement, validate, repair, track, prepare PR | `HUMAN_REVIEW` (or `BLOCKED`) |
-| `/dev:validate <feature>` | Runs the validation suite and maps results to acceptance criteria; no code changes | acceptance-map report |
-| `/dev:fix-review <feature> feedback=<path\|PR>` | Folds reviewer comments back in, re-validates, refreshes the PR summary | `HUMAN_REVIEW` (or `BLOCKED`) |
-| `/dev:pr <feature>` | Verifies completion criteria and writes the PR handoff | `HUMAN_REVIEW` |
+| **`/dev:plan <task>`** | Just-in-time planning — verify TL graph, decide sub-task split (multi-repo → per-repo sub-tasks), compose Description + Implementation for each, create sub-tasks in MC, and write the local development plan. **Runs before `/dev:build`.** | `PLANNED` (or `BLOCKED` per feature) |
+| `/dev:build <task>` | The full loop — implement, validate, repair, track, prepare PR. Refuses to run if `/dev:plan` hasn't produced a plan. | `HUMAN_REVIEW` (or `BLOCKED`) |
+| `/dev:validate <task>` | Runs the validation suite and maps results to acceptance criteria; no code changes | acceptance-map report |
+| `/dev:fix-review <task> feedback=<path\|PR>` | Folds reviewer comments back in, re-validates, refreshes the PR summary | `HUMAN_REVIEW` (or `BLOCKED`) |
+| `/dev:pr <task>` | Verifies completion criteria and writes the PR handoff | `HUMAN_REVIEW` |
 
-`<feature>` is a `FEAT-<AREA>-NN` id, a `features/<slug>/` folder, or a slug. `/dev:build` with no target picks the next feature at `READY_FOR_DEV`.
+`<task>` accepts any of: MC task number (`Task-N` / `Feature-N` / `Subtask-N`), `FEAT-<AREA>-NN` id, `features/<slug>/` folder, sub-task folder path (`features/<slug>/subtask/<repo>/`), or a bare slug. `/dev:plan` also accepts multi-target forms — `list=<name>`, `initiative=<name>`, `--all` — which fan out in parallel across the target set. `/dev:build` with no target picks the next task at `PLANNED`.
+
+### The plan → build flow (v2.1+)
+
+```
+/dev:plan <task-ref>       ┌── verifies TL graph exists (auto-runs /tl:plan if not)
+                           ├── decides multi-repo → sub-task split
+                           ├── composes each sub-task's Description + Implementation
+                           ├── creates sub-tasks in MC (batched via task-mcp)
+                           └── writes local dev-plan.md for each task
+                           ► ONE consolidated user checkpoint after Stage 1
+    │
+    ▼
+/dev:build <task-ref>      ┌── verifies plan exists (halts with "run /dev:plan first" if not)
+                           ├── acquires lock, checks out branch in the task's repo
+                           ├── implements per the dev-plan
+                           ├── runs dev-validation → acceptance-map
+                           ├── dev-code-review + security pass
+                           └── dev-pr-handoff → HUMAN_REVIEW
+```
+
+`/dev:plan` is where sub-task decomposition happens; `/dev:build` is single-task-at-a-time. On a split feature you run `/dev:build Subtask-7` (backend), `/dev:build Subtask-8` (frontend), etc. — each in its own repo, each with its own PR.
 
 ---
 

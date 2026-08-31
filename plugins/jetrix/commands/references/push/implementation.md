@@ -1,10 +1,10 @@
 ## Stage: `implementation` (implemented — uses task-mcp)
 
-TL runs this AFTER `/tl:compose` writes per-feature `tl-plan.md` files (the buildable 9-section technical spec). Each MC Task's `implementationDetails` gets **that one file's body verbatim** — no concatenation, no unit-file walking, no manifest degradation. `/tl:compose` is responsible for producing a self-contained document sized under Mission Control's 60 KB cap; this stage only ships what compose produced. Status flips to `READY_FOR_DEV`. Does NOT touch BA-owned body fields.
+TL runs this AFTER `/dev:plan` writes per-feature `tl-plan.md` files (the buildable 9-section technical spec). Each MC Task's `implementationDetails` gets **that one file's body verbatim** — no concatenation, no unit-file walking, no manifest degradation. `/dev:plan` is responsible for producing a self-contained document sized under Mission Control's 60 KB cap; this stage only ships what compose produced. Status flips to `READY_FOR_DEV`. Does NOT touch BA-owned body fields.
 
 If a feature folder has no `tl-plan.md`, this stage skips it with a clear message pointing the user at the right recovery command. Two cases:
 
-- **This teammate hasn't composed yet locally** → run `/tl:compose <slug>` to generate `tl-plan.md` from the local graph.
+- **This teammate hasn't composed yet locally** → run `/dev:plan <slug>` to generate `tl-plan.md` from the local graph.
 - **The feature's `tl-plan.md` was pushed by a different teammate and this workspace hasn't pulled it** → run `/jetrix:pull task <ref>` (or `/jetrix:pull scope`) to fetch the composed plan from Jetrix.
 
 Never compose silently, never guess, never fall back to the old concat-of-units mode.
@@ -49,10 +49,10 @@ Every check the old §3/§4/§4a spec used to walk in Claude context is done ins
 
 For each row in `skipped` and `warnings`, print the matching user-facing message. Emit these **before** the MCP call so the user sees them regardless of whether the MCP call runs:
 
-- `reason == "no-tl-plan"` → `[skip] features/<slug>/ — no tl-plan.md. Run /tl:compose <slug> or /jetrix:pull task <slug>.`
+- `reason == "no-tl-plan"` → `[skip] features/<slug>/ — no tl-plan.md. Run /dev:plan <slug> or /jetrix:pull task <slug>.`
 - `reason == "no-feature-id"` → `[skip] features/<slug>/ — feature.md has no feature_id frontmatter. Re-run /ba:features.`
 - `reason == "no-task-object-id"` → `[skip] features/<slug>/ — feature.md has no jetrix_task_object_id. Run /jetrix:push feature first.`
-- `reason.startswith("size-cap")` → `[skip] <slug> — tl-plan.md is <N> chars, cap is 60000. Split the feature via /tl:compose or /ba:features and re-run.`
+- `reason.startswith("size-cap")` → `[skip] <slug> — tl-plan.md is <N> chars, cap is 60000. Split the feature via /dev:plan or /ba:features and re-run.`
 - `reason.startswith("unchanged")` → `[skip] TASK-<n> <slug> — unchanged (hash=<sha16>)` (task number pulled from sync-state if needed for the report)
 - Any warning → `[warn] <slug> — <message>`
 
@@ -103,8 +103,9 @@ cat > "$RESPONSES" <<'JETRIX_RESP_EOF'
 JETRIX_RESP_EOF
 
 python "$CLAUDE_PLUGIN_ROOT/scripts/apply-implementation-responses.py" \
-  --responses  "$RESPONSES" \
-  --sync-state "<workspace_root>/.jetrix/cache/sync-state.json"
+  --responses         "$RESPONSES" \
+  --sync-state        "<workspace_root>/.jetrix/cache/sync-state.json" \
+  [--subtask-responses "<workspace_root>/.jetrix/cache/.push-subtask-impl-responses.json"]
 
 rm -f "$RESPONSES"
 ```
@@ -115,7 +116,7 @@ rm -f "$RESPONSES"
 [1/10] TASK-11 opening-balance-import       pushed   (12.4 KB, hash=<sha16>)
 [2/10] TASK-14 leave-balance-administration skip     (unchanged, hash=<sha16>)
 [3/10] TASK-16 leave-request-submission     pushed   (14.1 KB, hash=<sha16>)
-[4/10] TASK-19 approvals-workflow           skip     (no tl-plan.md — run /tl:compose)
+[4/10] TASK-19 approvals-workflow           skip     (no tl-plan.md — run /dev:plan)
 [5/10] TASK-22 monster-report               skip     (67.3 KB > 60 KB cap — split the feature)
 ```
 
@@ -123,5 +124,73 @@ Final line: `updated: N   skipped: M   failed: K` plus a list of skips/failures 
 
 ### 7. Never fall back to the old concat mode
 
-If a feature has no `tl-plan.md`, this stage **must not** silently reconstruct one by concatenating BA's `implementation-plan.md` + owned units. That path produced the "reads like a business user story" content Dharma flagged. The correct recovery is: tell the user to run `/tl:compose <slug>` and stop for that feature.
+If a feature has no `tl-plan.md`, this stage **must not** silently reconstruct one by concatenating BA's `implementation-plan.md` + owned units. That path produced the "reads like a business user story" content Dharma flagged. The correct recovery is: tell the user to run `/dev:plan <slug>` (or `/dev:plan --dry-run <slug>` to compose locally without touching MC) and stop for that feature.
+
+### 8. Sub-task Implementation push (v2.1+)
+
+For features whose `features/<slug>/subtask/<repo>/` exists locally, ALSO push each sub-task's Implementation tab. This runs after the parent's Implementation is pushed and its `tasks/<feature_id>` sync-state entry is up-to-date.
+
+**Detection.** For each parent whose feature.md has `jetrix_task_object_id` AND `features/<slug>/subtask/<repo>/` folders exist locally, enumerate the sub-tasks. Skip parents with no `subtask/` directory (parent-alone) — no additional work needed.
+
+**Assembly.** Extend the assemble script (or emit a follow-up sub-task-only payload) to walk `subtask/<repo>/implementation.md` per parent. Each sub-task payload:
+
+```json
+{
+  "subtasks_by_parent": {
+    "supplier-onboarding": [
+      {
+        "subtask_object_id":      "6b72...",                          // from subtask/<repo>/description.md frontmatter jetrix_subtask_object_id
+        "implementation_details": "<implementation.md body, frontmatter stripped>",
+        "status":                 "todo",                              // "blocked" if compose flagged HELD
+        "_local_impl_hash":       "sha256:..."
+      },
+      ...
+    ]
+  }
+}
+```
+
+Skip-unchanged via `sync-state.subtasks/<subtask_object_id>.implementationHash` — same idempotence pattern parent features use.
+
+**Push (per parent, per sub-task).** Each sub-task's Implementation writes via the same narrow tool used for parents:
+
+```
+mcp__task-mcp__feature_update_implementation(
+  solution_id = <from project.json>,
+  features = [
+    {
+      task_object_id:         "<subtask_object_id>",
+      implementation_details: "<sub-task's implementation.md body>",
+      status:                 "todo"
+    }
+  ]
+)
+```
+
+(If Dharma confirms `feature_update_implementation` accepts sub-task object_ids — see the task-mcp addition spec — this works verbatim. If not, use `subtask_update_implementation` with identical signature.)
+
+**Response handling.** Update sync-state per sub-task:
+
+```json
+{
+  "subtasks/<subtask_object_id>": {
+    "implementationHash": "sha256:...",
+    "version":            <from response>,
+    "lastPushed":         "<ISO>"
+  }
+}
+```
+
+Merge with the entry created by `/jetrix:push feature` §7 (which set `taskNumber`, `taskObjectId`, `parentTaskObjectId`, `subtaskRepo`, `subtaskNumber`, `contentHash`).
+
+**Skip-only case.** A sub-task whose `implementation.md` is unchanged since last push → `[skip] Subtask-N <slug>/<repo> — unchanged (hash=<sha16>)`. No MCP call for that sub-task.
+
+**Report.** Extend the final summary:
+
+```
+Parent Feature-4 supplier-onboarding      pushed   (rollup, 3.2 KB)
+  Subtask-7 backend                       pushed   (12.4 KB, hash=abc123)
+  Subtask-8 frontend                       pushed   (8.9 KB, hash=def456)
+  Subtask-9 mobile                         skip     (unchanged, hash=789abc)
+```
 

@@ -12,6 +12,19 @@ Contract preserved:
     file-scoped — matches pull side)
   - Merge-safe: existing keys for other stages preserved
 
+v2.1 additions (IMPLEMENTED):
+  - Extended to also write `jetrix_task_number` (MC display number like
+    `Feature-4`) alongside `jetrix_task_id` (MC numeric task_number).
+  - Sub-task responses are handled via `--subtask-responses` — the plugin
+    passes the `subtask_upsert_bundle` responses as a second file; the
+    script patches each sub-task's tab-file frontmatter
+    (`features/<parent_slug>/subtask/<subtaskRepo>/{description,implementation,status}.md`)
+    with `jetrix_subtask_object_id` + `jetrix_subtask_number` and writes
+    sync-state under `subtasks/<subtask_object_id>` per the shape in
+    plugins/jetrix/commands/references/push/feature.md §7.
+  - The existing parent-feature code path stays unchanged; sub-task work
+    only runs when --subtask-responses is provided.
+
 Usage:
     python apply-feature-responses.py \
         --responses    /tmp/feature-responses.json \
@@ -52,10 +65,22 @@ def _load_json(path: pathlib.Path, default):
         return default
 
 
-def _patch_frontmatter(feature_md: pathlib.Path, task_number: int, task_object_id: str) -> bool:
-    """Set jetrix_task_id + jetrix_task_object_id in the frontmatter. Insert
-    the keys if absent, replace them if present. Returns True on write."""
-    text = feature_md.read_text(encoding="utf-8")
+def _upsert_fm_key(fm_block: str, key: str, value) -> str:
+    """Insert-or-replace a single frontmatter key. Shared by parent + sub-task
+    frontmatter patching."""
+    pattern = re.compile(rf"^{re.escape(key)}\s*:.*$", re.MULTILINE)
+    if pattern.search(fm_block):
+        return pattern.sub(f"{key}: {value}", fm_block, count=1)
+    sep = "" if fm_block.endswith("\n") else "\n"
+    return f"{fm_block}{sep}{key}: {value}\n"
+
+
+def _patch_frontmatter_keys(md_path: pathlib.Path, keys: dict) -> bool:
+    """Apply a set of {key: value} upserts to a markdown file's YAML
+    frontmatter. Returns True on write, False if no change or no
+    frontmatter. Handles files that don't start with '---' by writing None
+    (caller decides to skip)."""
+    text = md_path.read_text(encoding="utf-8")
     if not text.startswith("---"):
         return False
     end_match = re.search(r"^---\s*$", text[3:], re.MULTILINE)
@@ -65,40 +90,68 @@ def _patch_frontmatter(feature_md: pathlib.Path, task_number: int, task_object_i
     fm_block = text[3:fm_end]
     rest = text[fm_end:]
 
-    def upsert(block: str, key: str, value) -> str:
-        pattern = re.compile(rf"^{re.escape(key)}\s*:.*$", re.MULTILINE)
-        if pattern.search(block):
-            return pattern.sub(f"{key}: {value}", block, count=1)
-        # Insert before the closing fence — append at end of the FM block.
-        sep = "" if block.endswith("\n") else "\n"
-        return f"{block}{sep}{key}: {value}\n"
-
-    new_block = upsert(fm_block, "jetrix_task_id", task_number)
-    new_block = upsert(new_block, "jetrix_task_object_id", task_object_id)
+    new_block = fm_block
+    for key, value in keys.items():
+        if value is None:
+            continue
+        new_block = _upsert_fm_key(new_block, key, value)
 
     new_text = f"---{new_block}{rest}"
     if new_text != text:
-        feature_md.write_text(new_text, encoding="utf-8")
+        md_path.write_text(new_text, encoding="utf-8")
         return True
     return False
 
 
-def apply(
-    responses_path: pathlib.Path,
+def _patch_frontmatter(
+    feature_md: pathlib.Path,
+    task_number,
+    task_object_id: str,
+    task_display_number: str | None = None,
+) -> bool:
+    """Set jetrix_task_id + jetrix_task_object_id + (v2.1) jetrix_task_number
+    in the frontmatter. Insert missing keys, replace present ones.
+    Returns True on write.
+
+    - `task_number` (int) → `jetrix_task_id` (existing convention)
+    - `task_object_id` (24-hex str) → `jetrix_task_object_id` (existing)
+    - `task_display_number` (str like "Feature-4") → `jetrix_task_number` (v2.1)
+    """
+    keys: dict = {
+        "jetrix_task_id":        task_number,
+        "jetrix_task_object_id": task_object_id,
+    }
+    if task_display_number:
+        keys["jetrix_task_number"] = task_display_number
+    return _patch_frontmatter_keys(feature_md, keys)
+
+
+def _task_display_number(row: dict) -> str | None:
+    """Some task-mcp response shapes carry a display-style number (e.g.
+    'Feature-4') in a separate field; others emit only the integer
+    `task_number` (4). If a display form is present under any of these
+    common keys, use it verbatim; else construct `Feature-<int>` from the
+    integer task_number as a v2.1-compatible fallback. Sub-task responses
+    take precedence over feature responses because callers pick one path."""
+    for k in ("task_number_display", "display_number", "jetrix_task_number"):
+        v = row.get(k)
+        if isinstance(v, str) and v.strip():
+            return v.strip()
+    tn = row.get("task_number")
+    if isinstance(tn, str) and tn.strip():
+        return tn.strip()
+    if isinstance(tn, int):
+        return f"Feature-{tn}"
+    return None
+
+
+def _apply_features(
+    responses: list,
     project_root: pathlib.Path,
-    sync_state_path: pathlib.Path,
-) -> int:
-    responses = _load_json(responses_path, [])
-    if not isinstance(responses, list):
-        # Callers sometimes wrap the array in {"features":[...]} — accept both.
-        responses = responses.get("features") if isinstance(responses, dict) else []
-    if not responses:
-        print("no responses to apply")
-        return 0
-
-    sync_state = _load_json(sync_state_path, {})
-    now = _iso_now()
-
+    sync_state: dict,
+    now: str,
+) -> tuple[list, list, list]:
+    """Handle parent-feature response rows. Returns (recorded, patched, failed)."""
     patched: list[str] = []
     recorded: list[str] = []
     failed:  list[tuple[str, str]] = []
@@ -113,12 +166,14 @@ def apply(
         task_oid      = row.get("task_object_id")
         action        = (row.get("action") or "updated").lower()
         local_hash    = row.get("_local_content_hash") or ""
+        display_num   = _task_display_number(row)
 
-        # Write-back frontmatter on create / recreate only.
+        # Write-back frontmatter on create / recreate only. Also patches
+        # v2.1's `jetrix_task_number` for /dev:plan Stage 0 lookup.
         if action in ("created", "recreated") and slug and task_number is not None and task_oid:
             feature_md = project_root / "features" / slug / "feature.md"
             if feature_md.exists():
-                if _patch_frontmatter(feature_md, task_number, task_oid):
+                if _patch_frontmatter(feature_md, task_number, task_oid, display_num):
                     patched.append(slug)
 
         # Sync-state entry per feature (idempotent update).
@@ -133,27 +188,226 @@ def apply(
         }
         recorded.append(slug)
 
+    return recorded, patched, failed
+
+
+def _apply_subtasks(
+    subtask_bundle: dict,
+    project_root: pathlib.Path,
+    sync_state: dict,
+    now: str,
+) -> tuple[list, list, list]:
+    """Handle sub-task response rows (v2.1).
+
+    Bundle shape (matches subtask_upsert_bundle output, one per parent):
+        {
+          "parent_slug":            "supplier-onboarding",
+          "parent_feature_id":      "FEAT-SUP-001",
+          "parent_task_object_id":  "6a61...",
+          "results": [
+            {
+              "subtask_number":    1,
+              "external_id":       "FEAT-SUP-001-1",
+              "subtask_object_id": "6b72...",
+              "task_number":       "Subtask-7",
+              "version":           1,
+              "action":            "created",
+              "ok":                true,
+              "_local_content_hash": "sha256:..."
+            },
+            ...
+          ]
+        }
+
+    Or a list of such bundles (multi-parent push).
+    """
+    if isinstance(subtask_bundle, list):
+        bundles = subtask_bundle
+    elif isinstance(subtask_bundle, dict):
+        bundles = [subtask_bundle]
+    else:
+        return [], [], []
+
+    patched: list[str] = []
+    recorded: list[str] = []
+    failed:  list[tuple[str, str]] = []
+
+    for bundle in bundles:
+        if not isinstance(bundle, dict):
+            continue
+        parent_slug           = str(bundle.get("parent_slug") or "").strip()
+        parent_feature_id     = str(bundle.get("parent_feature_id") or "").strip()
+        parent_task_object_id = str(bundle.get("parent_task_object_id") or "").strip()
+        results               = bundle.get("results") or []
+
+        if not parent_slug or not isinstance(results, list):
+            continue
+
+        for row in results:
+            if not isinstance(row, dict):
+                continue
+            label_base = f"{parent_slug}/subtask/#{row.get('subtask_number')}"
+            if not row.get("ok"):
+                failed.append((label_base, row.get("error") or "ok:false"))
+                continue
+
+            external_id       = str(row.get("external_id") or "").strip()
+            subtask_oid       = str(row.get("subtask_object_id") or "").strip()
+            subtask_task_num  = row.get("task_number")  # e.g. "Subtask-7"
+            subtask_number    = row.get("subtask_number")
+            local_hash        = row.get("_local_content_hash") or ""
+
+            if not subtask_oid or subtask_number is None:
+                failed.append((label_base, "response missing subtask_object_id or subtask_number"))
+                continue
+
+            # Locate the sub-task's folder — subtask_repo is derived from
+            # the parent's subtask/*/ walk (assemble emitted metadata.subtaskRepo
+            # in the payload; the response echoes external_id but not
+            # subtaskRepo). We recover subtaskRepo by inspecting the
+            # response's echoed metadata OR by matching parent_feature_id +
+            # subtask_number against the local `subtask/*/` folders. Prefer
+            # the response's metadata when present.
+            metadata = row.get("metadata") if isinstance(row.get("metadata"), dict) else {}
+            subtask_repo = str(metadata.get("subtaskRepo") or "").strip()
+
+            parent_dir = project_root / "features" / parent_slug
+            subtask_root = parent_dir / "subtask"
+
+            if not subtask_repo and subtask_root.exists():
+                # Fallback: find the folder whose description.md frontmatter's
+                # subtask_number matches — one read per candidate, but usually
+                # 1-3 subfolders per parent.
+                for cand in subtask_root.iterdir():
+                    if not cand.is_dir():
+                        continue
+                    desc = cand / "description.md"
+                    if not desc.exists():
+                        continue
+                    txt = desc.read_text(encoding="utf-8")
+                    m = re.search(r"^subtask_number:\s*(\d+)", txt, re.MULTILINE)
+                    if m and int(m.group(1)) == int(subtask_number):
+                        subtask_repo = cand.name
+                        break
+
+            if not subtask_repo:
+                failed.append((
+                    label_base,
+                    "could not resolve subtask_repo from response metadata or local folders"
+                ))
+                continue
+
+            # Patch identity frontmatter on all three tab files.
+            subtask_dir = subtask_root / subtask_repo
+            keys_to_upsert = {
+                "jetrix_subtask_object_id": subtask_oid,
+            }
+            if subtask_task_num:
+                keys_to_upsert["jetrix_subtask_number"] = str(subtask_task_num)
+
+            patched_any = False
+            for fname in ("description.md", "implementation.md", "status.md"):
+                target = subtask_dir / fname
+                if target.exists() and _patch_frontmatter_keys(target, keys_to_upsert):
+                    patched_any = True
+            if patched_any:
+                patched.append(f"{parent_slug}/subtask/{subtask_repo}")
+
+            # Sync-state entry per sub-task.
+            state_key = f"subtasks/{subtask_oid}"
+            existing_impl_hash = sync_state.get(state_key, {}).get("implementationHash")
+            sync_state[state_key] = {
+                "taskNumber":         subtask_task_num,
+                "taskObjectId":       subtask_oid,
+                "parentTaskObjectId": parent_task_object_id,
+                "featureId":          parent_feature_id,
+                "subtaskRepo":        subtask_repo,
+                "subtaskNumber":      subtask_number,
+                # contentHash covers description + implementation (matches
+                # assemble-features.py's _subtask_content_hash).
+                "contentHash":        f"sha256:{local_hash}" if local_hash else sync_state.get(state_key, {}).get("contentHash"),
+                # implementationHash is written by apply-implementation-responses.py;
+                # preserve it here so a bundle push doesn't wipe it.
+                "implementationHash": existing_impl_hash,
+                "version":            row.get("version"),
+                "lastPushed":         now,
+            }
+            recorded.append(f"{parent_slug}/subtask/{subtask_repo}")
+
+    return recorded, patched, failed
+
+
+def apply(
+    responses_path: pathlib.Path,
+    project_root: pathlib.Path,
+    sync_state_path: pathlib.Path,
+    subtask_responses_path: pathlib.Path | None = None,
+) -> int:
+    responses = _load_json(responses_path, [])
+    if not isinstance(responses, list):
+        # Callers sometimes wrap the array in {"features":[...]} — accept both.
+        responses = responses.get("features") if isinstance(responses, dict) else []
+
+    sync_state = _load_json(sync_state_path, {})
+    now = _iso_now()
+
+    feat_recorded, feat_patched, feat_failed = _apply_features(
+        responses, project_root, sync_state, now,
+    )
+
+    sub_recorded: list[str] = []
+    sub_patched:  list[str] = []
+    sub_failed:   list[tuple[str, str]] = []
+    if subtask_responses_path is not None and subtask_responses_path.exists():
+        subtask_bundle = _load_json(subtask_responses_path, {})
+        sub_recorded, sub_patched, sub_failed = _apply_subtasks(
+            subtask_bundle, project_root, sync_state, now,
+        )
+
+    if not responses and not sub_recorded and not sub_failed:
+        print("no responses to apply")
+        return 0
+
     sync_state_path.parent.mkdir(parents=True, exist_ok=True)
     sync_state_path.write_text(json.dumps(sync_state, indent=2), encoding="utf-8")
 
-    print(f"recorded={len(recorded)} patched_frontmatter={len(patched)} failed={len(failed)}")
-    for s in recorded: print(f"  recorded  {s}")
-    for s in patched:  print(f"  patched   {s}/feature.md")
-    for s, err in failed: print(f"  failed    {s}: {err}")
-    return 1 if failed else 0
+    total_recorded = len(feat_recorded) + len(sub_recorded)
+    total_patched  = len(feat_patched) + len(sub_patched)
+    total_failed   = feat_failed + sub_failed
+
+    print(
+        f"recorded={total_recorded} "
+        f"(features={len(feat_recorded)}, subtasks={len(sub_recorded)}) "
+        f"patched_frontmatter={total_patched} "
+        f"failed={len(total_failed)}"
+    )
+    for s in feat_recorded: print(f"  recorded  {s}")
+    for s in feat_patched:  print(f"  patched   {s}/feature.md")
+    for s in sub_recorded:  print(f"  recorded  {s}")
+    for s in sub_patched:   print(f"  patched   {s}/*.md")
+    for s, err in total_failed: print(f"  failed    {s}: {err}")
+    return 1 if total_failed else 0
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
-    ap.add_argument("--responses",    required=True)
-    ap.add_argument("--project-root", required=True)
-    ap.add_argument("--sync-state",   required=True)
+    ap.add_argument("--responses",         required=True,
+                    help="feature_upsert_bundle response JSON list.")
+    ap.add_argument("--project-root",      required=True)
+    ap.add_argument("--sync-state",        required=True)
+    ap.add_argument("--subtask-responses", required=False, default=None,
+                    help="v2.1: subtask_upsert_bundle response bundle JSON (per parent or list).")
     args = ap.parse_args()
+
+    subtask_path = None
+    if args.subtask_responses:
+        subtask_path = pathlib.Path(args.subtask_responses).resolve()
 
     return apply(
         responses_path=pathlib.Path(args.responses).resolve(),
         project_root=pathlib.Path(args.project_root).resolve(),
         sync_state_path=pathlib.Path(args.sync_state).resolve(),
+        subtask_responses_path=subtask_path,
     )
 
 

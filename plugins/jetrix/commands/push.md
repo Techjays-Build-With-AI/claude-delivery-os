@@ -10,9 +10,9 @@ Publish local delivery-os work to Jetrix. The first argument names the **stage**
 | Stage | MCP | What it pushes |
 |---|---|---|
 | `scope` | `scope-mcp` | BA outputs — `ba/*.md`, `shared-context/*.md`, `features/feature-index.md` |
-| `feature` | `task-mcp` | Per-feature MC Tasks — creates ONE Task per `features/<slug>/` folder |
+| `feature` | `task-mcp` | Per-feature MC Tasks — creates ONE parent Task per `features/<slug>/` folder AND (v2.1+) creates one Sub-task per `features/<slug>/subtask/<repo>/` folder under that parent, in a batched `subtask_upsert_bundle` call |
 | `task` | `task-mcp` | Ad-hoc tasks — ONE MC Task per `.md` file. Accepts a file, a folder, or omit for `tasks/**/*.md`. Optional `--list=<name\|id>` or `--sprint=<id>` chooses the target. |
-| `implementation` | `task-mcp` | TL plan → each Task's Implementation tab (`implementationDetails`), status → `READY_FOR_DEV` |
+| `implementation` | `task-mcp` | Parent Implementation tab from `tl-plan.md` AND (v2.1+) each sub-task's Implementation tab from `subtask/<repo>/implementation.md` via `feature_update_implementation`. Status → `READY_FOR_DEV`. |
 | `deliverable` | `deliverable-mcp` | Client HTMLs — `doc/*.html` |
 | `all` | (all above) | Runs every implemented stage in order. |
 

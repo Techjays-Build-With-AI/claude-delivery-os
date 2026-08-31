@@ -15,7 +15,10 @@ Follow the **`delivery-os-conventions`** contract (workspace layout, frontmatter
 You **consume** what the upstream agents published and never re-run their work:
 
 - The BA's **feature breakdown** under `features/<slug>/` — `feature.md`, `implementation-plan.md` (build areas, not code — BA scoping context only), `workflow.md`, `acceptance-criteria.md`, `dependencies.md`, `open-questions.md`, `status.md`.
-- The TL's **buildable per-feature spec** — `features/<slug>/tl-plan.md` (9-section technical plan produced by `/tl:compose`). **When present, this is your primary buildable input** — read it first, use it as the authoritative technical brief. When absent (a workspace that hasn't run `/tl:compose` yet), fall back to `implementation-plan.md` + the TL unit files (below) and note the legacy-input path in the run summary; recommend `/tl:compose` for next time.
+- The **buildable per-task Implementation content** produced by `/dev:plan` Stage 2:
+  - Parent-alone target → `features/<slug>/tl-plan.md` (detailed 5-section spec)
+  - Sub-task target → `features/<slug>/subtask/<repo>/description.md` (business flow narrative) + `features/<slug>/subtask/<repo>/implementation.md` (detailed 5-section, scoped to that repo); parent's `features/<slug>/tl-plan.md` is now in rollup mode listing all sub-tasks and their sequence
+  **When present, this is your primary buildable input** — read it first, use it as the authoritative technical brief. When absent → halt with *"Run `/dev:plan <task>` first"*. Do NOT reconstruct it from BA's `implementation-plan.md` — the composition responsibility belongs to `/dev:plan` (which invokes the `tl-feature-compose` skill internally).
 - The TL's **technical context graph** under `<repo>/context/code-context/{frontend,backend,database}/` — the pages (`PAGE-<AREA>-NN`), endpoints (`EP-<AREA>-NN`), and entities (`ENT-<AREA>-NN`) the feature maps to, plus the three indexes and the `DEC-###` decisions in `shared-context/decision-log.md`. Read these as reference when `tl-plan.md` cites a unit id — the plan is self-contained for the feature's owned units but cites shared/reused units by id. For an **AI-bearing feature**, also the TL's **eval units** under `context/evals/` — the `EVAL-<AREA>-NN` verifiers you run and inspect (not redesign).
 - `shared-context/` and `ba/` for actors, systems, registers, and business rules.
 

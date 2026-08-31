@@ -40,7 +40,7 @@ Before delegating to `tl-agent`, verify the BA feature files exist locally for e
       /ba:features <slug>          (regenerate locally)
     Then re-run /tl:plan.
   ```
-- **Never let the tl-agent proceed against a partial input set.** A silent partial run produces a partial graph that later `/tl:compose` runs will fail on, hiding the real root cause. Halt-with-ask is the honest path.
+- **Never let the tl-agent proceed against a partial input set.** A silent partial run produces a partial graph that later `/dev:plan` runs will fail on (the compose step in Stage 2 reads this graph), hiding the real root cause. Halt-with-ask is the honest path.
 
 ## 2. Delegate
 
@@ -52,4 +52,4 @@ Invoke the **tl-agent** subagent with the feature target. Pass it this instructi
 
 When the agent returns, present its **summary**: features planned, the created-vs-reused counts per layer, the three index tables (or their deltas), any evals designed for AI-bearing features (`EVAL-###`), the design decisions logged (`DEC-###`), the open questions raised (with owners), and any link-integrity findings. Link to the three indexes (`page-index.md`, `endpoint-index.md`, `entity-index.md`) and note that each unit file is self-contained. Keep it tight — the detail lives in the files.
 
-Remind the user of the **next step**: run `/tl:compose <target>` to turn the graph into per-feature buildable `tl-plan.md` files, then `/jetrix:push implementation` to ship them to Mission Control. `/tl:plan` produces the reusable graph; `/tl:compose` produces the per-feature developer handoff — they are separate steps.
+Remind the user of the **next step**: run `/dev:plan <target>` to turn the graph into per-feature buildable content — sub-task decomposition for multi-repo features, Description + Implementation compose, MC sub-task creation, and local dev-plan.md — then `/dev:build <task>` to implement. `/tl:plan` produces the reusable graph; `/dev:plan` produces the per-feature developer handoff (invoking the `tl-feature-compose` skill internally) — they are separate steps.

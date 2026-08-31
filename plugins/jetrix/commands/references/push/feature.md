@@ -193,7 +193,7 @@ mcp__task-mcp__feature_upsert_bundle(
 | `nfrs` | NFRs | `nfrs.md`, verbatim |
 | `test_scenarios` | Test Scenarios | `test-scenarios.md`, verbatim |
 | `assumptions` | Dependencies (tab labelled Dependencies in UI) | `dependencies.md` (Depends on + Assumptions) + `open-questions.md` (Open questions bullets), joined at push |
-| `implementation_details` | Implementation | Not written here — `feature_update_implementation` writes it after `/tl:compose` produces `tl-plan.md`. |
+| `implementation_details` | Implementation | Not written here — `feature_update_implementation` writes it after `/dev:plan` produces `tl-plan.md` (which invokes the `tl-feature-compose` skill internally in Stage 2). |
 | — | (no tab) | `implementation-plan.md` and `status.md` are local-only, never pushed. |
 
 Response per feature: `{slug, feature_id, task_object_id, task_number, version, action ('created' | 'updated' | 'recreated'), ok}`. `recreated` means the cached `task_object_id` no longer existed in MC (deleted server-side) so a new task was created; the response also carries `previous_task_object_id`.
@@ -216,21 +216,123 @@ cat > "$RESPONSES" <<'JETRIX_RESP_EOF'
 JETRIX_RESP_EOF
 
 python "$CLAUDE_PLUGIN_ROOT/scripts/apply-feature-responses.py" \
-  --responses    "$RESPONSES" \
-  --project-root "<absolute project_root>" \
-  --sync-state   "<workspace_root>/.jetrix/cache/sync-state.json"
+  --responses         "$RESPONSES" \
+  --project-root      "<absolute project_root>" \
+  --sync-state        "<workspace_root>/.jetrix/cache/sync-state.json" \
+  [--subtask-responses "<workspace_root>/.jetrix/cache/.push-subtasks-responses.json"]
 
 rm -f "$RESPONSES"
 ```
 
+Pass `--subtask-responses` when §7 has run and produced a
+`subtask_upsert_bundle` response bundle (per-parent or list-of-parents
+shape — see §7). The script handles both parent-feature rows AND sub-task
+rows in one call, merge-safe.
+
 The script:
-- Patches `features/<slug>/feature.md`'s frontmatter — sets `jetrix_task_id` + `jetrix_task_object_id` for rows whose `action` is `created` or `recreated`. Never re-Reads the file for this (regex-based rewrite).
-- Writes per-feature entries under `tasks/<feature_id>` in sync-state with `taskNumber`, `taskObjectId`, `slug`, `contentHash` (from `_local_content_hash`), `version`, `lastPushed`. Merge-safe.
-- Prints per-feature status to stdout — `recorded` / `patched` / `failed`.
+- Patches `features/<slug>/feature.md`'s frontmatter — sets `jetrix_task_id`
+  + `jetrix_task_object_id` + (v2.1) `jetrix_task_number` (MC display form
+  like `Feature-4`, used by `/dev:plan` Stage 0 lookup) for rows whose
+  `action` is `created` or `recreated`. Never re-Reads the file for this
+  (regex-based rewrite).
+- (v2.1) Patches each sub-task's tab files (`subtask/<repo>/{description,
+  implementation, status}.md`) with `jetrix_subtask_object_id` +
+  `jetrix_subtask_number` when `--subtask-responses` is provided. Resolves
+  `subtaskRepo` from the response's `metadata.subtaskRepo`, falling back to
+  matching the sub-task's `subtask_number` frontmatter against local
+  folders.
+- Writes per-feature entries under `tasks/<feature_id>` in sync-state with
+  `taskNumber`, `taskObjectId`, `slug`, `contentHash` (from
+  `_local_content_hash`), `version`, `lastPushed`. Merge-safe.
+- (v2.1) Writes per-sub-task entries under `subtasks/<subtask_object_id>`
+  with `taskNumber`, `taskObjectId`, `parentTaskObjectId`, `featureId`,
+  `subtaskRepo`, `subtaskNumber`, `contentHash`, `version`, `lastPushed`.
+  Preserves existing `implementationHash` (written by
+  `apply-implementation-responses.py`).
+- Prints per-row status to stdout — `recorded` / `patched` / `failed` — with
+  separate counts for features vs sub-tasks.
 
 ### 6. Update `features/feature-index.md`
 
 Add/update the `Task ID` column so rows show `TASK-<taskNumber>` next to each feature slug. (This file is scope-stage; push it separately via `/jetrix:push scope` after — sync-state will pick up the change.)
 
 Report per-feature: `created` / `updated` / `recreated` (previous task was gone server-side; a new task was created and the cached ids replaced) / `skipped (unchanged)` / `failed`.
+
+### 7. Sub-task handling (v2.1+)
+
+After parent features are pushed, walk `features/<slug>/subtask/<repo>/` for each pushed parent whose folder exists on disk. This handles sub-tasks that `/dev:plan` composed and the current push wave should publish.
+
+**Which command pushes sub-tasks — `/dev:plan` or `/jetrix:push feature`?**
+
+Both paths reach the same MC endpoint (`task-mcp.subtask_upsert_bundle`), so
+there is no risk of duplicate creates — the tool is idempotent via
+`metadata.externalId`. The difference is *when*:
+
+- **`/dev:plan` Stage 2 (§2e)** — pushes immediately, right after composing.
+  This is the primary flow for the developer who runs `/dev:plan` themselves.
+  Local sub-task folders and MC end up in sync in one command.
+- **`/jetrix:push feature` (this stage, §7)** — pushes sub-tasks a teammate
+  composed via `/dev:plan --dry-run` (skipped MC calls) or received via
+  `/jetrix:pull scope` and edited locally. This is the *re-sync* path.
+
+For a teammate who pulls a workspace fresh, runs `/dev:plan` normally, and
+never touches `--dry-run`, this stage's §7 is effectively a no-op on
+sub-tasks — `assemble-features.py`'s skip-unchanged (via
+`sync-state.subtasks/<subtask_object_id>.contentHash`) skips every sub-task
+that Stage 2 already published. Bandwidth cost is `subtask_list` (one MCP
+call per parent to build the skip check) plus zero writes.
+
+**Detection.** For each parent feature just pushed successfully (`ok: true, action: created|updated|recreated`), check whether `features/<slug>/subtask/<repo>/` folders exist locally. Skip the sub-task step entirely for features with no local `subtask/` directory — they are parent-alone (unchanged behaviour).
+
+**Assembly.** Extend the assemble script call in §2 to also emit a `subtasks_by_parent` map — for each parent slug, a list of sub-task payloads assembled from each `subtask/<repo>/description.md` + `implementation.md` + frontmatter (skip-unchanged via `_local_content_hash` on the concatenation of the two files). Each payload matches `task-mcp.subtask_upsert_bundle`'s input schema:
+
+```json
+{
+  "subtasks_by_parent": {
+    "supplier-onboarding": [
+      {
+        "subtask_object_id": null,                       // present on update
+        "title":             "Supplier Onboarding — backend",
+        "description":       "<description.md body, frontmatter stripped>",
+        "implementation_details": "<implementation.md body, frontmatter stripped>",
+        "acceptance_criteria": "",                       // deliberately empty
+        "test_scenarios":      "",
+        "metadata": {
+          "externalId":       "FEAT-SUP-001-1",
+          "parentExternalId": "FEAT-SUP-001",
+          "subtaskNumber":    1,
+          "subtaskRepo":      "backend",
+          "source":           "ai",
+          "aiGenerated":      true
+        },
+        "status": "todo",
+        "_local_content_hash": "sha256:..."
+      },
+      ...
+    ]
+  }
+}
+```
+
+**Idempotency call before upsert.** For each parent slug in `subtasks_by_parent`, call `task-mcp.subtask_list(solution_id, parent_task_id=<parent's task_object_id from §5 response>)`. Match each local sub-task to an existing MC sub-task by `metadata.externalId`:
+- Match → include the returned `task_object_id` in that sub-task's `subtask_object_id` field → PUT
+- No match → leave `subtask_object_id: null` → POST
+
+**Push.** One `task-mcp.subtask_upsert_bundle` call per parent (one call, N sub-tasks in a batch):
+
+```
+mcp__task-mcp__subtask_upsert_bundle(
+  solution_id    = <from project.json>,
+  parent_task_id = <parent's jetrix_task_object_id from §5>,
+  subtasks       = <the list assembled above>
+)
+```
+
+**Response write-back.** For each successful result row:
+- Patch that sub-task's frontmatter files (`description.md`, `implementation.md`, `status.md`) with `jetrix_subtask_object_id: <task_object_id>` and `jetrix_subtask_number: <task_number>`.
+- Update sync-state `subtasks/<subtask_object_id>` entry (see the top-level task-mcp addition spec for shape).
+
+Rows with `ok: false` → log the error, mark that sub-task's `status.md` `current_state: BLOCKED`, continue with siblings (per-item isolation).
+
+**Report.** Extend the final summary with a per-parent sub-task line: `sub-tasks created: 3 / updated: 0 / failed: 0 / skipped-unchanged: 0`.
 
