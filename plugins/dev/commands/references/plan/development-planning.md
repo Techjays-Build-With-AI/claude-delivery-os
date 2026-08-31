@@ -13,7 +13,7 @@
 Determined from `dev/plan-run.md`'s `stage-2.branch`:
 
 - **`branch: parent-alone`** → target = 1 task (the parent). Writes go to `features/<slug>/dev/`.
-- **`branch: split`** → target = N sub-tasks. Each sub-task's writes go to `features/<slug>/subtask/<repo>/dev/`.
+- **`branch: split`** → target = N sub-tasks. Each sub-task's dev audit writes go to `features/<slug>/dev/subtask/<repo>/` (v2.3 — single feature-level `dev/`; no nested `dev/` inside `subtask/<repo>/`).
 
 **Parallel per task** — spawn N `dev-agent` subagents for the split branch; one for parent-alone.
 

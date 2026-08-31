@@ -49,8 +49,12 @@ If there's no Delivery OS workspace (no `features/`), don't block: take the feat
 
 ## Workflow
 
-### 1. Read the target feature(s) and the registers behind them
-Take the target from the user: a single feature folder (`features/<slug>/`) or the whole set (`features/` / `feature-index.md`). Read each target feature's `feature.md` (the *Related Pages / APIs / Data Entities* it already expects), `implementation-plan.md` (the build areas and expected backend capabilities), `workflow.md` (the journey the pages must support), and `dependencies.md`. Then load the BA registers you'll link back to — `ba/registers/data.md` (`DATA-###`), `ba/registers/integrations.md` (`INT-###`), `ba/registers/workflows.md` (`WF-###`), `ba/registers/business-rules.md` (`BR-###`) — and `shared-context/` for actors and systems. Record which sources you consulted; it goes in the run summary.
+### 1. Read the target feature(s), the connection-map, and the registers behind them
+Take the target from the user: a single feature folder (`features/<slug>/`) or the whole set (`features/` / `feature-index.md`).
+
+**Read `.jetrix/connection-map.md` FIRST** (if present) — the workspace-level solution architecture doc pulled by `/jetrix:init` from the portal. It names each repo (Frontend / Backend / Mobile / Scheduled Service / …) with its role, the Wiring edges between them (e.g. `Frontend → Backend over REST`), the auth boundary, and external integrations. This tells you the SOLUTION SHAPE before you invent new cross-repo links — a new `PAGE-` calling a new `EP-` across repos should trace through an EXISTING wiring edge in the connection-map (or the plan should explicitly note it needs a NEW wiring edge, which the connection-map's next portal-side rebuild would surface). Missing / empty → note "no connection-map — plan cross-repo integrations from feature.md alone".
+
+Then read each target feature's `feature.md` (the *Related Pages / APIs / Data Entities* it already expects), `implementation-plan.md` (the build areas and expected backend capabilities), `workflow.md` (the journey the pages must support), and `dependencies.md`. Then load the BA registers you'll link back to — `ba/registers/data.md` (`DATA-###`), `ba/registers/integrations.md` (`INT-###`), `ba/registers/workflows.md` (`WF-###`), `ba/registers/business-rules.md` (`BR-###`) — and `shared-context/` for actors and systems. Record which sources you consulted; it goes in the run summary.
 
 ### 2. Load the existing graph before creating anything
 Read the current `frontend/frontend-index.md`, `backend/backend-index.md`, and `database/database-index.md` (they may be empty or absent on a first run). This is what lets you **reuse instead of duplicate** — you plan against the units that already exist. If the indexes are absent, you're starting the graph; create them in step 6.

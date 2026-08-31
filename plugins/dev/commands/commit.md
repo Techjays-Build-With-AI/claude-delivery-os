@@ -126,7 +126,7 @@ Local state:   REVIEW           (awaiting human review)
 MC status:     devReview        (flips to done on PR-merge webhook — future)
 
 Local runbook: features/supplier-onboarding/subtask/backend/implementation.md §10 How to verify locally
-PR summary:    features/supplier-onboarding/subtask/backend/dev/pr-summary.md
+PR summary:    features/supplier-onboarding/dev/subtask/backend/pr-summary.md
 
 Next:
   1. Reviewer reviews PR-247

@@ -12,13 +12,15 @@
 
 Presence of the `context/frontend|backend|database` folders is *not* sufficient. Verify the actual units, in order:
 
-1. **Read the feature's `feature.md`** and collect what it declares in the frontmatter:
+1. **Read `.jetrix/connection-map.md`** if present — the workspace-level solution architecture doc pulled by `/jetrix:init`. It names each app (repo) with its role, the Wiring edges between them (e.g. `Frontend → Backend over REST`), the auth boundary, external integrations, and data-flow notes. Use this to establish which repos are involved in this feature's plan even before reading feature-level frontmatter. Missing / empty → not a hard stop; just note "no connection-map — cross-repo trace is graph-only".
+
+2. **Read the feature's `feature.md`** and collect what it declares in the frontmatter:
    - `related_pages: [PAGE-<AREA>-NN, ...]`
    - `related_apis: [EP-<AREA>-NN, ...]`
    - `related_entities: [ENT-<AREA>-NN, ...]`
    Backend-only features declare no pages — skip the page layer for them. If any of these three lists is entirely missing from frontmatter and no analogue is present in the body's "Related …" sections, treat as **not planned** and jump to §1b.
 
-2. **Load the three TL layer indexes in each involved repo** (parallel — one per (repo, layer)):
+3. **Load the three TL layer indexes in each involved repo** (parallel — one per (repo, layer)):
    - `<repo>/context/code-context/frontend/frontend-index.md` (or the domain-specific split; see the code-context conventions)
    - `<repo>/context/code-context/backend/backend-index.md`
    - `<repo>/context/code-context/database/database-index.md`

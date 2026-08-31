@@ -35,6 +35,10 @@ Every Delivery OS workspace is bound to **one** Jetrix Solution. Everything live
     ├── README.md                         # workspace map — seeded by /delivery-os:init
     ├── project.json                      # Jetrix binding (solutionId, apps, envs) — /jetrix:init writes this
     ├── connection-map.md                 # solution-level architecture doc (if the portal built one)
+    │                                     # AUTHORITATIVE for cross-repo Wiring (transport per pair — REST/gRPC/queue),
+    │                                     # auth boundary, and external integrations. Read by tl-read-code-context,
+    │                                     # /dev:plan Stage 1, tl-feature-planning, tl-feature-compose before any
+    │                                     # cross-repo integration is planned or described.
     ├── cache/
     │   ├── repolocation.json             # per-app local repo paths
     │   └── sync-state.json               # drift hashes for /jetrix:push and /jetrix:pull

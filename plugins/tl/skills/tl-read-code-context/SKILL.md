@@ -19,6 +19,7 @@ Trigger on any of these question shapes, whether the user is talking to `dev-age
 - **Decision archaeology:** "why did we choose <X>?", "what was DEC-011 about?", "how did we decide on the partial unique index?"
 - **Reuse discovery:** "do we have an auth gate we can reuse?", "which endpoint already handles duplicate detection?"
 - **Coverage / gap discovery:** "what's not yet mapped in this repo?", "which endpoints don't have entity links?"
+- **Solution-level architecture / cross-repo wiring:** "how does the frontend talk to the backend?", "what's the auth boundary?", "how many repos are wired together?", "what external integrations do we have?", "what's the scheduled service for?", "what's the solution architecture?" — these questions are answered from `.jetrix/connection-map.md` FIRST (see Phase 2)
 
 Do NOT auto-trigger on:
 - Questions about non-code artifacts (BA scope, TL reviews, QA audits) — those live in `ba/` / `tl/reviews/` / `qa/`
@@ -31,12 +32,13 @@ Read the **`delivery-os-conventions`** contract if not in context — you need t
 
 **Inputs (fast — 1 file each unless expanding):**
 
-1. `.jetrix/cache/repolocation.json` — map from repo slug → absolute local path
-2. `.jetrix/tl/code-map-registry.md` — one workspace-level pointer file naming each mapped repo, its context root, its area tokens
-3. Per repo: `<repo>/context/code-context/code-context-index.md` — cross-layer summary (top-level entry for jumping to a layer)
-4. Per layer: `<repo>/context/code-context/<layer>/<layer>-index.md` — filenames on disk are `backend-index.md` / `frontend-index.md` / `database-index.md` (their frontmatter doc_types are `endpoint-index` / `page-index` / `entity-index` respectively). Each row: `Unit ID | Path | Owner | Origin | Related Features` + a `File` column pointing to the per-unit file.
-5. Per unit (endpoint / page / entity): `<repo>/context/code-context/<layer>/domains/<domain>/endpoints/<slug>.md` OR `<layer>/pages/<slug>.md` OR `<layer>/{tables,collections}/<slug>.md`. Body sections: `## Summary`, `## Contract` / `## Fields`, `## Called by`, `## Data Access`, `## Source References`, `## Related Units`.
-6. `shared-context/decision-log.md` — for DEC-### lookup
+1. `.jetrix/connection-map.md` — **workspace-level solution architecture (SOURCE OF TRUTH for cross-repo wiring, auth boundary, external integrations, data flow)**. Portal-synthesised; pulled by `/jetrix:init`. Read FIRST for any cross-repo, solution-level, or architecture question. When present, it establishes the WHOLE picture before you dive into any single repo's graph.
+2. `.jetrix/cache/repolocation.json` — map from repo slug → absolute local path
+3. `.jetrix/tl/code-map-registry.md` — one workspace-level pointer file naming each mapped repo, its context root, its area tokens
+4. Per repo: `<repo>/context/code-context/code-context-index.md` — cross-layer summary (top-level entry for jumping to a layer)
+5. Per layer: `<repo>/context/code-context/<layer>/<layer>-index.md` — filenames on disk are `backend-index.md` / `frontend-index.md` / `database-index.md` (their frontmatter doc_types are `endpoint-index` / `page-index` / `entity-index` respectively). Each row: `Unit ID | Path | Owner | Origin | Related Features` + a `File` column pointing to the per-unit file.
+6. Per unit (endpoint / page / entity): `<repo>/context/code-context/<layer>/domains/<domain>/endpoints/<slug>.md` OR `<layer>/pages/<slug>.md` OR `<layer>/{tables,collections}/<slug>.md`. Body sections: `## Summary`, `## Contract` / `## Fields`, `## Called by`, `## Data Access`, `## Source References`, `## Related Units`.
+7. `shared-context/decision-log.md` — for DEC-### lookup
 
 **Outputs:**
 
@@ -52,20 +54,24 @@ Decide which of the 8 question shapes applies. That determines the entry point:
 
 | Shape | Entry file |
 |---|---|
+| **Solution architecture / cross-repo wiring / auth boundary / external integrations / batch service** | `.jetrix/connection-map.md` (workspace-level, first hop for any solution-level question) |
 | Unit-id lookup (`EP-`, `PAGE-`, `ENT-`) | Layer index of that unit's layer (backend/frontend/database) |
-| Feature trace (`FEAT-`) | `features/<slug>/feature.md` frontmatter → walk related_apis / related_pages / related_entities |
-| Cross-reference walk (`who calls X`, `what does X touch`) | The unit file at the source of the walk |
+| Feature trace (`FEAT-`, cross-repo) | `.jetrix/connection-map.md` FIRST for the solution-level picture, THEN `features/<slug>/feature.md` frontmatter → walk related_apis / related_pages / related_entities across the wired repos |
+| Cross-reference walk (`who calls X`, `what does X touch`) | The unit file at the source of the walk. If the walk crosses repos, cite `.jetrix/connection-map.md`'s Wiring section to explain the transport (REST / gRPC / message queue). |
 | Schema / contract lookup | The entity file (for schema) or endpoint file (for contract) |
 | File-owner lookup | Layer index (has the `File` column) |
 | Decision archaeology (`DEC-`, `why did we`) | `shared-context/decision-log.md` |
 | Reuse discovery (`do we have`) | All three layer indexes, filter by domain / area token |
 | Coverage / gap discovery | `<repo>/context/code-context/map-coverage.md` |
 
-### Phase 2 — Resolve the repo(s) to read (1 file read: `repolocation.json`)
+### Phase 2 — Resolve scope (1–2 file reads)
 
-If the question implies a specific repo (via a repo-scoped area token like `EP-USR-*` where `USR` maps to backend), read only that repo's context tree.
+**Step 2a — Read `.jetrix/connection-map.md` first for cross-repo / solution-level questions.** The connection-map's **Wiring** section names which repos call which and how (REST / gRPC / queue), the **Auth boundary** section names where auth is validated, **External integrations** names third-party surfaces, and **Notes on data flow** captures the async-vs-sync separation. For solution-architecture questions, this is often the whole answer — no further reads needed.
 
-If the question is workspace-wide (e.g. "trace this feature"), fan out across every mapped repo whose area tokens are relevant. Read `.jetrix/tl/code-map-registry.md` to know which repos have `HCAL` mapped, then read only those.
+**Step 2b — Resolve repos to read** (only if the question dives into a specific unit / feature / walk):
+- If the question implies a specific repo (via a repo-scoped area token like `EP-USR-*` where `USR` maps to backend), read only that repo's context tree.
+- If the question is workspace-wide (e.g. "trace this feature"), fan out across every mapped repo whose area tokens are relevant. Read `.jetrix/tl/code-map-registry.md` to know which repos have the area token mapped.
+- **For cross-repo walks, always cite the connection-map's Wiring section** as the transport authority — a Frontend page calling a Backend endpoint traces through the wiring edge, not just the two unit files.
 
 ### Phase 3 — Walk to the answer (2-4 file reads)
 

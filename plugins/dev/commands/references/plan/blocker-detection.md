@@ -107,7 +107,7 @@ For each detected issue that survives dedup:
 
 Write to:
 - Parent-alone: `features/<slug>/dev/plan-blockers.md`
-- Sub-task: `features/<slug>/subtask/<repo>/dev/plan-blockers.md`
+- Sub-task: `features/<slug>/dev/subtask/<repo>/plan-blockers.md`
 
 **Frontmatter:**
 
