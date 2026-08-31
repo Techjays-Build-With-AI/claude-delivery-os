@@ -156,16 +156,18 @@ Output path:
 - Parent-alone → `features/<slug>/implementation.md`
 - Per sub-task → `features/<slug>/subtask/<repo>/implementation.md`
 
-### Mode: `description` (sub-task Description tab — v2.3 professional 6-section format)
+### Mode: `description` (sub-task Description tab — v2.3.5 user-story format)
 
-A **professional, structured business narrative** for MC's Description tab — the kind of description a stakeholder or QA lead reads without any code context. Replaces the v2.2 "single paragraph of prose" format which read as a blob. Six deterministic sections, in this order:
+A **user story** describing what a user can do, plus the business context around it. This is the format a Product Owner or stakeholder reads — voiced from the USER's perspective ("As an operations coordinator, I want to add a holiday…"), not from the dev's perspective ("This sub-task delivers a holiday endpoint…"). Replaces the v2.3.4 dev-centric "what this sub-task delivers" phrasing which read as internal-facing capability description rather than a real user story.
 
-1. **Overview** — 2-3 sentences establishing the business capability this sub-task delivers. Terse; the "why" line for a reader who hasn't opened the parent feature.
-2. **What this sub-task delivers** — bulleted list of operations in business terms, one bullet per operation. Each bullet 1-2 sentences describing the business behavior (not the mechanism). Business language only: "add a holiday", NOT "POST /holidays".
-3. **Business rules honored** — cite the parent's `BR-N` references + a 1-line paraphrase per rule. Only BRs that apply to THIS sub-task's operations.
-4. **Distinct refusal cases** — bulleted list of business situations users see, described in business terms. NOT HTTP codes, NOT error names — the actual message situation (e.g. "the response names the existing holiday occupying that date").
-5. **Out of scope for this sub-task** — bulleted list of explicit non-goals. Includes cross-sub-task boundary ("the user-facing form is sub-task 2 (frontend)").
-6. **Related sub-tasks** — cross-references to sibling sub-tasks (only present when the feature was split; omit for parent-alone). One line per sibling: "**Sub-task N (repo)** consumes the endpoints delivered here."
+Six deterministic sections, in this order:
+
+1. **User story** — the classic three-line format: `**As a** <role>, **I want** <action>, **So that** <benefit>`. Role comes from parent's `feature.md` `users:` frontmatter or `workflow.md` actors. Action is what the user WANTS to do (not what the system does). Benefit is the business outcome the user gets. Framing sentence follows: 2-3 sentences of business context establishing WHY this matters to the user — the pain point being solved, the current workaround being replaced.
+2. **User scenarios** — bulleted list of the user's flows in business terms, one bullet per scenario (not per endpoint). Format each: **bold action name** — 1-2 sentences describing what the user does, sees, and gets. Written in present-tense active voice from the user's POV: "The user selects a date and name, and the system…" not "The system accepts a POST body with…". If a scenario involves a decision or fork, describe it business-terms.
+3. **Business rules that apply** — cite the parent's `BR-N` references + a 1-line paraphrase per rule. Only BRs that shape what the USER sees or does in THIS sub-task's flows.
+4. **What users see when refused** — bulleted list of business situations where the user doesn't get what they asked for. Framed as what the user READS or PERCEIVES, not what the API returns: "The user is told the date is already taken and shown the name of the existing holiday" not "409 with DUPLICATE_TAX_ID".
+5. **Out of scope for this user story** — bulleted list of what the user CAN'T do in this sub-task and where they'd go for it. Includes cross-sub-task boundary from the user's perspective: "Filling in the calendar visually — that user story is delivered by sub-task 2 (frontend)."
+6. **Related user stories** — cross-references to sibling sub-tasks (only present when the feature was split; omit for parent-alone). One line per sibling, framed as a companion user story: "**Sub-task 2 (frontend)** delivers the user story for how the user actually TOUCHES this — the visual calendar and add form."
 
 **Formatting rules:**
 - Headings: `## <Section title>` — never level 1, never level 3+
@@ -214,38 +216,38 @@ composed_at: 2026-08-31T15:00:00Z
 inputs_hash: sha256:...
 ---
 
-## Overview
+## User story
 
-This sub-task delivers the server-side capability behind the company holiday calendar — the authoritative record that replaces the annually-emailed holiday PDF and the recurring "is this day a holiday?" question in Slack.
+**As a** signed-in portal user (HR admin or any employee),  
+**I want to** add, view, and remove the company's official holidays for a chosen year,  
+**So that** everyone consults one authoritative list instead of asking "is this day a holiday?" in Slack and waiting for someone with the annually-emailed PDF to answer.
 
-## What this sub-task delivers
+Today the holiday calendar lives in a PDF that HR emails once a year, and the same "is [date] a holiday?" question gets asked in Slack every week — with wrong or missing answers. This user story delivers a live, shared calendar the whole company reads from and every action is attributable so a wrong entry has a clear author.
 
-Three server operations that any signed-in portal user can perform on the calendar:
+## User scenarios
 
-- **Add a holiday** — record a date + name for the current year or later; the system captures who added it and when, from the verified session and the server's clock — never from the request. A date already holding a holiday is refused with a message naming the existing entry.
-- **List holidays for a year** — one year at a time, earliest date first; defaults to the current year when none is specified. Removed holidays are hidden.
-- **Remove a holiday** — soft delete: the record is retained with who removed it and when, and disappears from every later view. Concurrent removals settle atomically — exactly one wins.
+- **Adding a holiday** — The user picks a date and types a name (up to 100 characters). The system saves the entry, records who added it and when from the signed-in session (not from what the user types), and the entry appears in that year's list.
+- **Viewing the year's holidays** — The user opens the calendar and sees the current year's holidays sorted by date, showing each holiday's date, name, and who added it. The user can switch to the year before or the year after — no other year is offered.
+- **Removing a holiday** — The user selects Remove on a row and confirms; the entry disappears from every future view. The system keeps who removed it and when for the audit trail, but there is no way to bring it back through the interface.
 
-## Business rules honored
+## Business rules that apply
 
-- **BR-1** — one holiday per date. Enforced at the database, not application code.
-- **BR-2** — holidays only for the current calendar year or later.
-- **BR-4** — no permission restriction; any signed-in user can add or remove.
-- **BR-5** — added_by / added_at captured from session + server clock, not request.
-- **BR-9** — removal is soft delete; record retained with removal attribution.
+- **BR-1** — a date can hold only one holiday; the second add on the same date is refused.
+- **BR-2** — holidays can only be added for the current calendar year or later.
+- **BR-4** — no permission gate; any signed-in user can add or remove.
+- **BR-5** — "added by" and "added at" are captured from the session and server clock, not the request body.
+- **BR-9** — removal is a soft delete: the record is retained with attribution, but hidden from every view.
 
-## Distinct refusal cases
+## What users see when refused
 
-Users see specific business reasons for refusals, not generic errors:
+- **Date already taken** — the user is told which holiday already occupies that date, by name.
+- **Year is in the past** — the user is told the year must be current or later.
+- **Missing date or name** — the user is told which required field they left blank.
+- **Someone else already removed it** — the user is told the holiday was already removed, rather than a silent success.
 
-- **Duplicate holiday** — the response names the existing holiday occupying that date.
-- **Past-year date** — the response says the year must be current or later.
-- **Missing name or date** — the response names the specific missing field.
-- **Already removed** — a second removal attempt returns the specific "already removed" message; the record's state is not changed.
+## Out of scope for this user story
 
-## Out of scope for this sub-task
-
-- The user-facing form and calendar view — those live in **sub-task 2 (frontend)**.
+- Filling in the visual calendar view — that user story is delivered by **sub-task 2 (frontend)**.
 - Any offer of a restore path — removal is deliberately unrecoverable through the UI.
 - Any effect on the Leave module — Leave continues counting inclusive calendar days regardless of holidays.
 
@@ -381,13 +383,41 @@ Before writing the file. These are absolute — any violation means the composit
 
 **Rule 11 — No invention.** Every endpoint contract, every DB field, every UI surface traces to the context graph or the feature files. When silent, mark the affected step `[HELD · waiting on OQ-<id>]` and name the gap. Do not guess.
 
+**Rule 11.5 — Markdown rendering discipline (v2.3.5 — for `implementation` mode).** MC's tab renders the markdown as-is; malformed markdown displays as garbage. The most common failure modes and their explicit rules:
+
+- **Tables MUST have exactly one row per line.** No pipe-run-on. Every `|` row ends with a `\n` before the next row starts. WRONG: `| Step | Units | Notes |\n|---|---|---| | 1 | ... | ... | | 2 | ... | ... |` (rows crammed on one line — renders as one giant messy row). RIGHT: each row on its own line, separator row (`|---|---|---|`) on its own line between header and body.
+- **Mermaid diagrams MUST use `\`\`\`mermaid` fenced code blocks with real mermaid syntax.** A numbered list is NOT a mermaid diagram. WRONG: `1. Service ops\n2. Section shell\n3. Year list\n4. …` — renders as a list, no diagram. RIGHT: `\`\`\`mermaid\nflowchart TD\n    S1[Service ops] --> S2[Section shell]\n    S2 --> S3[Year list]\n    …\n\`\`\`` — renders as a flowchart in MC.
+- **Section headings use `##` (level 2) only.** Never `#` (level 1 — that's the MC tab title) and never level 3+ nested inside a section.
+- **Code fences for anything that MUST render as monospace** — JSON examples, curl commands, unit ID lists. Language hint after the opening triple-backticks (```json, ```bash, ```mermaid).
+- **Bullet lists use `-` prefix consistently.** Never mix `*` and `-`.
+- **Blank line before/after every table, code fence, and heading.** Missing blank lines make markdown parsers concatenate blocks.
+
+**Rule 11.6 — Frontend sub-task API section INCLUDES consumed contracts in full (v2.3.5).** A frontend sub-task doesn't OWN any endpoint — but the developer needs the FULL request/response/refusal shape of every endpoint it consumes to build correctly. §4 API endpoints for a frontend sub-task MUST include:
+
+- One `### <Method + Path>` heading per consumed endpoint (e.g. `### POST /api/holidays — Add a holiday (owned by sub-task 1 backend, consumed here)`)
+- Request body table (fields, types, required, constraints) — copied verbatim from the owning sub-task's endpoint unit
+- Response body JSON example — copied verbatim
+- Refusals table — one row per distinct message (409 DATE_ALREADY_HOLIDAY, 400 NAME_TOO_LONG, etc.) — copied verbatim
+- One-line pointer to the owning unit: `Owned by: EP-HCAL-01 (Inhouse-server/context/code-context/backend/domains/holiday/endpoints/add-holiday.md)`
+
+The v2.3.4 output that only said "None owned. This sub-task consumes the three operations delivered by sub-task 1" was WRONG shape for §4 — it leaves the frontend developer with no contract in view. The prose about "three details of those contracts are load-bearing" belonged in §7 Touch points (as caveats on the consumed contracts), not as a substitute for §4's contract tables.
+
+**Rule 11.7 — Every sub-task's §4-§7 must reach the same structural completeness bar.** A frontend sub-task's §5 (Database changes) is legitimately "N/A" — but its §4 (API endpoints), §6 (Frontend UI), §7 (Touch points) must each be as concrete as the backend's are for the sections that DO apply to it. If a frontend sub-task's §4 is 3 sentences of prose while its backend sibling's §4 is 500 lines of contract tables, that's a completeness gap — the frontend section pulls the consumed contracts up per Rule 11.6.
+
 **Rule 12 — Analysis scratchpad precondition (v2.3, `implementation` mode only).** Before writing `implementation.md`, verify:
 1. `dev/<repo>-analysis.md` (sub-task) OR `dev/analysis.md` (parent-alone) exists with `doc_type: analysis-scratchpad` frontmatter and non-empty `build_sequence`, `impact_matrix`, `test_strategy`, `risks_and_rollback` blocks.
 2. `dev/<repo>-plan-blockers.md` (or `dev/plan-blockers.md` for parent-alone) is either absent OR has `status: RESOLVED` in frontmatter.
 
 If either precondition fails, REFUSE to compose. Return a `stage_4_precondition_failed` error naming which precondition + which file. Never fabricate sections 2, 3, 8, 9 without the scratchpad — that produces the half-baked file this refactor exists to prevent. The caller (`/dev:plan` Stage 4 in `implementation-preparation.md`) checks the same preconditions before invoking this skill; both are belt-and-suspenders.
 
-**Rule 13 — Description mode: no HTTP codes / no field names / no framework leakage.** In `description` mode, do NOT include response codes (`400`, `409`, `201`), field names (`added_by`, `is_removed`), file paths, framework names, HTTP methods (POST/GET/DELETE), tables, code fences, or mermaid. All content in business vocabulary from parent's `feature.md` + `workflow.md`. Rule 2's "no framework names" applies here too, more strictly. See §"Compose modes" > "Mode: description" for the 6-section structure + example.
+**Rule 13 — Description mode: user-story voice + no HTTP codes / no field names / no framework leakage.** In `description` mode (v2.3.5):
+
+- **User-story voice mandatory** — §1 opens with the classic "**As a** … **I want** … **So that** …" three-liner. Every scenario in §2 is written from the user's perspective, present-tense active voice ("The user picks a date and types a name…"), NOT from the system's ("This sub-task saves a holiday…").
+- **NO dev-centric phrasing** — no "This sub-task delivers…", no "The service saves…", no "The endpoint accepts…". Reframe from what the SYSTEM does to what the USER does and sees.
+- **NO response codes** (`400`, `409`, `201`), NO field names (`added_by`, `is_removed`), NO file paths, NO framework names, NO HTTP methods (POST/GET/DELETE), NO tables, NO code fences, NO mermaid.
+- **All content in business vocabulary** from parent's `feature.md` + `workflow.md` + `workflow.md`'s actors — never technical translations.
+
+Rule 2's "no framework names" applies here too, more strictly. See §"Compose modes" > "Mode: description" for the 6-section structure + example.
 
 ### 7. Write the file + update inputs_hash
 Write to the mode-appropriate output path with the mode-appropriate frontmatter (see the two frontmatter shapes at the top of the Operating contract section). `inputs_hash` is set to the sha256 computed in step 2 — for `description` and per-sub-task `implementation`, hash the sub-task's owned unit files, not the whole feature's owned units. Use CRLF-safe I/O — write with `\n` line endings; the push stage handles CRLF normalisation.
