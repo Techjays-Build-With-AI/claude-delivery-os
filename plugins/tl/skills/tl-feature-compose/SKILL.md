@@ -423,6 +423,82 @@ The v2.3.4 output that only said "None owned. This sub-task consumes the three o
 
 **Rule 11.7 — Every sub-task's §4-§7 must reach the same structural completeness bar.** A frontend sub-task's §5 (Database changes) is legitimately "N/A" — but its §4 (API endpoints), §6 (Frontend UI), §7 (Touch points) must each be as concrete as the backend's are for the sections that DO apply to it. If a frontend sub-task's §4 is 3 sentences of prose while its backend sibling's §4 is 500 lines of contract tables, that's a completeness gap — the frontend section pulls the consumed contracts up per Rule 11.6.
 
+**Rule 11.9 — Pre-write SELF-CONSISTENCY validation (v2.3.8).** Before writing any implementation.md to disk, `tl-feature-compose` runs an explicit consistency check against a defined list of contradictions. Any hit halts the compose with a per-issue diff. This catches "the plan disagrees with itself" bugs — the class of defect an outside reviewer sees within minutes.
+
+Consistency checks the compose runs (in order):
+
+1. **AC/BR/TS coverage — one state, not many.** Every parent AC/BR/TS ID must appear in exactly ONE of: (a) `§2` Satisfies column of a build step in this sub-task, (b) `§8` Deferred-to-E2E row, (c) `§7` Cross-sub-task row indicating another sub-task carries it. Missing → halt. Two states → halt naming the states.
+
+2. **Refusal exhaustiveness.** For every endpoint in `§4`:
+   - Every code in the refusals table must correspond to at least one failure clause in the execution-order table (step X `→ Failure: 400 …`).
+   - Every failure clause must have a corresponding refusal-table row.
+   - For every conditional update / concurrent-write endpoint, the compose must enumerate every "matched null" branch (not-found / not-author / stale / etc.) and disambiguate each with a refusal code. A branch that can happen but isn't handled → halt naming the branch.
+   - Backend refusal codes must all be handled in the frontend consumer's `§4` UI-placement column. Every code — no silent 401, no silent 404. If the frontend intentionally sends a 401 through a middleware handler and shows no UI, that's stated explicitly, not implied.
+
+3. **Local-check-doesn't-defeat-server-reachability.** If the plan justifies leaving off a control-shape attribute ("no `maxLength` attribute so the server's 400 wording is reachable"), no other clause in the same sub-task's `§6` can add a local check that blocks the request before the server sees it. Contradiction of the reachability rationale → halt with both clauses printed side by side. Same for control-char rejection, length caps, format checks.
+
+4. **Every field the request accepts has a validation clause.** Cross-check `§4` request-body table against the execution-order table. Any field that appears in the body table but not in the execution-order's validation steps → halt (or the plan must state "no validation needed because <reason>" as its own execution-order step).
+
+5. **Every list endpoint has an explicit pagination decision.** Cross-check `§4` for GET-style list endpoints. Missing pagination clause (either "paginated with cursor/limit params" OR "not paginated in v1 because <reason>, accepted assumption") → halt.
+
+6. **Referenced-but-not-defined check (§B in the reviewer's feedback).** Every identifier mentioned in `§6` (component props, state fields, service functions, toast systems, session-store fields, existing utilities) MUST be sourced somewhere in the same file: either defined as a prop/state row in a table above OR cited as a Reuse entry in `§7` naming its file path OR named in an existing sub-task's `§7` (for cross-sub-task deps). `currentUserId` referenced as a prop but never sourced → halt. `useToast()` or "the toast system" referenced but not named as a Reuse in `§7` → halt.
+
+7. **Response envelope ownership.** For every endpoint returning a wrapped shape (`{comments: [...]}`), the plan must state which layer unwraps to the raw shape the callers use. Frontend `§6` component state saying `comments: Comment[]` combined with backend `§4` response saying `{ comments: [...] }` must be paired with an explicit statement in `§6` service layer of who unwraps. Missing → halt naming the mismatch.
+
+8. **Success-vs-refusal branching stated.** If the plan uses "return the rejection object rather than throw" (or any equivalent no-throw pattern), the plan must state HOW callers distinguish success from refusal (e.g. "callers check `result.ok`" OR "callers check `result.response !== undefined`"). Every one of the three (or N) service-layer calls must branch — the branch is not optional. Missing → halt.
+
+9. **Test file inventory matches.** Count of new/modified test files claimed in `§2` step 7 = count of test files referenced in `§8` evidence column. Mismatch → halt.
+
+10. **Cross-doc auth mechanism identity.** Backend `§4` phrasing describing the auth artefact (e.g. "session credential with email claim", "req.user.id"), and frontend `§6` service-layer phrasing describing the same artefact (e.g. "Authorization: Bearer <session token from local session store>") MUST cite the same UPSTREAM source — a `shared-context/system-landscape.md § Auth boundary` section OR a specific DEC. If they name different tokens/shapes and there's no explicit "these are the same X, per DEC-Y" bridge, → halt.
+
+**On any halt:** the compose HALTS this sub-task (or the split-batch as a whole per Rule 11.8's fan-in). Report each finding as a diff — quote both clauses that disagree, name the contradiction category, cite the rule. `/dev:plan` Stage 4 surfaces this as `stage_4_self_consistency_failed`. The developer's fix goes upstream — either fix the analysis scratchpad section that produced the contradiction OR fix the TL context unit that's ambiguous OR resolve an open question that was left silent.
+
+**Rule 11.10 — Feature-shape adapters — the 10-section frame is the FRAME, not the CONTENT (v2.3.8).** The 10-section structure is a chassis. Certain feature shapes REQUIRE additional sub-section content beyond the frame. If the analysis scratchpad or TL units indicate one of these shapes, the compose MUST include the additional sub-sections. Missing → halt with `feature_shape_gap_<name>`.
+
+Detected shapes + mandatory sub-sections:
+
+**a. Migration on an existing collection/table with live rows** (detected via `dev/<repo>-analysis.md § impact_matrix.database` mentioning "modified" or "altered" — not just "new"):
+
+- `§5` must include a "**Migration plan**" sub-section with:
+  - Ordered forward migration steps (add column with default → backfill in batches → tighten constraint → remove default) — each step with its own execution characteristics
+  - Backfill strategy — batch size, throttling, resumability, expected duration for a repo-scale row count
+  - Dual-read window — during migration, which reads see old vs new; when the switchover happens
+  - Rollback that ISN'T "drop the collection" — a real down migration that undoes the change without destroying data
+  - Consistency window — what queries might see stale/mixed data during migration
+- N/A is not acceptable here. If the sub-task says "modified an existing collection" and this block is missing → halt.
+
+**b. Queue / event / async contract** (detected via `dev/<repo>-analysis.md § impact_matrix.jobs` or `.notifications` non-N/A):
+
+- `§4` must include a "**Message contract**" per message-type block:
+  - Delivery semantics — at-least-once / exactly-once / at-most-once — chosen explicitly, not implied
+  - Idempotency key strategy — what makes a re-delivery a no-op
+  - Retry policy — max attempts, backoff, dead-letter queue behavior
+  - Ordering guarantees — total order per key, no order, FIFO with partition-key
+  - Payload schema and versioning strategy (adding fields, deprecating fields)
+
+**c. Real authz model** (detected via `dev/<repo>-analysis.md § impact_matrix.authz` mentioning roles OR per-object permissions):
+
+- `§4` must include an "**Authz decision**" block per endpoint:
+  - Who can invoke — role names OR "any authenticated user" OR "resource owner only"
+  - What data the caller can see/modify — full row / filtered projection / owned rows only
+  - How the check is enforced — route middleware / handler check / DB query filter / row-level security
+  - Failure code when unauthorized — 403 vs 404 (leak vs hide)
+
+**d. Performance targets declared in parent NFRs** (detected via parent's `nfrs.md` mentioning latency or throughput targets):
+
+- `§5` must include an "**Expected query plans**" block per read-heavy query — the intended index usage, projected rows scanned, projected time.
+- `§8` must include a "**Load characteristics**" block — expected requests-per-second, expected data volume, when load-tests fire.
+
+**e. Feature spans > 2 sub-tasks** (detected via parent's rollup Sub-tasks table count > 2):
+
+- `§7` Touch points must switch from table to a **dependency graph** (mermaid `flowchart LR` showing per-sub-task edges), because a table can't cleanly represent an N-way dependency graph. Each edge annotated with the resource it carries (endpoint, entity, event).
+
+**f. Cross-cutting concern touched (logging, error-tracking, tracing, metrics)** (detected via `§3` Monitoring dimension non-N/A):
+
+- `§3` Monitoring row must not be a 1-line "log the error" — must state the observation contract (event name / correlation id / retention / where it lands / who alerts on it).
+
+**The general principle behind these adapters:** an "N/A" row in `§3` is a CLAIM (this dimension does not apply) that must be defended by the same rigor as a non-N/A row. Silent N/A → the plan is unmoored to the reader. Every N/A row in `§3` must include a 1-line justification for why the dimension doesn't apply to THIS sub-task specifically ("N/A — no data objects in this repo", NOT bare "N/A"). Compose halts if any `§3` cell is bare N/A.
+
 **Rule 11.8 — Cross-sub-task interconnection is VERIFIED before write (v2.3.6).**
 
 **The problem this closes.** A split feature is built by different developers on different branches. The backend developer builds the endpoint contract in their branch; the frontend developer, working in parallel on THEIR branch, consumes that contract from THEIR sub-task's implementation.md. When both PRs merge back, the code must interoperate — the frontend must call the exact contract the backend delivered, with the exact refusal codes the backend returns, against the exact entity the backend writes. If the two sub-tasks' implementation.md files drifted on any of these — the endpoint path, the request field names, the response shape, the refusal codes, the entity identifier — the merged feature is broken.
