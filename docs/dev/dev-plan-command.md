@@ -287,7 +287,7 @@ On re-run of `/dev:plan` for the same feature:
 - §2 — Impact analysis (12 dimensions per task)
 - §3 — Implementation planning — writes `implementation.md` (ordered steps, files, API/schema changes, test strategy, rollback, risks, complexity)
 
-**Parallel per task** — when sub-tasks exist, §1/§2/§3 run once per sub-task in parallel subagents. Each writes into its own `subtask/<repo>/dev/` folder (dev-side work artifacts) alongside the sub-task's tab files at `subtask/<repo>/{description,implementation,status}.md`.
+**Parallel per task** — when sub-tasks exist, §1/§2/§3 run once per sub-task in parallel subagents. Each writes into its own `dev/ (with <repo>- prefix)` folder (dev-side work artifacts) alongside the sub-task's tab files at `subtask/<repo>/{description,implementation,status}.md`.
 
 **End of Stage 3** — each task's `status.md` set to `PLANNED`; MC's task status updated to match.
 

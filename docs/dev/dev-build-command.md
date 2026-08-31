@@ -370,7 +370,7 @@ Next:
 
 ### 16b. `dev/local-runbook.md` (developer-facing setup guide)
 
-**Not the PR summary.** This is the "how to run this locally on my machine" guide. Written to `.jetrix/features/<slug>/dev/local-runbook.md` (parent-alone) or `.jetrix/features/<slug>/subtask/<repo>/dev/local-runbook.md` (sub-task).
+**Not the PR summary.** This is the "how to run this locally on my machine" guide. Written to `.jetrix/features/<slug>/dev/local-runbook.md` (parent-alone) or `.jetrix/features/<slug>/dev/<repo>-local-runbook.md` (sub-task).
 
 Sections:
 
@@ -490,7 +490,7 @@ Unknown stack → fall back to `<stack> + <best-known-testing-tool>` and log the
 ├── tl-plan.md                           (rollup or detailed)
 │
 └── dev/                                 (parent-alone) OR
-└── subtask/<repo>/dev/                  (sub-task)
+└── dev/ (with <repo>- prefix)                  (sub-task)
     │
     │  (from /dev:plan — read by /dev:build)
     ├── implementation.md

@@ -9,7 +9,7 @@ This is the single source of truth that makes Delivery OS documents **shareable 
 
 > **Contract version: 2.3.** Bump `schema_version` in document frontmatter and update this file together when the contract changes.
 >
-> **2.3 (flat sub-task tabs + single implementation source of truth — breaking).** File structure simplified per user's design intent. Under each `<feature-slug>/` (parent-alone) or each `<feature-slug>/subtask/<repo>/` (sub-task), MC-facing content is now **3 flat files**: `description.md` (→ MC Description tab), `implementation.md` (→ MC Implementation tab — SINGLE SOURCE OF TRUTH with 10 sections: business flow, build sequence, impacted components, API endpoints, database, frontend UI, touch points, test strategy, risks + rollback, how to verify locally), and `status.md` (MC-mirrored + local loop state — absorbs the retired `delivery-status.md`). All local audit lives under ONE `dev/` folder at feature root — `features/<slug>/dev/` — including per-sub-task audit at `features/<slug>/dev/subtask/<repo>/`. **No nested `dev/` inside sub-task roots** — sub-task folders hold only the 3 MC-facing files. New per-feature file `dev/traceability.md` — the ID cross-reference map (AC ↔ BR ↔ EP ↔ implementation-step ↔ test ↔ PB ↔ DEC), local-only. **Retired doc_types:** `dev-plan`, `impacted-components`, `delivery-status`, `subtask-description` (folded into `description`), `subtask-implementation` (folded into `implementation`), `subtask-status` (folded into `status`), `local-runbook` (folded into `implementation.md § 10`). **Retired files:** `dev/dev-plan.md`, `dev/impacted-components.md`, `dev/delivery-status.md`, `dev/local-runbook.md`, `subtask/<repo>/dev/*`, `subtask/task-decision.md`, `tl-plan.md` for parent-alone (split rollup still uses `tl-plan.md`). Backward compatibility: migration handled by `/jetrix:init` when it detects v2.2 layout on disk.
+> **2.3 (flat sub-task tabs + flat dev/ + single implementation source of truth — breaking).** File structure simplified per user's design intent. Under each `<feature-slug>/` (parent-alone) or each `<feature-slug>/subtask/<repo>/` (sub-task), MC-facing content is now **3 flat files**: `description.md` (→ MC Description tab), `implementation.md` (→ MC Implementation tab — SINGLE SOURCE OF TRUTH with 10 sections: business flow, build sequence, impacted components, API endpoints, database, frontend UI, touch points, test strategy, risks + rollback, how to verify locally), and `status.md` (MC-mirrored + local loop state — absorbs the retired `delivery-status.md`). **All local audit lives under ONE FLAT `dev/` folder at feature root** — `features/<slug>/dev/`. **NO nested `subtask/` folder inside `dev/`** — per-sub-task audit files use repo-slug PREFIX in the filename (e.g. `dev/backend-plan-blockers.md`, `dev/frontend-traceability.md`). Two folders with the same name (`subtask/` at feature root AND `subtask/` inside `dev/`) is a mistake, not a design. **No nested `dev/` inside sub-task roots** either — sub-task folders hold only the 3 MC-facing files. New per-feature file `dev/traceability.md` (parent-alone) or `dev/<repo>-traceability.md` (per sub-task) — the ID cross-reference map (AC ↔ BR ↔ EP ↔ implementation-step ↔ test ↔ PB ↔ DEC), local-only. **Retired doc_types:** `dev-plan`, `impacted-components`, `delivery-status`, `subtask-description` (folded into `description`), `subtask-implementation` (folded into `implementation`), `subtask-status` (folded into `status`), `local-runbook` (folded into `implementation.md § 10`). **Retired files/paths:** `dev/dev-plan.md`, `dev/impacted-components.md`, `dev/delivery-status.md`, `dev/local-runbook.md`, `subtask/<repo>/dev/*` (nested dev/ inside sub-task), `dev/subtask/<repo>/*` (nested subtask/ inside dev/ — replaced by flat repo-prefix filenames), `subtask/task-decision.md` (moved to `dev/task-decision.md`), `tl-plan.md` for parent-alone (split rollup still uses `tl-plan.md`). Backward compatibility: migration handled by `/jetrix:init` when it detects v2.2 layout on disk.
 >
 > **2.2 (plan-time blocker resolution — additive).** Added the plan-time blocker resolution loop so `/dev:build` never has to make build-time decisions. New per-task file `dev/plan-blockers.md` (`doc_type: plan-blockers`) captures decisions the user must make BEFORE build starts — missing integration contracts, undecided auth models, ambiguous schemas, unknown config, unclear business rule edge cases. `/dev:plan` Stage 3 detects them from 5 sources (`tl-plan.md` `[HELD]` markers, BA `open-questions.md` "Blocks build" rows, `integrations.md` unresolved entries, `system-landscape.md` gaps, `implementation.md § 3 Impacted components` `unknown` entries). User fills `Resolution:` per blocker → `/dev:plan --resume` deterministically folds resolutions into `implementation.md` and logs each as a `DEC-###`. New state `BLOCKED_ON_PLAN` (distinct from execution-time `BLOCKED`) — both map to MC `blocked`. New ID prefix `PB-###` (Plan Blocker, sequential per task). `/dev:build` Stage 0 refuses to run if `plan-blockers.md` `status:` is `OPEN` or `RESOLVING`. Additive: features whose plan is already fully-decidable never get a `plan-blockers.md` file.
 >
@@ -124,21 +124,22 @@ Every Delivery OS workspace is bound to **one** Jetrix Solution. Everything live
     │       │# When split, the parent has NO parent-alone description.md/implementation.md/status.md.
     │       │# Sub-tasks carry those. Parent state is DERIVED from sub-tasks (all DONE → parent DONE).
     │       │# feature.md frontmatter carries the split decision (rule + repos).
-    │       ├── dev/                      # (as above) but ADDITIONALLY carries per-sub-task audit
+    │       ├── dev/                      # ONE FLAT dev/ folder (as above) — sub-task audit files
+    │       │   │                         # use repo-slug PREFIX in filename. NO nested subtask/ folder.
+    │       │   ├── plan-run.md
     │       │   ├── task-decision.md      # WHY split; which repos; rule that applied
-    │       │   └── subtask/<repo>/       # per-sub-task local audit (nests inside feature-level dev/)
-    │       │       ├── plan-blockers.md
-    │       │       ├── traceability.md
-    │       │       ├── acceptance-map.md
-    │       │       ├── build-run.md
-    │       │       ├── commit-run.md
-    │       │       ├── implementation-log.md
-    │       │       ├── security-findings-build.md
-    │       │       ├── security-findings-commit.md
-    │       │       ├── code-review-findings.md
-    │       │       ├── context-merge-log.md
-    │       │       ├── merge-conflicts.md   # conditional
-    │       │       └── escalation-<n>.md    # conditional
+    │       │   ├── <repo>-plan-blockers.md            # e.g. backend-plan-blockers.md, frontend-plan-blockers.md
+    │       │   ├── <repo>-traceability.md
+    │       │   ├── <repo>-acceptance-map.md
+    │       │   ├── <repo>-build-run.md
+    │       │   ├── <repo>-commit-run.md
+    │       │   ├── <repo>-implementation-log.md
+    │       │   ├── <repo>-security-findings-build.md
+    │       │   ├── <repo>-security-findings-commit.md
+    │       │   ├── <repo>-code-review-findings.md
+    │       │   ├── <repo>-context-merge-log.md
+    │       │   ├── <repo>-merge-conflicts.md   # conditional
+    │       │   └── <repo>-escalation-<n>.md    # conditional
     │       │
     │       └── subtask/                  # ONLY exists when /dev:plan split the feature
     │           │                         # (multi-repo feature → one folder per repo, named by repo slug)
@@ -147,7 +148,8 @@ Every Delivery OS workspace is bound to **one** Jetrix Solution. Everything live
     │               ├── description.md    # sub-task Description tab (business flow narrative)
     │               ├── implementation.md # sub-task Implementation tab (10-section source of truth)
     │               └── status.md         # sub-task status (MC-mirrored + local loop state)
-    │                                     # NO nested dev/ folder — audit lives at features/<slug>/dev/subtask/<repo>/
+    │                                     # NO nested dev/ folder here either — audit lives flat at
+    │                                     # features/<slug>/dev/<repo>-<filename>.md
     │
     ├── tl/                               # STAGE 02 — Tech Lead outputs (cross-feature)
     │   ├── code-map-registry.md          # pointer to each mapped repo's <repo>/context/code-context/ tree

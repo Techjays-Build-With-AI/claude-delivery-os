@@ -426,7 +426,7 @@ Next:
 Additions on top of `/dev:build`'s layout:
 
 ```
-.jetrix/features/<slug>/subtask/<repo>/dev/  (or parent's dev/)
+.jetrix/features/<slug>/dev/ (with <repo>- prefix on filenames)  (or parent's dev/)
 ├── (files from /dev:build — unchanged)
 │
 │  (written by /dev:commit)

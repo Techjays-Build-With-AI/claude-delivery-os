@@ -13,7 +13,7 @@
 Determined from `dev/plan-run.md`'s `stage-2.branch`:
 
 - **`branch: parent-alone`** → target = 1 task (the parent). Writes go to `features/<slug>/dev/`.
-- **`branch: split`** → target = N sub-tasks. Each sub-task's dev audit writes go to `features/<slug>/dev/subtask/<repo>/` (v2.3 — single feature-level `dev/`; no nested `dev/` inside `subtask/<repo>/`).
+- **`branch: split`** → target = N sub-tasks. Each sub-task's dev audit writes go to the ONE feature-level `dev/` folder with repo-slug prefix in the filename — e.g. `features/<slug>/dev/backend-plan-blockers.md`, `features/<slug>/dev/frontend-traceability.md`. **NO nested `subtask/` folder inside `dev/`.** **NO nested `dev/` inside `subtask/<repo>/`** either — the sub-task folder holds only the 3 MC-facing files (`description.md`, `implementation.md`, `status.md`).
 
 **Parallel per task** — spawn N `dev-agent` subagents for the split branch; one for parent-alone.
 
