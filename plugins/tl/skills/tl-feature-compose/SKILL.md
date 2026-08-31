@@ -404,6 +404,47 @@ The v2.3.4 output that only said "None owned. This sub-task consumes the three o
 
 **Rule 11.7 — Every sub-task's §4-§7 must reach the same structural completeness bar.** A frontend sub-task's §5 (Database changes) is legitimately "N/A" — but its §4 (API endpoints), §6 (Frontend UI), §7 (Touch points) must each be as concrete as the backend's are for the sections that DO apply to it. If a frontend sub-task's §4 is 3 sentences of prose while its backend sibling's §4 is 500 lines of contract tables, that's a completeness gap — the frontend section pulls the consumed contracts up per Rule 11.6.
 
+**Rule 11.8 — Cross-sub-task interconnection is VERIFIED before write (v2.3.6).**
+
+**The problem this closes.** A split feature is built by different developers on different branches. The backend developer builds the endpoint contract in their branch; the frontend developer, working in parallel on THEIR branch, consumes that contract from THEIR sub-task's implementation.md. When both PRs merge back, the code must interoperate — the frontend must call the exact contract the backend delivered, with the exact refusal codes the backend returns, against the exact entity the backend writes. If the two sub-tasks' implementation.md files drifted on any of these — the endpoint path, the request field names, the response shape, the refusal codes, the entity identifier — the merged feature is broken.
+
+**The plan-time verification.** Every shared reference across sub-tasks — endpoint / page / entity / business rule / acceptance criterion / test scenario — MUST be verified as identical across all sub-tasks that reference it, BEFORE any implementation.md is written to disk.
+
+**What "identical" means for each reference kind:**
+
+| Reference kind | The owning sub-task writes | Every consuming sub-task writes | Identical means |
+|---|---|---|---|
+| Endpoint | Full contract in §4 — heading with Method + Path + unit ID; request table; response example; refusals table | Same heading (Method + Path + unit ID) in §4 marked "consumed here"; same request table; same response example; same refusals table | Byte-for-byte copy of the owning §4 contract fields |
+| Page | Full page shape in §6 — heading with unit ID; layout; interactions | Cross-sub-task row in §7 citing the page's unit ID | Same unit ID cited |
+| Entity | Full field table in §5 — unit ID + object name | Cross-sub-task row in §7 citing the entity's unit ID + object name for reads/writes | Same unit ID + object name |
+| Business rule / AC / test scenario | Cited in owning sub-task's §2 Satisfies column with the parent's ID | Cited in consumer's §2 with the identical ID | Identical ID string |
+| Cross-sub-task Touch point | §7 row: "Delivers <ids> for sub-task N (<repo>)" | §7 row: "Consumes <same ids> from sub-task N (<repo>)" | Symmetric — one row on each side, referencing the same IDs |
+
+**The verification runs at compose time, before any file is written:**
+
+1. **Fan-in of the parallel compose batch.** For a split feature (compose runs on N sub-tasks in parallel), each sub-task's compose worker holds its output IN MEMORY. No file is written until every sub-task's compose completes.
+2. **Cross-reference index build.** Once all workers have their in-memory drafts, one coordinator step builds a cross-reference index across all N drafts: every unit ID mentioned, in which sub-task, in which section, with what surrounding contract text.
+3. **Consistency check per reference.**
+   - For every unit ID appearing in more than one sub-task, verify identical shape per the table above.
+   - Every cross-sub-task Touch point row must have a mirror on the counterpart sub-task.
+   - Every consumer must cite an owner that actually declares full ownership (not just another cross-sub-task consumer).
+4. **On any mismatch found:** the compose HALTS the whole split. Write nothing to disk. Report the mismatch:
+   ```
+   ✗ Cross-sub-task interconnection mismatch:
+     Sub-task <M> (<repo>) §4 declares <unit-id> with <shape A>
+     Sub-task <N> (<repo>) §4 consumes <unit-id> with <shape B>
+     These disagree on: <field-by-field diff>
+     
+     Fix at the TL context unit level (single source of truth for the contract);
+     re-run /dev:plan --resume.
+   ```
+   The developer edits the TL context unit (which both sub-tasks read as their source of truth), then re-runs compose — both sides regenerate consistently from the shared unit.
+5. **On clean interconnection:** all N sub-task files are written to disk atomically. The parent's rollup Sub-tasks table is then derived from the verified cross-references — `Depends on` / `Blocks` columns come directly from the checked Touch point mirrors, not paraphrased.
+
+**Why the check runs at compose, not at build.** Once sub-task files are on disk and pushed to MC, developers may start building. Discovering a mismatch AFTER build has begun means torn-off work. Catching it at compose means the developer sees the mismatch before ANY code is written — cheapest possible feedback loop.
+
+**Why the fix goes to the TL context unit, not to the sub-task files.** Each sub-task's implementation.md is DERIVED from the TL context units it references (endpoint files, page files, entity files). If two sub-tasks disagree on a contract, one of them is reading a different version of the truth — or the unit itself is ambiguous. Editing the unit forces both sub-tasks to re-derive from the same source; editing one sub-task's file to match the other leaves the source-of-truth drift in place and re-emerges on the next re-compose.
+
 **Rule 12 — Analysis scratchpad precondition (v2.3, `implementation` mode only).** Before writing `implementation.md`, verify:
 1. `dev/<repo>-analysis.md` (sub-task) OR `dev/analysis.md` (parent-alone) exists with `doc_type: analysis-scratchpad` frontmatter and non-empty `build_sequence`, `impact_matrix`, `test_strategy`, `risks_and_rollback` blocks.
 2. `dev/<repo>-plan-blockers.md` (or `dev/plan-blockers.md` for parent-alone) is either absent OR has `status: RESOLVED` in frontmatter.
