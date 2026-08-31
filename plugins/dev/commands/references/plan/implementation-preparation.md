@@ -129,13 +129,15 @@ Skip §2e's `subtask_upsert_bundle` call — there are no sub-tasks. Proceed dir
 
 **Only in split branch (§2c). Skip in `--dry-run` mode.**
 
-Build the `subtask_upsert_bundle` payload from each sub-task's local files:
+Build the `subtask_upsert_bundle` payload from each sub-task's local files. **Send the payload verbatim — do NOT modify or omit fields based on tool-schema optionality hints.** task-mcp is the translation boundary between the plugin's convention and MC's whitelisted schema.
+
+**Payload shape (unchanged since v2.1):**
 
 ```python
 task-mcp.subtask_upsert_bundle(
   solution_id    = <from .jetrix/project.json>,
-  parent_task_id = <feature.md frontmatter jetrix_task_object_id>,
-  subtasks = [
+  parent_task_id = <feature.md frontmatter jetrix_task_object_id>,   # ← THIS is the parent link
+  subtasks = [                                                        #   (task-mcp resolves to URL :taskId)
     {
       subtask_object_id: None,                              # None = create; existing id triggers PUT (idempotency)
       title:             "<parent title> — <repo>",         # e.g. "Supplier Onboarding — backend"
@@ -145,9 +147,9 @@ task-mcp.subtask_upsert_bundle(
       test_scenarios:         "",                           # deliberately empty — parent owns TS
       metadata: {
         externalId:       "FEAT-SUP-001-1",                 # <feature_id>-<subtask_number>
-        parentExternalId: "FEAT-SUP-001",
-        subtaskNumber:    1,
-        subtaskRepo:      "backend",
+        parentExternalId: "FEAT-SUP-001",                   # SEND IT — task-mcp translates (see note below)
+        subtaskNumber:    1,                                # SEND IT — task-mcp translates
+        subtaskRepo:      "backend",                        # SEND IT — task-mcp translates
         source:           "ai",
         aiGenerated:      True
       },
@@ -158,6 +160,33 @@ task-mcp.subtask_upsert_bundle(
   ]
 )
 ```
+
+### 2e.i. Translation boundary — how task-mcp handles the payload (CRITICAL: do not second-guess)
+
+**Parent linkage is via `parent_task_id` (the tool input parameter), NOT via `metadata.parentExternalId`.** task-mcp uses `parent_task_id` to route the write to `POST /solutions/<sid>/tasks/<parent's_taskNumber>/subtasks` — that URL path IS the parent link per MC's `createSubtask` controller. The body's `metadata.parentExternalId` is caller-convention noise that MC's Joi schema rejects.
+
+**Since v2.3 (task-mcp `subtask_upsert_bundle` fix, commit `56c8212` on develop), task-mcp handles the metadata translation transparently:**
+
+| Plugin field the payload sends | What task-mcp does on write | What task-mcp does on read (subtask_list) |
+|---|---|---|
+| `metadata.externalId` | Forwarded to MC (whitelisted) | Read from MC |
+| `metadata.parentExternalId` | **Silently dropped before forwarding** — parent link is via URL path | Re-derived from parent's `metadata.externalId` (one MC lookup per listing) |
+| `metadata.subtaskNumber` | **Silently dropped before forwarding** — subtask sequence is preserved by POST order (MC's monotonic `taskNumber`) | Re-derived as `index+1` after `taskNumber`-ascending sort |
+| `metadata.subtaskRepo` | **Mapped to `metadata.externalSlug`** (whitelisted; 255-char cap fits repo slug) | Reversed: `externalSlug` → `subtaskRepo` on the response |
+| `metadata.source: "ai"` | Forwarded (whitelisted) | Read |
+| `metadata.aiGenerated: True` | Forwarded (whitelisted) | Read |
+
+**Do NOT:**
+- Manually omit `parentExternalId` / `subtaskNumber` / `subtaskRepo` from the metadata block because the tool schema marks them optional. **They ARE optional at the schema level for backward-compat and future-proofing, but the plugin should ALWAYS send them.** Omitting `subtaskRepo` in particular breaks the read-side derivation because `externalSlug` won't be set.
+- Try to hand-craft an "MC-compliant" body that skips these fields. The translation is task-mcp's job, and it's already correct.
+- Re-derive from tool schema hints. The schema is intentionally permissive; the caller convention is prescriptive.
+
+**Do:**
+- Send the payload exactly as `assemble-features.py` builds it (per §2e above).
+- Trust `parent_task_id` as the parent link. It's the only field that matters for the URL.
+- If the MC push still fails with "metadata.X is not allowed", task-mcp isn't running the fixed version (`develop` at 56c8212 or later). Restart it; don't work around it in the plugin.
+
+### 2e.ii. Making the call
 
 **Idempotency check first (§6d in the plan doc):** call `task-mcp.subtask_list(solution_id, parent_task_id)` before upsert. For each existing sub-task, match on `metadata.externalId`:
 - Match found → include the returned `task_object_id` in the upsert payload's `subtask_object_id` field → PUT (update in place)

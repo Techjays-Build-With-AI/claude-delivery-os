@@ -348,6 +348,7 @@ Also write the same content to `.jetrix/dev/batch-runs/plan-run-<ts>.md` (append
 - **Stage 2 blocked** — feature `BLOCKED_STAGE_2` with escalation note; other approved features unaffected
 - **MC push refused** (permission_denied) — halt THIS feature; report which permission; continue batch
 - **task-mcp subtask_upsert_bundle unavailable** (Dharma's addition not yet deployed) — Stage 2 halts with the specific tool name; recommend `--dry-run` in the meantime so composes still land locally
+- **task-mcp `metadata.parentExternalId is not allowed`** on retry — task-mcp is running the pre-fix version. DO NOT hand-craft a payload that omits the field. task-mcp (v56c8212+) handles the metadata translation transparently — the plugin ALWAYS sends `parentExternalId` + `subtaskNumber` + `subtaskRepo`; task-mcp drops the first two and maps the third to `externalSlug` before forwarding to MC. Parent linkage is via `parent_task_id` (the tool input parameter), NOT `metadata.parentExternalId`. See `plugins/dev/commands/references/plan/implementation-preparation.md` §2e.i for the full translation table. If the error still happens, task-mcp needs to reload the fixed version — restart it; do not work around at the plugin.
 
 ---
 
