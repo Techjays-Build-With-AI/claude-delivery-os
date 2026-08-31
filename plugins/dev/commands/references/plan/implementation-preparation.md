@@ -1,26 +1,33 @@
-## Stage 2 — Implementation preparation
+## Stage 4 — Compose + MC push (v2.3 refactor — was Stage 2)
 
-**Purpose.** Turn the graph (verified in Stage 1) into MC-ready content. Two branches: **split** (composes one sub-task per repo, creates sub-tasks in MC, writes parent rollup) or **parent-alone** (composes parent Implementation as a full 5-section spec).
+**Purpose.** Read the Stage 2 analysis scratchpad + the TL context graph, produce a COMPLETE `implementation.md` (all 10 sections filled in ONE pass via `tl-feature-compose`), write `description.md` (professional 6-section format), write `status.md`, and push to MC. Two branches: **split** (composes one sub-task per repo, creates sub-tasks in MC, writes parent rollup) or **parent-alone** (composes parent Implementation as a full 10-section spec).
 
-**Runs per-feature after Stage 1 succeeds AND the user confirmed at the consolidated checkpoint.** Parallelised across features (outer axis) and — within a split feature — across sub-tasks (inner axis).
+**v2.3 refactor rationale:** in v2.2 this ran BEFORE analysis and blocker detection — pushed a half-baked `implementation.md` to MC with sections 2/3/8/9 as stubs, filled later locally. In v2.3, analysis runs FIRST (Stage 2), blocker detection runs on the analysis (Stage 3), and only after clean → this stage composes ONE complete file with all sections populated from real analysis. MC's Implementation tab sees the finished document, not a stub.
 
-**On completion:** each task's local files exist AND MC has been written (unless `--dry-run`).
+**Runs per-feature × per-task after Stage 3 clears (no blockers OR --resume fold succeeded).** Parallelised across features (outer axis) and — within a split feature — across sub-tasks (inner axis).
 
----
-
-### 2a. Preconditions
-
-Before Stage 2 runs on this feature:
-
-1. Stage 1 finished with `stage-1.status: DONE` in this feature's `dev/plan-run.md`.
-2. The consolidated user checkpoint said `Y` for this feature (either the whole batch confirmed, or this feature was in `pick=N,M,...`).
-3. `stage-1-results:` block in `dev/plan-run.md` has `repos_touched` + `task_type`.
-
-If any precondition is missing → abort THIS feature's Stage 2 (do NOT halt the batch), log to `plan-run.md` with reason.
+**On completion:** each task's local files exist (`{description, implementation, status}.md`) AND MC has been written (unless `--dry-run`).
 
 ---
 
-### 2b. Sub-task decision rule
+### 4a. Hard preconditions (v2.3 — MUST all pass or refuse to run)
+
+Before Stage 4 runs on this task:
+
+1. Stage 1 finished with `stage_1.status: DONE` in this feature's `dev/plan-run.md`.
+2. Stage 2 finished with `stage_2.tasks.<this-task>.scratchpad_written` naming a file that exists:
+   - Parent-alone: `features/<slug>/dev/analysis.md`
+   - Sub-task: `features/<slug>/dev/<repo>-analysis.md`
+3. The scratchpad has `doc_type: analysis-scratchpad` in frontmatter + non-empty `build_sequence`, `impact_matrix`, `test_strategy`, `risks_and_rollback` blocks.
+4. Stage 3 finished with `stage_3.tasks.<this-task>.state_set: PROCEED_TO_STAGE_4` (blockers cleared or absent). If `dev/<repo>-plan-blockers.md` exists, its frontmatter `status:` must be `RESOLVED`.
+5. The consolidated user checkpoint (§4 of `plan.md`) said `Y` for this feature.
+6. `stage-1-results.split_decision.repos_touched` + `task_type` present in `plan-run.md`.
+
+**If any precondition fails → abort THIS task's Stage 4 with a `stage_4_precondition_failed` error naming exactly which precondition + which file** (do NOT halt the batch, do NOT write a partial `implementation.md`, do NOT push to MC). Log to `plan-run.md` under `stage_4.tasks.<this-task>.status: HALTED` with reason.
+
+---
+
+### 4b. Sub-task decision rule
 
 Deterministic. Same rule stated in the plan document and the `delivery-os-conventions` skill:
 
@@ -72,7 +79,7 @@ None. (This file records any `--split`/`--no-split` used.)
 
 ---
 
-### 2c. Compose branch A — sub-tasks needed
+### 4c. Compose branch A — sub-tasks needed
 
 **Invariant — sub-task type stays `subtask`.** Every sub-task created here MUST carry `taskType: subtask` in its MC payload. Never converted to `feature`, `epic`, `task` at any point. MC's parent-child hierarchy carries the relationship; converting the type would break `subtask_list` lookups and hide sub-tasks from MC's UI breadcrumb (`Feature-4 → Subtask-7`).
 
@@ -100,8 +107,8 @@ parent_task_object_id: 6a61...
 parent_task_number: Feature-4
 subtask_number: 1
 subtask_repo: backend
-jetrix_subtask_object_id: null            # filled by MC push (§2e)
-jetrix_subtask_number: null               # filled by MC push (§2e)
+jetrix_subtask_object_id: null            # filled by MC push (§4e)
+jetrix_subtask_number: null               # filled by MC push (§4e)
 composed_at: 2026-08-29T14:31:47Z
 ---
 current_state: PLANNED
@@ -117,17 +124,17 @@ Write to `.jetrix/features/<slug>/tl-plan.md` with `compose_mode: rollup` in fro
 
 ---
 
-### 2d. Compose branch B — parent alone
+### 4d. Compose branch B — parent alone
 
-**Single tl-agent subagent** running `tl-feature-compose` in **detailed mode** on the parent. Output → `.jetrix/features/<slug>/tl-plan.md` with `compose_mode: detailed` in frontmatter. Behavior unchanged from what `/tl:compose` used to do.
+**Single tl-agent subagent** running `tl-feature-compose` in **`implementation` mode** on the parent. Reads BOTH the TL context units AND `dev/analysis.md` scratchpad. Output → `.jetrix/features/<slug>/implementation.md` with `compose_mode: implementation` in frontmatter (v2.3 — parent-alone Implementation now writes to `implementation.md` at feature root, not `tl-plan.md`). Writes ALL 10 sections in one pass; §10 stubbed for /dev:build Stage 11.
 
-Skip §2e's `subtask_upsert_bundle` call — there are no sub-tasks. Proceed directly to §2f (parent Implementation push).
+Skip §4e's `subtask_upsert_bundle` call — there are no sub-tasks. Proceed directly to §4f (parent Implementation push).
 
 ---
 
-### 2e. MC push — sub-task creation
+### 4e. MC push — sub-task creation
 
-**Only in split branch (§2c). Skip in `--dry-run` mode.**
+**Only in split branch (§4c). Skip in `--dry-run` mode.**
 
 Build the `subtask_upsert_bundle` payload from each sub-task's local files. **Send the payload verbatim — do NOT modify or omit fields based on tool-schema optionality hints.** task-mcp is the translation boundary between the plugin's convention and MC's whitelisted schema.
 
@@ -161,7 +168,7 @@ task-mcp.subtask_upsert_bundle(
 )
 ```
 
-### 2e.i. Translation boundary — how task-mcp handles the payload (CRITICAL: do not second-guess)
+### 4e.i. Translation boundary — how task-mcp handles the payload (CRITICAL: do not second-guess)
 
 **Parent linkage is via `parent_task_id` (the tool input parameter), NOT via `metadata.parentExternalId`.** task-mcp uses `parent_task_id` to route the write to `POST /solutions/<sid>/tasks/<parent's_taskNumber>/subtasks` — that URL path IS the parent link per MC's `createSubtask` controller. The body's `metadata.parentExternalId` is caller-convention noise that MC's Joi schema rejects.
 
@@ -182,11 +189,11 @@ task-mcp.subtask_upsert_bundle(
 - Re-derive from tool schema hints. The schema is intentionally permissive; the caller convention is prescriptive.
 
 **Do:**
-- Send the payload exactly as `assemble-features.py` builds it (per §2e above).
+- Send the payload exactly as `assemble-features.py` builds it (per §4e above).
 - Trust `parent_task_id` as the parent link. It's the only field that matters for the URL.
 - If the MC push still fails with "metadata.X is not allowed", task-mcp isn't running the fixed version (`develop` at 56c8212 or later). Restart it; don't work around it in the plugin.
 
-### 2e.ii. Making the call
+### 4e.ii. Making the call
 
 **Idempotency check first (§6d in the plan doc):** call `task-mcp.subtask_list(solution_id, parent_task_id)` before upsert. For each existing sub-task, match on `metadata.externalId`:
 - Match found → include the returned `task_object_id` in the upsert payload's `subtask_object_id` field → PUT (update in place)
@@ -199,13 +206,13 @@ task-mcp.subtask_upsert_bundle(
 - Write back into that sub-task's frontmatter (`description.md`, `implementation.md`, `status.md`):
   - `jetrix_subtask_object_id: <task_object_id>`
   - `jetrix_subtask_number: <task_number>` (e.g. `Subtask-7`)
-- Update sync-state `subtasks/<subtask_object_id>` entry (see §2g)
+- Update sync-state `subtasks/<subtask_object_id>` entry (see §4g)
 
 For rows `ok: False` — log the error, mark that sub-task `BLOCKED_MC_PUSH` in its `status.md`, continue with the others (per-item isolation).
 
 ---
 
-### 2f. MC push — Implementation tab writes
+### 4f. MC push — Implementation tab writes
 
 **Skip in `--dry-run` mode.**
 
@@ -246,7 +253,7 @@ task-mcp.feature_update_implementation(
 
 ---
 
-### 2g. Sync-state update
+### 4g. Sync-state update
 
 After all MC calls succeed, update `.jetrix/cache/sync-state.json` (merge-safe, one key at a time):
 
@@ -283,9 +290,9 @@ After all MC calls succeed, update `.jetrix/cache/sync-state.json` (merge-safe, 
 
 ---
 
-### 2h. `--dry-run` mode
+### 4h. `--dry-run` mode
 
-Skips §2e and §2f entirely. Composes locally (§2c or §2d) and writes files to disk with `jetrix_subtask_object_id: null` and `jetrix_subtask_number: null`. Prints:
+Skips §4e and §4f entirely. Composes locally (§4c or §4d) and writes files to disk with `jetrix_subtask_object_id: null` and `jetrix_subtask_number: null`. Prints:
 
 ```
 ✓ [dry-run] Composed 3 sub-tasks + parent rollup locally.

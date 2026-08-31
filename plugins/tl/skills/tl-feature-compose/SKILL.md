@@ -94,30 +94,141 @@ The **single source of truth** for the task. Used for:
 - A **parent Task's Implementation tab** when the feature was NOT split (`--no-split` or single-repo feature)
 - A **sub-task's Implementation tab** — scoped to that one sub-task's repo (its owned units only)
 
-Body sections (v2.3 — target 10 sections; `tl-feature-compose` writes §§1, 4–7, 8-title; sections §§2, 3, 8-body, 9 are appended by `/dev:plan` Stage 3; §10 is appended by `/dev:build` Stage 11):
+Body sections (v2.3 — target 10 sections; **`tl-feature-compose` writes ALL sections §§1-9 in ONE pass** at `/dev:plan` Stage 4; §10 is appended later by `/dev:build` Stage 11):
 
-1. **Business flow** — 2-3 sentence overview, business terms
-2. **Build sequence** — `/dev:plan` writes: ordered steps table (# / Step / Units / Satisfies / Notes) + mermaid step-graph
-3. **Impacted components** — `/dev:plan` writes: 12-dimension impact matrix (Frontend/Backend/DB/Authz/Integrations/Jobs/Notifications/Monitoring/Tests/Docs/Flags/Analytics)
-4. **API endpoints** — request/response tables, execution order, refusals (this skill writes)
-5. **Database changes** — new + modified tables/collections, indexes (this skill writes)
-6. **Frontend UI** — surfaces + API wiring (this skill writes; omitted for backend-only sub-tasks)
-7. **Touch points** — Reuse / New table (this skill writes)
-8. **Test strategy** — `/dev:plan` writes: unit / integration / e2e / concurrency coverage per step
-9. **Risks + rollback** — `/dev:plan` writes: assumptions carried, schema-trap notes, rollback plan
-10. **How to verify locally** — `/dev:build` Stage 11 writes: developer runbook (env setup, DB migrations, curl examples, expected outputs)
+1. **Business flow** — 2-3 sentence overview, business terms (from parent's `feature.md`)
+2. **Build sequence** — ordered steps table (# / Step / Units / Satisfies / Notes) + mermaid step-graph (from Stage 2 analysis scratchpad `dev/<repo>-analysis.md § Build sequence`)
+3. **Impacted components** — 12-dimension impact matrix — Frontend/Backend/DB/Authz/Integrations/Jobs/Notifications/Monitoring/Tests/Docs/Flags/Analytics (from Stage 2 analysis scratchpad § Impact matrix)
+4. **API endpoints** — request/response tables, execution order, refusals (from TL context graph — owned endpoint units)
+5. **Database changes** — new + modified tables/collections, indexes (from TL context graph — owned entity units)
+6. **Frontend UI** — surfaces + API wiring (from TL context graph — owned page units; omitted for backend-only sub-tasks)
+7. **Touch points** — Reuse / New table (from TL context graph + `code-context-index.md`)
+8. **Test strategy** — unit / integration / e2e / concurrency coverage per step (from Stage 2 analysis scratchpad § Test strategy)
+9. **Risks + rollback** — assumptions carried, schema-trap notes, rollback plan (from Stage 2 analysis scratchpad § Risks)
+10. **How to verify locally** — developer runbook (stubbed here as `_(populated by /dev:build Stage 11)_`; filled after build)
 
-At compose time (Stage 2), `tl-feature-compose` emits §§1, 4-7 populated. Sections §§2, 3, 8, 9 are stubbed with `_(populated by /dev:plan Stage 3)_`. Section §10 is stubbed with `_(populated by /dev:build Stage 11)_`.
+**Hard precondition (v2.3 refactor):** this mode REFUSES to run if the Stage 2 analysis scratchpad is missing OR blockers are still OPEN. Sections 2, 3, 8, 9 need the analysis scratchpad; running without it produces stub sections which we deliberately reject. See §"Hard rules" Rule 12 below.
+
+**Input contract for §§2, 3, 8, 9 (Stage 2 analysis scratchpad):**
+
+```yaml
+# dev/<repo>-analysis.md — Stage 2's output
+---
+doc_type: analysis-scratchpad
+schema_version: 1.0
+produced_by: dev
+feature_id: FEAT-...
+subtask_number: 1
+subtask_repo: backend
+generated_at: <ISO>
+---
+build_sequence:      # → §2
+  - step: "..."
+    units: [EP-...]
+    satisfies: [BR-..., AC-...]
+    notes: "..."
+impact_matrix:       # → §3
+  frontend: N/A | <impact>
+  backend: <impact>
+  database: <impact>
+  authz: <impact>
+  integrations: <impact>
+  jobs: N/A | <impact>
+  notifications: N/A | <impact>
+  monitoring: <impact>
+  tests: <impact>
+  docs: <impact>
+  feature_flags: N/A | <impact>
+  analytics: N/A | <impact>
+test_strategy:       # → §8
+  - level: unit
+    covers: [AC-1, AC-9]
+    evidence: "..."
+risks_and_rollback:  # → §9
+  risks:
+    - description: "..."
+      severity: medium | high | low
+      mitigation: "..."
+  rollback: "..."
+```
 
 Output path:
 - Parent-alone → `features/<slug>/implementation.md`
 - Per sub-task → `features/<slug>/subtask/<repo>/implementation.md`
 
-### Mode: `description` (sub-task Description tab)
+### Mode: `description` (sub-task Description tab — v2.3 professional 6-section format)
 
-A **professional business-flow narrative**, one to two paragraphs, telling the story of what THIS sub-task does in business terms — the kind of description a stakeholder or QA lead reads without any code context. No file paths, no framework names, no HTTP codes, no fields. Uses business terminology from the feature's `workflow.md` and the parent's `feature.md`, scoped to the operations this sub-task's repo owns.
+A **professional, structured business narrative** for MC's Description tab — the kind of description a stakeholder or QA lead reads without any code context. Replaces the v2.2 "single paragraph of prose" format which read as a blob. Six deterministic sections, in this order:
 
-Body: continuous prose in one or two paragraphs. **No bullet lists, no tables, no headings, no code fences.** See `references/implementation-plan-template.md` §narrative for the template with an example.
+1. **Overview** — 2-3 sentences establishing the business capability this sub-task delivers. Terse; the "why" line for a reader who hasn't opened the parent feature.
+2. **What this sub-task delivers** — bulleted list of operations in business terms, one bullet per operation. Each bullet 1-2 sentences describing the business behavior (not the mechanism). Business language only: "add a holiday", NOT "POST /holidays".
+3. **Business rules honored** — cite the parent's `BR-N` references + a 1-line paraphrase per rule. Only BRs that apply to THIS sub-task's operations.
+4. **Distinct refusal cases** — bulleted list of business situations users see, described in business terms. NOT HTTP codes, NOT error names — the actual message situation (e.g. "the response names the existing holiday occupying that date").
+5. **Out of scope for this sub-task** — bulleted list of explicit non-goals. Includes cross-sub-task boundary ("the user-facing form is sub-task 2 (frontend)").
+6. **Related sub-tasks** — cross-references to sibling sub-tasks (only present when the feature was split; omit for parent-alone). One line per sibling: "**Sub-task N (repo)** consumes the endpoints delivered here."
+
+**Formatting rules:**
+- Headings: `## <Section title>` — never level 1, never level 3+
+- Bullets: `-` prefix, indent-preserved sub-bullets allowed for elaboration
+- Bold role names: **Add a holiday**, **Duplicate holiday** — first two words of each bullet
+- No HTTP status codes (`400`, `409`, `201`), no field names (`added_by`), no file paths, no framework names, no method names (POST/GET/DELETE), no tables, no code fences, no mermaid.
+- Business vocabulary from parent's `feature.md` + `workflow.md` — actor names, system names, data terms — never technical translations
+- Length target: 800-1500 chars (each section 100-400 chars). Warn at 3 KB; longer means implementation detail leaked.
+
+**Full worked example** (holiday-calendar-management backend sub-task):
+
+```markdown
+---
+doc_type: description
+schema_version: 2.0
+produced_by: dev
+feature_id: FEAT-HCAL-01
+subtask_number: 1
+subtask_repo: backend
+compose_mode: description
+composed_at: 2026-08-31T15:00:00Z
+inputs_hash: sha256:...
+---
+
+## Overview
+
+This sub-task delivers the server-side capability behind the company holiday calendar — the authoritative record that replaces the annually-emailed holiday PDF and the recurring "is this day a holiday?" question in Slack.
+
+## What this sub-task delivers
+
+Three server operations that any signed-in portal user can perform on the calendar:
+
+- **Add a holiday** — record a date + name for the current year or later; the system captures who added it and when, from the verified session and the server's clock — never from the request. A date already holding a holiday is refused with a message naming the existing entry.
+- **List holidays for a year** — one year at a time, earliest date first; defaults to the current year when none is specified. Removed holidays are hidden.
+- **Remove a holiday** — soft delete: the record is retained with who removed it and when, and disappears from every later view. Concurrent removals settle atomically — exactly one wins.
+
+## Business rules honored
+
+- **BR-1** — one holiday per date. Enforced at the database, not application code.
+- **BR-2** — holidays only for the current calendar year or later.
+- **BR-4** — no permission restriction; any signed-in user can add or remove.
+- **BR-5** — added_by / added_at captured from session + server clock, not request.
+- **BR-9** — removal is soft delete; record retained with removal attribution.
+
+## Distinct refusal cases
+
+Users see specific business reasons for refusals, not generic errors:
+
+- **Duplicate holiday** — the response names the existing holiday occupying that date.
+- **Past-year date** — the response says the year must be current or later.
+- **Missing name or date** — the response names the specific missing field.
+- **Already removed** — a second removal attempt returns the specific "already removed" message; the record's state is not changed.
+
+## Out of scope for this sub-task
+
+- The user-facing form and calendar view — those live in **sub-task 2 (frontend)**.
+- Any offer of a restore path — removal is deliberately unrecoverable through the UI.
+- Any effect on the Leave module — Leave continues counting inclusive calendar days regardless of holidays.
+
+## Related sub-tasks
+
+- **Sub-task 2 (frontend)** consumes all three endpoints delivered here.
+```
 
 Output path: `features/<slug>/subtask/<repo>/description.md`
 
@@ -245,6 +356,14 @@ Before writing the file. These are absolute — any violation means the composit
 - `description` mode: target 500–1500 characters. Warn at 3 KB. Longer means implementation detail has leaked into the narrative — cut.
 
 **Rule 11 — No invention.** Every endpoint contract, every DB field, every UI surface traces to the context graph or the feature files. When silent, mark the affected step `[HELD · waiting on OQ-<id>]` and name the gap. Do not guess.
+
+**Rule 12 — Analysis scratchpad precondition (v2.3, `implementation` mode only).** Before writing `implementation.md`, verify:
+1. `dev/<repo>-analysis.md` (sub-task) OR `dev/analysis.md` (parent-alone) exists with `doc_type: analysis-scratchpad` frontmatter and non-empty `build_sequence`, `impact_matrix`, `test_strategy`, `risks_and_rollback` blocks.
+2. `dev/<repo>-plan-blockers.md` (or `dev/plan-blockers.md` for parent-alone) is either absent OR has `status: RESOLVED` in frontmatter.
+
+If either precondition fails, REFUSE to compose. Return a `stage_4_precondition_failed` error naming which precondition + which file. Never fabricate sections 2, 3, 8, 9 without the scratchpad — that produces the half-baked file this refactor exists to prevent. The caller (`/dev:plan` Stage 4 in `implementation-preparation.md`) checks the same preconditions before invoking this skill; both are belt-and-suspenders.
+
+**Rule 13 — Description mode: no HTTP codes / no field names / no framework leakage.** In `description` mode, do NOT include response codes (`400`, `409`, `201`), field names (`added_by`, `is_removed`), file paths, framework names, HTTP methods (POST/GET/DELETE), tables, code fences, or mermaid. All content in business vocabulary from parent's `feature.md` + `workflow.md`. Rule 2's "no framework names" applies here too, more strictly. See §"Compose modes" > "Mode: description" for the 6-section structure + example.
 
 ### 7. Write the file + update inputs_hash
 Write to the mode-appropriate output path with the mode-appropriate frontmatter (see the two frontmatter shapes at the top of the Operating contract section). `inputs_hash` is set to the sha256 computed in step 2 — for `description` and per-sub-task `implementation`, hash the sub-task's owned unit files, not the whole feature's owned units. Use CRLF-safe I/O — write with `\n` line endings; the push stage handles CRLF normalisation.

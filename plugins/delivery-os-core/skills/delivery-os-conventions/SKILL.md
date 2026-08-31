@@ -9,6 +9,8 @@ This is the single source of truth that makes Delivery OS documents **shareable 
 
 > **Contract version: 2.3.** Bump `schema_version` in document frontmatter and update this file together when the contract changes.
 >
+> **2.3.1 (/dev:plan stage reorder — analysis before compose).** The `/dev:plan` stage order was reordered so `implementation.md` is written ONCE with all sections filled in, instead of being half-baked at Stage 2 and appended to at Stage 3. New order: Stage 1 (code-context readiness — unchanged) → Stage 2 (PER-TASK ANALYSIS — was Stage 3 — writes intermediate scratchpad `dev/<repo>-analysis.md`, not `implementation.md`) → Stage 3 (BLOCKER DETECTION — was Stage 3.5 — reads scratchpad, halts on OPEN blockers) → Stage 4 (COMPOSE + MC PUSH — was Stage 2 — `tl-feature-compose` reads scratchpad + TL context graph, writes ALL 10 sections of `implementation.md` in ONE pass, pushes to MC). Stage 4 REFUSES to run if the scratchpad is missing or blockers OPEN — no half-baked implementation.md, no partial MC push. Blocker fold on `--resume` now updates the SCRATCHPAD (not implementation.md) so Stage 4 composes with resolutions baked in. `tl-feature-compose` mode names updated: `narrative → description` (professional 6-section format for MC Description tab), `detailed → implementation` (10-section single source of truth). Every stage logs skill invocations to `plan-run.md` for verification. Additive-safe: parent-alone tasks use bare filenames (`dev/analysis.md`, `dev/plan-blockers.md`); split tasks use repo-slug prefix (`dev/backend-analysis.md`, etc.).
+>
 > **2.3 (flat sub-task tabs + flat dev/ + single implementation source of truth — breaking).** File structure simplified per user's design intent. Under each `<feature-slug>/` (parent-alone) or each `<feature-slug>/subtask/<repo>/` (sub-task), MC-facing content is now **3 flat files**: `description.md` (→ MC Description tab), `implementation.md` (→ MC Implementation tab — SINGLE SOURCE OF TRUTH with 10 sections: business flow, build sequence, impacted components, API endpoints, database, frontend UI, touch points, test strategy, risks + rollback, how to verify locally), and `status.md` (MC-mirrored + local loop state — absorbs the retired `delivery-status.md`). **All local audit lives under ONE FLAT `dev/` folder at feature root** — `features/<slug>/dev/`. **NO nested `subtask/` folder inside `dev/`** — per-sub-task audit files use repo-slug PREFIX in the filename (e.g. `dev/backend-plan-blockers.md`, `dev/frontend-traceability.md`). Two folders with the same name (`subtask/` at feature root AND `subtask/` inside `dev/`) is a mistake, not a design. **No nested `dev/` inside sub-task roots** either — sub-task folders hold only the 3 MC-facing files. New per-feature file `dev/traceability.md` (parent-alone) or `dev/<repo>-traceability.md` (per sub-task) — the ID cross-reference map (AC ↔ BR ↔ EP ↔ implementation-step ↔ test ↔ PB ↔ DEC), local-only. **Retired doc_types:** `dev-plan`, `impacted-components`, `delivery-status`, `subtask-description` (folded into `description`), `subtask-implementation` (folded into `implementation`), `subtask-status` (folded into `status`), `local-runbook` (folded into `implementation.md § 10`). **Retired files/paths:** `dev/dev-plan.md`, `dev/impacted-components.md`, `dev/delivery-status.md`, `dev/local-runbook.md`, `subtask/<repo>/dev/*` (nested dev/ inside sub-task), `dev/subtask/<repo>/*` (nested subtask/ inside dev/ — replaced by flat repo-prefix filenames), `subtask/task-decision.md` (moved to `dev/task-decision.md`), `tl-plan.md` for parent-alone (split rollup still uses `tl-plan.md`). Backward compatibility: migration handled by `/jetrix:init` when it detects v2.2 layout on disk.
 >
 > **2.2 (plan-time blocker resolution — additive).** Added the plan-time blocker resolution loop so `/dev:build` never has to make build-time decisions. New per-task file `dev/plan-blockers.md` (`doc_type: plan-blockers`) captures decisions the user must make BEFORE build starts — missing integration contracts, undecided auth models, ambiguous schemas, unknown config, unclear business rule edge cases. `/dev:plan` Stage 3 detects them from 5 sources (`tl-plan.md` `[HELD]` markers, BA `open-questions.md` "Blocks build" rows, `integrations.md` unresolved entries, `system-landscape.md` gaps, `implementation.md § 3 Impacted components` `unknown` entries). User fills `Resolution:` per blocker → `/dev:plan --resume` deterministically folds resolutions into `implementation.md` and logs each as a `DEC-###`. New state `BLOCKED_ON_PLAN` (distinct from execution-time `BLOCKED`) — both map to MC `blocked`. New ID prefix `PB-###` (Plan Blocker, sequential per task). `/dev:build` Stage 0 refuses to run if `plan-blockers.md` `status:` is `OPEN` or `RESOLVING`. Additive: features whose plan is already fully-decidable never get a `plan-blockers.md` file.
@@ -106,7 +108,10 @@ Every Delivery OS workspace is bound to **one** Jetrix Solution. Everything live
     │       │                             # ready_for_dev_build + ready_for_dev_commit + blocker_ids +
     │       │                             # mc_status_pushed + acceptance status table + run history
     │       ├── dev/                      # Dev — LOCAL AUDIT for this feature (never pushed to MC)
-    │       │   ├── plan-run.md           # /dev:plan stage journal — for --resume
+    │       │   ├── plan-run.md           # /dev:plan stage journal — for --resume; logs every skill invocation
+    │       │   ├── analysis.md           # (v2.3) Stage 2 output — analysis-scratchpad doc_type; Stage 4 reads
+    │       │   │                         # to compose implementation.md §§2/3/8/9. Blocks: build_sequence,
+    │       │   │                         # impact_matrix, test_strategy, risks_and_rollback.
     │       │   ├── plan-blockers.md      # PB-### user-decision file — only when blockers OPEN
     │       │   ├── traceability.md       # AC ↔ BR ↔ EP ↔ implementation-step ↔ test ↔ PB ↔ DEC map
     │       │   ├── acceptance-map.md     # parent AC → verification result (built by /dev:build)
@@ -128,6 +133,8 @@ Every Delivery OS workspace is bound to **one** Jetrix Solution. Everything live
     │       │   │                         # use repo-slug PREFIX in filename. NO nested subtask/ folder.
     │       │   ├── plan-run.md
     │       │   ├── task-decision.md      # WHY split; which repos; rule that applied
+    │       │   ├── <repo>-analysis.md    # (v2.3) Stage 2 output per sub-task — analysis-scratchpad
+    │       │   │                         # e.g. backend-analysis.md, frontend-analysis.md
     │       │   ├── <repo>-plan-blockers.md            # e.g. backend-plan-blockers.md, frontend-plan-blockers.md
     │       │   ├── <repo>-traceability.md
     │       │   ├── <repo>-acceptance-map.md
@@ -191,7 +198,7 @@ Every Delivery OS workspace is bound to **one** Jetrix Solution. Everything live
 
 ### 1.b The per-repo code-context tree (Model B — TL owns the graph, but it lives with the code)
 
-The **as-built code graph** (pages, endpoints, entities) does NOT live under `.jetrix/`. Each linked app repo carries its own `<repo>/context/code-context/` tree, committed with the code. Written by `/tl:code-map` (brownfield reverse-map) and extended by `/tl:plan` (forward planning of new units), read by `/dev:plan` (Stage 2 compose), `/dev:build` (Stage 10 `designed → implemented` flip), `/dev:commit` (Stage 7 semantic-context-merge via `tl-semantic-context-merge`), and doc/qa consumers. Structure:
+The **as-built code graph** (pages, endpoints, entities) does NOT live under `.jetrix/`. Each linked app repo carries its own `<repo>/context/code-context/` tree, committed with the code. Written by `/tl:code-map` (brownfield reverse-map) and extended by `/tl:plan` (forward planning of new units), read by `/dev:plan` (v2.3 Stage 2 analysis + Stage 4 compose), `/dev:build` (Stage 10 `designed → implemented` flip), `/dev:commit` (Stage 7 semantic-context-merge via `tl-semantic-context-merge`), and doc/qa consumers. Structure:
 
 ```text
 <repo>/context/code-context/
@@ -237,7 +244,7 @@ It is **agent-maintained** (the user can still hand-edit it) and folds together 
 
 ```yaml
 ---
-doc_type: scope            # scope | requirement-register | use-case-register | glossary | run-summary | source-summary | intake-index | description | implementation | status | plan-run | task-decision | plan-blockers | traceability | acceptance-map | build-run | commit-run | implementation-log | security-findings | code-review-findings | context-merge-log | merge-conflicts | escalation | ...
+doc_type: scope            # scope | requirement-register | use-case-register | glossary | run-summary | source-summary | intake-index | description | implementation | status | plan-run | analysis-scratchpad | task-decision | plan-blockers | traceability | acceptance-map | build-run | commit-run | implementation-log | security-findings | code-review-findings | context-merge-log | merge-conflicts | escalation | ...
 schema_version: 1.3        # the contract version this file conforms to
 produced_by: ba            # ba | doc | tl | qa | delivery-os
 last_intake_run: run-003   # the run that last touched this file (omit if N/A)

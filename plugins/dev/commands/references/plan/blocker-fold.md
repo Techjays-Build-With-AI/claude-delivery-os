@@ -1,6 +1,12 @@
-## Blocker fold — runs on `/dev:plan --resume` when `plan-blockers.md` has resolutions
+## Blocker fold — Stage 3 sub-phase on `/dev:plan --resume` (v2.3 refactor)
 
-**Purpose.** Take each `PB-###` with a filled `Resolution:` and apply it deterministically to `implementation.md` + `implementation.md §3 Impacted components` + any relevant register. Log each fold as a `DEC-###`. Never re-plan, never reason about "how the answer applies" — the blocker's Options table already names the edit; the fold executes it.
+**Purpose.** Fold user-resolved `PB-###` decisions into the Stage 2 analysis scratchpad (`dev/<repo>-analysis.md`) so that when Stage 4 (compose + push) runs on --resume, it produces `implementation.md` with the resolutions baked in — no half-baked file, no post-hoc patch.
+
+### Original header (v2.2)
+
+Blocker fold — runs on `/dev:plan --resume` when `plan-blockers.md` has resolutions
+
+**Purpose.** Take each `PB-###` with a filled `Resolution:` and apply it deterministically to the Stage 2 analysis scratchpad (`dev/<repo>-analysis.md`) — specifically the `build_sequence` and `impact_matrix` blocks + any relevant register. Log each fold as a `DEC-###`. Never re-plan, never reason about "how the answer applies" — the blocker's Options table already names the edit; the fold executes it.
 
 **Runs from `/dev:plan --resume`** after [`blocker-detection.md`](blocker-detection.md) §5.7 confirms every `PB-###` has a non-empty `Resolution:`.
 
@@ -31,12 +37,12 @@ Each blocker's `**Category:**` field decides which fold rule applies. All fold r
 
 #### 6.2.1 `integration-contract`
 
-**Target files:** `implementation.md` + `implementation.md §3 Impacted components` + `ba/registers/integrations.md` (if the resolution provides missing fields)
+**Target files:** analysis scratchpad `dev/<repo>-analysis.md` (blocks: `build_sequence`, `impact_matrix`) + `ba/registers/integrations.md` (if the resolution provides missing fields)
 
 **Fold rule:**
 1. In `ba/registers/integrations.md`: locate the `INT-###` row, fill missing fields from the resolution (endpoint, auth, request/response schema)
-2. In `implementation.md`: locate the step that references the integration, replace `[HELD]` / `TBD` with the concrete API call details from the resolution
-3. In `implementation.md §3 Impacted components`: fill the `Third-party integrations` dimension with the resolved endpoint + auth mechanism
+2. In the analysis scratchpad `dev/<repo>-analysis.md` `build_sequence:` block: locate the step that references the integration, replace `[HELD]` / `TBD` with the concrete API call details from the resolution
+3. In the analysis scratchpad `dev/<repo>-analysis.md` `impact_matrix:` block: fill the `Third-party integrations` dimension with the resolved endpoint + auth mechanism
 4. Log: `DEC-<###>: Resolved integration <INT-###> per PB-<id> — <one-line summary of the option>`
 
 **Example — PB-001 resolution "1":**
@@ -48,12 +54,12 @@ Each blocker's `**Category:**` field decides which fold rule applies. All fold r
 
 #### 6.2.2 `schema-ambiguity`
 
-**Target files:** `implementation.md` + `implementation.md §3 Impacted components` + TL entity file (`<repo>/context/code-context/database/entities/<slug>.md`)
+**Target files:** analysis scratchpad `dev/<repo>-analysis.md` (blocks: `build_sequence`, `impact_matrix`) + TL entity file (`<repo>/context/code-context/database/entities/<slug>.md`)
 
 **Fold rule:**
 1. In the TL entity file: update the `## Structure` table with the resolved column type / nullability / constraint
-2. In `implementation.md`: update the migration step with the resolved schema
-3. In `implementation.md §3 Impacted components`: update `Database` dimension to reflect the resolved schema
+2. In the analysis scratchpad `dev/<repo>-analysis.md` `build_sequence:` block: update the migration step with the resolved schema
+3. In the analysis scratchpad `dev/<repo>-analysis.md` `impact_matrix:` block: update `Database` dimension to reflect the resolved schema
 4. Log: `DEC-<###>: Resolved schema ambiguity <field> per PB-<id> — <one-line summary>`
 
 #### 6.2.3 `auth-model`
@@ -102,7 +108,7 @@ Each blocker's `**Category:**` field decides which fold rule applies. All fold r
 **Fold rule:**
 1. In the involved TL entity files: update the `## Business Purpose` and cross-references to reflect which is source of truth
 2. In `implementation.md`: update the step that reads / writes with the correct source
-3. In `implementation.md §3 Impacted components`: update `Database` dimension
+3. In the analysis scratchpad `dev/<repo>-analysis.md` `impact_matrix:` block: update `Database` dimension
 4. Log: `DEC-<###>: Data flow — <field> source of truth is <entity> per PB-<id>`
 
 #### 6.2.8 `copy`

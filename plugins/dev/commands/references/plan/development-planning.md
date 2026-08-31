@@ -1,27 +1,29 @@
-## Stage 3 — Development planning
+## Stage 2 — Per-task analysis (v2.3 refactor — was Stage 3)
 
-**Purpose.** For each task (parent-alone OR each sub-task in a split feature), write the local development plan — pre-flight the environment, validate readiness, analyse impact across 12 dimensions, and produce a `implementation.md` that `/dev:build` picks up. The five planning stages that used to live inside `/dev:build` — relocated here so `/dev:build` starts at branch creation.
+**Purpose.** For each task (parent-alone OR each sub-task in a split feature), run the ANALYSIS that fills `implementation.md`'s sections 2, 3, 8, 9 — pre-flight the environment, validate readiness, analyse impact across 12 dimensions, and produce the build sequence + test strategy + risks. **Output goes to an intermediate scratchpad `dev/<repo>-analysis.md`** (sub-task) or `dev/analysis.md` (parent-alone). **This stage does NOT write `implementation.md` — that happens at Stage 4 AFTER blocker detection.**
 
-**Runs after Stage 2 finishes**, per-feature, and **per-task inside each feature** (parent-alone → 1 task; split → N sub-tasks). Parallelised across features (outer axis) and within a feature across sub-tasks (inner axis).
+**Runs after Stage 1 finishes**, per-feature, and **per-task inside each feature** (parent-alone → 1 task; split → N sub-tasks). Parallelised across features (outer axis) and within a feature across sub-tasks (inner axis).
 
-**On completion:** every task's `status.md` set to `PLANNED`; MC's task status updated to match; feature reported as `PLANNED` in the batch summary.
+**Why the v2.3 reorder:** in v2.2 this stage wrote `dev-plan.md` + `impacted-components.md` (two separate files) AFTER Stage 2 (compose+push) had already written a half-baked `implementation.md` and pushed it to MC. In v2.3, `implementation.md` is a single 10-section source of truth — writing it before analysis is done produces stub sections. So analysis (this stage) runs FIRST, blocker detection (Stage 2) runs on the analysis output, and compose+push (Stage 4) reads the analysis to write ALL sections in one pass.
+
+**On completion:** every task has a `dev/<repo>-analysis.md` scratchpad with `doc_type: analysis-scratchpad` and populated `build_sequence` / `impact_matrix` / `test_strategy` / `risks_and_rollback` blocks. Task state stays PLANNED_PENDING_STAGE_3 (not written to MC — MC still shows `readyForDev`). Skill invocations logged to `plan-run.md`.
 
 ---
 
-### 3a. Target set for this stage
+### 2a. Target set for this stage
 
-Determined from `dev/plan-run.md`'s `stage-2.branch`:
+Determined from `dev/plan-run.md`'s `stage-1-results.split_decision`:
 
-- **`branch: parent-alone`** → target = 1 task (the parent). Writes go to `features/<slug>/dev/`.
-- **`branch: split`** → target = N sub-tasks. Each sub-task's dev audit writes go to the ONE feature-level `dev/` folder with repo-slug prefix in the filename — e.g. `features/<slug>/dev/backend-plan-blockers.md`, `features/<slug>/dev/frontend-traceability.md`. **NO nested `subtask/` folder inside `dev/`.** **NO nested `dev/` inside `subtask/<repo>/`** either — the sub-task folder holds only the 3 MC-facing files (`description.md`, `implementation.md`, `status.md`).
+- **`branch: parent-alone`** → target = 1 task (the parent). Analysis scratchpad written to `features/<slug>/dev/analysis.md`.
+- **`branch: split`** → target = N sub-tasks. Each sub-task's analysis scratchpad written flat under the ONE feature-level `dev/` folder with repo-slug prefix — e.g. `features/<slug>/dev/backend-analysis.md`, `features/<slug>/dev/frontend-analysis.md`. **NO nested `subtask/` folder inside `dev/`.** **NO nested `dev/` inside `subtask/<repo>/`.**
 
 **Parallel per task** — spawn N `dev-agent` subagents for the split branch; one for parent-alone.
 
-Each subagent runs §3b (pre-flight) → §3c (readiness) → §3d (impact) → §3e (plan) → §3f (finalize) on its own task.
+Each subagent runs §2b (pre-flight) → §2c (readiness) → §2d (impact) → §2e (dev-plan) → §2f (write scratchpad) on its own task.
 
 ---
 
-### 3b. Pre-flight — MC status + local drift (per task, 2 parallel checks)
+### 2b. Pre-flight — MC status + local drift (per task, 2 parallel checks)
 
 Two independent checks fire concurrently — both consult external state so the dev-agent doesn't start on a task the team has flagged as blocked or on files the user hasn't synced.
 
@@ -60,7 +62,7 @@ Invoke the shared drift helper (`plugins/jetrix/commands/references/drift.md`) o
 
 ---
 
-### 3c. Readiness validation
+### 2c. Readiness validation
 
 Before writing any plan, confirm each item. A failure on a **critical** item means set state `BLOCKED`, write an escalation note, drop the task from the batch, continue with siblings.
 
@@ -71,8 +73,8 @@ Before writing any plan, confirm each item. A failure on a **critical** item mea
 | No blocking open question is still `Open` | parent's `open-questions.md` (Impact = "Blocks…") | ✕-critical |
 | TL technical context exists for the feature's units | `<repo>/context/code-context/` + indexes | ✕-critical → **already satisfied by Stage 1** (planning gate); revalidate quickly, don't repeat the full check |
 | Dependencies are available or explicitly mockable | parent's `dependencies.md`, integration-register | ✕-critical |
-| A usable product repository exists for THIS task's repo; base build is green | product repo (`git status`, build) | ✕-critical → **project-zero** routes to bootstrap (§3c.i), not a plain block |
-| A usable test harness exists; quality gates are defined | `qa/quality-gates.md` (`harness_status: Active`) | ✕-critical → **no harness** routes to QA (§3c.ii), not a plain block |
+| A usable product repository exists for THIS task's repo; base build is green | product repo (`git status`, build) | ✕-critical → **project-zero** routes to bootstrap (§2c.i), not a plain block |
+| A usable test harness exists; quality gates are defined | `qa/quality-gates.md` (`harness_status: Active`) | ✕-critical → **no harness** routes to QA (§2c.ii), not a plain block |
 | Required env vars, credentials, tools are available | repo config / environment | ✕-critical |
 | Task ownership is not locked by another agent | task's `status.md` owner | ✕-critical |
 | Major workflow is unambiguous | parent's `workflow.md` | non-critical → note assumption |
@@ -86,7 +88,7 @@ Before writing any plan, confirm each item. A failure on a **critical** item mea
 
 Passing readiness → set task state `READY_FOR_PLAN`.
 
-#### 3c.i. Repository gate — brownfield vs project-zero (per task's repo)
+#### 2c.i. Repository gate — brownfield vs project-zero (per task's repo)
 
 The "usable product repository" check for THIS task's repo has two failure modes:
 
@@ -101,7 +103,7 @@ For project-zero, route to bootstrap rather than plain-blocking:
 
 The dev agent never chooses the stack itself — bootstrap executes a confirmed one and asks (with a recommendation) for the rest.
 
-#### 3c.ii. Test-harness gate — can `/dev:build` actually verify?
+#### 2c.ii. Test-harness gate — can `/dev:build` actually verify?
 
 Before implementing, confirm a usable test harness exists and the loop knows the bar:
 
@@ -113,9 +115,9 @@ The dev agent never designs the test strategy itself — QA owns that.
 
 ---
 
-### 3d. Impact analysis
+### 2d. Impact analysis
 
-Identify what this task actually touches, at the file/module level where you can name it, and write to `implementation.md §3 Impacted components` (parent's `dev/` OR sub-task's `dev/`). Walk every dimension — mark `N/A` where a dimension doesn't apply rather than dropping it:
+Identify what this task actually touches, at the file/module level where you can name it, and write to scratchpad § `impact_matrix`. Walk every dimension — mark `N/A` where a dimension doesn't apply rather than dropping it:
 
 - **Frontend** — pages and components (map to the TL `PAGE-<AREA>-NN` units this task owns)
 - **Backend** — APIs and services (map to `EP-<AREA>-NN`)
@@ -132,7 +134,7 @@ Identify what this task actually touches, at the file/module level where you can
 
 Ground each entry in a real file/route/entity where possible; the TL graph and the codebase are your evidence. A schema or migration impact that risks data loss, or an integration whose contract you can't find, is an escalation — flag it here and raise it.
 
-**Sub-task scoping** — a sub-task's impact analysis covers only the units it owns (in its repo). Cross-task impact — "this sub-task depends on task 1 (backend) creating the endpoint" — belongs in the `Dependencies on other features or teams` section of `implementation.md` (§3e), not in impact.
+**Sub-task scoping** — a sub-task's impact analysis covers only the units it owns (in its repo). Cross-task impact — "this sub-task depends on task 1 (backend) creating the endpoint" — belongs in the `Dependencies on other features or teams` section of `implementation.md` (§2e), not in impact.
 
 Frontmatter:
 ```yaml
@@ -149,9 +151,9 @@ generated_at: <ISO>
 
 ---
 
-### 3e. Implementation planning
+### 2e. Implementation planning
 
-Write or refresh `implementation.md` (parent's `dev/` OR sub-task's `dev/`). It must be actionable enough for another developer or agent to pick up mid-stream. Include:
+Write or refresh the analysis scratchpad `dev/<repo>-analysis.md`. It must be actionable enough for another developer or agent to pick up mid-stream. Include:
 
 - **Ordered implementation steps** — the sequence you'll build in (usually: data model/migration → backend endpoints → frontend pages → wiring → notifications/jobs → tests → edge cases), each tied to the TL units and the parent acceptance criteria it satisfies.
 - **Affected files or modules** — concrete paths from the impact analysis.
@@ -181,33 +183,33 @@ generated_at: <ISO>
 
 ---
 
-### 3e.5 — Blocker detection (v2.2, before finalise)
+### 2e.5 — Blocker detection (v2.2, before finalise)
 
-**After §3e writes `implementation.md` + `implementation.md §3 Impacted components`, run blocker detection.** This is what makes `/dev:build` safe to run without prompts — every plan-time decision that would need user input is surfaced here.
+**After §2e writes the analysis scratchpad `dev/<repo>-analysis.md`, run blocker detection.** This is what makes `/dev:build` safe to run without prompts — every plan-time decision that would need user input is surfaced here.
 
 **Read [`blocker-detection.md`](blocker-detection.md) and execute verbatim on THIS task.**
 
 Two possible outcomes per task:
 
-- **No blockers detected** → continue to §3f Finalise (task lands at `PLANNED` / MC `readyForDev`).
-- **Blockers detected** → the reference file writes `dev/plan-blockers.md` (`status: OPEN`), sets `status.md` `current_state: BLOCKED_ON_PLAN`, pushes MC status `blocked`. **HALT §3f for this task** — it does NOT reach `PLANNED`. Print the halt message from `/dev:plan` §6c. Siblings continue in parallel.
+- **No blockers detected** → continue to §2f Finalise (task lands at `PLANNED` / MC `readyForDev`).
+- **Blockers detected** → the reference file writes `dev/plan-blockers.md` (`status: OPEN`), sets `status.md` `current_state: BLOCKED_ON_PLAN`, pushes MC status `blocked`. **HALT §2f for this task** — it does NOT reach `PLANNED`. Print the halt message from `/dev:plan` §6c. Siblings continue in parallel.
 
-**On `/dev:plan --resume`** — before running §3e (impact/dev-plan) at all, check for `dev/plan-blockers.md`:
+**On `/dev:plan --resume`** — before running §2e (impact/dev-plan) at all, check for `dev/plan-blockers.md`:
 
 - **Exists, `status: OPEN` or `RESOLVING`** → read [`blocker-fold.md`](blocker-fold.md) and execute verbatim.
-  - Fold succeeds (all PBs had Resolutions, all folds applied) → file → `RESOLVED`, task → `PLANNED`, MC → `readyForDev`. Proceed to §3f finalise.
+  - Fold succeeds (all PBs had Resolutions, all folds applied) → file → `RESOLVED`, task → `PLANNED`, MC → `readyForDev`. Proceed to §2f finalise.
   - Fold partially succeeds (some PBs still unresolved) → halt with the §6d partial-resolution message. Task stays `BLOCKED_ON_PLAN`.
   - Fold error (target file/section missing) → per `blocker-fold.md` §6.4, halt this task; siblings continue.
-- **Exists, `status: RESOLVED`** → nothing to fold; continue to §3f finalise.
-- **Doesn't exist** → normal resume; re-run detection (§3e.5) at the end of §3e as usual.
+- **Exists, `status: RESOLVED`** → nothing to fold; continue to §2f finalise.
+- **Doesn't exist** → normal resume; re-run detection (§2e.5) at the end of §2e as usual.
 
 **Idempotency:** re-running a plain `/dev:plan` (not `--resume`) on a task with an existing `plan-blockers.md` never wipes the file. Per `blocker-detection.md` §5.8, new blockers append to the file; user's Resolutions are preserved.
 
 ---
 
-### 3f. Finalise — status transition + MC push
+### 2f. Finalise — status transition + MC push
 
-For each task **whose §3e.5 came back clean** (no blockers OR all folded):
+For each task **whose §2e.5 came back clean** (no blockers OR all folded):
 
 1. **Write `status.md`** (parent's `dev/` OR sub-task's `dev/`):
    ```yaml
@@ -246,11 +248,11 @@ For each task **whose §3e.5 came back clean** (no blockers OR all folded):
 
 Same isolation model as Stages 1 & 2:
 
-- **Pre-flight halt** (§3b MC blocked or drift stop) → task `BLOCKED_STAGE_3`, other tasks in this feature continue; feature reports partial.
+- **Pre-flight halt** (§2b MC blocked or drift stop) → task `BLOCKED_STAGE_3`, other tasks in this feature continue; feature reports partial.
 - **Readiness critical gap** → task `BLOCKED_STAGE_3` with escalation note.
 - **Project-zero routing** → the feature-level bootstrap is a batch-wide concern; halt the whole batch cleanly with "run /dev:bootstrap first" (all features share the same repo state).
 - **Test-harness routing** → same as project-zero; halt with "run /qa:setup first".
-- **All tasks in a feature fail Stage 3** → feature `BLOCKED_STAGE_3`.
+- **All tasks in a feature fail Stage 2** → feature `BLOCKED_STAGE_3`.
 - **Some tasks succeed, some fail** → the feature is partial; failed tasks reported individually.
 
 ---
@@ -284,15 +286,15 @@ stage-3:
 - **`task-mcp.get_task_by_id_or_number`** — pre-flight MC status.
 - **`task-mcp.update_task_status`** — final status push.
 - **Shared drift helper** — `plugins/jetrix/commands/references/drift.md`.
-- **`tl-project-scaffold` skill (via delegation to tl-agent)** — only when §3c.i routes to bootstrap.
+- **`tl-project-scaffold` skill (via delegation to tl-agent)** — only when §2c.i routes to bootstrap.
 
-Never invoke `tl-feature-planning` from Stage 3 — that's Stage 1's job. Never invoke `tl-feature-compose` from Stage 3 — that's Stage 2's job.
+Never invoke `tl-feature-planning` from Stage 2 — that's Stage 1's job. Never invoke `tl-feature-compose` from Stage 2 — that's Stage 2's job.
 
 ---
 
 ### Transition to `/dev:build`
 
-At end of Stage 3:
+At end of Stage 2:
 
 - Every task has: `status.md`, `implementation.md §3 Impacted components`, `implementation.md` in its `dev/` folder (parent's or sub-task's).
 - Every task has `current_state: PLANNED` locally and `status: readyForDev` on MC.

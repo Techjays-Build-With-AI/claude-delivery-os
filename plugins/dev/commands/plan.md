@@ -86,12 +86,14 @@ Any unresolvable input → halt with the 5 nearest slugs / task numbers.
 
 ### 2b. Write the resolved target set
 
-Create `.jetrix/dev/batch-runs/plan-run-<timestamp>.md` (timestamp = `YYYY-MM-DD-HHMMSS`). Write:
+Create `.jetrix/dev/batch-runs/plan-run-<timestamp>.md` (timestamp = `YYYY-MM-DD-HHMMSS`). This is the workspace-level batch summary. Each feature ALSO writes a per-feature journal at `features/<slug>/dev/plan-run.md` — same schema, feature-scoped, so users can `cat features/<slug>/dev/plan-run.md` and see every stage's skill invocations for that feature.
+
+**Batch run schema** (workspace-level):
 
 ```yaml
 ---
 doc_type: plan-run
-schema_version: 1.0
+schema_version: 2.0        # v2.3 refactor — added skill-invocation logging + Stage 2/3/4 reorder
 produced_by: dev
 started_at: <ISO>
 concurrency: 5
@@ -112,6 +114,103 @@ flags: {split: null, resume: false, dry_run: false}
 - feature_id: FEAT-SUP-002
   ...
 ```
+
+**Per-feature run schema** (`features/<slug>/dev/plan-run.md`) — one section per stage, with skill-invocation logging so you can verify every stage's skills fired correctly:
+
+```yaml
+---
+doc_type: plan-run
+schema_version: 2.0
+produced_by: dev
+feature_id: FEAT-HCAL-01
+started_at: <ISO>
+---
+
+## Stage 1 — Code-context readiness
+stage_1:
+  status: DONE | HALTED
+  invocations:
+    - name: inline_detection
+      inputs: {feature_md_frontmatter: {related_pages: [...], related_apis: [...], related_entities: [...]}}
+      outputs: {units_resolved: N, units_linked: N, link_integrity: PASS | FAIL}
+      duration_ms: N
+    - name: tl-feature-planning (auto-plan)  # only when Stage 1a returned NOT_PLANNED
+      inputs: [feature.md, tl indexes]
+      outputs: {units_created: N, decs_logged: [DEC-...]}
+      duration_ms: N
+  finished_at: <ISO>
+
+## Stage 2 — Per-task analysis
+stage_2:
+  status: DONE | HALTED
+  tasks:
+    - subtask_number: 1
+      subtask_repo: backend
+      invocations:
+        - name: dev-agent (readiness)
+          inputs: [qa/quality-gates.md, git-status, .jetrix/project.json]
+          outputs: {readiness: PASS, harness: repo-own, base_build: green, critical_gaps: []}
+          duration_ms: N
+        - name: dev-agent (impact analysis)
+          inputs: [feature.md, workflow.md, ba/registers/data.md, ba/registers/integrations.md]
+          outputs: {dimensions_covered: 12, n_a_dimensions: 6, impacted_files: N}
+          duration_ms: N
+        - name: dev-agent (dev-plan)
+          inputs: [tl units, implementation-plan.md]
+          outputs: {ordered_steps: N, test_scenarios: N, risks: N, decs_proposed: [DEC-...]}
+          duration_ms: N
+      scratchpad_written: dev/backend-analysis.md
+      finished_at: <ISO>
+
+## Stage 3 — Blocker detection
+stage_3:
+  status: DONE | HALTED   # HALTED = blockers detected, this task
+  tasks:
+    - subtask_number: 1
+      subtask_repo: backend
+      invocations:
+        - name: inline_5_source_scan
+          sources: [tl-plan.md HELDs, open-questions.md, integrations.md, system-landscape.md, dev/backend-analysis.md unknowns]
+          outputs: {blockers_detected: N, ids: [PB-1-001, PB-1-002]}
+          duration_ms: N
+      blockers_file: dev/backend-plan-blockers.md
+      state_set: BLOCKED_ON_PLAN | PROCEED_TO_STAGE_4
+      finished_at: <ISO>
+
+## Stage 4 — Compose + push
+stage_4:
+  status: DONE | HALTED | SKIPPED
+  skipped_reason: null | "Stage 3 detected blockers"
+  tasks:
+    - subtask_number: 1
+      subtask_repo: backend
+      preconditions_check:
+        analysis_scratchpad_exists: true
+        blockers_resolved_or_absent: true
+      invocations:
+        - name: tl-feature-compose (implementation mode)
+          inputs: [tl units, dev/backend-analysis.md]
+          outputs: {sections_written: [1,2,3,4,5,7,8,9], stubbed: [10], size_chars: N}
+          duration_ms: N
+        - name: tl-feature-compose (description mode)   # only for split
+          inputs: [feature.md, workflow.md, tl units, dev/backend-analysis.md § Overview]
+          outputs: {sections_written: [Overview, What, BRs, Refusals, OOS, Related], size_chars: N}
+          duration_ms: N
+        - name: task-mcp.subtask_upsert_bundle
+          inputs: {solution_id, parent_task_id, subtasks: [<count>]}
+          outputs: {ok: true, task_number: Subtask-7, version: 1, action: created}
+          duration_ms: N
+      files_written: [subtask/backend/description.md, subtask/backend/implementation.md, subtask/backend/status.md]
+      finished_at: <ISO>
+```
+
+**How to verify every skill fired correctly:**
+
+```bash
+cat features/<slug>/dev/plan-run.md
+```
+
+Every stage lists its skill invocations with inputs + outputs + duration. If a stage halted, `status: HALTED` + `skipped_reason` on later stages make it obvious. Missing inputs / failed preconditions surface with a specific error naming which file was missing.
 
 `--resume` reads this file first — if `stage_status: completed` on a feature, skip.
 
@@ -201,59 +300,90 @@ Write the checkpoint result to the batch summary's `checkpoint_decision:` field.
 
 ---
 
-## 5. Route to Stage 2 (per-feature, parallel, bounded)
+## 5. Route to Stage 2 — PER-TASK ANALYSIS (per-feature × per-task, parallel, bounded)
+
+**v2.3 refactor: this stage was Stage 3 in v2.2.** Analysis now runs BEFORE compose+push, so `implementation.md` is written ONCE with all sections filled from real analysis outputs — no half-baked file ever gets pushed to MC.
 
 For each approved feature, spawn a worker that:
 
-1. Reads `plugins/dev/commands/references/plan/implementation-preparation.md`.
+1. Reads `plugins/dev/commands/references/plan/development-planning.md`.
 2. Executes it verbatim on THIS feature.
-3. Uses its own inner-axis parallelism (per-sub-task compose).
-4. Reports outcome to the batch summary.
+3. Uses inner-axis parallelism (per-sub-task analysis for split; single task for parent-alone).
 
-**Order of operations within a Stage 2 worker (from the reference file):**
-1. Read this feature's `stage-1-results` block
-2. Apply the sub-task decision rule (§6a of the reference)
-3. Fan out N `tl-agent` subagents (split) or 1 (parent-alone) for compose
-4. Wait for all composes to return
-5. Sequential MC push: `subtask_upsert_bundle` → `feature_update_implementation` (parent rollup) → `feature_update_implementation` (each sub-task's Implementation)
-6. Update sync-state
+Each per-task worker inside Stage 2 spawns a `dev-agent` subagent to run readiness + impact + dev-plan analysis. **Writes to `dev/<repo>-analysis.md` (sub-task) or `dev/analysis.md` (parent-alone)** — an intermediate scratchpad with `doc_type: analysis-scratchpad`. **Does NOT write `implementation.md` yet. Does NOT push to MC yet.**
+
+**Order of operations within a Stage 2 worker:**
+1. Read this feature's `stage-1-results` block from `plan-run.md`
+2. Pre-flight (MC status + local drift + cross-sub-task deps)
+3. Readiness validation (base build green? harness ok? critical gaps?)
+4. Impact analysis — 12-dimension matrix (frontend/backend/DB/authz/integrations/jobs/notifications/monitoring/tests/docs/flags/analytics)
+5. Development planning — ordered build steps + test strategy + risks + rollback
+6. Write `dev/<repo>-analysis.md` (or `dev/analysis.md` for parent-alone) with yaml sections: `build_sequence`, `impact_matrix`, `test_strategy`, `risks_and_rollback`
+7. Emit skill invocations log to `plan-run.md` (each dev-agent invocation with inputs + outputs + duration)
 
 ---
 
-## 6. Route to Stage 3 (per-feature × per-task, parallel, bounded)
+## 6. Route to Stage 3 — BLOCKER DETECTION (per-feature × per-task, parallel, bounded)
 
-For each Stage-2-successful feature, spawn a worker that:
+**v2.3 refactor: this stage was Stage 3.5 in v2.2.** Now runs on Stage 2's analysis scratchpad (not on a partially-written implementation.md).
 
-1. Reads `plugins/dev/commands/references/plan/development-planning.md`.
-2. Executes it verbatim on THIS feature.
-3. Uses its own inner-axis parallelism (per-sub-task planning for split; single task for parent-alone).
+For each Stage-2-successful task, spawn a worker that:
 
-Each per-task worker inside Stage 3 spawns a `dev-agent` subagent to run readiness / impact / dev-plan for that task.
+1. Reads `plugins/dev/commands/references/plan/blocker-detection.md`.
+2. Executes it verbatim on THIS task.
 
-### 6a. Stage 3.5 — Blocker detection (v2.2)
-
-After each task's Stage 3 finishes writing `implementation.md` + `implementation.md §3 Impacted components`, **immediately run the blocker detection sub-phase** — reads `plugins/dev/commands/references/plan/blocker-detection.md` and executes verbatim on that task.
+Blocker detection scans 5 sources:
+- `tl-plan.md` `[HELD]` markers
+- BA `open-questions.md` "Blocks build" rows
+- BA `integrations.md` unresolved entries
+- BA `system-landscape.md` gaps
+- `dev/<repo>-analysis.md` `unknown` / `TBD` entries
 
 **Outcomes per task:**
 
-- **No blockers detected** → task proceeds to state `PLANNED`, MC status `readyForDev`. Continue.
-- **Blockers detected** → task writes `dev/plan-blockers.md` (`status: OPEN`), sets state to `BLOCKED_ON_PLAN`, MC status `blocked`. Halt THIS task's Stage 3.5; siblings continue independently.
+- **No blockers detected** → task proceeds to Stage 4 (compose + push).
+- **Blockers detected** → task writes `dev/<repo>-plan-blockers.md` (`status: OPEN`), sets state to `BLOCKED_ON_PLAN`, MC status `blocked`. HALT THIS task at Stage 3. Do NOT proceed to Stage 4 for this task; siblings continue independently.
 
 **Batch behaviour:**
 
-- Blockers on ONE task never halt the batch — same failure-isolation as Stages 1 + 2. Other tasks reach `PLANNED` normally.
-- Batch summary (§7) surfaces every task's blocker state.
+- Blockers on ONE task never halt the batch — same failure-isolation as Stages 1 + 2. Other tasks that are clean reach Stage 4 normally.
+- Batch summary (§8) surfaces every task's blocker state.
 
-### 6b. Stage 3.5 on `--resume` — Blocker fold
+### 6a. Stage 3 on `--resume` — Blocker fold
 
-When invoked with `--resume`, for each task whose `dev/plan-blockers.md` exists AND `status: OPEN` or `RESOLVING`:
+When invoked with `--resume`, for each task whose `dev/<repo>-plan-blockers.md` exists AND `status: OPEN` or `RESOLVING`:
 
 1. Reads `plugins/dev/commands/references/plan/blocker-fold.md` and executes verbatim.
-2. If every `PB-###` has a filled `Resolution:` → folds each per the per-category rules, updates target files, logs `DEC-###`, sets file `status: RESOLVED`, task → `PLANNED`, MC → `readyForDev`.
+2. If every `PB-###` has a filled `Resolution:` → folds each per the per-category rules **INTO THE `dev/<repo>-analysis.md` SCRATCHPAD** (not into `implementation.md` — the analysis is the source of truth; `implementation.md` gets composed AFTER at Stage 4). Logs `DEC-###`, sets file `status: RESOLVED`, task advances to Stage 4.
 3. If any `PB-###` still has a placeholder `Resolution:` → halts THIS task's fold with a targeted message listing the unresolved PB-###; task stays `BLOCKED_ON_PLAN`.
-4. If a fold error occurs (missing target file / section) → halts, preserves user's Resolution field, sets `status: OPEN`, writes an error line.
+4. If a fold error occurs (missing scratchpad section) → halts, preserves user's Resolution field, sets `status: OPEN`, writes an error line.
 
-Tasks whose `plan-blockers.md` is already `RESOLVED` (or never had one) skip §6b entirely — pure Stage 3 finalise runs.
+Tasks whose `plan-blockers.md` is already `RESOLVED` (or never had one) skip §6a entirely — proceed directly to Stage 4.
+
+---
+
+## 7. Route to Stage 4 — COMPOSE + MC PUSH (per-feature × per-task, parallel, bounded)
+
+**v2.3 refactor: this stage was Stage 2 in v2.2.** Now runs AFTER analysis + blocker detection, so `implementation.md` is written ONCE with ALL sections filled.
+
+For each Stage-3-clean task, spawn a worker that:
+
+1. Reads `plugins/dev/commands/references/plan/implementation-preparation.md`.
+2. Executes it verbatim on THIS task.
+
+**Hard preconditions — this stage REFUSES to run if:**
+- `dev/<repo>-analysis.md` (sub-task) OR `dev/analysis.md` (parent-alone) is missing OR has empty required sections
+- `dev/<repo>-plan-blockers.md` exists with `status: OPEN` or `RESOLVING`
+
+**Order of operations within a Stage 4 worker:**
+
+1. Verify Stage 4 preconditions — halt with `stage_4_precondition_failed` naming which precondition + which file, if any fail
+2. Apply the sub-task decision rule (§6a of the reference — was Stage 2's rule; unchanged)
+3. Fan out N `tl-agent` subagents (split) or 1 (parent-alone) invoking `tl-feature-compose` in `implementation` mode. **The skill reads BOTH the TL context units AND `dev/<repo>-analysis.md`; produces ALL 10 sections of `implementation.md` in ONE pass.** For split, also invoke `tl-feature-compose` in `description` mode per sub-task, producing the 6-section `description.md`.
+4. Write `subtask/<repo>/{description.md, implementation.md, status.md}` (sub-task) or `features/<slug>/{implementation.md, status.md}` (parent-alone)
+5. Sequential MC push: `subtask_upsert_bundle` → `feature_update_implementation` (parent rollup for split) → `feature_update_implementation` (each sub-task's Implementation)
+6. Update sync-state
+7. Emit skill invocations log to `plan-run.md`
 
 ### 6c. Halt output when blockers surface
 
@@ -266,7 +396,7 @@ When Stage 3.5 detects blockers and halts, print (per task):
   PB-002  <short title>              [Blocks <...>]
 
 Resolve them:
-  1. Open: <task-folder>/dev/plan-blockers.md
+  1. Open: <task-folder>/dev/<repo>-plan-blockers.md (parent-alone: dev/plan-blockers.md)
   2. Fill in the "Resolution:" field under each PB-###
   3. Re-run: /dev:plan --resume <task-ref>
 

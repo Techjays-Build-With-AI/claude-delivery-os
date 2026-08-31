@@ -1,10 +1,12 @@
-## Blocker detection — runs as `/dev:plan` Stage 3 sub-phase §3.5
+## Stage 3 — Blocker detection (v2.3 refactor — was Stage 3.5 sub-phase)
 
-**Purpose.** Surface every plan-time decision the user must make BEFORE `/dev:build` starts. `/dev:build` runs with zero prompts — that only works when the plan is 100% decidable. Any unknown, ambiguous, or "figure-out-later" item detected here becomes a **`PB-###` Plan Blocker** written to `dev/plan-blockers.md` for user resolution.
+**Purpose.** Surface every plan-time decision the user must make BEFORE Stage 4 (compose + push) runs. Because Stage 4 refuses to write `implementation.md` on open blockers, this stage gates the compose. Any unknown, ambiguous, or "figure-out-later" item detected here becomes a **`PB-###` Plan Blocker** written to `dev/<repo>-plan-blockers.md` (sub-task) or `dev/plan-blockers.md` (parent-alone) for user resolution.
+
+**v2.3 refactor note:** in v2.2 this ran AFTER a half-baked `implementation.md` was already composed + pushed to MC. In v2.3 this runs on the Stage 2 analysis scratchpad (`dev/<repo>-analysis.md`) BEFORE any `implementation.md` exists — so a blocker never leaves a partial file behind.
 
 **Runs per task** (parent-alone → once; split feature → once per sub-task, IDs prefixed with sub-task number: `PB-1-###`, `PB-2-###`).
 
-**On completion:** either NO blockers (task proceeds to `PLANNED`) OR `plan-blockers.md` written and task set to `BLOCKED_ON_PLAN` (MC `blocked`), user resolves, re-runs `/dev:plan --resume`.
+**On completion:** either NO blockers (task proceeds to Stage 4 compose+push) OR `plan-blockers.md` written and task set to `BLOCKED_ON_PLAN` (MC `blocked`), user resolves, re-runs `/dev:plan --resume`.
 
 ---
 
@@ -12,10 +14,12 @@
 
 Scan each source; every hit generates a candidate blocker. Deduplicate by target-file + issue; a single unknown can be surfaced by multiple sources.
 
-#### Source 1 — `tl-plan.md` `[HELD]` markers
+#### Source 1 — `dev/<repo>-analysis.md` scratchpad `[HELD]` markers + `TBD` / `unknown` entries (Stage 2 output)
 
-For parent-alone target: `features/<slug>/tl-plan.md`.
-For sub-task target: `features/<slug>/subtask/<repo>/implementation.md`.
+For parent-alone target: `features/<slug>/dev/analysis.md`.
+For sub-task target: `features/<slug>/dev/<repo>-analysis.md`.
+
+Also grep the corresponding TL brief (`features/<slug>/tl-plan.md`) for `[HELD]` markers that made it into TL's rollup but weren't reconciled by Stage 2 analysis.
 
 Grep patterns:
 
