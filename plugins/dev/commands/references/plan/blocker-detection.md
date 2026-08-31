@@ -33,15 +33,17 @@ NEEDS:                           # e.g. "NEEDS: exact endpoint URL"
 
 For each hit: extract the line's context (~30 chars either side) and the `##` section it lives under.
 
-#### Source 2 — BA `open-questions.md` "Blocks build" rows
+#### Source 2 — BA `open-questions.md` "Blocks build" rows (v2.3.3 skip-resolved)
 
-Read `features/<slug>/open-questions.md`. Look for table rows where the `Impact` cell (case-insensitive) starts with:
+Read `features/<slug>/open-questions.md`. Look at BOTH the frontmatter `open_questions:` YAML array AND body table rows. Match rows where the `impact` / `Impact` field (case-insensitive) starts with:
 
 - `Blocks build`
 - `Blocks implementation`
 - `Blocks estimate` (an older BA classifier; treat same as Blocks build)
 
-Extract the row's `OQ-###` id, question text, and Impact.
+**Skip rows whose `status` is already `Resolved`** (v2.3.3 — `blocker-fold.md` §6.3 sets `status: Resolved` on upstream OQs when the corresponding PB is folded via `/dev:plan --resume` OR `/dev:resolve --plan`). A re-detection pass on a task that already had blockers resolved must NOT re-raise the same OQs — that would create an infinite loop.
+
+Extract each unresolved matching row's `OQ-###` id, question text, and Impact.
 
 #### Source 3 — BA `ba/registers/integrations.md` unresolved entries
 

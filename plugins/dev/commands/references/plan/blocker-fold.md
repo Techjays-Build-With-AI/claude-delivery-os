@@ -131,11 +131,85 @@ Each blocker's `**Category:**` field decides which fold rule applies. All fold r
 
 ---
 
-### 6.3 Writing back the fold
+### 6.3 UNIVERSAL upstream BA sync (v2.3.3 — runs after per-category fold, for every PB regardless of category)
+
+**The problem this closes.** Blocker detection (`blocker-detection.md` §5.1 Source 2 + Source 4) reads BA `open-questions.md` "Blocks build" rows and mints PB-### blockers from them. If the fold only updates the analysis scratchpad + BA registers (per §6.2's per-category rules), the upstream BA files still say `status: Open` — so a re-run of `/dev:plan` would re-detect the SAME blocker and re-halt the task. The DEC-### logged in `shared-context/decision-log.md` doesn't propagate back to `open-questions.md`; upstream stays stale.
+
+**The fix.** For EVERY resolved PB-### (regardless of category), also update the upstream BA source that produced it — close out the OQ-###, CLR-###, ASM-### that PB references, so blocker-detection.md doesn't re-raise it next run.
+
+**Fold rule — runs FOR EVERY resolved PB:**
+
+1. **Parse the PB's `Detected in:` line** for referenced IDs matching the pattern `(OQ|CLR|ASM|CON|SQ|DEC|BR|AC|EP|PAGE|ENT|INT|DATA|SRC)-[A-Z0-9-]+\d+`.
+
+2. **For each referenced ID, look it up in upstream files:**
+
+   a. `features/<slug>/open-questions.md` — frontmatter `open_questions:` array + body bullets
+   b. `ba/scope.md` — narrative mentions
+   c. `ba/registers/<register>.md` — where `<register>` matches the ID prefix (e.g. `BR-###` → `business-rules.md`)
+   d. `shared-context/decision-log.md` — DEC-### entries (append-only, never edit past DECs)
+
+3. **When a match is found, update it deterministically:**
+
+   For `open-questions.md` (structured YAML frontmatter):
+   ```yaml
+   # BEFORE:
+   - id: OQ-HCAL-01
+     question: What should happen when a submitted holiday name exceeds 100 characters...
+     owner: BA / Client
+     impact: Determines the validation rule...
+     status: Open
+
+   # AFTER (Resolved via PB-1-002, DEC-043 — Option 1):
+   - id: OQ-HCAL-01
+     question: What should happen when a submitted holiday name exceeds 100 characters...
+     owner: BA / Client
+     impact: Determines the validation rule...
+     status: Resolved
+     resolved_at: 2026-08-31T15:15:00Z
+     resolved_by: PB-1-002
+     resolution: "Option 1 — Hard reject with 400 NAME_TOO_LONG; fixed refusal message 'Holiday name must be 100 characters or fewer.'"
+     related_dec: DEC-043
+   ```
+
+   For the corresponding body bullet in `open-questions.md`:
+   ```markdown
+   # BEFORE:
+   - **Name length beyond 100 chars** — what happens on a submission longer than the confirmed limit? Owner: BA / Client. `OQ-HCAL-01`
+
+   # AFTER:
+   - **Name length beyond 100 chars** — what happens on a submission longer than the confirmed limit? Owner: BA / Client. `OQ-HCAL-01` **✓ Resolved by DEC-043 (via PB-1-002) — hard reject with `400 NAME_TOO_LONG`**
+   ```
+
+   For `ba/scope.md` (narrative document):
+   - **DO NOT auto-edit narrative prose.** Long-form scope text is BA's authored work; automatic edits risk breaking sentence flow.
+   - **Instead, log to `dev/scope-sync-todos.md`**: a running list of scope.md sections that reference the resolved ID, so the BA can update them by hand or via `/ba:scope --refresh`.
+   - Format:
+     ```markdown
+     - `OQ-HCAL-01` resolved by DEC-043 — scope.md lines 62-63 mention this OQ; update those references when /ba:scope runs
+     ```
+
+   For `ba/registers/<register>.md`:
+   - Only if the PB's category-specific fold rule (§6.2) already touches this file — do NOT double-write
+   - Otherwise no change (registers are canonical for their own IDs, not for OQ resolution)
+
+4. **Never mutate a DEC-###** — decisions are append-only. If the PB references an existing DEC in its `Detected in:` line, that DEC is CITED not modified.
+
+5. **Log the upstream sync** in the PB's `Applied at plan-fold:` line under a new `upstream_synced:` sub-field:
+   ```
+   Applied at plan-fold: 2026-08-31T15:15:00Z · applied to: dev/backend-analysis.md § build_sequence step 2 · logged as DEC-043 · upstream_synced: [open-questions.md OQ-HCAL-01 → Resolved]
+   ```
+
+**Watch items — recorded but NOT resolved by the fold:**
+
+If a PB references an ID marked in its own file as "watch item / not blocking" (e.g. the PB-1-001 file says "ASM-004 is a watch item, not a blocker"), the fold does NOT update ASM-004's status — because ASM-004 was never the source of a blocker; it's a documentation record. The upstream sync only closes upstream refs that DIRECTLY produced a PB via `blocker-detection.md`.
+
+---
+
+### 6.4 Writing back the fold
 
 For each successfully-folded PB:
 
-1. **Fill `Applied at plan-fold:`** in the PB section — one line: `<ISO timestamp> · applied to: <file1>:<section>, <file2>:<section> · logged as DEC-<###>`
+1. **Fill `Applied at plan-fold:`** in the PB section — one line: `<ISO timestamp> · applied to: <file1>:<section>, <file2>:<section> · logged as DEC-<###> · upstream_synced: [<id> → Resolved, ...]`
 2. **Append `> Resolved <ISO>` under the section separator** (keeps the file readable when re-opened)
 
 For the whole file after all PBs folded:
@@ -145,8 +219,8 @@ For the whole file after all PBs folded:
    ```
    ## Resolution summary
 
-   - PB-001 → resolved (option 1) at 2026-08-31T14:33:11Z · DEC-042
-   - PB-002 → resolved (custom text) at 2026-08-31T14:33:12Z · DEC-043
+   - PB-001 → resolved (option 1) at 2026-08-31T14:33:11Z · DEC-042 · upstream: OQ-HCAL-01 closed in open-questions.md
+   - PB-002 → resolved (custom text) at 2026-08-31T14:33:12Z · DEC-043 · upstream: none referenced
    ```
 
 ---
