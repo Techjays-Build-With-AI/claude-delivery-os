@@ -37,9 +37,9 @@ Anything a unit file would otherwise have to restate — recorded here instead.
 
 ---
 
-## page-index.md
+## frontend-index.md
 
-`<repo>/context/code-context/frontend/page-index.md` — the map of all pages. One row per page. On re-runs update in place; keep retired pages visible with a status.
+`<repo>/context/code-context/frontend/frontend-index.md` — the map of all pages. One row per page. On re-runs update in place; keep retired pages visible with a status.
 
 ```md
 ---
@@ -63,9 +63,9 @@ generated_at: YYYY-MM-DD
 
 ---
 
-## endpoint-index.md
+## backend-index.md
 
-`<repo>/context/code-context/backend/endpoint-index.md` — the map of all endpoints.
+`<repo>/context/code-context/backend/backend-index.md` — the map of all endpoints.
 
 ```md
 ---
@@ -89,9 +89,9 @@ generated_at: YYYY-MM-DD
 
 ---
 
-## entity-index.md
+## database-index.md
 
-`<repo>/context/code-context/database/entity-index.md` — the map of all data entities.
+`<repo>/context/code-context/database/database-index.md` — the map of all data entities.
 
 ```md
 ---

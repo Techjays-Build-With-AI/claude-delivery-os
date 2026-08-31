@@ -1,6 +1,6 @@
 ## Stage 11 — Report summary + `local-runbook.md`
 
-**Purpose.** Two artifacts. First: in-terminal summary so the developer knows what happened. Second: `dev/local-runbook.md` — a developer-facing setup + run guide for verifying locally (NOT the PR summary — that's `/dev:commit`'s job).
+**Purpose.** Two artifacts. First: in-terminal summary so the developer knows what happened. Second: `implementation.md §10 How to verify locally` — a developer-facing setup + run guide for verifying locally (NOT the PR summary — that's `/dev:commit`'s job).
 
 **Runs after Stage 10.** Final stage. State: `TESTING → IN_PROGRESS` (build phase done; local state stays IN_PROGRESS until `/dev:commit` flips to REVIEW). MC: `inProgress` (unchanged; `/dev:commit` sets `devReview`).
 
@@ -63,7 +63,7 @@ Local state:   IN_PROGRESS  (build phase complete; awaiting /dev:commit)
 MC status:     inProgress   (will transition to devReview on /dev:commit)
 
 Next steps:
-  1. Review dev/local-runbook.md — env vars + how to run manually
+  1. Review implementation.md §10 How to verify locally — env vars + how to run manually
   2. Verify the feature locally (see runbook)
   3. When ready, run:  /dev:commit FEAT-SUP-001-1
 
@@ -72,15 +72,15 @@ Files written by this run:
   - dev/implementation-log.md
   - dev/acceptance-map.md
   - dev/security-findings-build.md
-  - dev/local-runbook.md
+  - implementation.md §10 How to verify locally
   - dev/decisions.md
 ```
 
 ---
 
-### 11c. Compose `dev/local-runbook.md` — developer-facing setup guide
+### 11c. Compose `implementation.md §10 How to verify locally` — developer-facing setup guide
 
-**Not** the PR summary. `dev/local-runbook.md` is what the developer reads at their desk to verify the feature works on their machine.
+**Not** the PR summary. `implementation.md §10 How to verify locally` is what the developer reads at their desk to verify the feature works on their machine.
 
 Frontmatter:
 
@@ -133,7 +133,7 @@ COMPLIANCE_TOKEN=<team's shared dev token>                     [SET REQUIRED —
 
 ## 4. Database changes
 
-<From `dev/impacted-components.md` §Database + `dev-plan.md` migration steps>
+<From `implementation.md §3 Impacted components` §Database + `implementation.md` migration steps>
 
 Run migrations:
 
@@ -240,7 +240,7 @@ Every section is filled from the actual build's data — no placeholders. If a s
 
 - Local state: `TESTING → IN_PROGRESS` (build phase done; `/dev:commit` will flip to `REVIEW`)
 - MC status: `inProgress` (unchanged — `/dev:commit` transitions to `devReview`)
-- Update `dev/delivery-status.md`:
+- Update `status.md`:
 
 ```yaml
 current_state: IN_PROGRESS
@@ -263,7 +263,7 @@ stage-11:
   status: DONE
   started_at: 2026-08-31T15:23:12Z
   summary_printed: true
-  local_runbook_written: dev/local-runbook.md
+  local_runbook_written: implementation.md §10 How to verify locally
   pr_summary_pre_generated: false                # /dev:commit generates dev/pr-summary.md
   finished_at: 2026-08-31T15:23:44Z
 ```
@@ -280,7 +280,7 @@ next_command: /dev:commit <task-ref>
 
 ### 11f. On `--resume`
 
-If `--resume` finds `stage-11.status: DONE`, print the same summary from `build-run.md` + `dev/local-runbook.md`'s existence, don't rebuild.
+If `--resume` finds `stage-11.status: DONE`, print the same summary from `build-run.md` + `implementation.md §10 How to verify locally`'s existence, don't rebuild.
 
 If Stage 11 was interrupted mid-write (rare — file writes are usually atomic), re-run.
 
@@ -288,7 +288,7 @@ If Stage 11 was interrupted mid-write (rare — file writes are usually atomic),
 
 ### Skills / agents invoked
 
-- Direct file writes (`dev/local-runbook.md`, `dev/build-run.md`, `dev/delivery-status.md`)
+- Direct file writes (`implementation.md §10 How to verify locally`, `dev/build-run.md`, `status.md`)
 - Direct stdout print for the terminal summary
 - No subagents
 

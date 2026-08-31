@@ -20,7 +20,7 @@ If context tree is missing → escalate. `/dev:plan` should have run `/tl:plan` 
 
 ### 10b. Identify owned units
 
-The units to update are the ones this task owns (from `dev/dev-plan.md` step map + `tl-plan.md` §2 API endpoints / §3 DB / §4 Frontend for parent-alone, OR `subtask/<repo>/implementation.md` for sub-task).
+The units to update are the ones this task owns (from `implementation.md` step map + `tl-plan.md` §2 API endpoints / §3 DB / §4 Frontend for parent-alone, OR `subtask/<repo>/implementation.md` for sub-task).
 
 Read the 3 layer indexes for the target repo:
 

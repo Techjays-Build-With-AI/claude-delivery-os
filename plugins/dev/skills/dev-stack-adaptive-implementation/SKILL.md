@@ -1,6 +1,6 @@
 ---
 name: dev-stack-adaptive-implementation
-description: Guide feature code and test writing during /dev:build. Detects the target repo's stack (language, framework, ORM, testing tools, package manager, config style) and reads the repo's existing conventions before writing anything, so the new code matches idiomatically — imports, error handling, DI style, config style, logging patterns, naming. One skill, all stacks, no per-stack playbooks. Invoked from /dev:build Stages 5 (implement) and 6 (write tests). Reads dev-plan.md as the build script; writes code + tests scoped to what the plan says; never invents behaviour, never introduces parallel abstractions, never leaks framework names in comments, and never guesses at stylistic choices — it uses whatever the repo already uses.
+description: Guide feature code and test writing during /dev:build. Detects the target repo's stack (language, framework, ORM, testing tools, package manager, config style) and reads the repo's existing conventions before writing anything, so the new code matches idiomatically — imports, error handling, DI style, config style, logging patterns, naming. One skill, all stacks, no per-stack playbooks. Invoked from /dev:build Stages 5 (implement) and 6 (write tests). Reads implementation.md as the build script; writes code + tests scoped to what the plan says; never invents behaviour, never introduces parallel abstractions, never leaks framework names in comments, and never guesses at stylistic choices — it uses whatever the repo already uses.
 ---
 
 # Dev Stack-Adaptive Implementation
@@ -13,8 +13,8 @@ The defining behaviour: **read the repo, then match it.** You never write "here'
 
 Read the **`delivery-os-conventions`** contract if not in context. Your inputs are what `/dev:plan` produced:
 
-- **`features/<slug>/dev/dev-plan.md`** — the ordered build script (steps, files to touch, API changes, schema changes, test strategy)
-- **`features/<slug>/dev/impacted-components.md`** — 12-dimension impact map
+- **`features/<slug>/implementation.md`** — the ordered build script (steps, files to touch, API changes, schema changes, test strategy)
+- **`features/<slug>/implementation.md §3 Impacted components`** — 12-dimension impact map
 - **`features/<slug>/tl-plan.md`** (parent-alone) OR **`features/<slug>/subtask/<repo>/implementation.md`** (sub-task) — TL Implementation spec (5 sections: Build sequence, API endpoints, Database mods, Frontend UI, Touch points)
 - **Parent BA files** — `feature.md`, `workflow.md`, `acceptance-criteria.md`, `business-rules.md`, `nfrs.md`, `test-scenarios.md` — the VALIDATION CONTRACT you write tests against
 - **`features/<slug>/dev/plan-blockers.md`** (if present, `status: RESOLVED`) — the resolved `DEC-###` decisions to honour
@@ -46,9 +46,9 @@ Follow **`references/pattern-inference.md`** — read ≤ 10 existing files in t
 
 **Never assume defaults.** If the repo has no observable pattern for one of these (e.g. no existing tests to infer testing style), fall back to what the framework's official documentation recommends — and log the fallback as a `DEC-###`.
 
-### Phase 3 — Code + test writing (per dev-plan step)
+### Phase 3 — Code + test writing (per implementation.md build sequence step)
 
-For each ordered step in `dev-plan.md`:
+For each ordered step in `implementation.md`:
 
 1. Read the TL unit files this step touches (endpoint/entity/page files under `<repo>/context/code-context/`)
 2. Locate or create the target source files, using the naming convention inferred in Phase 2
@@ -79,7 +79,7 @@ For each ordered step in `dev-plan.md`:
 
 **Rule 6 — No framework leakage in identifiers or comments.** Component names, function names, and code comments are business-language, not framework-language. `SupplierListPage`, not `SupplierListReactPage`. `sendConfirmationEmail`, not `sendConfirmationEmailWithNodemailer`.
 
-**Rule 7 — Every dev-plan step gets tests.** No "we'll add tests later." If the step touches business logic, at least one test asserts on that logic. Missing test → the step isn't complete.
+**Rule 7 — Every implementation.md build sequence step gets tests.** No "we'll add tests later." If the step touches business logic, at least one test asserts on that logic. Missing test → the step isn't complete.
 
 **Rule 8 — Tests assert on behaviour, not on hardcoded responses.** A test that mocks the entire SUT to return the "correct" value proves nothing. Real state changes, real response shapes, real error paths.
 
@@ -87,20 +87,20 @@ For each ordered step in `dev-plan.md`:
 
 **Rule 10 — No secrets in code or tests.** Env var names OK; values never. Test fixtures use non-real placeholder values; production credentials are read from the repo's existing config mechanism.
 
-**Rule 11 — Stay in scope.** Touching a file the dev-plan didn't name requires a scope-escalation (write `dev/escalation-<n>.md` and halt). Don't silently refactor an unrelated module.
+**Rule 11 — Stay in scope.** Touching a file the implementation.md build sequence didn't name requires a scope-escalation (write `dev/escalation-<n>.md` and halt). Don't silently refactor an unrelated module.
 
 **Rule 12 — Log every material technical choice.** Naming a new file, choosing between two implementation approaches, deciding on a mocking strategy — each is a `DEC-###`. Trivial choices (variable names inside a function) don't need logs.
 
 ## Completion criteria
 
-A dev-plan step is complete when:
+A implementation.md build sequence step is complete when:
 
 - The code implementing it is written to the target file(s)
 - At least one test asserts on the step's business behaviour
 - The tests are runnable (import path resolves, no syntax errors)
 - `implementation-log.md` records: step ID, files touched (paths + line counts), tests added (paths + test names), any `DEC-###` logged
 
-A feature is `/dev:build`-ready-to-execute-tests (i.e. Stage 6 done) when every dev-plan step is complete per the above.
+A feature is `/dev:build`-ready-to-execute-tests (i.e. Stage 6 done) when every implementation.md build sequence step is complete per the above.
 
 ## Skills / agents this skill invokes
 
@@ -115,5 +115,5 @@ A feature is `/dev:build`-ready-to-execute-tests (i.e. Stage 6 done) when every 
 - **Business language, not framework language.** Naming, comments, and documentation stay at the business level.
 - **Test with the code.** No feature-complete claim without tests written in the same run.
 - **Honour prior decisions.** `DEC-###` and resolved `PB-###` blockers are given — never revisit them silently.
-- **Stay in scope.** The dev-plan names every file to touch; nothing else moves without a scope escalation.
+- **Stay in scope.** The implementation.md build sequence names every file to touch; nothing else moves without a scope escalation.
 - **Escalate, don't guess.** A genuine ambiguity that the plan didn't resolve is a scope escalation, not a coin flip in code.

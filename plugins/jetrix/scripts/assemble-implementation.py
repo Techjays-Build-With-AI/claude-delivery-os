@@ -270,8 +270,14 @@ def main() -> int:
     for feat_dir in sorted(d for d in features_root.iterdir() if d.is_dir()):
         slug = feat_dir.name
 
-        feature_md = feat_dir / "feature.md"
-        tl_plan    = feat_dir / "tl-plan.md"
+        feature_md          = feat_dir / "feature.md"
+        # v2.3: parent Implementation source is `implementation.md` at feature root
+        # (parent-alone case). If absent, fall back to `tl-plan.md` — used for the
+        # SPLIT case's parent rollup, and as backward-compat for v2.2 workspaces
+        # that still carry a parent-alone tl-plan.md.
+        implementation_md   = feat_dir / "implementation.md"
+        tl_plan             = feat_dir / "tl-plan.md"
+        parent_impl_source  = implementation_md if implementation_md.exists() else tl_plan
 
         if not feature_md.exists():
             continue  # not a feature folder
@@ -287,14 +293,14 @@ def main() -> int:
         parent_blocked_for_subs = False
         parent_pushed = False
 
-        if not tl_plan.exists():
-            skipped.append({"slug": slug, "reason": "no-tl-plan"})
+        if not parent_impl_source.exists():
+            skipped.append({"slug": slug, "reason": "no-implementation-source (neither implementation.md nor tl-plan.md)"})
         elif not feature_id:
             skipped.append({"slug": slug, "reason": "no-feature-id"})
         elif not task_object_id:
             skipped.append({"slug": slug, "reason": "no-task-object-id"})
         else:
-            body = _strip_frontmatter(_read(tl_plan)).replace("\r", "")
+            body = _strip_frontmatter(_read(parent_impl_source)).replace("\r", "")
             body = re.sub(r"^\s*\n+", "", body)
 
             first_line = body.splitlines()[0] if body else ""

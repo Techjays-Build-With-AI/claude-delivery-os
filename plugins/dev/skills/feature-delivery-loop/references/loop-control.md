@@ -8,7 +8,7 @@ Authoritative state model reference: `delivery-os-conventions` §status. This fi
 
 ## 1. Task state model (v2.2)
 
-The dev loop tracks a fine-grained state in `dev/delivery-status.md`. In v2.2 the model simplified to six local states, driven by three commands (`/dev:plan` → `/dev:build` → `/dev:commit`):
+The dev loop tracks a fine-grained state in `status.md`. In v2.2 the model simplified to six local states, driven by three commands (`/dev:plan` → `/dev:build` → `/dev:commit`):
 
 ```text
 PLANNED ──(→BLOCKED_ON_PLAN if plan-blockers.md OPEN)──
@@ -35,13 +35,13 @@ BLOCKED (execution-time) — reachable from any working state
 | BLOCKED | Execution-time escalation (bounds exceeded, unresolvable finding, dependency gap) | `blocked` | any stage's escalation |
 | DONE | PR merged | `done` | PR-merge webhook (v2.3) |
 
-Transient intermediate labels used inside `/dev:build` (`IN_PLANNING` at Stage 1 mount, `IN_DEVELOPMENT` at Stage 5, `TESTING` at Stage 7) map to MC `inProgress` and are visible only in `dev/delivery-status.md` and progress broadcasts — they don't need MC round-trips.
+Transient intermediate labels used inside `/dev:build` (`IN_PLANNING` at Stage 1 mount, `IN_DEVELOPMENT` at Stage 5, `TESTING` at Stage 7) map to MC `inProgress` and are visible only in `status.md` and progress broadcasts — they don't need MC round-trips.
 
 `BLOCKED` returns to the state it left once the blocker resolves. `BLOCKED_ON_PLAN` is distinct from `BLOCKED` — it's specifically a plan-time decision the user must make; execution-time `BLOCKED` is a runtime escalation. Both map to MC `blocked`.
 
 ### Progress broadcasts (chat visibility) — mandatory
 
-The state model above is not just for the files. **Every time the feature changes state, emit a one-line progress update in chat** *before* you continue working, so a human watching the run always knows where the loop is and whether it is moving. Writing to `dev/delivery-status.md` is not a substitute — the file is the record, the chat line is the signal. Do not wait until the end of the run to report.
+The state model above is not just for the files. **Every time the feature changes state, emit a one-line progress update in chat** *before* you continue working, so a human watching the run always knows where the loop is and whether it is moving. Writing to `status.md` is not a substitute — the file is the record, the chat line is the signal. Do not wait until the end of the run to report.
 
 Emit exactly one line per transition, in this format:
 
@@ -86,7 +86,7 @@ The inline block carries the same facts a good escalation note carries (§5); th
 
 ### State → BA/index vocabulary mapping
 
-`features/feature-index.md` and each feature's `status.md` use the BA controlled values (`Proposed · Ready for Planning · In Development · In QA · UAT · Released · Blocked`). Keep the fine-grained loop state in `dev/delivery-status.md` and **mirror** it into the BA files using this mapping:
+`features/feature-index.md` and each feature's `status.md` use the BA controlled values (`Proposed · Ready for Planning · In Development · In QA · UAT · Released · Blocked`). Keep the fine-grained loop state in `status.md` and **mirror** it into the BA files using this mapping:
 
 | v2.2 local state | BA status.md / feature-index value |
 |---|---|
@@ -118,7 +118,7 @@ mcp__task-mcp__update_task_status(
 
 Rules:
 
-- Fires on the state transition inside each command's stage, right after writing `dev/delivery-status.md` and before the chat broadcast.
+- Fires on the state transition inside each command's stage, right after writing `status.md` and before the chat broadcast.
 - Failures are **non-fatal** — log the error to `dev/implementation-log.md` and continue; the next explicit push will retry.
 - MERGE_CONFLICT stays at MC `devReview` (it's a resolvable state, not a full block).
 
@@ -157,7 +157,7 @@ If a task appears to require any of these, stop and escalate.
 ## 4. Scope boundaries
 
 - Work **only** on files related to the selected feature.
-- Document any genuine cross-feature impact in `dev/impacted-components.md`.
+- Document any genuine cross-feature impact in `implementation.md §3 Impacted components`.
 - Raise a **scope escalation before** modifying an unrelated module — never opportunistically.
 - Avoid opportunistic refactoring unless it is necessary to complete the feature safely (and note it if so).
 
@@ -205,12 +205,12 @@ A good escalation names what was attempted, the precise blocker, its impact (whi
 ### `/dev:build` complete (IN_PROGRESS gate)
 
 **Mandatory — all must hold:**
-- Task scope implemented per `dev-plan.md`
+- Task scope implemented per `implementation.md`
 - Every Required gate in `qa/quality-gates.md` passes (Stage 7)
 - Every parent AC + BR + TS + NFR row in `dev/acceptance-map.md` is `✅ pass` OR properly `⏸ deferred-to-e2e` (Stage 8)
 - Zero Critical security findings at build-time threshold (Stage 9)
 - Every owned code-context unit flipped `origin: designed → implemented` with valid Source References (Stage 10)
-- `dev/local-runbook.md` written (Stage 11)
+- `implementation.md §10 How to verify locally` written (Stage 11)
 
 Fails any → task stays `TESTING` or drops to `BLOCKED` via bounded fix loop escalation. Never advances to `IN_PROGRESS` on hope.
 
@@ -229,7 +229,7 @@ Fails any → Stage 6 fix loop OR halt with escalation. Never opens a PR on inco
 **Optional — where the project requires them:**
 - Accessibility checks pass (a11y gate in `qa/quality-gates.md`)
 - Performance checks pass (perf NFR-declared thresholds)
-- Feature-flag configuration documented in `dev/local-runbook.md`
+- Feature-flag configuration documented in `implementation.md §10 How to verify locally`
 - Release notes generated
 
 A task that fails any mandatory criterion at either gate stays in its working state (or `BLOCKED` / `MERGE_CONFLICT`) — it does not advance because code was written.

@@ -1,5 +1,5 @@
 ---
-description: Just-in-time planning for one or many tasks. Verifies the technical context graph is current (auto-runs /tl:plan if missing), decides whether each task needs sub-tasks (multi-repo → one sub-task per repo, single-repo or bug/story → parent alone), composes each sub-task's Description + Implementation and creates them in Mission Control, writes the local development plan, and (v2.2) surfaces every plan-time decision that would require build-time input as PB-### blockers in dev/plan-blockers.md — so /dev:build never has to prompt. Accepts a single MC task number (Task-N, Feature-N, Subtask-N), a local feature slug or folder path, the internal FEAT-<AREA>-NN id, or a multi-target form — an MC List name, initiative=<name>, or --all — which fans out across every matching feature in parallel. Runs 4 stages: identity resolution → code-context readiness → implementation preparation → development planning + blocker detection. With --resume: if a task has an OPEN dev/plan-blockers.md, folds every filled Resolution: field into dev-plan.md + impacted-components.md + registers deterministically per category, logs each fold as a DEC-###, and moves the task from BLOCKED_ON_PLAN to PLANNED. Two parallelism axes: across features (bounded by --concurrency, default 5) and within a feature (per-sub-task compose + per-task planning). One consolidated user checkpoint after stage 1 to confirm the split for every targeted feature. Failure of one feature never halts the batch — failed features report at the end with escalations or plan-blockers. Never merges, never runs code — leaves each task at status PLANNED for /dev:build (or BLOCKED_ON_PLAN awaiting user resolution).
+description: Just-in-time planning for one or many tasks. Verifies the technical context graph is current (auto-runs /tl:plan if missing), decides whether each task needs sub-tasks (multi-repo → one sub-task per repo, single-repo or bug/story → parent alone), composes each sub-task's Description + Implementation and creates them in Mission Control, writes the local development plan, and (v2.2) surfaces every plan-time decision that would require build-time input as PB-### blockers in dev/plan-blockers.md — so /dev:build never has to prompt. Accepts a single MC task number (Task-N, Feature-N, Subtask-N), a local feature slug or folder path, the internal FEAT-<AREA>-NN id, or a multi-target form — an MC List name, initiative=<name>, or --all — which fans out across every matching feature in parallel. Runs 4 stages: identity resolution → code-context readiness → implementation preparation → development planning + blocker detection. With --resume: if a task has an OPEN dev/plan-blockers.md, folds every filled Resolution: field into implementation.md + implementation.md §3 Impacted components + registers deterministically per category, logs each fold as a DEC-###, and moves the task from BLOCKED_ON_PLAN to PLANNED. Two parallelism axes: across features (bounded by --concurrency, default 5) and within a feature (per-sub-task compose + per-task planning). One consolidated user checkpoint after stage 1 to confirm the split for every targeted feature. Failure of one feature never halts the batch — failed features report at the end with escalations or plan-blockers. Never merges, never runs code — leaves each task at status PLANNED for /dev:build (or BLOCKED_ON_PLAN awaiting user resolution).
 argument-hint: "<Task-N | Feature-N | Subtask-N | slug | features/<slug> | FEAT-<AREA>-NN | list=<name> | initiative=<name> | --all | (blank = next READY task)> [--split | --no-split] [--resume] [--dry-run] [--concurrency=N]"
 ---
 
@@ -232,7 +232,7 @@ Each per-task worker inside Stage 3 spawns a `dev-agent` subagent to run readine
 
 ### 6a. Stage 3.5 — Blocker detection (v2.2)
 
-After each task's Stage 3 finishes writing `dev-plan.md` + `impacted-components.md`, **immediately run the blocker detection sub-phase** — reads `plugins/dev/commands/references/plan/blocker-detection.md` and executes verbatim on that task.
+After each task's Stage 3 finishes writing `implementation.md` + `implementation.md §3 Impacted components`, **immediately run the blocker detection sub-phase** — reads `plugins/dev/commands/references/plan/blocker-detection.md` and executes verbatim on that task.
 
 **Outcomes per task:**
 
@@ -292,10 +292,10 @@ Fill the remaining Resolution: fields and re-run.
 ✓ /dev:plan --resume complete for <task-ref> — <N> blockers folded into the plan
 
   PB-001 → resolved (option 1: internal compliance service)
-            applied to: impacted-components.md §3rd-party, dev-plan.md step 3
+            applied to: implementation.md §3 Impacted components §3rd-party, implementation.md step 3
             logged as DEC-042
   PB-002 → resolved (option 1: composite uniqueness)
-            applied to: impacted-components.md §Database, dev-plan.md step 1
+            applied to: implementation.md §3 Impacted components §Database, implementation.md step 1
             logged as DEC-043
 
 Local state:  PLANNED

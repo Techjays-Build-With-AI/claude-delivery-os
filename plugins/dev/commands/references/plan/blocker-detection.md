@@ -49,7 +49,7 @@ Read `ba/registers/integrations.md`. Look for `INT-###` rows where ANY of these 
 - `response_schema`
 - `error_codes`
 
-**Filter:** only surface entries this task's `dev-plan.md` actually references. An unresolved `INT-###` for a different feature is not this task's blocker.
+**Filter:** only surface entries this task's `implementation.md` actually references. An unresolved `INT-###` for a different feature is not this task's blocker.
 
 #### Source 4 — `shared-context/system-landscape.md` role/actor gaps
 
@@ -61,7 +61,7 @@ Read `shared-context/system-landscape.md`. If this task's parent `feature.md` de
 
 Missing OR listed as `TBD` → blocker.
 
-#### Source 5 — `dev/impacted-components.md` `unknown` entries
+#### Source 5 — `implementation.md §3 Impacted components` `unknown` entries
 
 Read the impact analysis. In any of the 12 dimensions, entries marked `unknown` (not `N/A`) are blockers. `N/A` is a legitimate decision (dimension doesn't apply); `unknown` means we didn't figure it out.
 
@@ -69,7 +69,7 @@ Read the impact analysis. In any of the 12 dimensions, entries marked `unknown` 
 
 ### 5.2 Heuristic checks per dev-plan step
 
-For each ordered step in `dev/dev-plan.md`, apply these questions. Any YES → mint a blocker.
+For each ordered step in `implementation.md`, apply these questions. Any YES → mint a blocker.
 
 | Question | Blocker if YES |
 |---|---|
@@ -163,7 +163,7 @@ _(auto-filled by /dev:plan --resume — do not edit)_
 
 After writing `plan-blockers.md` with `status: OPEN`:
 
-1. Update `dev/delivery-status.md`:
+1. Update `status.md`:
    ```yaml
    current_state: BLOCKED_ON_PLAN
    blocker_file: dev/plan-blockers.md

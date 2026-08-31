@@ -6,7 +6,7 @@ All dev files carry `produced_by: dev` and live under `features/<slug>/dev/`, ex
 
 ---
 
-## 1. dev-plan.md
+## 1. implementation.md
 
 ```md
 ---
@@ -58,7 +58,7 @@ Low | Medium | High — driver: …
 
 ---
 
-## 2. impacted-components.md
+## 2. implementation.md §3 Impacted components
 
 ```md
 ---
@@ -158,7 +158,7 @@ Re-run supplier-api.test.ts, then the broad suite.
 
 ---
 
-## 5. delivery-status.md
+## 5. status.md
 
 The fine-grained loop state and owner lock for this feature.
 

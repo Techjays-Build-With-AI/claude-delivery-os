@@ -13,7 +13,7 @@ Introduce `/dev:plan` as the just-in-time planning entry point on the dev side. 
 1. Ensures the technical context graph (`<repo>/context/code-context/`) is present and current for the feature — auto-runs `/tl:plan` if it isn't
 2. Decides whether the task needs sub-tasks (multi-repo → one sub-task per repo; bug or single-repo → parent alone)
 3. Composes each sub-task's **Description** (business flow narrative) + **Implementation** (detailed 5-section spec) and creates them in MC via `task-mcp`
-4. Writes a local development plan per task (readiness, impact, dev-plan.md)
+4. Writes a local development plan per task (readiness, impact, implementation.md)
 5. Leaves everything at status `PLANNED`, ready for `/dev:build` to pick up
 
 The command replaces today's implicit planning inside `/dev:build`. After this change `/dev:build` starts at branch creation and refuses to run if the plan is missing.
@@ -79,7 +79,7 @@ argument-hint: "<Task-N | Feature-N | Subtask-N | slug | features/<slug> | FEAT-
 │     Compose parent Implementation (rollup mode if split, detailed if not)
 │
 └── Stage 3 — Development planning   (per feature × per task, parallel)
-      Pre-flight, readiness, impact analysis, dev-plan.md
+      Pre-flight, readiness, impact analysis, implementation.md
       Set status → PLANNED locally + MC
 ```
 
@@ -285,11 +285,11 @@ On re-run of `/dev:plan` for the same feature:
 - §1a — Repository gate (brownfield vs project-zero) — routes to `/dev:bootstrap` if project-zero
 - §1b — Test-harness gate (`qa/quality-gates.md` active) — routes to `/qa:audit` → `/qa:setup` if not
 - §2 — Impact analysis (12 dimensions per task)
-- §3 — Implementation planning — writes `dev-plan.md` (ordered steps, files, API/schema changes, test strategy, rollback, risks, complexity)
+- §3 — Implementation planning — writes `implementation.md` (ordered steps, files, API/schema changes, test strategy, rollback, risks, complexity)
 
 **Parallel per task** — when sub-tasks exist, §1/§2/§3 run once per sub-task in parallel subagents. Each writes into its own `subtask/<repo>/dev/` folder (dev-side work artifacts) alongside the sub-task's tab files at `subtask/<repo>/{description,implementation,status}.md`.
 
-**End of Stage 3** — each task's `delivery-status.md` set to `PLANNED`; MC's task status updated to match.
+**End of Stage 3** — each task's `status.md` set to `PLANNED`; MC's task status updated to match.
 
 ## 8. Local file layout
 
@@ -315,9 +315,9 @@ features/supplier-onboarding/                 ← PARENT
 ├── dev/                                       parent-level dev artifacts (ONLY when parent-alone)
 │   ├── plan-run.md                            /dev:plan's stage log for this feature — --resume reads this
 │   ├── task-decision.md                       WHY parent-alone; rule that applied
-│   ├── dev-plan.md                            parent development plan
-│   ├── impacted-components.md
-│   ├── delivery-status.md
+│   ├── implementation.md                            parent development plan
+│   ├── implementation.md §3 Impacted components
+│   ├── status.md
 │   ├── acceptance-map.md
 │   ├── implementation-log.md
 │   ├── pr-summary.md
@@ -340,9 +340,9 @@ features/supplier-onboarding/                 ← PARENT
     │   ├── status.md                          sub-task status (5-state)
     │   │
     │   └── dev/                               sub-task's dev work-log
-    │       ├── dev-plan.md                    this sub-task's development plan
-    │       ├── impacted-components.md
-    │       ├── delivery-status.md
+    │       ├── implementation.md                    this sub-task's development plan
+    │       ├── implementation.md §3 Impacted components
+    │       ├── status.md
     │       ├── acceptance-map.md              parent AC → this sub-task's evidence
     │       ├── implementation-log.md
     │       ├── pr-summary.md
@@ -667,7 +667,7 @@ Backed by MC's `GET /solutions/:solutionId/tasks/:taskId/subtasks`.
 
 **Single-target:**
 
-- `/dev:plan Feature-4` on a **single-repo** feature → composes parent Implementation (detailed), pushes to MC, writes `features/<slug>/dev/plan.md` + `dev-plan.md`, status `PLANNED`, one user checkpoint fired between Stage 1 and Stage 2
+- `/dev:plan Feature-4` on a **single-repo** feature → composes parent Implementation (detailed), pushes to MC, writes `features/<slug>/dev/plan.md` + `implementation.md`, status `PLANNED`, one user checkpoint fired between Stage 1 and Stage 2
 - `/dev:plan Feature-4` on a **multi-repo** feature → creates N sub-tasks in MC via one `subtask_upsert_bundle` call (payload sets `taskType: subtask`), pushes each Description + Implementation, writes parent rollup, all sub-tasks status `PLANNED`, sub-tasks visible under the parent's breadcrumb in the MC UI, sub-task type stays `subtask` (never converted)
 - `/dev:plan Task-1 --resume` → skips completed stages (read from `plan-run.md`) and continues from the failed one
 - `/dev:plan Subtask-7` → resolves upward to `Feature-4` and plans the whole parent

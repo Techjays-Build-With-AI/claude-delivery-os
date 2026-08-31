@@ -54,7 +54,7 @@ Categories, with concrete examples from the supplier-onboarding use case:
 
 ## 4. Detection during `/dev:plan` Stage 3
 
-**Adds a new sub-step §3f — Blocker detection** between the existing §3e (Implementation planning writes dev-plan.md) and §3f (Finalise). Runs on every task (parent-alone or per-sub-task).
+**Adds a new sub-step §3f — Blocker detection** between the existing §3e (Implementation planning writes implementation.md) and §3f (Finalise). Runs on every task (parent-alone or per-sub-task).
 
 ### 4a. Detection sources (union)
 
@@ -64,11 +64,11 @@ Scan these five inputs for build-time decision requirements:
 2. **BA `open-questions.md`** — rows with Impact starting with `Blocks build` or `Blocks estimate`
 3. **BA `ba/registers/integrations.md`** — declared integrations with `status: unresolved` or missing contract fields
 4. **`shared-context/system-landscape.md`** — feature declares an actor role but role isn't defined
-5. **`impacted-components.md`** — any dimension marked `unknown` (not `N/A` — `N/A` is a legitimate decision; `unknown` is a blocker)
+5. **`implementation.md §3 Impacted components`** — any dimension marked `unknown` (not `N/A` — `N/A` is a legitimate decision; `unknown` is a blocker)
 
 ### 4b. Detection heuristics (behavioural, per §3)
 
-For each ordered step in `dev-plan.md`, apply these questions:
+For each ordered step in `implementation.md`, apply these questions:
 
 - Does this step reference an external system whose contract isn't documented?
 - Does this step apply a business rule with an unclarified edge case?
@@ -103,7 +103,7 @@ status: OPEN                        # OPEN | RESOLVING | RESOLVED
 
 # Plan blockers — <feature title>
 
-**How to resolve:** for each blocker below, edit the `Resolution:` field with your decision, then re-run `/dev:plan --resume` on this task. The plan will fold your resolutions into `dev-plan.md` and `impacted-components.md` automatically. This file's `status` will move to `RESOLVED` and `/dev:build` will unblock.
+**How to resolve:** for each blocker below, edit the `Resolution:` field with your decision, then re-run `/dev:plan --resume` on this task. The plan will fold your resolutions into `implementation.md` and `implementation.md §3 Impacted components` automatically. This file's `status` will move to `RESOLVED` and `/dev:build` will unblock.
 
 **Do not delete this file after resolution** — it's the audit trail of decisions this feature required. `/dev:plan --resume` marks each blocker `resolved: true` in-place.
 
@@ -111,7 +111,7 @@ status: OPEN                        # OPEN | RESOLVING | RESOLVED
 
 ## PB-001 — Compliance service duplicate-check contract missing
 
-**Detected in:** `dev-plan.md` step 3 (backend)
+**Detected in:** `implementation.md` step 3 (backend)
 **Blocks:** implementing the duplicate detection logic; `AC-B2` (duplicate → 409) cannot be validated without knowing what "duplicate" means to the compliance service.
 
 **Description**
@@ -197,8 +197,8 @@ Or if you can't resolve now:
    - **Any Resolution still empty** → halt again, name the empty ones
 4. **Fold resolutions:**
    - For each blocker, apply its resolution to the target file:
-     - `PB-001` (integration contract) → update `impacted-components.md` §Third-party integrations + `dev-plan.md` step 3 API-call body
-     - `PB-002` (schema) → update `impacted-components.md` §Database + `dev-plan.md` step 1 migration content
+     - `PB-001` (integration contract) → update `implementation.md §3 Impacted components` §Third-party integrations + `implementation.md` step 3 API-call body
+     - `PB-002` (schema) → update `implementation.md §3 Impacted components` §Database + `implementation.md` step 1 migration content
      - Every fold is deterministic per the resolution — no re-planning, no reasoning about "how the answer applies", just the specific edit named in the blocker's Options table
    - Write `Applied at plan-fold:` field on each PB with an ISO timestamp + a citation to the file/line edited
    - Log each fold as a `DEC-###` in `shared-context/decision-log.md`
@@ -212,10 +212,10 @@ Or if you can't resolve now:
 ✓ /dev:plan --resume complete — 2 blockers folded into the plan
 
    PB-001  → resolved (option 1: internal compliance service)
-             applied to: impacted-components.md §3rd-party, dev-plan.md step 3
+             applied to: implementation.md §3 Impacted components §3rd-party, implementation.md step 3
              logged as DEC-042
    PB-002  → resolved (option 1: composite uniqueness)
-             applied to: impacted-components.md §Database, dev-plan.md step 1
+             applied to: implementation.md §3 Impacted components §Database, implementation.md step 1
              logged as DEC-043
 
 Local state:  PLANNED
@@ -292,7 +292,7 @@ Same for TL `[HELD]` markers in `tl-plan.md` — those get promoted to PBs.
 | Path | Purpose |
 |---|---|
 | [plugins/dev/commands/references/plan/blocker-detection.md](../../plugins/dev/commands/references/plan/) | The 5-source detection ladder + heuristics + template for `plan-blockers.md` |
-| [plugins/dev/commands/references/plan/blocker-fold.md](../../plugins/dev/commands/references/plan/) | The deterministic per-category fold rules (how to apply a resolution to `dev-plan.md` / `impacted-components.md`) |
+| [plugins/dev/commands/references/plan/blocker-fold.md](../../plugins/dev/commands/references/plan/) | The deterministic per-category fold rules (how to apply a resolution to `implementation.md` / `implementation.md §3 Impacted components`) |
 
 ### Modify
 
@@ -348,7 +348,7 @@ Nothing retires. This is additive.
 
 **PBR-02** — Should `/dev:plan --resume` re-run detection after folding, to catch any new blockers the fold might reveal? Recommendation: **no for v2.2** — one pass; user re-runs if desired. Simpler semantics. **Non-blocking.**
 
-**PBR-03** — Should the plan-fold write the `DEC-###` inline in the target file (e.g. in dev-plan.md) OR only to `shared-context/decision-log.md`? Recommendation: both — one line in `shared-context/decision-log.md` (canonical) plus a `(DEC-042)` inline citation in dev-plan.md so a reader tracing the plan can see WHY a step reads the way it does. **Non-blocking.**
+**PBR-03** — Should the plan-fold write the `DEC-###` inline in the target file (e.g. in implementation.md) OR only to `shared-context/decision-log.md`? Recommendation: both — one line in `shared-context/decision-log.md` (canonical) plus a `(DEC-042)` inline citation in implementation.md so a reader tracing the plan can see WHY a step reads the way it does. **Non-blocking.**
 
 ---
 

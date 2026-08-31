@@ -8,12 +8,12 @@ Each dimension applies to every diff regardless of stack. Framework-specific SIG
 
 ## Dimension 1 — Correctness
 
-**Question.** Does this code actually do what `dev-plan.md` said?
+**Question.** Does this code actually do what `implementation.md` said?
 
 **Signals.**
 
-- Each dev-plan step should be represented by code in the diff. Missing steps = incomplete work.
-- Function signatures match what the dev-plan / TL Implementation §2 API endpoints described (e.g. `POST /supplier` request body, response shape, refusal codes).
+- Each implementation.md build sequence step should be represented by code in the diff. Missing steps = incomplete work.
+- Function signatures match what the implementation.md build sequence / TL Implementation §2 API endpoints described (e.g. `POST /supplier` request body, response shape, refusal codes).
 - Business rule enforcement points (see Dimension 5) are wired up.
 - Off-by-one errors, wrong operators (`===` vs `==`, `>=` vs `>`), inverted conditions.
 - Error paths that don't propagate to the caller.
@@ -21,7 +21,7 @@ Each dimension applies to every diff regardless of stack. Framework-specific SIG
 
 **Severity guidance.**
 
-- Missing dev-plan step → **Blocker** (feature is incomplete)
+- Missing implementation.md build sequence step → **Blocker** (feature is incomplete)
 - Wrong endpoint contract → **Blocker** (violates TL spec)
 - Off-by-one / inverted condition → **Major** (behavioural bug)
 - Missing `await` → **Major** (async correctness)

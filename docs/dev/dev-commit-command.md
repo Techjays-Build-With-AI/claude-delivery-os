@@ -93,11 +93,11 @@ Same 4-way resolution as `/dev:plan` / `/dev:build`. If invoked with no target, 
 
 Under the task folder, require:
 
-- `dev/delivery-status.md` with `current_state: IN_PROGRESS` (the "build done, awaits commit" state per `/dev:build` §19)
+- `dev/status.md` with `current_state: IN_PROGRESS` (the "build done, awaits commit" state per `/dev:build` §19)
 - `dev/build-run.md` with Stage 11 status `DONE`
 - `dev/acceptance-map.md` present, with 100% of non-deferred rows `✅ pass`
 - `dev/local-runbook.md` present
-- Current git branch name matches the recorded branch in `delivery-status.md`
+- Current git branch name matches the recorded branch in `status.md`
 
 Missing / mismatched → halt with:
 
@@ -114,7 +114,7 @@ Never build inline. `/dev:commit` only ships what `/dev:build` produced.
 
 ## 5. Stage 1 — Acquire lock + set MC status to devReview
 
-Write owner into `dev/delivery-status.md`. Transition:
+Write owner into `dev/status.md`. Transition:
 
 - **Local:** `IN_PROGRESS → REVIEW` (broadcast)
 - **MC:** `inProgress → devReview` (via `task-mcp.update_task_status`)
@@ -193,7 +193,7 @@ Delegate to the new **`dev-stack-adaptive-code-review`** skill (see §14 for spe
 
 **Review dimensions (dynamic per stack, not per-stack playbooks):**
 
-- **Correctness** — does the code actually implement what `dev-plan.md` said?
+- **Correctness** — does the code actually implement what `implementation.md` said?
 - **Convention adherence** — matches the repo's existing patterns?
 - **Error handling** — every exceptional path handled per the repo's style?
 - **Testability** — is the code structured so tests can exercise it (no hard-coded time, DI where appropriate)?
@@ -352,7 +352,7 @@ Next:
 
 **No new files** at this stage — everything's already written by earlier stages.
 
-**Local state stays `REVIEW`** — human reviewer takes over. On PR merge, a webhook (out of scope for v2.2; noted for v2.3) flips MC status to `done` and updates `delivery-status.md` to `DONE`.
+**Local state stays `REVIEW`** — human reviewer takes over. On PR merge, a webhook (out of scope for v2.2; noted for v2.3) flips MC status to `done` and updates `status.md` to `DONE`.
 
 ---
 

@@ -1,6 +1,6 @@
 ## Stages 5 + 6 — Implementation + Test Writing
 
-**Purpose.** Write feature code AND its tests for every ordered step in `dev/dev-plan.md`. Combined into one document because in practice both happen interleaved — code first, tests immediately after, per step.
+**Purpose.** Write feature code AND its tests for every ordered step in `implementation.md`. Combined into one document because in practice both happen interleaved — code first, tests immediately after, per step.
 
 **Runs after Stage 4 (QA gate) succeeds.** State: `IN_PLANNING → IN_DEVELOPMENT`. MC: `inProgress` (unchanged).
 
@@ -28,7 +28,7 @@ Invoke the **`dev-stack-adaptive-implementation`** skill (see `plugins/dev/skill
 
 - **Phase 1** — Stack detection (if not already done in Stage 4). Reads `references/stack-detection.md` and records to `dev/implementation-log.md` `detected_stack:` block.
 - **Phase 2** — Pattern inference. Reads ≤ 10 existing files per `references/pattern-inference.md` to establish the 8 conventions the repo uses (folder structure, imports, error handling, DI, config, logging, testing, naming). Records to `dev/implementation-log.md` `inferred_patterns:` block.
-- **Phase 3** — Code + test writing. For each ordered step in `dev-plan.md`:
+- **Phase 3** — Code + test writing. For each ordered step in `implementation.md`:
   1. Read the TL unit files this step references (endpoints, entities, pages)
   2. Write the code idiomatically per Phase 2's inferred patterns
   3. Write the tests immediately per `references/test-patterns.md`

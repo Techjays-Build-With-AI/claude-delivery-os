@@ -23,7 +23,7 @@ Read the **`delivery-os-conventions`** skill first if it's not in context — th
 - Local feature folder: `features/supplier-onboarding`
 - Sub-task folder: `features/supplier-onboarding/subtask/backend`
 - Internal id: `FEAT-<AREA>-NN`
-- Blank: pick most recent task whose `dev/delivery-status.md` has `ready_for_dev_commit: true`
+- Blank: pick most recent task whose `status.md` has `ready_for_dev_commit: true`
 
 **Flags:**
 - `initiative=<name>` — scope selection
@@ -36,20 +36,20 @@ Read the **`delivery-os-conventions`** skill first if it's not in context — th
 
 Same 4-way resolution as `/dev:plan` Stage 0 / `/dev:build` Stage 0 — see `plugins/dev/commands/plan.md` §2a. Determine `task_kind` (parent-alone or sub-task) and canonical `(feature_id, task_object_id, task_number, task_folder)`.
 
-**Verify `/dev:build` completed.** Check `dev/delivery-status.md`:
+**Verify `/dev:build` completed.** Check `status.md`:
 - `current_state: IN_PROGRESS`
 - `ready_for_dev_commit: true`
 - `branch:` field non-empty
 
 Any missing → halt with "run /dev:build first" message.
 
-**Verify branch is checked out** in the target repo: `git rev-parse --abbrev-ref HEAD` matches the branch recorded in `delivery-status.md`. Mismatch → halt with "checkout the feature branch first: `git checkout <branch>`".
+**Verify branch is checked out** in the target repo: `git rev-parse --abbrev-ref HEAD` matches the branch recorded in `status.md`. Mismatch → halt with "checkout the feature branch first: `git checkout <branch>`".
 
 **Verify no uncommitted changes** (`git status --porcelain` empty) UNLESS `--resume` and we're in Stage 7 halt state — in which case pending manual edits are allowed on `dev/context-merge-conflicts.md` and touched context files.
 
 ## 3. Stage 1 — Acquire lock + flip status
 
-- Write owner into `dev/delivery-status.md` (agent id)
+- Write owner into `status.md` (agent id)
 - Local: `IN_PROGRESS → REVIEW` (broadcast)
 - MC: `inProgress → devReview` via `task-mcp.update_task_status`
 - Read parent BA files (`feature.md`, `workflow.md`, `acceptance-criteria.md`, `business-rules.md`, `nfrs.md`, `test-scenarios.md`, `dependencies.md`) — validation contract; passed to Stages 4 + 5
@@ -125,7 +125,7 @@ PR:            ✓ opened by /dev:commit
 Local state:   REVIEW           (awaiting human review)
 MC status:     devReview        (flips to done on PR-merge webhook — future)
 
-Local runbook: features/supplier-onboarding/subtask/backend/dev/local-runbook.md
+Local runbook: features/supplier-onboarding/subtask/backend/implementation.md §10 How to verify locally
 PR summary:    features/supplier-onboarding/subtask/backend/dev/pr-summary.md
 
 Next:
@@ -145,7 +145,7 @@ No file writes at Stage 10 — pr-summary + commit-run + delivery-status are alr
 
 ## 8. Guardrails
 
-- Never invent behaviour not in `dev-plan.md` or resulting from a Stage 6 fix
+- Never invent behaviour not in `implementation.md` or resulting from a Stage 6 fix
 - Never bypass Stage 3 security review without the `SECURITY_REVIEW_OVERRIDE` env
 - Never bypass Stage 7 semantic merge without `--force-context-merge=ours`
 - Never `git push --force` without `--force-push`

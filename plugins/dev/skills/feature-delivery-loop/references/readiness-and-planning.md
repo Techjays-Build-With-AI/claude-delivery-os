@@ -14,14 +14,14 @@ The five planning stages that used to live here are now `/dev:plan`'s job. If yo
 | §1a    | Repository gate — brownfield vs project-zero | [`plugins/dev/commands/references/plan/development-planning.md`](../../../commands/references/plan/development-planning.md) §3c.i |
 | §1b    | Test-harness gate | [`plugins/dev/commands/references/plan/development-planning.md`](../../../commands/references/plan/development-planning.md) §3c.ii |
 | §2     | Impact analysis (12 dimensions) | [`plugins/dev/commands/references/plan/development-planning.md`](../../../commands/references/plan/development-planning.md) §3d |
-| §3     | Implementation planning (dev-plan.md) | [`plugins/dev/commands/references/plan/development-planning.md`](../../../commands/references/plan/development-planning.md) §3e |
+| §3     | Implementation planning (implementation.md) | [`plugins/dev/commands/references/plan/development-planning.md`](../../../commands/references/plan/development-planning.md) §3e |
 
 ## What `/dev:build` still does (not in this file)
 
 The `feature-delivery-loop` skill retains a **lightweight verification** at loop steps 1 – 3:
 
 - **Step 1** — resolve the target (`Task-N`, `Feature-N`, `Subtask-N`, slug, folder, `FEAT-<AREA>-NN`) and **verify the plan exists**. Missing → *"Run `/dev:plan <target>` first"* and halt.
-- **Step 2** — acquire the lock, read the parent BA files + this task's Implementation content + `/dev:plan`'s `dev-plan.md`.
+- **Step 2** — acquire the lock, read the parent BA files + this task's Implementation content + `/dev:plan`'s `implementation.md`.
 - **Step 3** — cheap pre-flight (MC status + drift + cross-sub-task deps) in case things flipped between plan and build.
 
 None of those write a plan — they consume it. See `SKILL.md` steps 1 – 3 for the exact instructions.

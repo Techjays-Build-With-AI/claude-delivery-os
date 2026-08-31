@@ -1,6 +1,6 @@
 ## Blocker fold — runs on `/dev:plan --resume` when `plan-blockers.md` has resolutions
 
-**Purpose.** Take each `PB-###` with a filled `Resolution:` and apply it deterministically to `dev-plan.md` + `impacted-components.md` + any relevant register. Log each fold as a `DEC-###`. Never re-plan, never reason about "how the answer applies" — the blocker's Options table already names the edit; the fold executes it.
+**Purpose.** Take each `PB-###` with a filled `Resolution:` and apply it deterministically to `implementation.md` + `implementation.md §3 Impacted components` + any relevant register. Log each fold as a `DEC-###`. Never re-plan, never reason about "how the answer applies" — the blocker's Options table already names the edit; the fold executes it.
 
 **Runs from `/dev:plan --resume`** after [`blocker-detection.md`](blocker-detection.md) §5.7 confirms every `PB-###` has a non-empty `Resolution:`.
 
@@ -31,95 +31,95 @@ Each blocker's `**Category:**` field decides which fold rule applies. All fold r
 
 #### 6.2.1 `integration-contract`
 
-**Target files:** `dev/dev-plan.md` + `dev/impacted-components.md` + `ba/registers/integrations.md` (if the resolution provides missing fields)
+**Target files:** `implementation.md` + `implementation.md §3 Impacted components` + `ba/registers/integrations.md` (if the resolution provides missing fields)
 
 **Fold rule:**
 1. In `ba/registers/integrations.md`: locate the `INT-###` row, fill missing fields from the resolution (endpoint, auth, request/response schema)
-2. In `dev/dev-plan.md`: locate the step that references the integration, replace `[HELD]` / `TBD` with the concrete API call details from the resolution
-3. In `dev/impacted-components.md`: fill the `Third-party integrations` dimension with the resolved endpoint + auth mechanism
+2. In `implementation.md`: locate the step that references the integration, replace `[HELD]` / `TBD` with the concrete API call details from the resolution
+3. In `implementation.md §3 Impacted components`: fill the `Third-party integrations` dimension with the resolved endpoint + auth mechanism
 4. Log: `DEC-<###>: Resolved integration <INT-###> per PB-<id> — <one-line summary of the option>`
 
 **Example — PB-001 resolution "1":**
 - Option 1 = "Use internal compliance service at `https://compliance.acme.internal/v1/duplicate-check`, Bearer auth via `COMPLIANCE_TOKEN`"
 - Fold updates INT-001 row's endpoint + auth fields
-- Fold updates dev-plan.md step 3 from `[HELD] call compliance service` to `POST https://compliance.acme.internal/v1/duplicate-check with { tax_id, country } — Authorization: Bearer <COMPLIANCE_TOKEN>`
-- Fold updates impacted-components.md §Third-party integrations with `INT-001 Compliance service · endpoint · Bearer auth`
+- Fold updates implementation.md step 3 from `[HELD] call compliance service` to `POST https://compliance.acme.internal/v1/duplicate-check with { tax_id, country } — Authorization: Bearer <COMPLIANCE_TOKEN>`
+- Fold updates implementation.md §3 Impacted components §Third-party integrations with `INT-001 Compliance service · endpoint · Bearer auth`
 - Log DEC-042
 
 #### 6.2.2 `schema-ambiguity`
 
-**Target files:** `dev/dev-plan.md` + `dev/impacted-components.md` + TL entity file (`<repo>/context/code-context/database/entities/<slug>.md`)
+**Target files:** `implementation.md` + `implementation.md §3 Impacted components` + TL entity file (`<repo>/context/code-context/database/entities/<slug>.md`)
 
 **Fold rule:**
 1. In the TL entity file: update the `## Structure` table with the resolved column type / nullability / constraint
-2. In `dev/dev-plan.md`: update the migration step with the resolved schema
-3. In `dev/impacted-components.md`: update `Database` dimension to reflect the resolved schema
+2. In `implementation.md`: update the migration step with the resolved schema
+3. In `implementation.md §3 Impacted components`: update `Database` dimension to reflect the resolved schema
 4. Log: `DEC-<###>: Resolved schema ambiguity <field> per PB-<id> — <one-line summary>`
 
 #### 6.2.3 `auth-model`
 
-**Target files:** `dev/dev-plan.md` + `shared-context/system-landscape.md` (Actors section) + TL endpoint files if endpoints check the role
+**Target files:** `implementation.md` + `shared-context/system-landscape.md` (Actors section) + TL endpoint files if endpoints check the role
 
 **Fold rule:**
 1. In `system-landscape.md`: add or complete the role's Description + Permission scope + Authentication mechanism per the resolution
-2. In `dev/dev-plan.md`: update every step that touches auth with the resolved model
+2. In `implementation.md`: update every step that touches auth with the resolved model
 3. In each TL endpoint file that enforces the role: update `## Permissions` section
 4. Log: `DEC-<###>: Resolved auth model for <role> per PB-<id> — <one-line summary>`
 
 #### 6.2.4 `config-unknown`
 
-**Target files:** `dev/dev-plan.md` + `shared-context/technology-stack.md` + `dev/local-runbook.md` (creates one if absent — this is the developer-facing env var log)
+**Target files:** `implementation.md` + `shared-context/technology-stack.md` + `implementation.md §10 How to verify locally` (creates one if absent — this is the developer-facing env var log)
 
 **Fold rule:**
 1. In `technology-stack.md`: append the env var / config value to the Configuration section with (name, purpose, example value, source-of-value)
-2. In `dev/dev-plan.md`: update the step that needed the config with the concrete variable name + how to obtain the value
-3. If the resolution says *"user must set locally"* → note the variable in `dev/local-runbook.md` under `Environment / config setup` with `[SET REQUIRED]` marker (for `/dev:build` Stage 11 to consume)
+2. In `implementation.md`: update the step that needed the config with the concrete variable name + how to obtain the value
+3. If the resolution says *"user must set locally"* → note the variable in `implementation.md §10 How to verify locally` under `Environment / config setup` with `[SET REQUIRED]` marker (for `/dev:build` Stage 11 to consume)
 4. Log: `DEC-<###>: Resolved config value <name> per PB-<id>`
 
 #### 6.2.5 `br-edge-case`
 
-**Target files:** `dev/dev-plan.md` + `ba/registers/business-rules.md` (updates the BR entry)
+**Target files:** `implementation.md` + `ba/registers/business-rules.md` (updates the BR entry)
 
 **Fold rule:**
 1. In `ba/registers/business-rules.md`: locate the `BR-###` row, append the resolved edge case to the Statement column (e.g. `"...duplicate submissions after 24h are treated as new submissions"`)
-2. In `dev/dev-plan.md`: update every step that enforces this BR with the resolved edge-case handling
+2. In `implementation.md`: update every step that enforces this BR with the resolved edge-case handling
 3. Log: `DEC-<###>: Resolved BR-<###> edge case per PB-<id> — <one-line summary>`
 
 #### 6.2.6 `dependency-choice`
 
-**Target files:** `dev/dev-plan.md` + `shared-context/technology-stack.md` + `qa/quality-gates.md` (if the dep affects a test framework)
+**Target files:** `implementation.md` + `shared-context/technology-stack.md` + `qa/quality-gates.md` (if the dep affects a test framework)
 
 **Fold rule:**
 1. In `technology-stack.md`: append the dependency to Libraries section with (name, version, purpose)
-2. In `dev/dev-plan.md`: update every step that uses the dep with the concrete library name
+2. In `implementation.md`: update every step that uses the dep with the concrete library name
 3. If it's a testing lib: also update `qa/quality-gates.md` Required section
 4. Log: `DEC-<###>: Chose <library> per PB-<id>`
 
 #### 6.2.7 `data-flow`
 
-**Target files:** `dev/dev-plan.md` + TL entity files + `dev/impacted-components.md`
+**Target files:** `implementation.md` + TL entity files + `implementation.md §3 Impacted components`
 
 **Fold rule:**
 1. In the involved TL entity files: update the `## Business Purpose` and cross-references to reflect which is source of truth
-2. In `dev/dev-plan.md`: update the step that reads / writes with the correct source
-3. In `dev/impacted-components.md`: update `Database` dimension
+2. In `implementation.md`: update the step that reads / writes with the correct source
+3. In `implementation.md §3 Impacted components`: update `Database` dimension
 4. Log: `DEC-<###>: Data flow — <field> source of truth is <entity> per PB-<id>`
 
 #### 6.2.8 `copy`
 
-**Target files:** `dev/dev-plan.md` (specifically Frontend UI step or refusals table)
+**Target files:** `implementation.md` (specifically Frontend UI step or refusals table)
 
 **Fold rule:**
-1. In `dev/dev-plan.md`: replace the placeholder copy with the resolved text verbatim
+1. In `implementation.md`: replace the placeholder copy with the resolved text verbatim
 2. Log: `DEC-<###>: Copy for <surface> per PB-<id> — "<first 60 chars of text>..."`
 
 #### 6.2.9 `cross-feature-ordering`
 
-**Target files:** `dev/dev-plan.md` + `features/<slug>/dependencies.md` (parent's BA file)
+**Target files:** `implementation.md` + `features/<slug>/dependencies.md` (parent's BA file)
 
 **Fold rule:**
 1. In `dependencies.md`: append the resolution (either "FEAT-USER-01 is already shipped in v1.2" OR "we mock the user service via `MockUserService`")
-2. In `dev/dev-plan.md`: update any dependent step with the resolved approach
+2. In `implementation.md`: update any dependent step with the resolved approach
 3. If mocking: add a step for the mock in the dev-plan
 4. Log: `DEC-<###>: Cross-feature dep <FEAT-…> resolved per PB-<id> — <approach>`
 
@@ -165,7 +165,7 @@ Rationale: half-folded plans are worse than un-folded plans. A file we didn't fi
 1. Re-run `/dev:plan` Stage 3.5 detection (§5.1 + §5.2 in [`blocker-detection.md`](blocker-detection.md)) — a fold might have revealed new blockers (e.g. resolving one config value revealed another that hadn't been checked because the first was blocking)
    - If new blockers detected: mint them, append to `plan-blockers.md` (do NOT touch existing resolved PBs), set frontmatter back to `OPEN`, halt again
    - If no new blockers: continue to step 2
-2. Update `dev/delivery-status.md`:
+2. Update `status.md`:
    ```yaml
    current_state: PLANNED
    blocker_file: dev/plan-blockers.md    # kept for audit

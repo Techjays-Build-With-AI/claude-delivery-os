@@ -23,7 +23,7 @@ Two shifts from v2.1:
 
 ```yaml
 ---
-description: Build a planned task through the full loop — branch, implement per dev-plan.md, write and execute stack-adaptive tests, run a scoped security review, and validate against the parent's Acceptance Criteria + Business Rules + Test Scenarios + NFRs. Bounded fix loop until 100% or escalation. Refuses to run without a /dev:plan-generated plan; halts if quality-gates.md needs greenfield bootstrap and auto-runs qa-greenfield-harness inline. Accepts any task identifier (MC task number, feature slug or folder, sub-task folder, FEAT-<AREA>-NN). Sub-task builds work in the sub-task's repo only, on a branch named feature/FEAT-<AREA>-NN-<slug>-<repo>. Never merges, never pushes, never raises a PR — /dev:commit does that.
+description: Build a planned task through the full loop — branch, implement per implementation.md, write and execute stack-adaptive tests, run a scoped security review, and validate against the parent's Acceptance Criteria + Business Rules + Test Scenarios + NFRs. Bounded fix loop until 100% or escalation. Refuses to run without a /dev:plan-generated plan; halts if quality-gates.md needs greenfield bootstrap and auto-runs qa-greenfield-harness inline. Accepts any task identifier (MC task number, feature slug or folder, sub-task folder, FEAT-<AREA>-NN). Sub-task builds work in the sub-task's repo only, on a branch named feature/FEAT-<AREA>-NN-<slug>-<repo>. Never merges, never pushes, never raises a PR — /dev:commit does that.
 argument-hint: "<Task-N | Feature-N | Subtask-N | slug | features/<slug> | features/<slug>/subtask/<repo> | FEAT-<AREA>-NN | (blank = next PLANNED task)> [initiative=<name>] [--resume] [--no-security-review]"
 ---
 ```
@@ -100,9 +100,9 @@ Same 4-way resolution as `/dev:plan` Stage 0 — see [dev-plan-command.md §4a](
 
 Under the task folder, require:
 
-- `dev/dev-plan.md`
-- `dev/impacted-components.md`
-- `dev/delivery-status.md` with `current_state: PLANNED` or later (`IN_PROGRESS`, `REVIEW` for `--resume`)
+- `dev/implementation.md`
+- `dev/implementation.md §3 Impacted components`
+- `dev/status.md` with `current_state: PLANNED` or later (`IN_PROGRESS`, `REVIEW` for `--resume`)
 
 Missing → halt with:
 
@@ -119,7 +119,7 @@ Never re-plan inline. If the plan looks stale (unit files moved since it was wri
 
 ## 5. Stage 1 — Acquire lock + mount context
 
-Write owner into `delivery-status.md`. Transition state:
+Write owner into `status.md`. Transition state:
 
 - **Local:** `PLANNED → IN_PLANNING` (broadcast)
 - **MC:** `readyForDev → inProgress` (via `task-mcp.update_task_status`)
@@ -130,8 +130,8 @@ Write owner into `delivery-status.md`. Transition state:
 2. Task's Implementation content:
    - Parent-alone → `features/<slug>/tl-plan.md` (detailed mode)
    - Sub-task → `features/<slug>/subtask/<repo>/description.md` + `implementation.md`; plus parent's `tl-plan.md` (rollup) for cross-sub-task deps
-3. `dev/dev-plan.md` — the ordered build script
-4. `dev/impacted-components.md` — 12-dimension impact map
+3. `dev/implementation.md` — the ordered build script
+4. `dev/implementation.md §3 Impacted components` — 12-dimension impact map
 5. `shared-context/decision-log.md` — DEC-### to honour, and where you'll append your own
 
 Record which sources were consulted in `dev/implementation-log.md`. Do not proceed until you can state what "done" is in terms of every AC.
@@ -144,7 +144,7 @@ Three cheap re-checks (a lot may have flipped since `/dev:plan`):
 
 - **MC status** — refetch this task's status; if MC now says `blocked` → halt with the block reason
 - **Local drift** — invoke the shared drift helper on the task's local files. Prompt (Y build as-is / S stop and push first)
-- **Cross-sub-task deps** (sub-task target only) — read parent's rollup Sub-tasks table. If any `Depends on` sub-task is NOT `DONE` in MC AND this task's `dev-plan.md` marks the dep as hard → halt with escalation
+- **Cross-sub-task deps** (sub-task target only) — read parent's rollup Sub-tasks table. If any `Depends on` sub-task is NOT `DONE` in MC AND this task's `implementation.md` marks the dep as hard → halt with escalation
 
 ---
 
@@ -168,7 +168,7 @@ Read `.jetrix/project.json` `apps[].env_branches` for THIS repo. Default to the 
 
 **Never** on `main` / `master` / `staging` / `production` / `develop` directly. Confirm base build is green in the target repo before touching anything (a pre-existing broken build is an escalation, not this feature's bug).
 
-Write branch name into `delivery-status.md`. Ready for code.
+Write branch name into `status.md`. Ready for code.
 
 ---
 
@@ -193,7 +193,7 @@ Local: `IN_PLANNING → IN_DEVELOPMENT` (broadcast). MC: still `inProgress`.
 **Delegate to the `dev-stack-adaptive-implementation` skill** — see §17 for the full skill spec. Summary of what the skill does:
 
 1. Detect the stack (language, framework, ORM, testing framework, package manager) via `shared-context/technology-stack.md` if present, else by scanning repo top-level for `package.json` / `pyproject.toml` / `go.mod` / `Cargo.toml` / etc.
-2. For each ordered step in `dev-plan.md`:
+2. For each ordered step in `implementation.md`:
    - Read the relevant TL unit files (endpoints, entities, pages) for the target repo
    - Locate the target file(s) in the repo, using naming conventions inferred from the stack
    - Write the code idiomatically per the stack — using patterns already present in the repo (imports, error handling, logging, config), not generic templates
@@ -410,7 +410,7 @@ This file is what the developer reads at their desk. The PR summary is what the 
 - Follow the repo's error-handling style — if it uses `try/catch + custom errors`, do the same; if it uses `Result<T, E>`, do that
 - Follow the repo's testing framework choice (from `qa/quality-gates.md` OR the greenfield harness's decision)
 - Never leak framework names in comments/documentation
-- Never invent behaviour not in `dev-plan.md`
+- Never invent behaviour not in `implementation.md`
 
 ### 17b. `qa-greenfield-harness`
 
@@ -493,9 +493,9 @@ Unknown stack → fall back to `<stack> + <best-known-testing-tool>` and log the
 └── subtask/<repo>/dev/                  (sub-task)
     │
     │  (from /dev:plan — read by /dev:build)
-    ├── dev-plan.md
-    ├── impacted-components.md
-    ├── delivery-status.md
+    ├── implementation.md
+    ├── implementation.md §3 Impacted components
+    ├── status.md
     ├── plan-run.md
     │
     │  (written by /dev:build)
@@ -508,7 +508,7 @@ Unknown stack → fall back to `<stack> + <best-known-testing-tool>` and log the
     └── escalation-<n>.md                ← if BLOCKED
 ```
 
-**Cross-repo state:** feature branches with names + status carried in `delivery-status.md` per task. Parent's derived status pulled from sub-tasks per `/dev:plan` §10.
+**Cross-repo state:** feature branches with names + status carried in `status.md` per task. Parent's derived status pulled from sub-tasks per `/dev:plan` §10.
 
 ---
 
@@ -516,7 +516,7 @@ Unknown stack → fall back to `<stack> + <best-known-testing-tool>` and log the
 
 Per your instruction (2026-08-31 chat): use MC's existing enum. No new invented states.
 
-| /dev:build phase | Local state (`delivery-status.md`) | MC status (`task-mcp.update_task_status`) |
+| /dev:build phase | Local state (`status.md`) | MC status (`task-mcp.update_task_status`) |
 |---|---|---|
 | Start (Stage 1 lock) | `IN_PLANNING` | `inProgress` |
 | Implementation (Stage 5) | `IN_DEVELOPMENT` | `inProgress` |

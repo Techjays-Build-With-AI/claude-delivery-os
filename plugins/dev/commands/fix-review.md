@@ -21,7 +21,7 @@ If target present but feedback source missing → ask where the review comments 
 
 ## 2. Verify state
 
-Read `dev/delivery-status.md`:
+Read `status.md`:
 - `current_state: REVIEW` — expected
 - MC status: `devReview` — expected
 - `pr_url:` non-empty in `dev/commit-run.md`

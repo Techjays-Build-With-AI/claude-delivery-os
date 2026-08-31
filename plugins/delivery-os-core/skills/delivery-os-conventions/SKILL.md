@@ -7,9 +7,11 @@ description: The Techjays Delivery OS shared document contract. Read this before
 
 This is the single source of truth that makes Delivery OS documents **shareable across agents and across weeks**. The BA Agent produces documents today; the Doc, TL, and QA agents consume them later. They only interoperate if every agent honors this contract.
 
-> **Contract version: 2.2.** Bump `schema_version` in document frontmatter and update this file together when the contract changes.
+> **Contract version: 2.3.** Bump `schema_version` in document frontmatter and update this file together when the contract changes.
 >
-> **2.2 (plan-time blocker resolution — additive).** Added the plan-time blocker resolution loop so `/dev:build` never has to make build-time decisions. New per-task file `dev/plan-blockers.md` (`doc_type: plan-blockers`) captures decisions the user must make BEFORE build starts — missing integration contracts, undecided auth models, ambiguous schemas, unknown config, unclear business rule edge cases. `/dev:plan` Stage 3 detects them from 5 sources (`tl-plan.md` `[HELD]` markers, BA `open-questions.md` "Blocks build" rows, `integrations.md` unresolved entries, `system-landscape.md` gaps, `impacted-components.md` `unknown` entries). User fills `Resolution:` per blocker → `/dev:plan --resume` deterministically folds resolutions into `dev-plan.md` + `impacted-components.md` and logs each as a `DEC-###`. New state `BLOCKED_ON_PLAN` (distinct from execution-time `BLOCKED`) — both map to MC `blocked`. New ID prefix `PB-###` (Plan Blocker, sequential per task). `/dev:build` Stage 0 refuses to run if `plan-blockers.md` `status:` is `OPEN` or `RESOLVING`. Additive: features whose plan is already fully-decidable never get a `plan-blockers.md` file.
+> **2.3 (flat sub-task tabs + single implementation source of truth — breaking).** File structure simplified per user's design intent. Under each `<feature-slug>/` (parent-alone) or each `<feature-slug>/subtask/<repo>/` (sub-task), MC-facing content is now **3 flat files**: `description.md` (→ MC Description tab), `implementation.md` (→ MC Implementation tab — SINGLE SOURCE OF TRUTH with 10 sections: business flow, build sequence, impacted components, API endpoints, database, frontend UI, touch points, test strategy, risks + rollback, how to verify locally), and `status.md` (MC-mirrored + local loop state — absorbs the retired `delivery-status.md`). All local audit lives under ONE `dev/` folder at feature root — `features/<slug>/dev/` — including per-sub-task audit at `features/<slug>/dev/subtask/<repo>/`. **No nested `dev/` inside sub-task roots** — sub-task folders hold only the 3 MC-facing files. New per-feature file `dev/traceability.md` — the ID cross-reference map (AC ↔ BR ↔ EP ↔ implementation-step ↔ test ↔ PB ↔ DEC), local-only. **Retired doc_types:** `dev-plan`, `impacted-components`, `delivery-status`, `subtask-description` (folded into `description`), `subtask-implementation` (folded into `implementation`), `subtask-status` (folded into `status`), `local-runbook` (folded into `implementation.md § 10`). **Retired files:** `dev/dev-plan.md`, `dev/impacted-components.md`, `dev/delivery-status.md`, `dev/local-runbook.md`, `subtask/<repo>/dev/*`, `subtask/task-decision.md`, `tl-plan.md` for parent-alone (split rollup still uses `tl-plan.md`). Backward compatibility: migration handled by `/jetrix:init` when it detects v2.2 layout on disk.
+>
+> **2.2 (plan-time blocker resolution — additive).** Added the plan-time blocker resolution loop so `/dev:build` never has to make build-time decisions. New per-task file `dev/plan-blockers.md` (`doc_type: plan-blockers`) captures decisions the user must make BEFORE build starts — missing integration contracts, undecided auth models, ambiguous schemas, unknown config, unclear business rule edge cases. `/dev:plan` Stage 3 detects them from 5 sources (`tl-plan.md` `[HELD]` markers, BA `open-questions.md` "Blocks build" rows, `integrations.md` unresolved entries, `system-landscape.md` gaps, `implementation.md § 3 Impacted components` `unknown` entries). User fills `Resolution:` per blocker → `/dev:plan --resume` deterministically folds resolutions into `implementation.md` and logs each as a `DEC-###`. New state `BLOCKED_ON_PLAN` (distinct from execution-time `BLOCKED`) — both map to MC `blocked`. New ID prefix `PB-###` (Plan Blocker, sequential per task). `/dev:build` Stage 0 refuses to run if `plan-blockers.md` `status:` is `OPEN` or `RESOLVING`. Additive: features whose plan is already fully-decidable never get a `plan-blockers.md` file.
 >
 > **2.1 (sub-task delivery layer — additive).** Added the sub-task tree under each feature: `features/<slug>/subtask/<repo>/` holds one sub-task per involved repo when `/dev:plan` decides to split a multi-repo feature. Each sub-task's tab files (`description.md`, `implementation.md`, `status.md`) map 1:1 to MC's 4-tab sub-task schema (`taskType: subtask`; the `acceptanceCriteria` and `testScenarios` tabs stay empty on MC — validation reads parent). Dev artifacts for each sub-task live under `subtask/<repo>/dev/`. New `doc_type`s: `subtask-description`, `subtask-implementation`, `subtask-status`, `plan-run`, `task-decision`. `/dev:plan` batch runs write summaries under `.jetrix/dev/batch-runs/plan-run-<ts>.md`. Reverse mapping (MC metadata → local layout) uses `metadata.subtaskNumber` + `metadata.subtaskRepo` on each sub-task so `/jetrix:pull scope` can reconstruct the tree cold. Additive — single-repo and bug/story features never get a `subtask/` folder and are unaffected.
 >
@@ -73,7 +75,7 @@ Every Delivery OS workspace is bound to **one** Jetrix Solution. Everything live
     ├── features/                         # BA authors, TL enriches, Dev delivers
     │   ├── feature-index.md              # roll-up (pushed as scope-context doc)
     │   ├── tracker.md                    # cross-feature dev roll-up (state per feature)
-    │   └── <feature-slug>/
+    │   └── <feature-slug>/               # v2.2 layout — see §1.a.i for the design rationale
     │       ├── feature.md                # BA — Description tab source
     │       ├── workflow.md               # BA — folds into feature.md at push
     │       ├── acceptance-criteria.md    # BA — Acceptance tab
@@ -82,46 +84,66 @@ Every Delivery OS workspace is bound to **one** Jetrix Solution. Everything live
     │       ├── test-scenarios.md         # BA — Test Scenarios tab
     │       ├── dependencies.md           # BA — Dependencies tab
     │       ├── open-questions.md         # BA — folds into dependencies at push
-    │       ├── status.md                 # BA — local-only, state field on MC Task
     │       ├── implementation-plan.md    # BA scratchpad, local-only
-    │       ├── tl-plan.md                # TL — parent Implementation tab (rollup if split, detailed if parent-alone)
     │       ├── evals/                    # TL — applied-AI features only (EVAL-<AREA>-NN)
     │       │   ├── eval-index.md
     │       │   └── <eval-slug>.md
-    │       ├── dev/                      # Dev — per-feature delivery artifacts, LOCAL-only
-    │       │                             # (only present when the feature is parent-alone;
-    │       │                             #  when split, dev artifacts live per-sub-task under subtask/<repo>/dev/)
-    │       │   ├── plan-run.md           # /dev:plan stage log for --resume
-    │       │   ├── task-decision.md      # WHY parent-alone; rule that applied
-    │       │   ├── dev-plan.md
-    │       │   ├── impacted-components.md
-    │       │   ├── acceptance-map.md
-    │       │   ├── implementation-log.md
-    │       │   ├── delivery-status.md
-    │       │   ├── decisions.md
-    │       │   ├── pr-summary.md
-    │       │   └── escalation-<n>.md
+    │       │
+    │       │# ────────── PARENT-ALONE CASE — no sub-tasks (single-repo feature) ──────────
+    │       ├── description.md            # TL — business narrative (→ MC Description tab)
+    │       ├── implementation.md         # TL — SINGLE SOURCE OF TRUTH (→ MC Implementation tab)
+    │       │                             # 10 sections: business flow (§1) + build sequence (§2) +
+    │       │                             # impacted components (§3) + API endpoints (§4) +
+    │       │                             # database (§5) + frontend UI (§6) + touch points (§7) +
+    │       │                             # test strategy (§8) + risks + rollback (§9) +
+    │       │                             # how to verify locally (§10 — dev-only; stripped on MC push)
+    │       ├── status.md                 # dev — single state file (MC-mirrored + local loop state)
+    │       │                             # includes mc_status + current_state + branch + owner_lock +
+    │       │                             # ready_for_dev_build + ready_for_dev_commit + blocker_ids +
+    │       │                             # mc_status_pushed + acceptance status table + run history
+    │       ├── dev/                      # Dev — LOCAL AUDIT for this feature (never pushed to MC)
+    │       │   ├── plan-run.md           # /dev:plan stage journal — for --resume
+    │       │   ├── plan-blockers.md      # PB-### user-decision file — only when blockers OPEN
+    │       │   ├── traceability.md       # AC ↔ BR ↔ EP ↔ implementation-step ↔ test ↔ PB ↔ DEC map
+    │       │   ├── acceptance-map.md     # parent AC → verification result (built by /dev:build)
+    │       │   ├── build-run.md          # /dev:build stage journal
+    │       │   ├── commit-run.md         # /dev:commit stage journal
+    │       │   ├── implementation-log.md # step-by-step build attempt log
+    │       │   ├── security-findings-build.md   # /dev:build Stage 9 output
+    │       │   ├── security-findings-commit.md  # /dev:commit Stage 3 output
+    │       │   ├── code-review-findings.md      # /dev:commit Stage 4 output
+    │       │   ├── context-merge-log.md         # /dev:commit Stage 7 output
+    │       │   ├── merge-conflicts.md    # only during Stage 7 halt — user resolves + --resume
+    │       │   └── escalation-<n>.md     # only when BLOCKED
+    │       │
+    │       │# ────────── SPLIT CASE — sub-tasks (multi-repo feature) ──────────
+    │       │# When split, the parent has NO parent-alone description.md/implementation.md/status.md.
+    │       │# Sub-tasks carry those. Parent state is DERIVED from sub-tasks (all DONE → parent DONE).
+    │       │# feature.md frontmatter carries the split decision (rule + repos).
+    │       ├── dev/                      # (as above) but ADDITIONALLY carries per-sub-task audit
+    │       │   ├── task-decision.md      # WHY split; which repos; rule that applied
+    │       │   └── subtask/<repo>/       # per-sub-task local audit (nests inside feature-level dev/)
+    │       │       ├── plan-blockers.md
+    │       │       ├── traceability.md
+    │       │       ├── acceptance-map.md
+    │       │       ├── build-run.md
+    │       │       ├── commit-run.md
+    │       │       ├── implementation-log.md
+    │       │       ├── security-findings-build.md
+    │       │       ├── security-findings-commit.md
+    │       │       ├── code-review-findings.md
+    │       │       ├── context-merge-log.md
+    │       │       ├── merge-conflicts.md   # conditional
+    │       │       └── escalation-<n>.md    # conditional
     │       │
     │       └── subtask/                  # ONLY exists when /dev:plan split the feature
     │           │                         # (multi-repo feature → one folder per repo, named by repo slug)
-    │           ├── plan-run.md           # /dev:plan stage log for the split run
-    │           ├── task-decision.md      # WHY split; which repos; rule that applied
     │           └── <repo-slug>/          # e.g. backend/, frontend/, mobile/
     │               │                     # matches key in .jetrix/cache/repolocation.json
     │               ├── description.md    # sub-task Description tab (business flow narrative)
-    │               ├── implementation.md # sub-task Implementation tab (detailed 5-section)
-    │               ├── status.md         # sub-task status (5-state, mirrored to MC)
-    │               │                     # (acceptance-criteria.md, test-scenarios.md deliberately
-    │               │                     #  absent — sub-task's AC/TS tabs stay empty on MC;
-    │               │                     #  validation reads parent's tabs)
-    │               └── dev/              # this sub-task's dev work-log
-    │                   ├── dev-plan.md
-    │                   ├── impacted-components.md
-    │                   ├── delivery-status.md
-    │                   ├── acceptance-map.md   # parent AC → this sub-task's evidence
-    │                   ├── implementation-log.md
-    │                   ├── pr-summary.md
-    │                   └── escalation-<n>.md
+    │               ├── implementation.md # sub-task Implementation tab (10-section source of truth)
+    │               └── status.md         # sub-task status (MC-mirrored + local loop state)
+    │                                     # NO nested dev/ folder — audit lives at features/<slug>/dev/subtask/<repo>/
     │
     ├── tl/                               # STAGE 02 — Tech Lead outputs (cross-feature)
     │   ├── code-map-registry.md          # pointer to each mapped repo's <repo>/context/code-context/ tree
@@ -209,7 +231,7 @@ It is **agent-maintained** (the user can still hand-edit it) and folds together 
 
 ```yaml
 ---
-doc_type: scope            # scope | requirement-register | use-case-register | glossary | run-summary | source-summary | intake-index | subtask-description | subtask-implementation | subtask-status | plan-run | task-decision | plan-blockers | ...
+doc_type: scope            # scope | requirement-register | use-case-register | glossary | run-summary | source-summary | intake-index | description | implementation | status | plan-run | task-decision | plan-blockers | traceability | acceptance-map | build-run | commit-run | implementation-log | security-findings | code-review-findings | context-merge-log | merge-conflicts | escalation | ...
 schema_version: 1.3        # the contract version this file conforms to
 produced_by: ba            # ba | doc | tl | qa | delivery-os
 last_intake_run: run-003   # the run that last touched this file (omit if N/A)
@@ -243,7 +265,7 @@ Every file inside `features/<slug>/subtask/<repo>/` carries this frontmatter. Th
 
 ```yaml
 ---
-doc_type:                 subtask-description   # subtask-description | subtask-implementation | subtask-status
+doc_type:                 description   # description | implementation | status   (v2.3 — subtask-* prefixes retired; distinguished by folder location)
 schema_version:           1.0
 produced_by:              dev
 feature_id:               FEAT-SUP-001          # parent feature (matches parent feature.md)

@@ -18,7 +18,7 @@ Read the **`delivery-os-conventions`** skill first if not in context — you nee
 Inputs:
 - The feature's owned unit files that flipped this run (from `dev/build-run.md` Stage 10's `context_units_updated:` list)
 - The corresponding baseline units + indexes on `main` env via `context-mcp` `context_pull_manifest(solution_id, env='main')`
-- The three layer indexes (`context/frontend/page-index.md`, `context/backend/endpoint-index.md`, `context/database/entity-index.md`) — same URL sources
+- The three layer indexes (`context/frontend/frontend-index.md`, `context/backend/backend-index.md`, `context/database/database-index.md`) — same URL sources
 - Overview files if the feature added new pages/endpoints/entities that require an overview entry
 
 Outputs:
@@ -35,7 +35,7 @@ Outputs:
 2. Call `mcp__context-mcp__context_pull_manifest(solution_id=<from .jetrix/project.json>, env='main')` — receive signed download URLs for every context doc in baseline.
 3. Filter the manifest response to:
    - The touched unit files (by repo-relative path)
-   - The three layer indexes: `context/frontend/page-index.md`, `context/backend/endpoint-index.md`, `context/database/entity-index.md`
+   - The three layer indexes: `context/frontend/frontend-index.md`, `context/backend/backend-index.md`, `context/database/database-index.md`
    - The three overviews: `context/frontend/_overview.md`, `context/backend/_overview.md`, `context/database/_overview.md`
 4. Download those specific baseline docs to a scratch dir (`dev/.context-merge-scratch/main/…`).
 5. Read the corresponding local (feature-branch) files — the ones `/dev:build` produced.
@@ -55,7 +55,7 @@ For every merged file:
 2. Append an entry to `dev/context-merge-log.md`:
 
 ```yaml
-- file: context/backend/endpoint-index.md
+- file: context/backend/backend-index.md
   action: row_union
   our_rows_added: [EP-SUP-01, EP-SUP-02]
   baseline_rows_preserved: [EP-ORD-14, EP-INV-03]   # merged from another branch
@@ -81,7 +81,7 @@ Then HALT — do NOT let `/dev:commit` proceed to Stage 8/9 push+PR. State goes 
 
 **Rule 2 — Never overwrite baseline blindly.** If a unit exists on baseline and this feature also touched it, the merge must apply the merge rules. If either side is absent, take the present side unchanged.
 
-**Rule 3 — Row union on indexes.** Layer indexes (`endpoint-index.md`, `page-index.md`, `entity-index.md`) are additive by unit-id. If both sides have the same unit-id row, apply field-level LWW; if only one side has the row, keep it. Never delete a row that exists on baseline.
+**Rule 3 — Row union on indexes.** Layer indexes (`backend-index.md`, `frontend-index.md`, `database-index.md` — filenames on disk; their frontmatter doc_types are `endpoint-index` / `page-index` / `entity-index` respectively) are additive by unit-id. If both sides have the same unit-id row, apply field-level LWW; if only one side has the row, keep it. Never delete a row that exists on baseline.
 
 **Rule 4 — LWW = latest wins by `updated_at` frontmatter.** Every unit file has `updated_at` in its frontmatter. Field-level Last-Write-Wins on scalar fields uses `updated_at`. Ties → conflict (halt).
 

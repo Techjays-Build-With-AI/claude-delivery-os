@@ -20,9 +20,56 @@ Read the **`delivery-os-conventions`** contract first if it isn't already in con
 - The BA registers the units cite (`ba/registers/data.md`, `ba/registers/integrations.md`, `ba/registers/workflows.md`, `ba/registers/business-rules.md`) and `shared-context/decision-log.md`.
 - The target app repos declared in `.jetrix/cache/repolocation.json` — read the file, and for each repo that exists locally, do a shallow layout scan (top-level + one level down) to establish routing/handler/model conventions. Never read env files, secrets, credentials, or files that look like credentials — treat any file matching `.env*`, `*.pem`, `*.key`, `*credentials*`, `*secret*` as off-limits.
 
-**Output.** Depends on the mode (see §"Compose modes" below). For **`detailed` mode** on a parent-alone feature, write `features/<slug>/tl-plan.md`. For **`detailed` mode** on a sub-task, write `features/<slug>/subtask/<repo>/implementation.md`. For **`narrative` mode** on a sub-task, write `features/<slug>/subtask/<repo>/description.md`. For **`rollup` mode** on a parent whose feature was split, write `features/<slug>/tl-plan.md`. The body structure depends on the mode — see `references/implementation-plan-template.md`, which contains the template for all three modes. Read the template before composing.
+**Output** (v2.3 layout — flat 3 files at task root, no nested dev/). Depends on the mode (see §"Compose modes" below):
 
-**Frontmatter** on parent output (`features/<slug>/tl-plan.md`):
+- **`implementation` mode** on a parent-alone feature → `features/<slug>/implementation.md` (v2.3; was `tl-plan.md` before)
+- **`implementation` mode** on a sub-task → `features/<slug>/subtask/<repo>/implementation.md`
+- **`description` mode** on a sub-task → `features/<slug>/subtask/<repo>/description.md`
+- **`rollup` mode** on a parent whose feature was split → `features/<slug>/tl-plan.md` (kept — the parent rollup remains `tl-plan.md` on split; the sub-task Implementation tabs carry the detail)
+
+The body structure depends on the mode — see `references/implementation-plan-template.md`. Read the template before composing.
+
+**Frontmatter** on parent-alone `implementation.md` OR sub-task `implementation.md`:
+
+```yaml
+---
+doc_type: implementation              # v2.3 — was `tl-plan` (parent-alone) or `subtask-implementation` (sub-task)
+schema_version: 2.0
+produced_by: tl
+feature_id: FEAT-<AREA>-NN
+parent_task_object_id: <MC _id>       # sub-task only — OMIT for parent-alone
+parent_task_number: Feature-N         # sub-task only — OMIT for parent-alone
+subtask_number: 1..N                  # sub-task only — OMIT for parent-alone
+subtask_repo: <repo-slug>             # sub-task only — OMIT for parent-alone
+jetrix_subtask_object_id: <MC _id>    # sub-task only — set after /jetrix:push subtask
+jetrix_subtask_number: Subtask-N      # sub-task only — set after push
+compose_mode: implementation
+composed_at: <ISO date>
+inputs_hash: <sha256 of feature.md + owned unit files, for re-run skip>
+---
+```
+
+**Frontmatter** on sub-task `description.md`:
+
+```yaml
+---
+doc_type: description                 # v2.3 — was `subtask-description`
+schema_version: 2.0
+produced_by: dev                      # invoked by /dev:plan Stage 2 (compose_mode: description)
+feature_id: FEAT-<AREA>-NN
+parent_task_object_id: <MC _id>
+parent_task_number: Feature-N
+subtask_number: 1..N
+subtask_repo: <repo-slug>
+jetrix_subtask_object_id: <MC _id>    # set after /jetrix:push subtask
+jetrix_subtask_number: Subtask-N      # set after push
+compose_mode: description
+composed_at: <ISO date>
+inputs_hash: <sha256 of the compose inputs>
+---
+```
+
+**Frontmatter** on split-parent rollup `tl-plan.md` (unchanged):
 
 ```yaml
 ---
@@ -30,29 +77,9 @@ doc_type: tl-plan
 schema_version: 1.2
 produced_by: tl
 feature_id: FEAT-<AREA>-NN
-compose_mode: detailed        # detailed | rollup
+compose_mode: rollup
 composed_at: <ISO date>
 inputs_hash: <sha256 of feature.md + owned unit files, for re-run skip>
----
-```
-
-**Frontmatter** on sub-task output (`features/<slug>/subtask/<repo>/description.md` or `implementation.md`):
-
-```yaml
----
-doc_type: subtask-description        # subtask-description for description.md, subtask-implementation for implementation.md
-schema_version: 1.0
-produced_by: dev                     # sub-task tab files are attributed to /dev:plan, not /tl:compose (the skill is invoked by /dev:plan Stage 2)
-feature_id: FEAT-<AREA>-NN
-parent_task_object_id: <MC _id>
-parent_task_number: Feature-N
-subtask_number: 1..N
-subtask_repo: <repo-slug>
-jetrix_subtask_object_id: <MC _id>   # set after /jetrix:push subtask
-jetrix_subtask_number: Subtask-N     # set after push
-compose_mode: narrative              # narrative for description.md, detailed for implementation.md
-composed_at: <ISO date>
-inputs_hash: <sha256 of the compose inputs>
 ---
 ```
 
@@ -60,25 +87,32 @@ inputs_hash: <sha256 of the compose inputs>
 
 Three distinct modes drive what body content this skill produces. The caller (`/dev:plan` Stage 2, or `/tl:plan`'s downstream) specifies the mode; the workflow branches on it in step 5.
 
-### Mode: `detailed` (default — parent-alone or per-sub-task Implementation tab)
+### Mode: `implementation` (default — parent-alone or per-sub-task Implementation tab)
 
-The existing 5-section technical spec. Used for:
+The **single source of truth** for the task. Used for:
 - A **parent Task's Implementation tab** when the feature was NOT split (`--no-split` or single-repo feature)
 - A **sub-task's Implementation tab** — scoped to that one sub-task's repo (its owned units only)
 
-Body sections (see `references/implementation-plan-template.md` §detailed):
+Body sections (v2.3 — target 10 sections; `tl-feature-compose` writes §§1, 4–7, 8-title; sections §§2, 3, 8-body, 9 are appended by `/dev:plan` Stage 3; §10 is appended by `/dev:build` Stage 11):
 
-1. Build sequence
-2. API endpoints
-3. Database modifications
-4. Frontend UI
-5. Touch points
+1. **Business flow** — 2-3 sentence overview, business terms
+2. **Build sequence** — `/dev:plan` writes: ordered steps table (# / Step / Units / Satisfies / Notes) + mermaid step-graph
+3. **Impacted components** — `/dev:plan` writes: 12-dimension impact matrix (Frontend/Backend/DB/Authz/Integrations/Jobs/Notifications/Monitoring/Tests/Docs/Flags/Analytics)
+4. **API endpoints** — request/response tables, execution order, refusals (this skill writes)
+5. **Database changes** — new + modified tables/collections, indexes (this skill writes)
+6. **Frontend UI** — surfaces + API wiring (this skill writes; omitted for backend-only sub-tasks)
+7. **Touch points** — Reuse / New table (this skill writes)
+8. **Test strategy** — `/dev:plan` writes: unit / integration / e2e / concurrency coverage per step
+9. **Risks + rollback** — `/dev:plan` writes: assumptions carried, schema-trap notes, rollback plan
+10. **How to verify locally** — `/dev:build` Stage 11 writes: developer runbook (env setup, DB migrations, curl examples, expected outputs)
+
+At compose time (Stage 2), `tl-feature-compose` emits §§1, 4-7 populated. Sections §§2, 3, 8, 9 are stubbed with `_(populated by /dev:plan Stage 3)_`. Section §10 is stubbed with `_(populated by /dev:build Stage 11)_`.
 
 Output path:
-- Parent-alone → `features/<slug>/tl-plan.md`
+- Parent-alone → `features/<slug>/implementation.md`
 - Per sub-task → `features/<slug>/subtask/<repo>/implementation.md`
 
-### Mode: `narrative` (sub-task Description tab)
+### Mode: `description` (sub-task Description tab)
 
 A **professional business-flow narrative**, one to two paragraphs, telling the story of what THIS sub-task does in business terms — the kind of description a stakeholder or QA lead reads without any code context. No file paths, no framework names, no HTTP codes, no fields. Uses business terminology from the feature's `workflow.md` and the parent's `feature.md`, scoped to the operations this sub-task's repo owns.
 
@@ -106,8 +140,8 @@ Output path: `features/<slug>/tl-plan.md`
 
 | Situation | Modes invoked |
 |---|---|
-| Feature is parent-alone (single-repo, bug, story, `--no-split`) | 1× `detailed` on parent → writes `features/<slug>/tl-plan.md` |
-| Feature is split (multi-repo, `--split`) | N× parallel: `narrative` on each sub-task → writes `subtask/<repo>/description.md`, AND `detailed` on each sub-task → writes `subtask/<repo>/implementation.md`. Then 1× `rollup` on parent → writes `features/<slug>/tl-plan.md` |
+| Feature is parent-alone (single-repo, bug, story, `--no-split`) | 1× `implementation` on parent → writes `features/<slug>/implementation.md` |
+| Feature is split (multi-repo, `--split`) | N× parallel: `description` on each sub-task → writes `subtask/<repo>/description.md`, AND `implementation` on each sub-task → writes `subtask/<repo>/implementation.md`. Then 1× `rollup` on parent → writes `features/<slug>/tl-plan.md` |
 
 ## Workflow
 
@@ -137,7 +171,7 @@ For each app declared in `.jetrix/project.json`, resolve its absolute local path
 
 Regardless of mode: Description, Business Rules, Acceptance Criteria, NFRs, Test Scenarios, and Dependencies of the PARENT feature are populated by BA push from the parent's BA files and never appear in this document. When composing a sub-task, `acceptance_criteria` and `test_scenarios` tabs stay empty (validation reads parent).
 
-#### If mode == `detailed` (parent-alone or per-sub-task Implementation)
+#### If mode == `implementation` (parent-alone or per-sub-task Implementation)
 
 Five subsections, in this order. Cross-feature "must exist first" waits are captured in the **Dependencies tab** (BA-owned); code-reuse targets are captured in **Touch points** at the end of this document — never both.
 
@@ -149,7 +183,7 @@ Five subsections, in this order. Cross-feature "must exist first" waits are capt
 
 **Per-sub-task scoping when composing a sub-task's `implementation.md`:** only include units this sub-task owns (units in this sub-task's repo). API endpoints, Database modifications, and Frontend UI sections are scoped to the sub-task's repo. Cross-repo dependencies show up in Touch points as references to other sub-tasks by their sequence number (e.g. *"consumes API from sub-task 1 (backend)"*).
 
-#### If mode == `narrative` (sub-task Description tab)
+#### If mode == `description` (sub-task Description tab)
 
 **One or two paragraphs of continuous prose** telling the story of what THIS sub-task does in business terms. No headings, no bullet lists, no tables, no code fences, no HTTP codes, no field lists.
 
@@ -190,7 +224,7 @@ Before writing the file. These are absolute — any violation means the composit
 
 **Rule 2 — No framework, library, or version names, anywhere.** No `React`, `React 18`, `Vite`, `Express`, `Mongoose`, `mongoose.Schema`, `TipTap`, `Redux`, `Playwright`, `Jest`, `axios`, `@uiw/react-md-editor`, `Prisma`, `SQLAlchemy`. Describe the data object by role and by the fields written; do NOT include a schema code fence in any framework's syntax. Version numbers are always forbidden.
 
-**Rule 3 — No duplication of other tabs.** This document contains ONLY the sections defined by its mode (5 subsections for `detailed`; 3 sections for `rollup`; one to two paragraphs of prose for `narrative`). No Business Goal, no AC list, no NFR list, no Business Rule list, no Test Scenarios, no Dependencies / Assumptions / Open Questions, no Prerequisites section (cross-feature waits live in the Dependencies tab; code-reuse targets live in Touch points). If a fact belongs in another tab, do not restate it here — even briefly. **In narrative mode**, the workflow diagram belongs on the parent's Description tab (BA-owned) — do not include a mermaid diagram in a sub-task Description.
+**Rule 3 — No duplication of other tabs.** This document contains ONLY the sections defined by its mode (5 subsections for `implementation`; 3 sections for `rollup`; one to two paragraphs of prose for `description`). No Business Goal, no AC list, no NFR list, no Business Rule list, no Test Scenarios, no Dependencies / Assumptions / Open Questions, no Prerequisites section (cross-feature waits live in the Dependencies tab; code-reuse targets live in Touch points). If a fact belongs in another tab, do not restate it here — even briefly. **In narrative mode**, the workflow diagram belongs on the parent's Description tab (BA-owned) — do not include a mermaid diagram in a sub-task Description.
 
 **Rule 4 — No feature identity in visible content.** Feature id, initiative, slug, and provenance live in the frontmatter and MC task metadata. Never a `# FEAT-…` H1. Never a "Provenance:" line. Never a reference to `feature.md`, `workflow.md`, `acceptance-criteria.md`, `ba/*`, `context/*`, or any scope-review filename. The Description and Dependencies tabs (BA-owned) carry any provenance the reader needs.
 
@@ -205,19 +239,19 @@ Before writing the file. These are absolute — any violation means the composit
 **Rule 9 — No secrets.** Env var **names** only if referenced at all — never values or credentials, even if the repo scan surfaced them.
 
 **Rule 10 — Size budget (mode-dependent).**
-- `detailed` mode: target 10–15 KB. Warn at 55 KB. **Refuse to write over 60 KB** — MC caps every tab at 60 000 characters. If oversized, do NOT truncate; surface the overflow and ask the user to split the feature.
+- `implementation` mode: target 10–15 KB. Warn at 55 KB. **Refuse to write over 60 KB** — MC caps every tab at 60 000 characters. If oversized, do NOT truncate; surface the overflow and ask the user to split the feature.
 - `rollup` mode: target 2–5 KB (short by design — detail lives per sub-task). Warn at 20 KB. If a rollup is exceeding 20 KB, you're probably duplicating detail that belongs on sub-tasks — check for that first.
-- `narrative` mode: target 500–1500 characters. Warn at 3 KB. Longer means implementation detail has leaked into the narrative — cut.
+- `description` mode: target 500–1500 characters. Warn at 3 KB. Longer means implementation detail has leaked into the narrative — cut.
 
 **Rule 11 — No invention.** Every endpoint contract, every DB field, every UI surface traces to the context graph or the feature files. When silent, mark the affected step `[HELD · waiting on OQ-<id>]` and name the gap. Do not guess.
 
 ### 7. Write the file + update inputs_hash
-Write to the mode-appropriate output path with the mode-appropriate frontmatter (see the two frontmatter shapes at the top of the Operating contract section). `inputs_hash` is set to the sha256 computed in step 2 — for `narrative` and per-sub-task `detailed`, hash the sub-task's owned unit files, not the whole feature's owned units. Use CRLF-safe I/O — write with `\n` line endings; the push stage handles CRLF normalisation.
+Write to the mode-appropriate output path with the mode-appropriate frontmatter (see the two frontmatter shapes at the top of the Operating contract section). `inputs_hash` is set to the sha256 computed in step 2 — for `description` and per-sub-task `implementation`, hash the sub-task's owned unit files, not the whole feature's owned units. Use CRLF-safe I/O — write with `\n` line endings; the push stage handles CRLF normalisation.
 
 **Mode → output path recap:**
-- `detailed` on parent-alone → `features/<slug>/tl-plan.md` (frontmatter: `doc_type: tl-plan`, `compose_mode: detailed`)
-- `detailed` on a sub-task → `features/<slug>/subtask/<repo>/implementation.md` (frontmatter: `doc_type: subtask-implementation`, `compose_mode: detailed`)
-- `narrative` on a sub-task → `features/<slug>/subtask/<repo>/description.md` (frontmatter: `doc_type: subtask-description`, `compose_mode: narrative`)
+- `implementation` on parent-alone → `features/<slug>/implementation.md` (frontmatter: `doc_type: implementation`, `compose_mode: implementation`)
+- `implementation` on a sub-task → `features/<slug>/subtask/<repo>/implementation.md` (frontmatter: `doc_type: implementation`, `compose_mode: implementation`)
+- `description` on a sub-task → `features/<slug>/subtask/<repo>/description.md` (frontmatter: `doc_type: description`, `compose_mode: description`)
 - `rollup` on parent → `features/<slug>/tl-plan.md` (frontmatter: `doc_type: tl-plan`, `compose_mode: rollup`)
 
 **Never write both `tl-plan.md` and sub-task files from the same call** — one call, one mode, one output. Callers that need both (`/dev:plan` Stage 2 in split branch) make multiple calls.
@@ -234,9 +268,9 @@ Return: features composed vs skipped-unchanged (with reason each), the size per 
 
 Depends on the mode.
 
-**`detailed` mode** — a feature (or sub-task) is composed when: the output file exists at the mode-appropriate path with the correct frontmatter; contains exactly the five subsections (Build sequence · API endpoints · Database modifications · Frontend UI · Touch points); the Build sequence has intro paragraph + mermaid (no step table); every endpoint owned has its Execution-order and Refusals tables with one row per distinct response `message`; the Database modifications table lists only the fields written with a one-line "Never touched" boundary; every UI surface is named by role with its API wiring; every REUSE from the context graph is captured in Touch points (not a separate Prerequisites section); the file is ≤ 60 KB; and none of the Rules 1–11 above are violated.
+**`implementation` mode** — a feature (or sub-task) is composed when: the output file exists at the mode-appropriate path with the correct frontmatter; contains exactly the five subsections (Build sequence · API endpoints · Database modifications · Frontend UI · Touch points); the Build sequence has intro paragraph + mermaid (no step table); every endpoint owned has its Execution-order and Refusals tables with one row per distinct response `message`; the Database modifications table lists only the fields written with a one-line "Never touched" boundary; every UI surface is named by role with its API wiring; every REUSE from the context graph is captured in Touch points (not a separate Prerequisites section); the file is ≤ 60 KB; and none of the Rules 1–11 above are violated.
 
-**`narrative` mode** — a sub-task Description is composed when: `subtask/<repo>/description.md` exists with the correct frontmatter; the body is one or two paragraphs of continuous prose (no headings, no lists, no tables, no code fences); business vocabulary used throughout; distinct refusals named as distinct business situations (not response codes); length between 500–1500 characters (warn at 3 KB); none of the Rules 1–11 above are violated.
+**`description` mode** — a sub-task Description is composed when: `subtask/<repo>/description.md` exists with the correct frontmatter; the body is one or two paragraphs of continuous prose (no headings, no lists, no tables, no code fences); business vocabulary used throughout; distinct refusals named as distinct business situations (not response codes); length between 500–1500 characters (warn at 3 KB); none of the Rules 1–11 above are violated.
 
 **`rollup` mode** — a parent's rollup Implementation is composed when: `features/<slug>/tl-plan.md` exists with `compose_mode: rollup` in frontmatter; contains exactly the three sections (Build sequence · Sub-tasks · Touch points); the Build sequence names each sub-task by role and has a mermaid step-graph of sub-task nodes; the Sub-tasks table has one row per sub-task with `#`/`Repo`/`MC Task`/`Depends on`/`Blocks`/`State` columns; no API endpoints / Database modifications / Frontend UI sections present (those live per sub-task); target ≤ 5 KB; none of the Rules 1–11 above are violated.
 

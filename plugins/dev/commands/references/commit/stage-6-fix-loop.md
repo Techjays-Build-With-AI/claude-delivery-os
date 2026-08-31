@@ -125,7 +125,7 @@ severity: bounds_exceeded
 
 2. Local state: `REVIEW → BLOCKED`
 3. MC status: `devReview → blocked` via `task-mcp.update_task_status`
-4. `dev/delivery-status.md`: `current_state: BLOCKED`, `blocked_reason: fix-loop-bounds-exceeded`, `escalation_file: dev/escalation-<n>.md`
+4. `status.md`: `current_state: BLOCKED`, `blocked_reason: fix-loop-bounds-exceeded`, `escalation_file: dev/escalation-<n>.md`
 5. Halt. Print terminal message pointing at the escalation file.
 
 Never partial-push. Never continue past a bounds exceeded escalation.

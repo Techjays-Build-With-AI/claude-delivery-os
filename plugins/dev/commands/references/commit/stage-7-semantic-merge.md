@@ -108,7 +108,7 @@ stage-7:
   started_at: <ISO>
   finished_at: <ISO>
   units_touched: [EP-SUP-01, EP-SUP-02, ENT-SUP-01]
-  indexes_touched: [context/backend/endpoint-index.md, context/database/entity-index.md]
+  indexes_touched: [context/backend/backend-index.md, context/database/database-index.md]
   our_rows_added: [EP-SUP-01, EP-SUP-02, ENT-SUP-01]
   baseline_rows_preserved: [EP-ORD-14, EP-INV-03, ENT-ORD-01, ENT-INV-01]
   merged_rows: []

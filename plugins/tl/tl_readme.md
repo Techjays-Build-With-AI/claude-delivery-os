@@ -37,7 +37,7 @@ Once it's done, the workspace is build-ready: `/dev:build <feature>` (and the de
 New in v2.2. Merges a feature branch's flipped `origin: implemented` code-context units against the `main` env baseline via `context-mcp` — **graph-aware, unit-level merge**, not a git text-level merge.
 
 - **Per-unit fields:** LWW by `updated_at`, with transition-order rules for `origin` (`deprecated > implemented > designed`; never regress)
-- **Layer indexes** (`endpoint-index.md`, `page-index.md`, `entity-index.md`): row union by `unit_id`; per-row field-level LWW using the underlying unit file's `updated_at`
+- **Layer indexes** (`backend-index.md`, `frontend-index.md`, `database-index.md` — filenames on disk; doc_types are `endpoint-index` / `page-index` / `entity-index` respectively): row union by `unit_id`; per-row field-level LWW using the underlying unit file's `updated_at`
 - **`Source References` sections:** append-only union
 - **Overview files:** LWW for prose, derived counts regenerated after the union
 - **Real conflicts** (tied timestamps, incompatible immutable fields like `unit_id` / `layer` / `method` / `table_name`, contract type mismatches): halt with `dev/context-merge-conflicts.md` for human resolution; `[x]`-tick a choice or hand-merge, then `/dev:commit --resume`

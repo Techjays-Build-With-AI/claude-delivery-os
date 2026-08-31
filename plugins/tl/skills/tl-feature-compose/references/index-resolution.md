@@ -8,7 +8,7 @@ Each of the three indexes has a **different** column layout. Do NOT hardcode col
 
 ```bash
 cd "$PROJECT_ROOT"
-for f in <repo>/context/code-context/frontend/page-index.md <repo>/context/code-context/backend/endpoint-index.md <repo>/context/code-context/database/entity-index.md; do
+for f in <repo>/context/code-context/frontend/frontend-index.md <repo>/context/code-context/backend/backend-index.md <repo>/context/code-context/database/database-index.md; do
   [[ -f "$f" ]] || continue
   echo "=== $f ==="
   grep -m1 -E "^\| *[A-Z][a-z].*\|" "$f" | tr '|' '\n' | awk 'NF { printf "  $%d: %s\n", NR+1, $0 }'
@@ -21,9 +21,9 @@ Historical schemas as reference (verify each time — DO NOT hardcode):
 
 | Index | Feature filter column | File column | Entity chain |
 |---|---|---|---|
-| `<repo>/context/code-context/frontend/page-index.md` | `Used by Features` | `Folder` | — |
-| `<repo>/context/code-context/backend/endpoint-index.md` | `Used by Features` | `File` | `Reads/Writes Entities` |
-| `<repo>/context/code-context/database/entity-index.md` | *none* — features link indirectly | `File` | `Used by Endpoints` |
+| `<repo>/context/code-context/frontend/frontend-index.md` | `Used by Features` | `Folder` | — |
+| `<repo>/context/code-context/backend/backend-index.md` | `Used by Features` | `File` | `Reads/Writes Entities` |
+| `<repo>/context/code-context/database/database-index.md` | *none* — features link indirectly | `File` | `Used by Endpoints` |
 
 **Reverse-mapped rows** — units produced by `/tl:map` carry `(as-built)` in their `Used by Features` cell. A `FEAT-` filter naturally excludes them. Composition should NOT pull as-built units unless the feature explicitly claims them (rare — usually as-built units get linked back on the next `/tl:plan` re-run, at which point they carry a real `FEAT-` id).
 
@@ -61,7 +61,7 @@ awk -F'|' -v f="$FEAT" '
       sub(/^\.\//, "", folder)
       print "<repo>/context/code-context/frontend/" folder
     }
-  }' <repo>/context/code-context/frontend/page-index.md
+  }' <repo>/context/code-context/frontend/frontend-index.md
 
 # --- Backend endpoints (features = $7, file = $8, entity ids = $6) ---
 awk -F'|' -v f="$FEAT" '
@@ -78,11 +78,11 @@ awk -F'|' -v f="$FEAT" '
       n = split(ents, arr, /[,] */)
       for (i = 1; i <= n; i++) if (arr[i] ~ /^ENT-/) print "__ENT__" arr[i]
     }
-  }' <repo>/context/code-context/backend/endpoint-index.md
+  }' <repo>/context/code-context/backend/backend-index.md
 
 # --- Database entities (2-hop: use the ENT-* ids from the endpoint pass) ---
 # For each unique ENT id, look up its file:
-# awk -F'|' with entity-index.md, Entity ID at $2 and File at $8, matching id == ent.
+# awk -F'|' with database-index.md, Entity ID at $2 and File at $8, matching id == ent.
 ```
 
 **Precision note.** If the header positions have drifted, update the awk positions to what the grep preamble revealed — do not run the snippets as-is against a changed layout, and do not invent an alternative filter chain.

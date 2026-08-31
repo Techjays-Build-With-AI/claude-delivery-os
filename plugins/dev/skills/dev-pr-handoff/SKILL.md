@@ -14,7 +14,7 @@ The v2.2 slim-down: this skill was previously a state-transitioning agent; it no
 Read **`delivery-os-conventions`** and **`references/pr-and-escalation.md`** if not in context. Inputs from the task's `dev/` folder:
 
 - For a PR summary: `dev/build-run.md`, `dev/commit-run.md`, `dev/acceptance-map.md`, `dev/implementation-log.md`, `dev/security-findings-commit.md`, `dev/code-review-findings.md`, `dev/context-merge-log.md`, `dev/decisions.md`, plus parent BA files (`feature.md`, `business-rules.md`, `nfrs.md`).
-- For an escalation: `dev/build-run.md` OR `dev/commit-run.md` (the failing run log), the finding chain, `dev/delivery-status.md`, plus optional `dev/plan-blockers.md` if plan-time is the halt.
+- For an escalation: `dev/build-run.md` OR `dev/commit-run.md` (the failing run log), the finding chain, `status.md`, plus optional `dev/plan-blockers.md` if plan-time is the halt.
 
 ## PR summary composition
 
@@ -58,7 +58,7 @@ Read **`delivery-os-conventions`** and **`references/pr-and-escalation.md`** if 
 ## Boundaries
 
 - **NEVER** call `task-mcp` or any MC status transition
-- **NEVER** modify `dev/delivery-status.md` or `features/tracker.md`
+- **NEVER** modify `status.md` or `features/tracker.md`
 - **NEVER** flip local state (that's the orchestrator's job)
 - **NEVER** merge, push, deploy, or approve
 - **NEVER** create the branch, execute tests, or run security scans (upstream stages do this)

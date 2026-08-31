@@ -1,6 +1,6 @@
 # Index-rebuild — row-union merge for layer indexes
 
-**Purpose.** How to merge the three layer indexes — `context/frontend/page-index.md`, `context/backend/endpoint-index.md`, `context/database/entity-index.md` — when both baseline (`main`) and our feature-branch copy have edits.
+**Purpose.** How to merge the three layer indexes — `context/frontend/frontend-index.md`, `context/backend/backend-index.md`, `context/database/database-index.md` (filenames on disk; frontmatter doc_types are `page-index` / `endpoint-index` / `entity-index` respectively) — when both baseline (`main`) and our feature-branch copy have edits.
 
 Rule of thumb: **indexes are tables keyed by unit_id.** Merge is a row union with per-row field-level LWW.
 
@@ -96,7 +96,7 @@ Never leave stale `updated_at` on the merged index.
 Append to `dev/context-merge-log.md`:
 
 ```yaml
-- file: context/backend/endpoint-index.md
+- file: context/backend/backend-index.md
   action: row_union
   our_rows_added: [EP-SUP-02]
   baseline_rows_preserved: [EP-ORD-14]
@@ -126,14 +126,14 @@ If the overview mentions unit counts (`## 47 endpoints across 6 modules`), regen
 
 ### Example 1 — Clean row union
 
-**Baseline `endpoint-index.md`:**
+**Baseline `backend-index.md`:**
 
 | Unit ID | Path | Method | Owner | Origin |
 |---|---|---|---|---|
 | EP-ORD-14 | /orders | GET | backend-team | implemented |
 | EP-INV-03 | /invoices/:id | GET | backend-team | designed |
 
-**Our `endpoint-index.md`:**
+**Our `backend-index.md`:**
 
 | Unit ID | Path | Method | Owner | Origin |
 |---|---|---|---|---|

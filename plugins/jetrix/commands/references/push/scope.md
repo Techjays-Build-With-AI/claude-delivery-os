@@ -89,7 +89,7 @@ scope-mcp does **not** auto-add any identity tag — the plugin owns the tag sem
 > 2. **Merge** your new/updated keys into that object (do NOT drop any existing keys).
 > 3. **Write** the merged object back to the same path.
 >
-> Never write a file that only contains keys you just produced. Every stage's keys coexist in the same file — scope keys look like `ba/scope.md`, feature keys look like `tasks/FEAT-...`, context keys look like `<repo>/context/code-context/frontend/page-index.md`, etc. If you overwrite this file with only your stage's keys, other stages' entries are lost — the next push of those stages will look like a fresh upload and create duplicate FileMeta rows in Jetrix.
+> Never write a file that only contains keys you just produced. Every stage's keys coexist in the same file — scope keys look like `ba/scope.md`, feature keys look like `tasks/FEAT-...`, context keys look like `<repo>/context/code-context/frontend/frontend-index.md`, etc. If you overwrite this file with only your stage's keys, other stages' entries are lost — the next push of those stages will look like a fresh upload and create duplicate FileMeta rows in Jetrix.
 
 `sync-state.json` is a tiny JSON file (metadata only, never bytes) — safe to read with the `Read` tool since its size is bounded by the number of scope files. Read `<workspace_root>/.jetrix/cache/sync-state.json` (create empty `{}` if missing). Each entry looks like:
 

@@ -5,22 +5,22 @@ description: Deliver one already-planned task (a parent feature or a sub-task) t
 
 # Feature Delivery Loop (v2.2 — planned task → validated PR handoff)
 
-You are the outer wrapper that turns an **already-planned task** — either a parent feature (parent-alone) or one sub-task of a split feature — into a working, validated, review-ready PR. Planning (readiness gate, impact analysis, dev-plan.md, plan-blocker resolution) is `/dev:plan`'s job. Building (branch, harness, implement, test, security-build-gate, context flip) is `/dev:build`'s job. Committing (security-commit-gate, code review, acceptance re-verify, semantic-context-merge, push, PR) is `/dev:commit`'s job.
+You are the outer wrapper that turns an **already-planned task** — either a parent feature (parent-alone) or one sub-task of a split feature — into a working, validated, review-ready PR. Planning (readiness gate, impact analysis, implementation.md, plan-blocker resolution) is `/dev:plan`'s job. Building (branch, harness, implement, test, security-build-gate, context flip) is `/dev:build`'s job. Committing (security-commit-gate, code review, acceptance re-verify, semantic-context-merge, push, PR) is `/dev:commit`'s job.
 
 This skill is the **loop coordinator** — it doesn't run the stages itself; it ensures the developer invokes `/dev:build` and `/dev:commit` in the right order with the right preconditions.
 
-**Not a one-shot dispatch.** `/dev:build` finishes → developer verifies locally (via `dev/local-runbook.md`) → developer invokes `/dev:commit`. Never chain the two automatically.
+**Not a one-shot dispatch.** `/dev:build` finishes → developer verifies locally (via `implementation.md §10 How to verify locally`) → developer invokes `/dev:commit`. Never chain the two automatically.
 
 ## Operating contract
 
-Read the **`delivery-os-conventions`** skill first (v2.2) — the loop-control state model + MC status mapping. Then read the task's `dev/delivery-status.md`.
+Read the **`delivery-os-conventions`** skill first (v2.2) — the loop-control state model + MC status mapping. Then read the task's `status.md`.
 
 **Inputs (from upstream — never re-derive):**
 
 - `/dev:plan` outputs (parent-alone or sub-task):
-  - `dev/dev-plan.md` — the build script
-  - `dev/impacted-components.md` — what's touched
-  - `dev/delivery-status.md` — current state, ownership, branch
+  - `implementation.md` — the build script
+  - `implementation.md §3 Impacted components` — what's touched
+  - `status.md` — current state, ownership, branch
   - `dev/plan-blockers.md` — plan-time blocker resolution (v2.2). MUST be absent or `status: RESOLVED` before `/dev:build` can start.
 - Parent BA files (`feature.md`, `workflow.md`, `acceptance-criteria.md`, `business-rules.md`, `nfrs.md`, `test-scenarios.md`, `dependencies.md`, `open-questions.md`)
 - Parent's TL Implementation content (`tl-plan.md`) OR sub-task's Description + Implementation tabs
@@ -32,7 +32,7 @@ Read the **`delivery-os-conventions`** skill first (v2.2) — the loop-control s
 
 - `dev/build-run.md` (by `/dev:build`)
 - `dev/commit-run.md` (by `/dev:commit`)
-- `dev/implementation-log.md`, `dev/acceptance-map.md`, `dev/decisions.md`, `dev/security-findings-build.md`, `dev/security-findings-commit.md`, `dev/code-review-findings.md`, `dev/context-merge-log.md`, `dev/context-merge-conflicts.md`, `dev/local-runbook.md`, `dev/pr-summary.md`, `dev/escalation-<n>.md`
+- `dev/implementation-log.md`, `dev/acceptance-map.md`, `dev/decisions.md`, `dev/security-findings-build.md`, `dev/security-findings-commit.md`, `dev/code-review-findings.md`, `dev/context-merge-log.md`, `dev/context-merge-conflicts.md`, `implementation.md §10 How to verify locally`, `dev/pr-summary.md`, `dev/escalation-<n>.md`
 - MC task status via `mcp__task-mcp__update_task_status`
 - Context-mcp: `context_pull_manifest` (baseline read) at Stage 7 semantic merge
 
@@ -40,13 +40,13 @@ Read the **`delivery-os-conventions`** skill first (v2.2) — the loop-control s
 
 ### 1. `/dev:plan <target>` — MUST run first
 
-Produces `dev/dev-plan.md` + `dev/impacted-components.md` + `dev/plan-blockers.md` + `dev/delivery-status.md` at `current_state: PLANNED`. Any blocker → `dev/plan-blockers.md` with `status: OPEN | RESOLVING | RESOLVED` — resolution is user-driven at plan time.
+Produces `implementation.md` + `implementation.md §3 Impacted components` + `dev/plan-blockers.md` + `status.md` at `current_state: PLANNED`. Any blocker → `dev/plan-blockers.md` with `status: OPEN | RESOLVING | RESOLVED` — resolution is user-driven at plan time.
 
 If `/dev:plan` hasn't run → this loop refuses and instructs the user to run `/dev:plan <target>` first.
 
 ### 2. `/dev:build <target>` — 11 stages
 
-**Precondition:** `dev/dev-plan.md` exists, `delivery-status.md` `current_state: PLANNED`, and any `dev/plan-blockers.md` is either absent or fully `status: RESOLVED`.
+**Precondition:** `implementation.md` exists, `status.md` `current_state: PLANNED`, and any `dev/plan-blockers.md` is either absent or fully `status: RESOLVED`.
 
 Stages (see `plugins/dev/commands/build.md` + refs):
 
@@ -61,17 +61,17 @@ Stages (see `plugins/dev/commands/build.md` + refs):
 9. Acceptance map validation
 10. Security review — **build-time gate, Critical-blocking only**
 11. Update code-context units (`designed → implemented`)
-12. Summary + `dev/local-runbook.md`
+12. Summary + `implementation.md §10 How to verify locally`
 
 **Ends with:** local state `IN_PROGRESS`, MC status `inProgress`. Never pushes; never raises PR.
 
 ### 3. Developer verifies locally
 
-The `dev/local-runbook.md` from `/dev:build` Stage 11 tells the developer how to run the feature manually. This is NOT part of the loop — it's a human step.
+The `implementation.md §10 How to verify locally` from `/dev:build` Stage 11 tells the developer how to run the feature manually. This is NOT part of the loop — it's a human step.
 
 ### 4. `/dev:commit <target>` — 10 stages
 
-**Precondition:** `delivery-status.md` `current_state: IN_PROGRESS`, `ready_for_dev_commit: true`, branch checked out in target repo.
+**Precondition:** `status.md` `current_state: IN_PROGRESS`, `ready_for_dev_commit: true`, branch checked out in target repo.
 
 Stages (see `plugins/dev/commands/commit.md` + refs):
 
@@ -156,7 +156,7 @@ For each command run, emit progress broadcasts:
 
 ## Completion criteria (per command)
 
-**`/dev:build` complete** when Stage 11 finishes; local `IN_PROGRESS`, MC `inProgress`. `dev/local-runbook.md` written.
+**`/dev:build` complete** when Stage 11 finishes; local `IN_PROGRESS`, MC `inProgress`. `implementation.md §10 How to verify locally` written.
 
 **`/dev:commit` complete** when Stage 10 (summary) finishes; local `REVIEW`, MC `devReview`. PR opened. `dev/pr-summary.md` is the PR body.
 

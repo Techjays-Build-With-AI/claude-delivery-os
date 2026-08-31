@@ -1,10 +1,10 @@
 ## Stage 3 — Development planning
 
-**Purpose.** For each task (parent-alone OR each sub-task in a split feature), write the local development plan — pre-flight the environment, validate readiness, analyse impact across 12 dimensions, and produce a `dev-plan.md` that `/dev:build` picks up. The five planning stages that used to live inside `/dev:build` — relocated here so `/dev:build` starts at branch creation.
+**Purpose.** For each task (parent-alone OR each sub-task in a split feature), write the local development plan — pre-flight the environment, validate readiness, analyse impact across 12 dimensions, and produce a `implementation.md` that `/dev:build` picks up. The five planning stages that used to live inside `/dev:build` — relocated here so `/dev:build` starts at branch creation.
 
 **Runs after Stage 2 finishes**, per-feature, and **per-task inside each feature** (parent-alone → 1 task; split → N sub-tasks). Parallelised across features (outer axis) and within a feature across sub-tasks (inner axis).
 
-**On completion:** every task's `delivery-status.md` set to `PLANNED`; MC's task status updated to match; feature reported as `PLANNED` in the batch summary.
+**On completion:** every task's `status.md` set to `PLANNED`; MC's task status updated to match; feature reported as `PLANNED` in the batch summary.
 
 ---
 
@@ -74,11 +74,11 @@ Before writing any plan, confirm each item. A failure on a **critical** item mea
 | A usable product repository exists for THIS task's repo; base build is green | product repo (`git status`, build) | ✕-critical → **project-zero** routes to bootstrap (§3c.i), not a plain block |
 | A usable test harness exists; quality gates are defined | `qa/quality-gates.md` (`harness_status: Active`) | ✕-critical → **no harness** routes to QA (§3c.ii), not a plain block |
 | Required env vars, credentials, tools are available | repo config / environment | ✕-critical |
-| Task ownership is not locked by another agent | task's `delivery-status.md` owner | ✕-critical |
+| Task ownership is not locked by another agent | task's `status.md` owner | ✕-critical |
 | Major workflow is unambiguous | parent's `workflow.md` | non-critical → note assumption |
 | Coding standards are known | `coding-standards.md` / repo conventions | non-critical → infer + note |
 
-**Non-critical gaps:** record a marked assumption in `dev/dev-plan.md` and proceed.
+**Non-critical gaps:** record a marked assumption in `implementation.md` and proceed.
 
 **Critical gaps:** escalate. Examples that must not be guessed past — no acceptance criteria, conflicting workflow definitions, unknown source of truth for data, missing API contract, missing authn/permission rules, an unresolved schema requirement, or a dependency on an unavailable external system.
 
@@ -105,7 +105,7 @@ The dev agent never chooses the stack itself — bootstrap executes a confirmed 
 
 Before implementing, confirm a usable test harness exists and the loop knows the bar:
 
-1. **Read `qa/quality-gates.md`.** If it exists with `harness_status: Active` → the harness is proven and the file tells `/dev:build` Stages 7-8 which checks are **Required**, their commands, and the thresholds. Carry the required gates into `dev-plan.md`. Proceed.
+1. **Read `qa/quality-gates.md`.** If it exists with `harness_status: Active` → the harness is proven and the file tells `/dev:build` Stages 7-8 which checks are **Required**, their commands, and the thresholds. Carry the required gates into `implementation.md`. Proceed.
 2. **No contract, or `harness_status` is `Draft`/`Broken`** → not a per-feature bug (it blocks every feature); the fix — which frameworks, what coverage floor — is a QA strategy decision. In v2.2, `/dev:build` Stage 4 auto-bootstraps a greenfield harness via `qa-greenfield-harness` inline (deterministic, no prompts) — plan proceeds normally. Note in the plan summary that harness was Draft/missing → will be auto-bootstrapped at build. If the QA plugin isn't installed → degrade: fall back to detecting the repo's own tooling for this run.
 3. **A `Broken` harness** (Required gate red before changes) → genuine escalation — `BLOCKED`, tell the user to run `/qa:health` and fix the harness first.
 
@@ -115,7 +115,7 @@ The dev agent never designs the test strategy itself — QA owns that.
 
 ### 3d. Impact analysis
 
-Identify what this task actually touches, at the file/module level where you can name it, and write to `dev/impacted-components.md` (parent's `dev/` OR sub-task's `dev/`). Walk every dimension — mark `N/A` where a dimension doesn't apply rather than dropping it:
+Identify what this task actually touches, at the file/module level where you can name it, and write to `implementation.md §3 Impacted components` (parent's `dev/` OR sub-task's `dev/`). Walk every dimension — mark `N/A` where a dimension doesn't apply rather than dropping it:
 
 - **Frontend** — pages and components (map to the TL `PAGE-<AREA>-NN` units this task owns)
 - **Backend** — APIs and services (map to `EP-<AREA>-NN`)
@@ -132,7 +132,7 @@ Identify what this task actually touches, at the file/module level where you can
 
 Ground each entry in a real file/route/entity where possible; the TL graph and the codebase are your evidence. A schema or migration impact that risks data loss, or an integration whose contract you can't find, is an escalation — flag it here and raise it.
 
-**Sub-task scoping** — a sub-task's impact analysis covers only the units it owns (in its repo). Cross-task impact — "this sub-task depends on task 1 (backend) creating the endpoint" — belongs in the `Dependencies on other features or teams` section of `dev-plan.md` (§3e), not in impact.
+**Sub-task scoping** — a sub-task's impact analysis covers only the units it owns (in its repo). Cross-task impact — "this sub-task depends on task 1 (backend) creating the endpoint" — belongs in the `Dependencies on other features or teams` section of `implementation.md` (§3e), not in impact.
 
 Frontmatter:
 ```yaml
@@ -151,7 +151,7 @@ generated_at: <ISO>
 
 ### 3e. Implementation planning
 
-Write or refresh `dev/dev-plan.md` (parent's `dev/` OR sub-task's `dev/`). It must be actionable enough for another developer or agent to pick up mid-stream. Include:
+Write or refresh `implementation.md` (parent's `dev/` OR sub-task's `dev/`). It must be actionable enough for another developer or agent to pick up mid-stream. Include:
 
 - **Ordered implementation steps** — the sequence you'll build in (usually: data model/migration → backend endpoints → frontend pages → wiring → notifications/jobs → tests → edge cases), each tied to the TL units and the parent acceptance criteria it satisfies.
 - **Affected files or modules** — concrete paths from the impact analysis.
@@ -183,14 +183,14 @@ generated_at: <ISO>
 
 ### 3e.5 — Blocker detection (v2.2, before finalise)
 
-**After §3e writes `dev-plan.md` + `impacted-components.md`, run blocker detection.** This is what makes `/dev:build` safe to run without prompts — every plan-time decision that would need user input is surfaced here.
+**After §3e writes `implementation.md` + `implementation.md §3 Impacted components`, run blocker detection.** This is what makes `/dev:build` safe to run without prompts — every plan-time decision that would need user input is surfaced here.
 
 **Read [`blocker-detection.md`](blocker-detection.md) and execute verbatim on THIS task.**
 
 Two possible outcomes per task:
 
 - **No blockers detected** → continue to §3f Finalise (task lands at `PLANNED` / MC `readyForDev`).
-- **Blockers detected** → the reference file writes `dev/plan-blockers.md` (`status: OPEN`), sets `delivery-status.md` `current_state: BLOCKED_ON_PLAN`, pushes MC status `blocked`. **HALT §3f for this task** — it does NOT reach `PLANNED`. Print the halt message from `/dev:plan` §6c. Siblings continue in parallel.
+- **Blockers detected** → the reference file writes `dev/plan-blockers.md` (`status: OPEN`), sets `status.md` `current_state: BLOCKED_ON_PLAN`, pushes MC status `blocked`. **HALT §3f for this task** — it does NOT reach `PLANNED`. Print the halt message from `/dev:plan` §6c. Siblings continue in parallel.
 
 **On `/dev:plan --resume`** — before running §3e (impact/dev-plan) at all, check for `dev/plan-blockers.md`:
 
@@ -209,7 +209,7 @@ Two possible outcomes per task:
 
 For each task **whose §3e.5 came back clean** (no blockers OR all folded):
 
-1. **Write `delivery-status.md`** (parent's `dev/` OR sub-task's `dev/`):
+1. **Write `status.md`** (parent's `dev/` OR sub-task's `dev/`):
    ```yaml
    ---
    doc_type: delivery-status
@@ -226,7 +226,7 @@ For each task **whose §3e.5 came back clean** (no blockers OR all folded):
    ready_for_dev_build: true
    ```
 
-2. **Also update the sub-task's top-level `status.md`** (`subtask/<repo>/status.md`) to `current_state: PLANNED` (mirrors the delivery-status.md; simpler for consumers that just want to know the status).
+2. **Also update the sub-task's top-level `status.md`** (`subtask/<repo>/status.md`) to `current_state: PLANNED` (mirrors the status.md; simpler for consumers that just want to know the status).
 
 3. **Push status to MC** (skip in `--dry-run`):
    ```python
@@ -294,7 +294,7 @@ Never invoke `tl-feature-planning` from Stage 3 — that's Stage 1's job. Never 
 
 At end of Stage 3:
 
-- Every task has: `delivery-status.md`, `impacted-components.md`, `dev-plan.md` in its `dev/` folder (parent's or sub-task's).
+- Every task has: `status.md`, `implementation.md §3 Impacted components`, `implementation.md` in its `dev/` folder (parent's or sub-task's).
 - Every task has `current_state: PLANNED` locally and `status: readyForDev` on MC.
 - `/dev:build <task-id>` will resolve the task via Stage 0 identity resolution (same as `/dev:plan`), find the pre-existing plan, and start at branch creation.
 

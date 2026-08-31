@@ -1,5 +1,5 @@
 ---
-description: Build a planned task through the full 11-stage loop — branch, QA harness gate (auto-bootstraps greenfield via qa-greenfield-harness), implement per dev-plan.md using dev-stack-adaptive-implementation (dynamic per stack, reads repo conventions, matches idiomatic patterns), write stack-adaptive tests, execute them locally, validate against parent's Acceptance Criteria + Business Rules + Test Scenarios + NFRs, run a scoped security review (feature-diff only, Critical-blocking at build-time; /dev:commit is stricter), update code-context units to origin:implemented, and produce a summary + local-runbook.md. Bounded fix loop until 100% or escalation. Refuses to run without a /dev:plan-generated plan OR with unresolved plan-blockers.md. Accepts any task identifier (MC task number, feature slug or folder, sub-task folder, FEAT-<AREA>-NN). Sub-task builds work in the sub-task's repo only, on a branch named feature/FEAT-<AREA>-NN-<slug>-<repo>. Never merges, never pushes, never raises a PR — /dev:commit does that.
+description: Build a planned task through the full 11-stage loop — branch, QA harness gate (auto-bootstraps greenfield via qa-greenfield-harness), implement per implementation.md using dev-stack-adaptive-implementation (dynamic per stack, reads repo conventions, matches idiomatic patterns), write stack-adaptive tests, execute them locally, validate against parent's Acceptance Criteria + Business Rules + Test Scenarios + NFRs, run a scoped security review (feature-diff only, Critical-blocking at build-time; /dev:commit is stricter), update code-context units to origin:implemented, and produce a summary + local-runbook.md. Bounded fix loop until 100% or escalation. Refuses to run without a /dev:plan-generated plan OR with unresolved plan-blockers.md. Accepts any task identifier (MC task number, feature slug or folder, sub-task folder, FEAT-<AREA>-NN). Sub-task builds work in the sub-task's repo only, on a branch named feature/FEAT-<AREA>-NN-<slug>-<repo>. Never merges, never pushes, never raises a PR — /dev:commit does that.
 argument-hint: "<Task-N | Feature-N | Subtask-N | slug | features/<slug> | features/<slug>/subtask/<repo> | FEAT-<AREA>-NN | (blank = next PLANNED task)> [initiative=<name>] [--resume] [--no-security-review]"
 ---
 
@@ -34,7 +34,7 @@ Read the **`delivery-os-conventions`** skill first if it's not in context — th
 
 Same 4-way resolution as `/dev:plan` Stage 0 — see `plugins/dev/commands/plan.md` §2a. Determine `task_kind` (parent-alone or sub-task) and canonical `(feature_id, task_object_id, task_number, task_folder)`.
 
-**Verify the plan exists.** Check for `dev/dev-plan.md`, `dev/impacted-components.md`, `dev/delivery-status.md` under the task folder. Missing OR `delivery-status.md` `current_state` not `PLANNED` / later → halt with the "run /dev:plan first" message.
+**Verify the plan exists.** Check for `implementation.md`, `implementation.md §3 Impacted components`, `status.md` under the task folder. Missing OR `status.md` `current_state` not `PLANNED` / later → halt with the "run /dev:plan first" message.
 
 **Verify no unresolved plan blockers (v2.2 hard gate).** Check for `dev/plan-blockers.md`:
 
@@ -50,12 +50,12 @@ Read each stage's reference file and execute verbatim. Stages 1–3 (mount + pre
 
 ### Stage 1 — Acquire lock + mount context
 
-- Write owner into `dev/delivery-status.md`
+- Write owner into `status.md`
 - Local: `PLANNED → IN_PLANNING` (broadcast)
 - MC: `readyForDev → inProgress` via `task-mcp.update_task_status`
 - Read parent BA files (`feature.md`, `workflow.md`, `acceptance-criteria.md`, `business-rules.md`, `nfrs.md`, `test-scenarios.md`, `dependencies.md`, `open-questions.md`) — validation contract
 - Read task's Implementation content (`tl-plan.md` for parent-alone; `subtask/<repo>/{description,implementation}.md` for sub-task; plus parent's `tl-plan.md` rollup for cross-sub-task dep context)
-- Read `dev/dev-plan.md`, `dev/impacted-components.md`, `shared-context/decision-log.md`
+- Read `implementation.md`, `implementation.md §3 Impacted components`, `shared-context/decision-log.md`
 - Record sources consulted in `dev/implementation-log.md`
 
 ### Stage 2 — Pre-flight
@@ -72,7 +72,7 @@ Three cheap re-checks:
 - Create branch:
   - Parent-alone → `feature/FEAT-<AREA>-NN-<slug>`
   - Sub-task → `feature/FEAT-<AREA>-NN-<slug>-<repo>`
-- Never `main` / `master` / `staging` / `production` / `develop`. Confirm base build is green in target repo. Write branch name into `delivery-status.md`.
+- Never `main` / `master` / `staging` / `production` / `develop`. Confirm base build is green in target repo. Write branch name into `status.md`.
 
 ### Stage 4 — QA harness gate
 
@@ -104,7 +104,7 @@ Local: `IN_DEVELOPMENT → TESTING` (broadcast). MC: `inProgress`.
 
 ### Stage 11 — Report summary + `local-runbook.md`
 
-**Read** `plugins/dev/commands/references/build/stage-11-summary.md` and execute verbatim. Prints in-terminal summary + writes `dev/local-runbook.md`.
+**Read** `plugins/dev/commands/references/build/stage-11-summary.md` and execute verbatim. Prints in-terminal summary + writes `implementation.md §10 How to verify locally`.
 
 Local: `TESTING → IN_PROGRESS` (build phase done; awaits `/dev:commit`). MC: `inProgress` (unchanged).
 
@@ -120,7 +120,7 @@ The Stage 11 summary IS the final output. See its reference file for the exact t
 
 ## 6. Guardrails
 
-- Never invent behaviour not in `dev-plan.md`
+- Never invent behaviour not in `implementation.md`
 - Never make build-time decisions (blockers must be resolved at `/dev:plan` time)
 - Never push, merge, or raise PR (that's `/dev:commit`)
 - Never modify secrets or `.env` files
