@@ -66,7 +66,94 @@ import datetime
 import hashlib
 import json
 import pathlib
+import re
 import sys
+
+
+# ---------------------------------------------------------------------------
+# Trust-boundary helpers — every value that flows in from the bundle JSON
+# (which is populated from MC via task-mcp.subtask_list) is treated as
+# untrusted. A rogue teammate with MC write access, a compromised task-mcp
+# instance, or a stale local cache could inject:
+#   · path-traversal fragments (`..`, absolute paths, `/`) into
+#     `subtaskRepo` or `parent_slug` → writes outside `features/<slug>/subtask/`
+#   · YAML metacharacters or line breaks into ObjectIds / task_numbers →
+#     breaks the frontmatter and mis-tags subsequent scalar keys
+# We validate at the boundary and refuse rather than sanitize-and-hope.
+# ---------------------------------------------------------------------------
+
+# Strict slug: lowercase alnum + underscore + hyphen, must start alnum. Used
+# for `parent_slug` (matches the on-disk feature folder name) and
+# `subtaskRepo` (matches a key in .jetrix/cache/repolocation.json). Any value
+# not matching is a design error or an attack — reject either way.
+_SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
+
+
+def _is_safe_slug(value) -> bool:
+    if not isinstance(value, str):
+        return False
+    if not value or len(value) > 128:
+        return False
+    return bool(_SLUG_RE.match(value))
+
+
+def _safe_join(root: pathlib.Path, *parts: str) -> pathlib.Path | None:
+    """Join a path under `root`, then verify the resolved path is still
+    inside `root`. Returns None if the check fails.
+
+    Belt-and-braces defence: even if the slug-regex misses a novel attack
+    vector (encoded traversal, symlink shenanigans), the resolve+
+    is_relative_to pair catches escape from the intended prefix.
+    """
+    candidate = root
+    for p in parts:
+        candidate = candidate / p
+    try:
+        resolved_root = root.resolve()
+        resolved_candidate = candidate.resolve()
+    except (OSError, RuntimeError):
+        return None
+    # Path.is_relative_to is 3.9+; the plugin's targeted runtime is 3.11+.
+    if not resolved_candidate.is_relative_to(resolved_root):
+        return None
+    return candidate
+
+
+# YAML frontmatter scalar sanitizer — reject values with control characters
+# or leading YAML metacharacters, rather than try to escape them. All the
+# real-world sources for these values (MC ObjectId, integer task_number,
+# ISO timestamps, repo slugs) are single-line ASCII; anything else is
+# either broken metadata or a payload smuggle attempt.
+_YAML_UNSAFE_SCALAR = re.compile(r"[\r\n\x00-\x08\x0b-\x1f\x7f]")
+_YAML_META_LEADING = ("#", "!", "&", "*", "|", ">", "%", "@", "`", "[", "]", "{", "}")
+
+
+def _safe_yaml_scalar(value) -> str | None:
+    """Return `value` verbatim if it is safe to inline as an unquoted YAML
+    scalar. Returns None if the value would break the frontmatter shape.
+
+    Accepts int / bool (str-formatted). Rejects strings containing newlines,
+    carriage returns, NULs / other control chars, or leading YAML
+    metacharacters. Callers should treat None as "reject this row".
+    """
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, int):
+        return str(value)
+    if not isinstance(value, str):
+        return None
+    s = value.strip()
+    if not s:
+        return None
+    if len(s) > 512:
+        return None
+    if _YAML_UNSAFE_SCALAR.search(s):
+        return None
+    if s[0] in _YAML_META_LEADING:
+        return None
+    return s
 
 
 # Map MC status enum → local 5-state loop-control vocabulary
@@ -97,26 +184,39 @@ def _identity_frontmatter(
     parent_feature_id: str,
     parent_task_object_id: str,
     parent_task_number: str,
-    subtask_number: int,
+    subtask_number,
     subtask_repo: str,
     subtask_object_id: str,
     subtask_task_number: str,
     generated_at: str,
     doc_type: str,
-) -> list[str]:
-    """Shared identity block for all three tab files (§v2.1 frontmatter)."""
+) -> list[str] | None:
+    """Shared identity block for all three tab files (§v2.1 frontmatter).
+
+    Every scalar goes through `_safe_yaml_scalar` — if any value fails
+    validation (newlines, control chars, leading YAML metachar, overlong),
+    the whole frontmatter is rejected by returning None. Caller treats None
+    as a per-row skip so a single bad response can't poison every file.
+    """
+    values: list[tuple[str, object]] = [
+        ("doc_type",                doc_type),
+        ("schema_version",          "1.0"),
+        ("produced_by",             "dev"),
+        ("feature_id",              parent_feature_id),
+        ("parent_task_object_id",   parent_task_object_id),
+        ("parent_task_number",      parent_task_number),
+        ("subtask_number",          subtask_number),
+        ("subtask_repo",            subtask_repo),
+        ("jetrix_subtask_object_id", subtask_object_id),
+        ("jetrix_subtask_number",   subtask_task_number),
+        ("composed_at",             generated_at),
+    ]
     lines = ["---"]
-    lines.append(f"doc_type: {doc_type}")
-    lines.append("schema_version: 1.0")
-    lines.append("produced_by: dev")
-    lines.append(f"feature_id: {parent_feature_id}")
-    lines.append(f"parent_task_object_id: {parent_task_object_id}")
-    lines.append(f"parent_task_number: {parent_task_number}")
-    lines.append(f"subtask_number: {subtask_number}")
-    lines.append(f"subtask_repo: {subtask_repo}")
-    lines.append(f"jetrix_subtask_object_id: {subtask_object_id}")
-    lines.append(f"jetrix_subtask_number: {subtask_task_number}")
-    lines.append(f"composed_at: {generated_at}")
+    for key, raw in values:
+        safe = _safe_yaml_scalar(raw)
+        if safe is None:
+            return None
+        lines.append(f"{key}: {safe}")
     return lines
 
 
@@ -145,11 +245,39 @@ def materialize(
         print(json.dumps({"error": "bundle missing parent_slug or parent_feature_id"}))
         return 2
 
+    # Trust boundary: bundle originates from MC (via task-mcp.subtask_list).
+    # A malicious or corrupted MC record could carry a `parent_slug` like
+    # "../../etc" — refuse anything not matching the strict slug shape
+    # before letting it near a filesystem operation.
+    if not _is_safe_slug(parent_slug):
+        print(json.dumps({
+            "error": f"parent_slug {parent_slug!r} is not a valid slug "
+                     "([a-z0-9][a-z0-9_-]*) — refusing to touch the filesystem"
+        }))
+        return 2
+
+    # feature_id is also written into every frontmatter block — validate its
+    # YAML-scalar shape now so a bad value halts once, not per-row.
+    if _safe_yaml_scalar(parent_feature_id) is None:
+        print(json.dumps({
+            "error": f"parent_feature_id {parent_feature_id!r} contains "
+                     "YAML-unsafe characters — refusing to write frontmatter"
+        }))
+        return 2
+
     if not isinstance(subtasks, list):
         print(json.dumps({"error": "bundle.subtasks is not a list"}))
         return 2
 
-    parent_dir = project_root / "features" / parent_slug
+    features_root = (project_root / "features").resolve()
+    parent_dir_target = _safe_join(features_root, parent_slug)
+    if parent_dir_target is None:
+        print(json.dumps({
+            "error": f"parent_slug {parent_slug!r} resolves outside {features_root}"
+        }))
+        return 2
+    parent_dir = parent_dir_target
+
     if not parent_dir.exists():
         # Parent feature folder must exist first — materialize-features.py
         # runs before this script in the pull flow.
@@ -157,6 +285,7 @@ def materialize(
         return 2
 
     subtask_root = parent_dir / "subtask"
+    subtask_root_resolved = subtask_root.resolve() if subtask_root.exists() else (parent_dir / "subtask").resolve()
 
     now = _iso_now()
     now_iso = datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
@@ -194,7 +323,25 @@ def materialize(
             )
             continue
 
-        subtask_dir = subtask_root / subtask_repo
+        # Trust boundary again: subtaskRepo is a JSON string from MC.
+        # Refuse anything not matching a strict slug shape before joining
+        # it into a path.
+        if not _is_safe_slug(subtask_repo):
+            warned.append(
+                f"{subtask_task_num or subtask_object_id[:8]}: metadata.subtaskRepo "
+                f"{subtask_repo!r} is not a valid slug — skipped (potential path-traversal payload)"
+            )
+            continue
+
+        # Belt-and-braces containment check even after the slug regex.
+        subtask_dir_target = _safe_join(subtask_root_resolved, subtask_repo)
+        if subtask_dir_target is None:
+            warned.append(
+                f"{subtask_task_num or subtask_object_id[:8]}: subtask_repo "
+                f"{subtask_repo!r} resolves outside {subtask_root_resolved} — skipped"
+            )
+            continue
+        subtask_dir = subtask_dir_target
         subtask_dir.mkdir(parents=True, exist_ok=True)
 
         description    = st.get("description") or ""
@@ -205,31 +352,47 @@ def materialize(
         local_state    = _local_state(mc_status)
 
         # Description tab
-        desc_fm = _identity_frontmatter(
+        desc_fm_lines = _identity_frontmatter(
             parent_feature_id, parent_task_object_id, parent_task_number,
             subtask_number, subtask_repo, subtask_object_id, subtask_task_num,
             now_iso, "subtask-description",
-        ) + ["---"]
+        )
+        if desc_fm_lines is None:
+            warned.append(
+                f"{subtask_task_num or subtask_object_id[:8]}: identity field "
+                "failed YAML sanitiser (control chars, newlines, or leading "
+                "YAML metachar) — skipped"
+            )
+            continue
+        desc_fm = desc_fm_lines + ["---"]
         desc_content = "\n".join(desc_fm) + "\n\n" + description.rstrip() + "\n"
 
         # Implementation tab
-        impl_fm = _identity_frontmatter(
+        impl_fm_lines = _identity_frontmatter(
             parent_feature_id, parent_task_object_id, parent_task_number,
             subtask_number, subtask_repo, subtask_object_id, subtask_task_num,
             now_iso, "subtask-implementation",
-        ) + ["---"]
+        )
+        # Guaranteed non-None since same values passed desc_fm; assert for safety.
+        assert impl_fm_lines is not None
+        impl_fm = impl_fm_lines + ["---"]
         impl_content = "\n".join(impl_fm) + "\n\n" + implementation.rstrip() + "\n"
 
         # Status tab — includes the current_state body block for /dev:build
         # + /dev:plan resume to read.
-        status_fm = _identity_frontmatter(
+        status_fm_lines = _identity_frontmatter(
             parent_feature_id, parent_task_object_id, parent_task_number,
             subtask_number, subtask_repo, subtask_object_id, subtask_task_num,
             now_iso, "subtask-status",
-        ) + ["---"]
+        )
+        assert status_fm_lines is not None
+        status_fm = status_fm_lines + ["---"]
+        # local_state comes from our own _MC_STATUS_TO_LOCAL enum mapping
+        # (bounded set) so it's guaranteed YAML-safe; sanity-check anyway.
+        safe_state = _safe_yaml_scalar(local_state) or "PLANNED"
         status_content = (
             "\n".join(status_fm)
-            + f"\n\ncurrent_state: {local_state}\n"
+            + f"\n\ncurrent_state: {safe_state}\n"
             + "owner_lock: null\n"
             + "branch: null\n"
         )
@@ -251,24 +414,26 @@ def materialize(
         # for them. Empty tabs → no local file (matches push-side asymmetry:
         # empty string is never sent up, empty content is never written down).
         if ac.strip():
-            ac_fm = _identity_frontmatter(
+            ac_fm_lines = _identity_frontmatter(
                 parent_feature_id, parent_task_object_id, parent_task_number,
                 subtask_number, subtask_repo, subtask_object_id, subtask_task_num,
                 now_iso, "subtask-acceptance-criteria",
-            ) + ["---"]
-            ac_content = "\n".join(ac_fm) + "\n\n" + ac.rstrip() + "\n"
+            )
+            assert ac_fm_lines is not None  # same values passed desc_fm
+            ac_content = "\n".join(ac_fm_lines + ["---"]) + "\n\n" + ac.rstrip() + "\n"
             target = subtask_dir / "acceptance-criteria.md"
             if not target.exists() or target.read_text(encoding="utf-8") != ac_content:
                 target.write_text(ac_content, encoding="utf-8")
                 changed_any = True
 
         if ts.strip():
-            ts_fm = _identity_frontmatter(
+            ts_fm_lines = _identity_frontmatter(
                 parent_feature_id, parent_task_object_id, parent_task_number,
                 subtask_number, subtask_repo, subtask_object_id, subtask_task_num,
                 now_iso, "subtask-test-scenarios",
-            ) + ["---"]
-            ts_content = "\n".join(ts_fm) + "\n\n" + ts.rstrip() + "\n"
+            )
+            assert ts_fm_lines is not None
+            ts_content = "\n".join(ts_fm_lines + ["---"]) + "\n\n" + ts.rstrip() + "\n"
             target = subtask_dir / "test-scenarios.md"
             if not target.exists() or target.read_text(encoding="utf-8") != ts_content:
                 target.write_text(ts_content, encoding="utf-8")

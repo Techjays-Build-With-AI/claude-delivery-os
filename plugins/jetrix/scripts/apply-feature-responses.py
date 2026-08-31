@@ -52,6 +52,64 @@ import re
 import sys
 
 
+# ---------------------------------------------------------------------------
+# Trust-boundary helpers — every value that flows in from the responses
+# JSON (parent_slug from --responses, subtaskRepo from --subtask-responses)
+# is treated as untrusted. Both files originate from task-mcp / MC, and a
+# malicious record could smuggle path-traversal into `parent_slug` /
+# `subtaskRepo` or YAML metacharacters into ObjectIds. Validate + refuse.
+# ---------------------------------------------------------------------------
+
+_SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
+
+
+def _is_safe_slug(value) -> bool:
+    if not isinstance(value, str):
+        return False
+    if not value or len(value) > 128:
+        return False
+    return bool(_SLUG_RE.match(value))
+
+
+def _safe_join(root: pathlib.Path, *parts: str) -> pathlib.Path | None:
+    """Join under `root` and require the resolved path to remain inside."""
+    candidate = root
+    for p in parts:
+        candidate = candidate / p
+    try:
+        resolved_root = root.resolve()
+        resolved_candidate = candidate.resolve()
+    except (OSError, RuntimeError):
+        return None
+    if not resolved_candidate.is_relative_to(resolved_root):
+        return None
+    return candidate
+
+
+_YAML_UNSAFE_SCALAR = re.compile(r"[\r\n\x00-\x08\x0b-\x1f\x7f]")
+_YAML_META_LEADING = ("#", "!", "&", "*", "|", ">", "%", "@", "`", "[", "]", "{", "}")
+
+
+def _safe_yaml_scalar(value) -> str | None:
+    """Return value as a safe unquoted YAML scalar, or None if unsafe."""
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, int):
+        return str(value)
+    if not isinstance(value, str):
+        return None
+    s = value.strip()
+    if not s or len(s) > 512:
+        return None
+    if _YAML_UNSAFE_SCALAR.search(s):
+        return None
+    if s[0] in _YAML_META_LEADING:
+        return None
+    return s
+
+
 def _iso_now() -> str:
     return datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
 
@@ -65,21 +123,23 @@ def _load_json(path: pathlib.Path, default):
         return default
 
 
-def _upsert_fm_key(fm_block: str, key: str, value) -> str:
-    """Insert-or-replace a single frontmatter key. Shared by parent + sub-task
-    frontmatter patching."""
+def _upsert_fm_key(fm_block: str, key: str, safe_value: str) -> str:
+    """Insert-or-replace a single frontmatter key. `safe_value` MUST already
+    be a validated single-line YAML scalar — caller runs `_safe_yaml_scalar`
+    at the trust boundary and only passes through values that survived."""
     pattern = re.compile(rf"^{re.escape(key)}\s*:.*$", re.MULTILINE)
     if pattern.search(fm_block):
-        return pattern.sub(f"{key}: {value}", fm_block, count=1)
+        return pattern.sub(f"{key}: {safe_value}", fm_block, count=1)
     sep = "" if fm_block.endswith("\n") else "\n"
-    return f"{fm_block}{sep}{key}: {value}\n"
+    return f"{fm_block}{sep}{key}: {safe_value}\n"
 
 
 def _patch_frontmatter_keys(md_path: pathlib.Path, keys: dict) -> bool:
     """Apply a set of {key: value} upserts to a markdown file's YAML
-    frontmatter. Returns True on write, False if no change or no
-    frontmatter. Handles files that don't start with '---' by writing None
-    (caller decides to skip)."""
+    frontmatter. Every value is run through `_safe_yaml_scalar` first;
+    unsafe values (newlines, control chars, leading YAML metachars) are
+    silently skipped so a poisoned key never corrupts the frontmatter.
+    Returns True on write, False if no change or no frontmatter."""
     text = md_path.read_text(encoding="utf-8")
     if not text.startswith("---"):
         return False
@@ -94,7 +154,14 @@ def _patch_frontmatter_keys(md_path: pathlib.Path, keys: dict) -> bool:
     for key, value in keys.items():
         if value is None:
             continue
-        new_block = _upsert_fm_key(new_block, key, value)
+        # Refuse frontmatter-key smuggling in the key itself too — writing a
+        # key like "foo\nmalicious: bar" would inject an arbitrary line.
+        if not isinstance(key, str) or not re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", key):
+            continue
+        safe = _safe_yaml_scalar(value)
+        if safe is None:
+            continue
+        new_block = _upsert_fm_key(new_block, key, safe)
 
     new_text = f"---{new_block}{rest}"
     if new_text != text:
@@ -171,7 +238,18 @@ def _apply_features(
         # Write-back frontmatter on create / recreate only. Also patches
         # v2.1's `jetrix_task_number` for /dev:plan Stage 0 lookup.
         if action in ("created", "recreated") and slug and task_number is not None and task_oid:
-            feature_md = project_root / "features" / slug / "feature.md"
+            # Trust boundary: slug came from the responses JSON (task-mcp's
+            # echo of the payload slug field). Validate before joining it
+            # into a path.
+            if not _is_safe_slug(slug):
+                failed.append((slug, "response slug is not a valid slug — refusing to patch feature.md"))
+                continue
+            features_root_r = (project_root / "features").resolve()
+            feature_md_target = _safe_join(features_root_r, slug, "feature.md")
+            if feature_md_target is None:
+                failed.append((slug, f"slug {slug!r} resolves outside {features_root_r}"))
+                continue
+            feature_md = feature_md_target
             if feature_md.exists():
                 if _patch_frontmatter(feature_md, task_number, task_oid, display_num):
                     patched.append(slug)
@@ -243,6 +321,31 @@ def _apply_subtasks(
         if not parent_slug or not isinstance(results, list):
             continue
 
+        # Trust boundary: parent_slug from the responses bundle is an
+        # untrusted string. Reject anything that isn't a clean slug before
+        # letting it near a filesystem path.
+        if not _is_safe_slug(parent_slug):
+            failed.append((
+                f"bundle(parent_slug={parent_slug!r})",
+                "not a valid slug — refusing to patch filesystem",
+            ))
+            continue
+
+        # feature_id / parent_task_object_id are written into frontmatter;
+        # validate their YAML-safe shape once per bundle.
+        for field_name, value in (
+            ("parent_feature_id",     parent_feature_id),
+            ("parent_task_object_id", parent_task_object_id),
+        ):
+            if value and _safe_yaml_scalar(value) is None:
+                failed.append((
+                    f"bundle(parent_slug={parent_slug})",
+                    f"{field_name} contains YAML-unsafe characters",
+                ))
+                # Fall through to per-row processing; downstream
+                # _patch_frontmatter_keys will silently skip unsafe values.
+                break
+
         for row in results:
             if not isinstance(row, dict):
                 continue
@@ -271,24 +374,40 @@ def _apply_subtasks(
             metadata = row.get("metadata") if isinstance(row.get("metadata"), dict) else {}
             subtask_repo = str(metadata.get("subtaskRepo") or "").strip()
 
-            parent_dir = project_root / "features" / parent_slug
+            # Resolve the search root safely — parent_slug already validated
+            # above; use _safe_join to be belt-and-braces against symlink /
+            # encoded-traversal edge cases the slug regex might miss.
+            features_root = (project_root / "features").resolve()
+            parent_dir_target = _safe_join(features_root, parent_slug)
+            if parent_dir_target is None:
+                failed.append((label_base, f"parent_slug {parent_slug!r} resolves outside {features_root}"))
+                continue
+            parent_dir = parent_dir_target
             subtask_root = parent_dir / "subtask"
 
             if not subtask_repo and subtask_root.exists():
                 # Fallback: find the folder whose description.md frontmatter's
                 # subtask_number matches — one read per candidate, but usually
-                # 1-3 subfolders per parent.
-                for cand in subtask_root.iterdir():
-                    if not cand.is_dir():
-                        continue
-                    desc = cand / "description.md"
-                    if not desc.exists():
-                        continue
-                    txt = desc.read_text(encoding="utf-8")
-                    m = re.search(r"^subtask_number:\s*(\d+)", txt, re.MULTILINE)
-                    if m and int(m.group(1)) == int(subtask_number):
-                        subtask_repo = cand.name
-                        break
+                # 1-3 subfolders per parent. Folder names discovered here come
+                # from the local filesystem (user-controlled) so they don't
+                # need the same untrusted-input validation, but we still slug-
+                # check for consistency.
+                try:
+                    sn_int = int(subtask_number)
+                except (TypeError, ValueError):
+                    sn_int = None
+                if sn_int is not None:
+                    for cand in subtask_root.iterdir():
+                        if not cand.is_dir() or not _is_safe_slug(cand.name):
+                            continue
+                        desc = cand / "description.md"
+                        if not desc.exists():
+                            continue
+                        txt = desc.read_text(encoding="utf-8")
+                        m = re.search(r"^subtask_number:\s*(\d+)", txt, re.MULTILINE)
+                        if m and int(m.group(1)) == sn_int:
+                            subtask_repo = cand.name
+                            break
 
             if not subtask_repo:
                 failed.append((
@@ -297,8 +416,38 @@ def _apply_subtasks(
                 ))
                 continue
 
-            # Patch identity frontmatter on all three tab files.
-            subtask_dir = subtask_root / subtask_repo
+            # Trust boundary: subtask_repo came from `metadata.subtaskRepo`
+            # (or a fallback filesystem walk — either way, treat it as
+            # untrusted before joining into a path).
+            if not _is_safe_slug(subtask_repo):
+                failed.append((
+                    label_base,
+                    f"metadata.subtaskRepo {subtask_repo!r} is not a valid slug — "
+                    "refusing to patch (potential path-traversal payload)",
+                ))
+                continue
+
+            # Contain the final path under `subtask_root` — belt-and-braces
+            # after the slug regex.
+            try:
+                subtask_root_resolved = subtask_root.resolve()
+            except (OSError, RuntimeError):
+                failed.append((label_base, f"could not resolve {subtask_root}"))
+                continue
+            subtask_dir_target = _safe_join(subtask_root_resolved, subtask_repo)
+            if subtask_dir_target is None:
+                failed.append((
+                    label_base,
+                    f"subtask_repo {subtask_repo!r} resolves outside {subtask_root_resolved}",
+                ))
+                continue
+            subtask_dir = subtask_dir_target
+
+            # Patch identity frontmatter on all three tab files. The values
+            # here (subtask_oid, subtask_task_num) go through
+            # `_patch_frontmatter_keys`, which silently drops any that fail
+            # `_safe_yaml_scalar` — so an MC-injected ObjectId with an
+            # embedded newline is dropped, not written.
             keys_to_upsert = {
                 "jetrix_subtask_object_id": subtask_oid,
             }
