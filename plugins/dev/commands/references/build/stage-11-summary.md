@@ -131,17 +131,41 @@ the supplier creation + validation endpoint; the frontend sub-task provides the 
 - Postgres running locally (dep: prisma with PostgreSQL provider)
 - Playwright browsers installed (`pnpm exec playwright install --with-deps chromium`)
 
-## 3. Environment / config setup
+## 3. Environment / config setup (v2.3.23 — from real startup, not grep-guess)
 
-<Every env var this feature reads, from grep of source. Mark `[SET REQUIRED]` for anything the developer must provide.>
+**Env var detection MUST use both signals** — source grep AND Stage 7's `external_services_started.env_vars_verified` list:
 
-Copy `.env.example` to `.env` if not already done, then set:
+1. **Grep the source** for `process.env.<NAME>`, `os.environ["<NAME>"]`, `os.getenv("<NAME>")`, `System.getenv("<NAME>")`, `settings.<NAME>` accessors, and the repo's config module lookups.
+2. **Cross-reference with Stage 7's actual startup** — the `external_services_started[].env_vars_verified` list contains every env var the backend REQUIRED to reach `status: healthy` at Stage 7 time. If Stage 7 halted with `blocker: required-env-vars-missing`, THOSE are the ones the developer MUST provide.
+3. **Cross-reference with the repo's `.env.example`** — every var listed there is a documented required var for the service.
+4. Union all three sources → deduplicate → categorize per var:
+
+   | Category | Detection | Marker in local-runbook |
+   |---|---|---|
+   | Required, from repo's `.env.example` with placeholder | Present in `.env.example` with `<placeholder>` value | `[SET REQUIRED — see <where to get>]` |
+   | Required, verified at Stage 7 startup | Present in `external_services_started[].env_vars_verified` | `[SET REQUIRED — service won't start without it]` |
+   | Optional with sensible default | Present in source with a default in the code | `[OPTIONAL — default: <value>]` |
+   | Auth / credential — MUST NOT commit | Matches pattern `*SECRET*`, `*TOKEN*`, `*KEY*`, `*PASSWORD*`, `*CREDENTIAL*`, `FIREBASE_SERVICE_ACCOUNT`, `GOOGLE_APPLICATION_CREDENTIALS` | `[SET REQUIRED — credential; do NOT commit; from <where to get>]` |
+   | Endpoint / URL for external service | Ends with `_URL`, `_ENDPOINT`, `_HOST` | `[OK — dev value from technology-stack.md]` if declared there, else `[SET REQUIRED — the actual URL for your env]` |
+
+**"Where to get" hints per common var (extend as new patterns are encountered):**
+
+- `FIREBASE_SERVICE_ACCOUNT`: Firebase Console → Project Settings → Service Accounts → Generate new private key → paste JSON body (single-line, escape as needed) OR set `GOOGLE_APPLICATION_CREDENTIALS=<path to downloaded file>`
+- `DATABASE_URL`: your local database — install Postgres/MongoDB/etc. and create a database
+- `<SERVICE>_TOKEN` where `<SERVICE>` is an internal one: team's shared dev secrets vault / Bitwarden / 1Password
+- `JWT_SECRET`, `SESSION_SECRET`: generate with `openssl rand -hex 32`
+- `SMTP_*`: dev-mail service (Mailtrap / MailHog) OR real credentials from the marketing/ops owner
+
+Copy `.env.example` to `.env` (or `.env.local`) and set:
 
 ```
-DATABASE_URL=postgresql://user:pass@localhost:5432/acme_dev    [SET REQUIRED — your local DB]
-COMPLIANCE_SERVICE_URL=https://compliance.acme.internal/v1     [OK — dev value from technology-stack.md]
-COMPLIANCE_TOKEN=<team's shared dev token>                     [SET REQUIRED — from Vault / Bitwarden]
+DATABASE_URL=<paste your local DB URL>                         [SET REQUIRED — install Postgres locally]
+FIREBASE_SERVICE_ACCOUNT=<paste single-line JSON>              [SET REQUIRED — credential; do NOT commit; from Firebase Console]
+COMPLIANCE_SERVICE_URL=https://compliance.acme.internal/v1     [OK — dev value from shared-context/technology-stack.md]
+COMPLIANCE_TOKEN=<paste team dev token>                        [SET REQUIRED — credential; do NOT commit; from Vault / Bitwarden]
 ```
+
+**If the developer runs the feature and something 401s or 500s, the FIRST thing to check is this section** — a missing env var is the single most common cause of "tests passed but real endpoint failed" bugs.
 
 ## 4. Stored data changes
 

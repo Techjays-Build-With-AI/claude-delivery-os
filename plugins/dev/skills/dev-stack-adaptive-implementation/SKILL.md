@@ -79,7 +79,76 @@ For each ordered step in `implementation.md`:
 
 **Rule 6 — No framework leakage in identifiers or comments.** Component names, function names, and code comments are business-language, not framework-language. `SupplierListPage`, not `SupplierListReactPage`. `sendConfirmationEmail`, not `sendConfirmationEmailWithNodemailer`.
 
-**Rule 7 — 100% coverage from the stack tier pool. Every implementation.md build sequence step gets tests AT EVERY APPLICABLE TIER (v2.3.16 sharpened).** No "we'll add tests later." No "deferred to E2E." Every §1 step that touches business logic gets at least one test AT EVERY TIER declared as `Required` for the step's concern class in `qa/quality-gates.md`. Missing tier coverage → the step isn't complete.
+**Rule 7 — 100% coverage from the stack tier pool. Every implementation.md build sequence step gets tests AT EVERY APPLICABLE TIER (v2.3.16 sharpened; v2.3.23 anti-mock hardening).** No "we'll add tests later." No "deferred to E2E." No "mocked backend counts as integration." Every §1 step that touches business logic gets at least one test AT EVERY TIER declared as `Required` for the step's concern class in `qa/quality-gates.md`. Missing tier coverage → the step isn't complete.
+
+**Rule 7.i — MOCKS DO NOT SATISFY INTEGRATION OR E2E TIERS (v2.3.23). This closes the "tests pass, real endpoint 401s" gap.**
+
+A test that mocks the HTTP call, mocks the database, or mocks the auth middleware is a UNIT test — no matter what its file is named or where it lives. Claiming it as "Integration" or "E2E" in `dev/acceptance-map.md` is a FALSE COVERAGE CLAIM.
+
+**Tier definitions (binding):**
+
+| Tier | Real HTTP? | Real DB / real store? | Real auth middleware? | Real backend service running? | Real frontend service running? |
+|---|---|---|---|---|---|
+| Unit | No (mocked or in-process only) | No (in-memory / mocked) | No (mocked) | No | No |
+| Component (frontend) | No (mocked axios/fetch) | N/A | N/A | No | No |
+| Integration | **YES** | **YES** (real test DB — Postgres/Mongo/etc. — with fixtures, torn down after) | **YES** (real middleware runs) | **YES** (backend process actually started) | N/A |
+| Contract | YES (real HTTP against a running service) | Any | Any | **YES** | N/A |
+| Concurrency | YES (real DB roundtrip; multiple concurrent connections) | **YES** | Any | **YES** | N/A |
+| E2E | **YES** | **YES** | **YES** | **YES** | **YES** (real browser or headless — Playwright / Cypress / Puppeteer against a running dev server) |
+
+**If ANY column marked YES for the claimed tier is actually mocked → the test does NOT satisfy that tier.** It becomes a Unit test only. If Integration was the only claimed tier for an AC/BR/TS and the test is actually mocked, the AC/BR/TS is UNCOVERED. Acceptance-map.md row must be flagged.
+
+**Rule 7.ii — Every test file MUST declare its `# tier:` at the top OR carry an obvious tier signature the compose can detect.** For test files under this build sequence's write:
+
+```javascript
+// tier: integration
+// requires: backend-running, real-db, real-auth
+```
+
+or
+
+```python
+# tier: e2e
+# requires: backend-running, frontend-running, playwright
+```
+
+If a test file's tier declaration doesn't match its actual behavior (e.g. declares `integration` but mocks axios), Rule 13 halts before writing.
+
+**Rule 7.iii — Acceptance-map.md rows carry a `mocked` field per test evidence entry.** Schema:
+
+```yaml
+- id: AC-1
+  status: Passed | Failed | Not-covered
+  tier: Unit | Component | Integration | Contract | Concurrency | E2E
+  evidence:
+    - file: tests/holiday.controller.test.js
+      test_name: creates_authenticated
+      mocked: false            # real HTTP + real DB + real middleware
+      external_processes_required: [backend-8080, postgres-test]
+    - file: tests/holiday.mock.test.js
+      test_name: unit_shape
+      mocked: true             # unit-tier only; does not satisfy an Integration claim
+      external_processes_required: []
+  passed: false                # aggregate: false if ANY row's tier claim is contradicted by its mocked flag
+```
+
+**Rule 7.iv — Rule 13's write-time check enforces the mock/tier alignment.** BEFORE writing a test file, this skill's write-time pass:
+
+1. Reads the intended tier declaration from Rule 7.ii's header
+2. Detects imports/patterns that indicate mocking: `jest.mock(`, `vi.mock(`, `sinon.stub(`, `nock(`, `msw`, `axios-mock-adapter`, `unittest.mock`, `MagicMock`, `pytest.MonkeyPatch`, `mockery`, etc.
+3. If `tier: integration` or higher AND ANY mocking-library import is used → HALT with escalation. Options: (a) remove the mock and use a real fixture, (b) demote the tier declaration to Unit and cover the higher tier with a separate test that actually runs against real infrastructure, (c) declare a documented exception in `qa/quality-gates.md` (e.g. "third-party payment provider mocked because we can't hit it in dev — separate contract-testing job runs against staging").
+
+**Rule 7.v — Backend-running requirement for Integration/Contract/Concurrency/E2E tests.**
+
+Before Stage 7 (Execute tests) runs any test file whose `tier:` header is `integration` / `contract` / `concurrency` / `e2e`:
+
+1. Check the backend's own README + `package.json` scripts + `.env.example` for the actual startup requirement (env vars, dependent services, DB connection)
+2. Attempt to start the backend (`npm run dev` / `python manage.py runserver` / equivalent) with a health-check timeout (max 30s)
+3. If startup fails (missing env var, port conflict, DB unreachable) → HALT the test run for that tier, mark the tier as `Not-covered` in acceptance-map.md, DO NOT claim Passed. Escalate as `dev/escalation-<n>.md` with the missing prerequisites.
+
+**Rule 7.vi — For consumer sub-tasks (frontend/mobile), the wire integration test hits the REAL backend running from the sibling sub-task's build.** If the sibling sub-task hasn't been built yet, the wire integration is `Not-covered` in this sub-task's acceptance-map, and the AC/BR/TS is marked `Deferred to cross-sub-task landing` — surfaced as a §6 Touch points cross-sub-task row: `Integration for AC-M owned by cross-sub-task landing test — closes when frontend + backend both merge to develop`.
+
+This is DIFFERENT from the retired "Deferred to E2E" plan-time concept. Here it's a build-time evidence gap that resolves when both sub-tasks land, not a plan-time skip.
 
 **Where the tier pool comes from:**
 - `qa/quality-gates.md` `harness_status: Ready` — Required tiers declared for each capability class. Read directly.

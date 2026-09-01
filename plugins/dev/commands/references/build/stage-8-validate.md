@@ -30,7 +30,7 @@ Read the parent's BA files (parent-alone → `features/<slug>/*.md`; sub-task �
 
 ---
 
-### 8c. Map each assertion to test evidence
+### 8c. Map each assertion to test evidence — WITH REAL-SERVICE VALIDATION (v2.3.23)
 
 For each map row, grep the test source files (`step_N.tests_written` from `dev/implementation-log.md`) for the assertion's ID.
 
@@ -40,16 +40,41 @@ For each map row, grep the test source files (`step_N.tests_written` from `dev/i
 - Match on word-boundary — `AC-B2` matches but `AC-B22` doesn't
 - Multiple IDs per test — a single test covering `AC-B1, AC-B2 · BR-1` counts as evidence for all three
 
-Look up the corresponding row in `test_runs:` (from Stage 7) — get the result.
+**Tier + mock detection per test file (v2.3.23 — closes the "tests pass but real endpoint 401s" gap):**
 
-Result mapping:
+For each matching test file, read the top of the file:
+1. Extract the `// tier:` (or `# tier:`) header — expected: `unit` / `component` / `integration` / `contract` / `concurrency` / `e2e`
+2. Scan the file body for mock indicators:
+   - `jest.mock(`, `vi.mock(`, `vitest.mock(`, `sinon.stub(`, `sinon.mock(`
+   - `nock(`, `msw.setupServer(`, `axios-mock-adapter`
+   - `unittest.mock`, `MagicMock`, `pytest.MonkeyPatch`, `mockery`
+   - `mockery.replaceAll(`, `td.replace(`
+3. **Apply Rule 7.iv from `dev-stack-adaptive-implementation`:** if `tier: integration` (or higher) AND ANY mock indicator hit → the tier claim is CONTRADICTED. Record row as `❌ mock-contradicts-tier` — do NOT mark ✅ pass even if the test itself ran green.
 
-| Test file result | Map row status |
-|---|---|
-| Test exists AND `test_runs` shows PASS | ✅ pass |
-| Test exists AND `test_runs` shows FAIL | ❌ fail (repair via §8f) |
-| Test exists AND `test_runs` shows PASS_FLAKY_ONE_RETRY | ✅ pass (with `flaky: 1-retry` note) |
-| No test found | See §8d — deferred-to-e2e OR ❌ missing-test (fail) |
+**Real-service run requirement per tier (v2.3.23):**
+
+Before marking a row ✅ pass for tiers `integration` / `contract` / `concurrency` / `e2e`, verify Stage 7 ran the test file against a REAL backend process:
+
+- Read Stage 7's `test_runs.<file>.external_services_started` list
+- For each service in the test file's `# requires:` header, the service must appear in `external_services_started` with `status: healthy`
+- If required services aren't in `external_services_started` → row is `❌ real-service-not-run` — the test can't have actually validated integration behavior
+
+**Common cause of `❌ real-service-not-run`:** the backend needs env vars that aren't set in the test environment. Example: `FIREBASE_SERVICE_ACCOUNT` missing → backend fails to start → test with `# requires: backend-running` skipped or hit an unreachable localhost:8080 → test "passed" only because axios call was mocked.
+
+Result mapping (v2.3.23 tightened):
+
+| Test file result | tier declared | mocks used | real service ran | Map row status |
+|---|---|---|---|---|
+| PASS | unit | any | N/A | ✅ pass |
+| PASS | component | any (mocking axios OK at component tier) | N/A | ✅ pass |
+| PASS | integration/contract/concurrency/e2e | none | yes | ✅ pass |
+| PASS | integration/contract/concurrency/e2e | some | any | ❌ mock-contradicts-tier |
+| PASS | integration/contract/concurrency/e2e | none | no | ❌ real-service-not-run |
+| PASS_FLAKY_ONE_RETRY | (any) | (per above) | (per above) | ✅ pass with `flaky: 1-retry` |
+| FAIL | (any) | (any) | (any) | ❌ fail (repair via §8f) |
+| No test found | — | — | — | ❌ missing-test (fail) |
+
+**Never mark ✅ pass on `mock-contradicts-tier` or `real-service-not-run`** — those failures are treated the same as ❌ fail from Stage 8's downstream perspective. The repair loop (§8f) either fixes the test (replaces mock with real fixture) or splits it (unit test at unit tier + integration test at integration tier).
 
 ---
 

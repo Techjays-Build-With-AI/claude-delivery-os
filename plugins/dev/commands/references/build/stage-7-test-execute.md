@@ -28,6 +28,71 @@ Parse the `Required gates` table from `qa/quality-gates.md`. For each row, captu
 - `threshold` — pass/fail criteria
 - `layer` — advisory; used only for parent-alone tasks that touch multiple layers
 
+### 7b.i. Pre-start required external services (v2.3.23 — REQUIRED for integration/contract/concurrency/e2e tiers)
+
+For every test file the `dev-stack-adaptive-implementation` skill wrote in Stages 5-6, read its `# tier:` and `# requires:` header (Rule 7.ii in the dev-implementation SKILL). If the test file's tier is `integration` / `contract` / `concurrency` / `e2e`, the required external services MUST be started BEFORE the test runs.
+
+**Steps per required service:**
+
+1. **Resolve the start command** from the service's own repo:
+   - Backend (Node): `package.json` `scripts.dev` or `scripts.start`
+   - Backend (Python): `manage.py runserver` or `uvicorn app:app --reload`
+   - Backend (Go): `go run ./cmd/server` per the repo's convention
+   - Database: check for `docker-compose.yml`, `podman-compose.yml`, or platform-specific test-container config; else use ambient (already-running) service
+2. **Read the required env vars** from the service's `.env.example` — every var listed must be present in the runtime env. If ANY is missing → **HALT Stage 7 with `blocker: required-env-vars-missing`**, listing which vars for which service. Do NOT run tests with partial env — that's how the "Bearer null / mocked-integration passes" bug propagates.
+3. **Start the service** with a health-check probe (max 30s wait). Health check per service type:
+   - HTTP service: `curl -f http://localhost:<port>/health` or `curl -f http://localhost:<port>/` returns 2xx/3xx
+   - Database: framework-native ping (e.g. `pg_isready`, `mongosh --eval "db.runCommand({ping:1})"`)
+   - Custom: probe defined in service's `.env.example` `HEALTH_CHECK_CMD` if present
+4. **Log started service** to `dev/implementation-log.md` under a new `external_services_started:` block:
+
+   ```yaml
+   external_services_started:
+     - name: backend
+       command: npm run dev
+       pid: 12456
+       port: 8080
+       env_vars_verified: [DATABASE_URL, SECRET, FIREBASE_SERVICE_ACCOUNT]
+       health_check: "curl -f http://localhost:8080/health"
+       started_at: 2026-09-01T14:22:03Z
+       status: healthy
+     - name: postgres-test
+       command: docker compose up -d postgres-test
+       port: 5433
+       health_check: "pg_isready -h localhost -p 5433"
+       started_at: 2026-09-01T14:22:07Z
+       status: healthy
+   ```
+
+5. **If a service fails to start** (missing env var, port conflict, DB unreachable) → HALT Stage 7 with a specific error naming the service + missing prerequisite + the exact env var / port. Do NOT continue to run tests without the required service. Stage 8's `real-service-not-run` detection would catch this AFTER the fact, but halting HERE surfaces the true blocker earlier.
+6. **Tear down services** at end of Stage 7 (after test-run block completes or on halt), regardless of pass/fail. Log `stopped_at` per service.
+
+**Env var resolution — where they come from at Stage 7 time:**
+
+For `/dev:build` runs, env vars are resolved in this order:
+1. Explicit `dev/build-env.local` (user-provided secrets for local dev — gitignored)
+2. `.env.local` in the target repo (developer's own)
+3. `.env` in the target repo
+4. `.env.example` (last resort — but any placeholder value there triggers a warning)
+
+If `.env.example` requires `FIREBASE_SERVICE_ACCOUNT` and no non-placeholder value is found anywhere, HALT with:
+
+```
+✗ Stage 7 requires backend to start, but FIREBASE_SERVICE_ACCOUNT is not set.
+
+  Backend won't authenticate incoming requests without it — so any integration
+  test that hits a gated endpoint would either fail or (worse) pass because
+  auth was mocked.
+
+  Add the value to dev/build-env.local (gitignored) OR .env.local, then re-run:
+    /dev:build <task-ref> --resume
+
+  Where to get the value:
+    - Firebase Console → Project Settings → Service Accounts → Generate new private key
+    - Paste the JSON body into FIREBASE_SERVICE_ACCOUNT= (single-line, escaped)
+    - OR set GOOGLE_APPLICATION_CREDENTIALS=<path to the file>
+```
+
 ---
 
 ### 7c. Execute each gate in order
