@@ -20,7 +20,7 @@ If context tree is missing → escalate. `/dev:plan` should have run `/tl:plan` 
 
 ### 10b. Identify owned units
 
-The units to update are the ones this task owns (from `implementation.md` step map + `tl-plan.md` §2 API endpoints / §3 DB / §4 Frontend for parent-alone, OR `subtask/<repo>/implementation.md` for sub-task).
+The units to update are the ones this task owns (from `implementation.md` §1 Build sequence Units column + §3 Operations exposed and consumed + §4 Stored data changes + §5 User-facing surfaces for parent-alone, OR `subtask/<repo>/implementation.md` for sub-task).
 
 Read the 3 layer indexes for the target repo:
 
@@ -86,7 +86,7 @@ Update `## Status` from `draft` (designed) → `active` (implemented, tested loc
 
 For endpoints — verify `## Business Logic` section matches actual code (if implementation revealed steps the design didn't have, add them; if design steps weren't actually needed, remove them and log a `DEC-###`).
 
-For entities — verify `## Fields written by this feature` (from dev-plan's Database modifications) matches actual migrations.
+For entities — verify `## Fields written by this feature` (from `implementation.md §4 Stored data changes`) matches actual migrations.
 
 For pages — verify `## Consumes endpoints` matches actual API calls in code.
 

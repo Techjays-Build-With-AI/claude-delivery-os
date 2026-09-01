@@ -42,14 +42,14 @@ Each blocker's `**Category:**` field decides which fold rule applies. All fold r
 **Fold rule:**
 1. In `ba/registers/integrations.md`: locate the `INT-###` row, fill missing fields from the resolution (endpoint, auth, request/response schema)
 2. In the analysis scratchpad `dev/<repo>-analysis.md` `build_sequence:` block: locate the step that references the integration, replace `[HELD]` / `TBD` with the concrete API call details from the resolution
-3. In the analysis scratchpad `dev/<repo>-analysis.md` `impact_matrix:` block: fill the `Third-party integrations` dimension with the resolved endpoint + auth mechanism
+3. In the analysis scratchpad `dev/<repo>-analysis.md` `impact_matrix:` block: fill the `Integrations` dimension with the resolved endpoint + auth mechanism
 4. Log: `DEC-<###>: Resolved integration <INT-###> per PB-<id> — <one-line summary of the option>`
 
 **Example — PB-001 resolution "1":**
 - Option 1 = "Use internal compliance service at `https://compliance.acme.internal/v1/duplicate-check`, Bearer auth via `COMPLIANCE_TOKEN`"
 - Fold updates INT-001 row's endpoint + auth fields
 - Fold updates implementation.md step 3 from `[HELD] call compliance service` to `POST https://compliance.acme.internal/v1/duplicate-check with { tax_id, country } — Authorization: Bearer <COMPLIANCE_TOKEN>`
-- Fold updates implementation.md §3 Impacted components §Third-party integrations with `INT-001 Compliance service · endpoint · Bearer auth`
+- Fold updates implementation.md §2 Impacted components §Integrations with `INT-001 Compliance service · endpoint · Bearer auth`
 - Log DEC-042
 
 #### 6.2.2 `schema-ambiguity`
@@ -74,12 +74,12 @@ Each blocker's `**Category:**` field decides which fold rule applies. All fold r
 
 #### 6.2.4 `config-unknown`
 
-**Target files:** `implementation.md` + `shared-context/technology-stack.md` + `implementation.md §10 How to verify locally` (creates one if absent — this is the developer-facing env var log)
+**Target files:** `implementation.md` + `shared-context/technology-stack.md` + `dev/local-runbook.md` (creates one if absent — this is the developer-facing env var log)
 
 **Fold rule:**
 1. In `technology-stack.md`: append the env var / config value to the Configuration section with (name, purpose, example value, source-of-value)
 2. In `implementation.md`: update the step that needed the config with the concrete variable name + how to obtain the value
-3. If the resolution says *"user must set locally"* → note the variable in `implementation.md §10 How to verify locally` under `Environment / config setup` with `[SET REQUIRED]` marker (for `/dev:build` Stage 11 to consume)
+3. If the resolution says *"user must set locally"* → note the variable in `dev/local-runbook.md` under `Environment / config setup` with `[SET REQUIRED]` marker (for `/dev:build` Stage 11 to consume)
 4. Log: `DEC-<###>: Resolved config value <name> per PB-<id>`
 
 #### 6.2.5 `br-edge-case`
@@ -103,7 +103,7 @@ Each blocker's `**Category:**` field decides which fold rule applies. All fold r
 
 #### 6.2.7 `data-flow`
 
-**Target files:** `implementation.md` + TL entity files + `implementation.md §3 Impacted components`
+**Target files:** `implementation.md` + TL entity files + `implementation.md §2 Impacted components`
 
 **Fold rule:**
 1. In the involved TL entity files: update the `## Business Purpose` and cross-references to reflect which is source of truth
@@ -113,7 +113,7 @@ Each blocker's `**Category:**` field decides which fold rule applies. All fold r
 
 #### 6.2.8 `copy`
 
-**Target files:** `implementation.md` (specifically Frontend UI step or refusals table)
+**Target files:** `implementation.md` (specifically §5 User-facing surfaces step or §3 Operations refusals table)
 
 **Fold rule:**
 1. In `implementation.md`: replace the placeholder copy with the resolved text verbatim

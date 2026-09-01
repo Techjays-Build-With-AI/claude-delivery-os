@@ -1,8 +1,8 @@
-# Review dimensions — 7 things to check on every diff
+# Review dimensions — 8 things to check on every diff
 
 **Purpose.** Enumerate the review lens. For each dimension, the reviewer knows what to look for + what patterns to match against + what severity to emit.
 
-Each dimension applies to every diff regardless of stack. Framework-specific SIGNALS live in `stack-signals.md`.
+Each dimension applies to every diff regardless of stack. Framework-specific SIGNALS live in `stack-signals.md`. Numeric limits (complexity, function length, nesting depth, duplication) come from `shared-context/coding-standards.md` — Dimension 8 fires when the diff exceeds the declared limit.
 
 ---
 
@@ -13,7 +13,7 @@ Each dimension applies to every diff regardless of stack. Framework-specific SIG
 **Signals.**
 
 - Each implementation.md build sequence step should be represented by code in the diff. Missing steps = incomplete work.
-- Function signatures match what the implementation.md build sequence / TL Implementation §2 API endpoints described (e.g. `POST /supplier` request body, response shape, refusal codes).
+- Function signatures match what the implementation.md `§1 Build sequence` + `§3 Operations exposed and consumed` described — request/message inputs, success payload shape, refusal codes.
 - Business rule enforcement points (see Dimension 5) are wired up.
 - Off-by-one errors, wrong operators (`===` vs `==`, `>=` vs `>`), inverted conditions.
 - Error paths that don't propagate to the caller.
@@ -161,12 +161,70 @@ Each dimension applies to every diff regardless of stack. Framework-specific SIG
 
 ---
 
+## Dimension 8 — Clean code & anti-patterns
+
+**Question.** Does the new code meet the engineering-standard limits declared in `shared-context/coding-standards.md` — complexity, length, nesting, duplication, recursion policy, magic values, boolean-flag arity, forbidden anti-patterns?
+
+**Read `shared-context/coding-standards.md` first.** Its §6 (function complexity budget), §7 (duplication policy), §8 (recursion policy), §9 (constants & magic values), §12 (anti-patterns forbidden) declare the NUMERIC and CATEGORICAL limits. Dimension 8 checks the diff against those limits. If `coding-standards.md` is missing or a section is blank, escalate that as a Blocker on `dev/escalation-<n>.md` — the review cannot fire without the contract to check against, and the fix goes upstream to whoever authors standards.
+
+**Signals.**
+
+- **Complexity budget breach.** A new/modified function's cyclomatic complexity exceeds `coding-standards.md §6` limit. Signals from the diff: function contains more than N distinct branches (if/switch/case/ternary/&&/||/? patterns) where N is the declared threshold.
+- **Function length breach.** Function body exceeds `§6` line limit.
+- **Nesting depth breach.** Any block is indented deeper than `§6` declared depth.
+- **Parameter arity breach.** Function signature has more parameters than `§6` limit, OR more boolean parameters than the boolean-flag sub-limit.
+- **Duplication.** Two or more blocks of ≥ `§7`-declared identical (or near-identical, differing only in identifiers) lines appear either within the diff or between the diff and pre-existing code the diff references. A helper extraction is required.
+- **Unnecessary recursion.** A function calls itself where the stack's `§8` recursion policy requires iteration — signals: no accumulator, no memoization on repeated sub-problems, unbounded input, or the stack's policy explicitly names this case as iterative-only. The reviewer describes WHY iteration is required in the finding, not just "recursion is bad."
+- **Magic value.** A numeric or string literal outside the neutral small set (`0`, `1`, `-1`, `""`, `null`, `true`, `false`) appears inline instead of as a named constant. Repeated occurrences of the same literal in the diff amplify severity.
+- **Anti-pattern hit.** The diff exhibits one of `§12`'s forbidden anti-patterns: god function/class/file (single unit doing multiple unrelated concerns), premature abstraction (interface/wrapper with one implementation and one caller in the diff), dead code (unreachable branch, unused declaration after refactor), comment-code mismatch (comment describes different behaviour than the code), silent catch (empty catch block with no explaining comment), magic sleep in tests, mock-only tests that assert nothing about SUT state.
+- **State & side-effect leaks.** Hardcoded time / random / external IO in business logic where the repo's `§10` state policy requires injection.
+
+**Severity guidance** (all thresholds come from `coding-standards.md` — Dimension 8 is enforcement, not policy):
+
+- Complexity breach on a new function → **Major** (readability + testability compound).
+- Complexity breach on a modified function that was already over limit and the diff makes it worse → **Major**.
+- Complexity breach on a modified function that was over limit before the diff and the diff doesn't change complexity → **Nit** (pre-existing debt; not this diff's job unless the diff touches the offending branches).
+- Duplication ≥ declared limit → **Major** (fragmentation risk).
+- Unnecessary recursion where `§8` requires iteration → **Major** (correctness/perf risk on unbounded input; stack overflow risk on some stacks).
+- Function length or nesting depth breach → **Major**.
+- Parameter arity breach → **Minor** (fixable via config object) unless the extra parameters include ≥ 3 booleans, then **Major** (obvious refactor).
+- Magic value single occurrence → **Nit**; ≥ 3 occurrences of the same literal → **Minor**; magic value inside a condition or off-by-one region → **Major**.
+- God function / god class / god file → **Major** (splittable now, harder later).
+- Premature abstraction (single-impl single-caller wrapper) → **Minor** with the suggestion to inline.
+- Dead code → **Minor** (housekeeping) unless it's a security-relevant path being silently kept alive, then **Major**.
+- Silent catch → **Blocker** (a swallowed error is a hidden bug).
+- Comment-code mismatch → **Minor** (misleading, but usually mechanical fix).
+- Hardcoded time / random / external IO in business logic → **Major** (Dimension 4 also covers testability; this dimension checks the standard's rule).
+
+**Ignore.**
+
+- Numeric literals used as their neutral small set values (loop counters starting at `0` / `1`, sentinel `-1`, empty string, boolean literals).
+- Anti-patterns pre-existing in the file that the diff does not touch or amplify.
+- Complexity in generated code (parser output, migration file, protobuf stub) — declare the generated file globs in `§6`, then Dimension 8 skips them.
+
+**Finding format.** Every Dimension 8 finding names the specific rule breached, the exact numeric limit vs the observed value (for quantitative breaches), and the abstract refactor:
+
+```yaml
+- severity: Major
+  category: clean_code
+  rule: coding-standards.md §6 cyclomatic-limit
+  file: <file>
+  line: <line>
+  observed: <observed value>
+  limit: <limit from coding-standards.md>
+  summary: "<one-line statement of the breach>"
+  failure_scenario: "<concrete scenario where the breach causes harm — e.g. deep nesting makes the change-case impossible to review; unnecessary recursion causes stack overflow on inputs the plan lists as valid; god function will regress on the next unrelated edit>"
+  fix_suggestion: "<the refactor, in prose — extract the inner block into a helper named X; replace recursion with iteration using accumulator Y; introduce a named constant Z; split the function on responsibility boundary W>"
+```
+
+---
+
 ## Applying dimensions to a diff
 
 For each changed file:
 
 1. Read the diff hunks
-2. For each hunk, walk dimensions 1-7 in order
+2. For each hunk, walk dimensions 1-8 in order
 3. For any signal that fires, record a candidate finding
 4. After all hunks in the file are reviewed, deduplicate: multiple hunks with the same underlying issue → one finding
 5. Move to next file

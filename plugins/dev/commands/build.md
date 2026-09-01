@@ -34,13 +34,30 @@ Read the **`delivery-os-conventions`** skill first if it's not in context — th
 
 Same 4-way resolution as `/dev:plan` Stage 0 — see `plugins/dev/commands/plan.md` §2a. Determine `task_kind` (parent-alone or sub-task) and canonical `(feature_id, task_object_id, task_number, task_folder)`.
 
-**Verify the plan exists.** Check for `implementation.md`, `implementation.md §3 Impacted components`, `status.md` under the task folder. Missing OR `status.md` `current_state` not `PLANNED` / later → halt with the "run /dev:plan first" message.
+**Verify the plan exists.** Check for `implementation.md` (with sections §1–§9 per v2.3.11 frame — Build sequence through Shared contract) and `status.md` under the task folder. Missing OR `status.md` `current_state` not `PLANNED` / later → halt with the "run /dev:plan first" message.
 
 **Verify no unresolved plan blockers (v2.2 hard gate).** Check for `dev/plan-blockers.md`:
 
 - Missing → continue
 - Exists, `status: RESOLVED` → log the resolved `DEC-###` refs into `build-run.md`; continue
 - Exists, `status: OPEN` or `RESOLVING` → halt with "run /dev:plan --resume first" message. Never make build-time decisions.
+
+**Verify engineering standards contract (v2.3.11 hard gate).** Check for `shared-context/coding-standards.md`:
+
+- Missing → halt with `blocker: coding-standards-missing`. Message points at `plugins/tl/skills/tl-project-scaffold/references/scaffold-guide.md` §4 for the required-sections template (greenfield: re-run `tl-project-scaffold` if the scaffold skipped it; brownfield: author the file directly using the template).
+- Present, but §6 (function complexity budget), §7 (duplication policy), §8 (recursion policy), §9 (constants & magic values), §10 (state & side effects), or §12 (anti-patterns forbidden) is blank / absent → halt with `blocker: coding-standards-incomplete`, listing which section(s).
+- Present + all required sections filled → continue. Log `coding_standards_checked: true` + the file's `updated_at` timestamp to `build-run.md`.
+
+Rationale: `dev-stack-adaptive-implementation` Rule 13/14 and code-review Dimension 8 are hard consumers of this file. Without it, Rule 13's write-time checks have no thresholds to compare against and Dimension 8's review checks have no policy to enforce — the "100% engineering standard" guarantee collapses to hope. Catching the gap at Stage 0 means the fix lands before any code is written, not after review flags it.
+
+**Verify QA gate contract (v2.3.16 gate — soft-when-Stack-Inferred).** Check for `qa/quality-gates.md`:
+
+- Missing → halt with `blocker: quality-gates-missing`. Point at `/dev:plan` §1e QA-check with skip prompt: user must re-run `/dev:plan` and either author gates for existing repo OR choose Skip (which writes a `Stack-Inferred` marker file with tier pools).
+- Present, `harness_status: Ready` → strict mode. Read Required tiers per capability class. Rule 7 in `dev-stack-adaptive-implementation` writes tests at every declared tier for every §1 step. Log `qa_gate_state: Ready` to `build-run.md`.
+- Present, `harness_status: Stack-Inferred` → soft mode. Tier pools were inferred from stack detection at plan time; NEW feature coverage is still 100% at every applicable tier from the inferred pool. Rule 7 writes tests at every inferred tier. Log `qa_gate_state: Stack-Inferred` + `stack_inferred_from: <source>` to `build-run.md`. Print a one-line warning: `qa/quality-gates.md is Stack-Inferred (user skipped QA setup at /dev:plan). Existing repo coverage is not audited; new feature will get 100% coverage at inferred tiers. Backfill existing coverage via /qa:audit → /qa:plan → /qa:setup when convenient.`
+- Present, `harness_status: Draft` or `Broken` → halt with `blocker: quality-gates-not-ready`. Point at `/qa:health` for Broken; `/qa:setup` for Draft.
+
+The Stack-Inferred path is the intentional escape hatch for teams that want to plan+build a new feature WITHOUT first backfilling test coverage on an existing codebase. The NEW feature still gets 100% coverage at every applicable tier — the inference just skips the audit-of-existing-code step. Backfill of existing coverage is deferred to a later `/qa:audit → /qa:plan → /qa:setup` run.
 
 ## 3. Route to stages 1–11 (serial per task; resume-aware)
 
@@ -54,8 +71,8 @@ Read each stage's reference file and execute verbatim. Stages 1–3 (mount + pre
 - Local: `PLANNED → IN_PLANNING` (broadcast)
 - MC: `readyForDev → inProgress` via `task-mcp.update_task_status`
 - Read parent BA files (`feature.md`, `workflow.md`, `acceptance-criteria.md`, `business-rules.md`, `nfrs.md`, `test-scenarios.md`, `dependencies.md`, `open-questions.md`) — validation contract
-- Read task's Implementation content (`tl-plan.md` for parent-alone; `subtask/<repo>/{description,implementation}.md` for sub-task; plus parent's `tl-plan.md` rollup for cross-sub-task dep context)
-- Read `implementation.md`, `implementation.md §3 Impacted components`, `shared-context/decision-log.md`
+- Read task's Implementation content (`implementation.md` at feature root for parent-alone; `subtask/<repo>/{description,implementation}.md` for sub-task; plus parent's `tl-plan.md` rollup for split cross-sub-task dep context only)
+- Read `shared-context/decision-log.md`, `shared-context/coding-standards.md` (Rule 13/Dimension 8 contract)
 - Record sources consulted in `dev/implementation-log.md`
 
 ### Stage 2 — Pre-flight
@@ -104,7 +121,7 @@ Local: `IN_DEVELOPMENT → TESTING` (broadcast). MC: `inProgress`.
 
 ### Stage 11 — Report summary + `local-runbook.md`
 
-**Read** `plugins/dev/commands/references/build/stage-11-summary.md` and execute verbatim. Prints in-terminal summary + writes `implementation.md §10 How to verify locally`.
+**Read** `plugins/dev/commands/references/build/stage-11-summary.md` and execute verbatim. Prints in-terminal summary + writes `dev/local-runbook.md`.
 
 Local: `TESTING → IN_PROGRESS` (build phase done; awaits `/dev:commit`). MC: `inProgress` (unchanged).
 

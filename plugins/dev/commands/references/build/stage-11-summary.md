@@ -1,6 +1,6 @@
 ## Stage 11 — Report summary + `local-runbook.md`
 
-**Purpose.** Two artifacts. First: in-terminal summary so the developer knows what happened. Second: `implementation.md §10 How to verify locally` — a developer-facing setup + run guide for verifying locally (NOT the PR summary — that's `/dev:commit`'s job).
+**Purpose.** Two artifacts. First: in-terminal summary so the developer knows what happened. Second: `dev/local-runbook.md` — a developer-facing setup + run guide for verifying locally (NOT the PR summary — that's `/dev:commit`'s job). The runbook lives at `dev/local-runbook.md` (v2.3.11) — implementation.md is plan-only and does not carry the verify runbook.
 
 **Runs after Stage 10.** Final stage. State: `TESTING → IN_PROGRESS` (build phase done; local state stays IN_PROGRESS until `/dev:commit` flips to REVIEW). MC: `inProgress` (unchanged; `/dev:commit` sets `devReview`).
 
@@ -51,8 +51,8 @@ Security review (build-time, Critical-blocking only):
   See: dev/security-findings-build.md
 
 Acceptance map: 12/12 rows resolved
-  · Pass locally:    8
-  · Deferred to E2E: 4 (last sub-task closes cross-sub-task ACs)
+  · Pass locally:    12  (Unit + Integration + Component + Concurrency tiers per qa/quality-gates.md)
+  · Cross-layer E2E: owned by <sibling sub-task>  (referenced in §6 Touch points; runs after all sub-tasks land)
   · Fail:            0
 
 Code-context:
@@ -69,29 +69,30 @@ MC parent:     https://mission-control.techjays.com/task/6a94fe0ebc48d4e7d1cab15
 MC sub-task:   https://mission-control.techjays.com/task/6b72a1c48d4e7d1cab2c7
 
 Next steps:
-  1. Review implementation.md §10 How to verify locally — env vars + how to run manually
+  1. Review dev/local-runbook.md — env vars + how to run manually
   2. Verify the feature locally (see runbook)
   3. When ready, run:  /dev:commit FEAT-SUP-001-1
 
-Navigation sources:
-  · MC parent URL   ← feature.md frontmatter `jetrix_task_object_id` + UI_BASE from .jetrix/project.json
-  · MC sub-task URL ← subtask/<repo>/status.md frontmatter `jetrix_subtask_object_id` + same UI_BASE
-    (URL pattern: `<UI_BASE>/task/<object_id>` — MC's canonical short route works for BOTH parents and sub-tasks)
+Navigation sources (v2.3.17 — task-mcp is the URL source of truth):
+  · MC parent URL   ← task-mcp `get_task_by_id_or_number(solution_id, feature.md `jetrix_task_object_id`)` response `.view_url`
+  · MC sub-task URL ← task-mcp `get_task_by_id_or_number(solution_id, subtask/<repo>/status.md `jetrix_subtask_object_id`)` response `.view_url`
+    /dev:build did NOT push (that was /dev:plan Stage 4), so read the URLs via task-mcp lookup, not by constructing locally.
+    Never build the URL from `.jetrix/project.json` `mission_control_ui_url` directly — task-mcp's env var is the source of truth and may differ.
 
 Files written by this run:
   - dev/build-run.md
   - dev/implementation-log.md
   - dev/acceptance-map.md
   - dev/security-findings-build.md
-  - implementation.md §10 How to verify locally
+  - dev/local-runbook.md
   - dev/decisions.md
 ```
 
 ---
 
-### 11c. Compose `implementation.md §10 How to verify locally` — developer-facing setup guide
+### 11c. Compose `dev/local-runbook.md` — developer-facing setup guide
 
-**Not** the PR summary. `implementation.md §10 How to verify locally` is what the developer reads at their desk to verify the feature works on their machine.
+**Not** the PR summary. `dev/local-runbook.md` is what the developer reads at their desk to verify the feature works on their machine. Persisted as a discrete file so implementation.md stays plan-only.
 
 Frontmatter:
 
@@ -142,9 +143,9 @@ COMPLIANCE_SERVICE_URL=https://compliance.acme.internal/v1     [OK — dev value
 COMPLIANCE_TOKEN=<team's shared dev token>                     [SET REQUIRED — from Vault / Bitwarden]
 ```
 
-## 4. Database changes
+## 4. Stored data changes
 
-<From `implementation.md §3 Impacted components` §Database + `implementation.md` migration steps>
+<From `implementation.md §4 Stored data changes` + `§2 Impacted components` Stored data row + `§1 Build sequence` migration steps>
 
 Run migrations:
 
@@ -274,7 +275,7 @@ stage-11:
   status: DONE
   started_at: 2026-08-31T15:23:12Z
   summary_printed: true
-  local_runbook_written: implementation.md §10 How to verify locally
+  local_runbook_written: dev/local-runbook.md
   pr_summary_pre_generated: false                # /dev:commit generates dev/pr-summary.md
   finished_at: 2026-08-31T15:23:44Z
 ```
@@ -291,7 +292,7 @@ next_command: /dev:commit <task-ref>
 
 ### 11f. On `--resume`
 
-If `--resume` finds `stage-11.status: DONE`, print the same summary from `build-run.md` + `implementation.md §10 How to verify locally`'s existence, don't rebuild.
+If `--resume` finds `stage-11.status: DONE`, print the same summary from `build-run.md` + `dev/local-runbook.md`'s existence, don't rebuild.
 
 If Stage 11 was interrupted mid-write (rare — file writes are usually atomic), re-run.
 
@@ -299,7 +300,7 @@ If Stage 11 was interrupted mid-write (rare — file writes are usually atomic),
 
 ### Skills / agents invoked
 
-- Direct file writes (`implementation.md §10 How to verify locally`, `dev/build-run.md`, `status.md`)
+- Direct file writes (`dev/local-runbook.md`, `dev/build-run.md`, `status.md`)
 - Direct stdout print for the terminal summary
 - No subagents
 

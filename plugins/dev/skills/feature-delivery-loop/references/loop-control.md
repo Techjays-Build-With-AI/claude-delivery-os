@@ -157,7 +157,7 @@ If a task appears to require any of these, stop and escalate.
 ## 4. Scope boundaries
 
 - Work **only** on files related to the selected feature.
-- Document any genuine cross-feature impact in `implementation.md §3 Impacted components`.
+- Document any genuine cross-feature impact in `implementation.md §2 Impacted components`.
 - Raise a **scope escalation before** modifying an unrelated module — never opportunistically.
 - Avoid opportunistic refactoring unless it is necessary to complete the feature safely (and note it if so).
 
@@ -210,7 +210,7 @@ A good escalation names what was attempted, the precise blocker, its impact (whi
 - Every parent AC + BR + TS + NFR row in `dev/acceptance-map.md` is `✅ pass` OR properly `⏸ deferred-to-e2e` (Stage 8)
 - Zero Critical security findings at build-time threshold (Stage 9)
 - Every owned code-context unit flipped `origin: designed → implemented` with valid Source References (Stage 10)
-- `implementation.md §10 How to verify locally` written (Stage 11)
+- `dev/local-runbook.md` written (Stage 11)
 
 Fails any → task stays `TESTING` or drops to `BLOCKED` via bounded fix loop escalation. Never advances to `IN_PROGRESS` on hope.
 
@@ -229,7 +229,7 @@ Fails any → Stage 6 fix loop OR halt with escalation. Never opens a PR on inco
 **Optional — where the project requires them:**
 - Accessibility checks pass (a11y gate in `qa/quality-gates.md`)
 - Performance checks pass (perf NFR-declared thresholds)
-- Feature-flag configuration documented in `implementation.md §10 How to verify locally`
+- Feature-flag configuration documented in `dev/local-runbook.md`
 - Release notes generated
 
 A task that fails any mandatory criterion at either gate stays in its working state (or `BLOCKED` / `MERGE_CONFLICT`) — it does not advance because code was written.

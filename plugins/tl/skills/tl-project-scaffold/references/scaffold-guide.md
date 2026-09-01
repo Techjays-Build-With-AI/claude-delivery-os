@@ -72,7 +72,24 @@ Write these so the dev agent (and future TL runs) build against a confirmed foun
 
 - **`technology-stack.md`** — the exact stack and versions chosen, one row per layer, each citing the `DEC-###` that decided it.
 - **`architecture.md`** — the architecture the scaffold realises: components, how they fit, the repo layout, and the runtime shape. Reconcile with the spec; where you filled a gap, mark it and cite the decision.
-- **`coding-standards.md`** — naming, folder structure, lint/format rules, test conventions, error-handling and logging conventions. This is the file the dev agent's implementation step follows, so make it concrete.
+- **`coding-standards.md`** — the file the dev agent's implementation step follows AND the review dimension checks against. Mandatory sections (concrete, per-stack values — no vague words like "reasonable" or "clean"; every limit is a NUMBER a lint tool or reviewer can check):
+
+  1. **Naming** — casing rule per identifier kind (function, type, constant, module, file, test) with 1-line examples; forbidden suffixes/prefixes.
+  2. **Folder structure & file placement** — where each kind of unit lives; how a new unit joins an existing folder vs starting a new one.
+  3. **Lint & format rules** — the enabled rulesets (name them), the delta from stock defaults, the format command.
+  4. **Test conventions** — file location relative to source, filename pattern, test naming, fixture location, mocking approach, coverage floor per test tier.
+  5. **Error-handling & logging** — the ONE error paradigm (exceptions / result types / codes), how errors propagate, the ONE logger, level policy, what NEVER gets logged (PII, secrets, tokens).
+  6. **Function complexity budget** — cyclomatic complexity limit per function, maximum function length in lines, maximum nesting depth, maximum parameter count, maximum boolean-flag parameters. Numeric limits, not words. If lint has a plugin that enforces the limit, name it and set the threshold to the same number.
+  7. **Duplication policy** — the maximum duplicated block size before extraction is required (e.g. "identical ≥ 8 lines → extract"); the maximum copy-of-pattern rate (e.g. "≥ 3 near-identical blocks → helper required").
+  8. **Recursion policy** — when recursion is idiomatic in this stack (tail-call safe? memoized? bounded input?), when iteration is the required alternative, what a recursive function MUST document (base case, termination proof, worst-case depth). Stack-dependent — record what applies here.
+  9. **Constants & magic values** — where numeric/string literals other than the neutral small set (`0`, `1`, `-1`, `""`, `null`, `true`, `false`) live; naming rule for constant groups; enum usage rule.
+  10. **State & side effects** — where global mutable state is allowed (usually nowhere); how config is read; how time / random / external IO gets injected so tests can control them.
+  11. **Comments & documentation** — when a comment is required, when it's forbidden, the doc-comment format for public exports, the "why not what" rule.
+  12. **Anti-patterns forbidden in this repo** — explicit list (god function / god class / god file, boolean-flag chains beyond §6's limit, premature abstraction with one implementation + one caller, dead code left behind, comment-code mismatch, silent catches, magic sleeps in tests, snapshot-only tests, mocks that assert nothing). Every entry has ONE line naming what the reviewer flags on.
+
+  Sections 1–5 describe existing repo shape (name what IS). Sections 6–12 declare ENFORCEABLE limits (name what MUST NOT happen). The dev agent's write-time check (Rule 13 in `dev-stack-adaptive-implementation`) and the code-review Dimension 8 both read this file — if a section is missing or vague, they can't enforce it.
+
+  Where a limit is stack-specific (e.g. cyclomatic threshold, recursion policy), pick the value that matches the stack's lint ecosystem defaults. Record the value and the rationale; don't leave it blank.
 
 Every layer carries standard frontmatter (`doc_type`, `produced_by: tl`, `schema_version`, `generated_at`).
 

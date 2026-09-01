@@ -85,15 +85,15 @@ None. (This file records any `--split`/`--no-split` used.)
 
 **Parallel per repo — N concurrent `tl-agent` subagents.** For each repo, spawn one `tl-agent` subagent to run the `tl-feature-compose` skill **twice**:
 
-1. **Narrative mode** → sub-task **Description** (one to two paragraphs of business flow narrative, no framework/paths/HTTP codes; see the skill's §narrative).
-2. **Detailed mode, scoped to that repo's units only** → sub-task **Implementation** (full 5-section template — Build sequence, API endpoints, Database mods, Frontend UI, Touch points).
+1. **`description` mode** → sub-task **Description** (6-section user-story format per Rule 13; see the skill's §description).
+2. **`implementation` mode, scoped to that repo's units only** → sub-task **Implementation** (9-section stack-agnostic template §1–§9: Build sequence, Impacted components, Operations exposed and consumed, Stored data changes, User-facing surfaces, Touch points, Coverage, Risks and rollback, Shared contract).
 
 Each subagent writes to disk directly:
 
 - `.jetrix/features/<slug>/subtask/<repo>/description.md`
 - `.jetrix/features/<slug>/subtask/<repo>/implementation.md`
 
-Frontmatter shape per the skill's `references/implementation-plan-template.md` §narrative and §detailed. `inputs_hash` = sha256 over the sub-task's own inputs (parent files + this sub-task's owned unit bodies) — different from parent's hash.
+Frontmatter shape per the skill's `references/implementation-plan-template.md` §description and §implementation. Sub-task implementation frontmatter includes `capabilities:` (controlled vocab per Rule 11.15). `inputs_hash` = sha256 over the sub-task's own inputs (parent files + this sub-task's owned unit bodies) — different from parent's hash.
 
 **Also write** `.jetrix/features/<slug>/subtask/<repo>/status.md`:
 
@@ -126,7 +126,7 @@ Write to `.jetrix/features/<slug>/tl-plan.md` with `compose_mode: rollup` in fro
 
 ### 4d. Compose branch B — parent alone
 
-**Single tl-agent subagent** running `tl-feature-compose` in **`implementation` mode** on the parent. Reads BOTH the TL context units AND `dev/analysis.md` scratchpad. Output → `.jetrix/features/<slug>/implementation.md` with `compose_mode: implementation` in frontmatter (v2.3 — parent-alone Implementation now writes to `implementation.md` at feature root, not `tl-plan.md`). Writes ALL 10 sections in one pass; §10 stubbed for /dev:build Stage 11.
+**Single tl-agent subagent** running `tl-feature-compose` in **`implementation` mode** on the parent. Reads BOTH the TL context units AND `dev/analysis.md` scratchpad. Output → `.jetrix/features/<slug>/implementation.md` with `compose_mode: implementation` + `capabilities:` in frontmatter (v2.3 — parent-alone Implementation now writes to `implementation.md` at feature root, not `tl-plan.md`). Writes ALL 9 sections (§1–§9, stack-agnostic per v2.3.11) in one pass. Verify runbook is produced separately by /dev:build Stage 11 as `dev/local-runbook.md` — implementation.md is plan-only.
 
 Skip §4e's `subtask_upsert_bundle` call — there are no sub-tasks. Proceed directly to §4f (parent Implementation push).
 
@@ -250,6 +250,41 @@ task-mcp.feature_update_implementation(
 ```
 
 **Note.** If Dharma confirms `feature_update_implementation` accepts sub-task object_ids (see the task-mcp addition spec), the above works verbatim. If not, replace step 2..N+1 with `subtask_update_implementation` (identical signature).
+
+---
+
+### 4f.i. Read-back verification (v2.3.17 — REQUIRED, no more silent trust of `ok: true`)
+
+**The gap this closes.** A prior run pushed sub-task implementation content, task-mcp returned `ok: true`, and `sync-state.json` recorded a `contentHash` — but MC stored a payload 44 characters shorter than what was sent. Every subsequent skip-unchanged check was then wrong in the same direction. Trusting `ok: true` alone at the push boundary is a bug; the fix is a deterministic read-back-and-compare step.
+
+**For every push in §4e (sub-task upsert) and §4f (Implementation update), immediately after `ok: true`:**
+
+1. **Read the pushed content back** via task-mcp:
+   - Sub-task Description tab → `task-mcp.subtask_list(solution_id, parent_task_id)` and locate the row by `subtask_object_id`
+   - Sub-task Implementation tab → same call, read `implementation_details` field
+   - Parent Implementation tab → `task-mcp.get_task_by_id_or_number(...)` and read `implementationDetails`
+2. **Compute SHA-256 of both:** the LOCAL string sent + the SERVER-returned string, both normalized (strip trailing whitespace, CRLF → LF, ensure UTF-8).
+3. **Compare hashes:**
+   - **Match** → proceed. Record BOTH `local_hash` and `server_hash` (identical) in `sync-state.json` under this task's `implementation_details_hash` field. Log `readback: ok` to `plan-run.md`.
+   - **Mismatch** → do NOT record any hash in sync-state. Log `readback: mismatch` + `local_len: <N>` + `server_len: <M>` + `first_diff_at: <offset>` to `plan-run.md`. Print a big warning to the user:
+
+     ```
+     ⚠ MC read-back mismatch on <task-ref>
+       Local sent:   <N> chars, sha256 <hash>
+       Server stored: <M> chars, sha256 <hash>
+       First difference at byte offset <offset>.
+
+       Push returned ok:true but MC stored a different payload. Investigate:
+       (a) task-mcp translation may be stripping fields
+       (b) MC schema may be rejecting content silently
+       (c) transport truncation
+       Do NOT trust this push. sync-state is unchanged; next /dev:plan run will re-push.
+     ```
+   - Do NOT retry automatically. Report and stop this task.
+
+This step runs for BOTH sub-task tabs (Description + Implementation) after §4e, and for the parent Implementation tab after §4f. It is not optional. It is not gated by any flag. `ok: true` alone is not sufficient evidence of a successful push.
+
+**Rationale:** the compose skill (Rule 0) is deterministic locally; the push-boundary is where silent divergence enters. A one-shot hash compare per push adds ~1 MCP call per tab (already cached in most cases) and turns a category of silent bugs into loud, obvious ones.
 
 ---
 

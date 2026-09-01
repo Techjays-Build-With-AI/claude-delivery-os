@@ -129,7 +129,7 @@ PR:            ✓ opened by /dev:commit
 Local state:   REVIEW           (awaiting human review)
 MC status:     devReview        (flips to done on PR-merge webhook — future)
 
-Local runbook: features/supplier-onboarding/subtask/backend/implementation.md §10 How to verify locally
+Local runbook: features/supplier-onboarding/subtask/backend/dev/local-runbook.md
 PR summary:    features/supplier-onboarding/dev/backend-pr-summary.md
 
 Next:
@@ -138,13 +138,15 @@ Next:
   3. On merge, MC status flips to `done` automatically (webhook — v2.3)
 ```
 
-**Navigation URL sources:**
+**Navigation URL sources (v2.3.17 — task-mcp is the URL source of truth):**
 
-- **MC parent** — read `feature.md` frontmatter `jetrix_task_object_id`; build URL `<UI_BASE>/task/<id>` where `UI_BASE` is `.jetrix/project.json`'s `mission_control_ui_url` field
-- **MC sub-task** — read this task's `subtask/<repo>/status.md` frontmatter `jetrix_subtask_object_id`; build URL with same pattern
+- **MC parent** — call `task-mcp.get_task_by_id_or_number(solution_id, feature.md `jetrix_task_object_id`)`; use `.view_url` from the response. task-mcp constructs the URL server-side using its own `mission_control_ui_url` env var.
+- **MC sub-task** — same pattern: `get_task_by_id_or_number(solution_id, subtask/<repo>/status.md `jetrix_subtask_object_id`)`; use `.view_url`.
 - **PR** — from `dev/<repo>-commit-run.md` stage-9's `pr_url` (written by Stage 9)
 
-All three URLs are must-haves in the terminal summary — the whole point of this stage is to give the developer + reviewer clickable jumps to every relevant surface.
+Do NOT construct MC URLs locally from `.jetrix/project.json` `mission_control_ui_url` — task-mcp's own env var is the source of truth and the two may drift. task-mcp's returned `view_url` is guaranteed correct.
+
+All three URLs are must-haves in the terminal summary — the whole point of this stage is to give the developer + reviewer clickable jumps to every relevant surface. If any URL cannot be resolved via task-mcp response, print `(not resolvable from MC)` inline, do NOT invent a URL.
 
 No file writes at Stage 10 — pr-summary + commit-run + delivery-status are already written by earlier stages.
 

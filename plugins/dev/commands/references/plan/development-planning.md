@@ -6,7 +6,7 @@
 
 **Why the v2.3 reorder:** in v2.2 this stage wrote `dev-plan.md` + `impacted-components.md` (two separate files) AFTER Stage 2 (compose+push) had already written a half-baked `implementation.md` and pushed it to MC. In v2.3, `implementation.md` is a single 10-section source of truth — writing it before analysis is done produces stub sections. So analysis (this stage) runs FIRST, blocker detection (Stage 2) runs on the analysis output, and compose+push (Stage 4) reads the analysis to write ALL sections in one pass.
 
-**On completion:** every task has a `dev/<repo>-analysis.md` scratchpad with `doc_type: analysis-scratchpad` and populated `build_sequence` / `impact_matrix` / `test_strategy` / `risks_and_rollback` blocks. Task state stays PLANNED_PENDING_STAGE_3 (not written to MC — MC still shows `readyForDev`). Skill invocations logged to `plan-run.md`.
+**On completion:** every task has a `dev/<repo>-analysis.md` scratchpad with `doc_type: analysis-scratchpad` and populated `build_sequence` / `impact_matrix` / `risks_and_rollback` blocks. (v2.3.16: the former `coverage:` / `test_strategy:` block is removed — plan-time coverage lives in `build_sequence`'s `satisfies` field per row + the `qa/quality-gates.md` tier pool resolved at §1e; build-time evidence lives in `dev/acceptance-map.md`.) Task state stays PLANNED_PENDING_STAGE_3 (not written to MC — MC still shows `readyForDev`). Skill invocations logged to `plan-run.md`.
 
 ---
 
@@ -123,7 +123,7 @@ Identify what this task actually touches, at the file/module level where you can
 - **Backend** — APIs and services (map to `EP-<AREA>-NN`)
 - **Database** — schema, tables/collections, migrations (map to `ENT-<AREA>-NN` → `DATA-###`)
 - **Authn / authz** — new roles, permissions, or checks
-- **Third-party integrations** — external APIs/services (cite `INT-###`)
+- **Integrations** — external APIs/services + outbound message-broker producers (cite `INT-###`)
 - **Background jobs / queues** — scheduled or async work
 - **Notifications** — email, push, in-app
 - **Monitoring / observability** — logs, metrics, traces, alerts
@@ -155,16 +155,13 @@ generated_at: <ISO>
 
 Write or refresh the analysis scratchpad `dev/<repo>-analysis.md`. It must be actionable enough for another developer or agent to pick up mid-stream. Include:
 
-- **Ordered implementation steps** — the sequence you'll build in (usually: data model/migration → backend endpoints → frontend pages → wiring → notifications/jobs → tests → edge cases), each tied to the TL units and the parent acceptance criteria it satisfies.
-- **Affected files or modules** — concrete paths from the impact analysis.
-- **Required API changes** — new/changed endpoints, request/response shapes (reuse the TL `EP-` contracts; don't reinvent them).
-- **Required schema changes** — new columns/tables/indexes and the migration approach, with rollback.
-- **Test strategy** — which acceptance criteria are covered by unit vs integration vs e2e, and what evidence each produces. **Sub-task:** which parent ACs THIS sub-task can validate on its own (single-layer), and which are E2E and can only be closed after all sub-tasks land (marked `deferred-to-e2e`).
-- **Rollback considerations** — how to reverse the change safely (migration down, flag off).
-- **Risks and assumptions** — including every non-critical readiness assumption you carried forward.
-- **Validation criteria** — the exact checks that will constitute "done" for this task.
-- **Estimated complexity** — Low / Medium / High, with the driver.
-- **Dependencies on other features or teams** — cross-feature ordering, shared units, external teams. **Sub-task:** also cross-sub-task ordering ("depends on task 1 backend endpoint existing").
+The scratchpad feeds implementation.md's §1/§2/§7/§8 at Stage 4 (compose). Aligned block names (matches the v2.3.15 frame):
+
+- **`build_sequence`** — the ordered steps you'll build in (data model / stored-data changes → operations exposed → user-facing surfaces → wiring → background jobs / notifications → tests → edge cases), each row citing the TL units and parent AC/BR/TS IDs it satisfies. **→ §1 Build sequence.**
+- **`impact_matrix`** — 12-dimension impact map with stack-agnostic dimension names (Surfaces / Operations / Stored data / Authz / Integrations / Background jobs / Notifications / Observability / Existing tests / Docs / Flags / Analytics), each row substantive per Rule 11.12. **→ §2 Impacted components.**
+<!-- v2.3.16 — the former `coverage:` block is REMOVED from the scratchpad. Every parent AC/BR/TS in scope is named in some `build_sequence` step's `satisfies:` field (or explicitly marked `not_applicable` with a layer-specific reason on the build step where it would otherwise apply, or `carried_by: sub-task-<N>` when a sibling sub-task's step covers it). The tier pool (Unit / Integration / Component / E2E / Concurrency / Accessibility / Load / Idempotency / Retry-behaviour) is resolved from `qa/quality-gates.md` at §1e — the scratchpad does not re-declare it. Build-time test evidence lives in `dev/acceptance-map.md`, not in the plan. -->
+- **`risks_and_rollback`** — risks table (R-N / Risk / Severity / Mitigation-cites-AC-BR-TS-ID + applicable tier from `qa/quality-gates.md`) + Out of scope for this sub-task (max 3 bullets — each names a specific implementation NOT delivered) + two-tier rollback (cheapest lever + full). **→ §7 Risks and rollback.** No "Assumptions" heading — boring decisions (no pagination, no rate limit, no permission model) live in §3 Invariants/Authz clauses or §5 Effects/on-success clauses per Rule 11.13 §5.
+- **Dependencies on other features or teams** (scratchpad-only note) — cross-feature ordering, shared units, external teams. **Sub-task:** also cross-sub-task ordering ("depends on sub-task 1 backend endpoint existing"). These land in §6 Touch points as Cross-sub-task rows, not in a standalone dependencies section.
 
 Respect the **2 plans per task** limit. Reuse the TL contracts and schemas as given — planning is sequencing and grounding the build, not redesigning what the TL already decided. Where the plan reveals a genuinely undecided design point that changes behaviour, raise it as an open question / escalation rather than baking a guess into the plan.
 
@@ -296,7 +293,7 @@ Never invoke `tl-feature-planning` from Stage 2 — that's Stage 1's job. Never 
 
 At end of Stage 2:
 
-- Every task has: `status.md`, `implementation.md §3 Impacted components`, `implementation.md` in its `dev/` folder (parent's or sub-task's).
+- Every task has: `status.md`, `implementation.md §2 Impacted components`, `implementation.md` in its `dev/` folder (parent's or sub-task's).
 - Every task has `current_state: PLANNED` locally and `status: readyForDev` on MC.
 - `/dev:build <task-id>` will resolve the task via Stage 0 identity resolution (same as `/dev:plan`), find the pre-existing plan, and start at branch creation.
 

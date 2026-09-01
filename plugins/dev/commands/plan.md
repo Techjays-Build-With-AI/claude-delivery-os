@@ -1,5 +1,5 @@
 ---
-description: Just-in-time planning for one or many tasks. Verifies the technical context graph is current (auto-runs /tl:plan if missing), decides whether each task needs sub-tasks (multi-repo → one sub-task per repo, single-repo or bug/story → parent alone), composes each sub-task's Description + Implementation and creates them in Mission Control, writes the local development plan, and (v2.2) surfaces every plan-time decision that would require build-time input as PB-### blockers in dev/plan-blockers.md — so /dev:build never has to prompt. Accepts a single MC task number (Task-N, Feature-N, Subtask-N), a local feature slug or folder path, the internal FEAT-<AREA>-NN id, or a multi-target form — an MC List name, initiative=<name>, or --all — which fans out across every matching feature in parallel. Runs 4 stages: identity resolution → code-context readiness → implementation preparation → development planning + blocker detection. With --resume: if a task has an OPEN dev/plan-blockers.md, folds every filled Resolution: field into implementation.md + implementation.md §3 Impacted components + registers deterministically per category, logs each fold as a DEC-###, and moves the task from BLOCKED_ON_PLAN to PLANNED. Two parallelism axes: across features (bounded by --concurrency, default 5) and within a feature (per-sub-task compose + per-task planning). One consolidated user checkpoint after stage 1 to confirm the split for every targeted feature. Failure of one feature never halts the batch — failed features report at the end with escalations or plan-blockers. Never merges, never runs code — leaves each task at status PLANNED for /dev:build (or BLOCKED_ON_PLAN awaiting user resolution).
+description: Just-in-time planning for one or many tasks. Verifies the technical context graph is current (auto-runs /tl:plan if missing), decides whether each task needs sub-tasks (multi-repo → one sub-task per repo, single-repo or bug/story → parent alone), composes each sub-task's Description + Implementation and creates them in Mission Control, writes the local development plan, and (v2.2) surfaces every plan-time decision that would require build-time input as PB-### blockers in dev/plan-blockers.md — so /dev:build never has to prompt. Accepts a single MC task number (Task-N, Feature-N, Subtask-N), a local feature slug or folder path, the internal FEAT-<AREA>-NN id, or a multi-target form — an MC List name, initiative=<name>, or --all — which fans out across every matching feature in parallel. Runs 4 stages: identity resolution → code-context readiness → implementation preparation → development planning + blocker detection. With --resume: if a task has an OPEN dev/plan-blockers.md, folds every filled Resolution: field into implementation.md §1-§9 + registers deterministically per category, logs each fold as a DEC-###, and moves the task from BLOCKED_ON_PLAN to PLANNED. Two parallelism axes: across features (bounded by --concurrency, default 5) and within a feature (per-sub-task compose + per-task planning). One consolidated user checkpoint after stage 1 to confirm the split for every targeted feature. Failure of one feature never halts the batch — failed features report at the end with escalations or plan-blockers. Never merges, never runs code — leaves each task at status PLANNED for /dev:build (or BLOCKED_ON_PLAN awaiting user resolution).
 argument-hint: "<Task-N | Feature-N | Subtask-N | slug | features/<slug> | FEAT-<AREA>-NN | list=<name> | initiative=<name> | --all | (blank = next READY task)> [--split | --no-split] [--resume] [--dry-run] [--concurrency=N]"
 ---
 
@@ -126,7 +126,7 @@ feature_id: FEAT-HCAL-01
 started_at: <ISO>
 ---
 
-## Stage 1 — Code-context readiness
+## Stage 1 — Code-context readiness + QA-gate check
 stage_1:
   status: DONE | HALTED
   invocations:
@@ -138,6 +138,15 @@ stage_1:
       inputs: [feature.md, tl indexes]
       outputs: {units_created: N, decs_logged: [DEC-...]}
       duration_ms: N
+    - name: qa-audit / qa-plan / qa-test-setup    # only when user answered "Yes" at §1e QA prompt
+      inputs: [existing repo state, capabilities]
+      outputs: {qa_setup_completed: true, harness_status: Ready}
+      duration_ms: N
+    - name: qa-skip-marker                        # only when user answered "Skip" at §1e QA prompt
+      inputs: [shared-context/technology-stack.md OR repo package manifest]
+      outputs: {qa_setup_skipped: true, qa/quality-gates.md: written with stack_inferred: true + tier pools per capability class}
+      duration_ms: N
+  qa_gate_state: Ready | Stack-Inferred          # ← reflects user's answer at §1e
   finished_at: <ISO>
 
 ## Stage 2 — Per-task analysis
@@ -422,23 +431,78 @@ Fill the remaining Resolution: fields and re-run.
 ✓ /dev:plan --resume complete for <task-ref> — <N> blockers folded into the plan
 
   PB-001 → resolved (option 1: internal compliance service)
-            applied to: implementation.md §3 Impacted components §3rd-party, implementation.md step 3
+            applied to: implementation.md §2 Impacted components §Integrations, implementation.md §1 step 3
             logged as DEC-042
   PB-002 → resolved (option 1: composite uniqueness)
-            applied to: implementation.md §3 Impacted components §Database, implementation.md step 1
+            applied to: implementation.md §2 Impacted components §Stored data, implementation.md §1 step 1
             logged as DEC-043
+
+MC tasks (verified):
+  ↳ Feature-1 (parent)      https://mission-control.techjays.com/task/6a94fe0e...   ✓ verified (5,953 chars)
+  ↳ Subtask-2 (backend)     https://mission-control.techjays.com/task/6a95e0a0...   ✓ verified (2,343 + 32,419 chars)
+  ↳ Subtask-3 (frontend)    https://mission-control.techjays.com/task/6a95e0a1...   ✓ verified (2,432 + 39,454 chars)
 
 Local state:  PLANNED
 MC status:    readyForDev
 
+Read-back verification: 3/3 pushes byte-identical (v2.3.17 §4f.i)
+
 Next: /dev:build <task-ref>
 ```
+
+**Same Rule 7.0 checklist applies:** every task_object_id has a URL, every push shows the read-back token, table format is forbidden without a URL column. `--resume` success is not "complete" until every pushed task has both a URL AND a read-back result rendered.
 
 ---
 
 ## 7. Batch summary
 
-After all workers complete (or fail), print the summary. **Every parent task AND every sub-task shows its MC UI navigation link (`view_url`) inline** — pulled directly from the corresponding task-mcp response (`feature_upsert_bundle` for parents, `subtask_upsert_bundle` for sub-tasks). MC's URL builder (`task-mcp/app/view_urls.py`) uses the short canonical form `<UI_BASE>/task/<task_object_id>` for BOTH parent tasks and sub-tasks — MC's frontend `TaskDetail` component handles both.
+After all workers complete (or fail), print the summary.
+
+**Rule 7.0 — Every task line MUST show its MC UI URL. No exceptions. No table format that drops the URL column. If you print a task_object_id, you print the URL next to it.**
+
+Under v2.3.17, before emitting the summary, verify:
+- Every parent task line has a `<UI_BASE>/task/<task_object_id>` URL rendered.
+- Every sub-task line has a `<UI_BASE>/task/<subtask_object_id>` URL rendered.
+- Every task with a task_object_id but no URL rendered → the summary is INCOMPLETE — recompute URLs and re-render before printing.
+- If choosing a table format instead of bullets, the table MUST have a `URL` column; a compact table like `| Task | MC id | Status | Content |` is INSUFFICIENT because it hides the clickable link. Prefer bullets (see canonical shape below) OR a table with an explicit `URL` column.
+
+Additionally (v2.3.17): every pushed task line reports the read-back verification result inline — `✓ verified` (local + server SHA-256 match) or `✗ readback-mismatch <N/M chars>` (local vs server length + first diff offset). This surfaces the silent-content-loss class of bug the /dev:plan Stage 4 §4f.i read-back check catches.
+
+**How task-mcp emits URLs (READ from response, do NOT construct locally).**
+
+task-mcp builds URLs SERVER-SIDE using its own `mission_control_ui_url` env var and returns them in EVERY upsert / list / read response. The plugin just reads the fields — never constructs URLs itself. Fields to read:
+
+| Response call | Field | Contains |
+|---|---|---|
+| `feature_upsert_bundle` | `.features[].view_url` | Direct URL to each parent task (`<UI_BASE>/task/<task_object_id>`) |
+| `feature_upsert_bundle` | `.solution_view_url` | Solution dashboard URL |
+| `feature_upsert_bundle` | `.list_view_url` | The MC List the feature lives under |
+| `subtask_upsert_bundle` | `.results[].view_url` | Direct URL to each sub-task |
+| `subtask_upsert_bundle` | `.parent_view_url` | URL to the parent task |
+| `subtask_upsert_bundle` | `.solution_view_url` | Solution dashboard URL |
+| `subtask_list` | `.subtasks[].view_url` | Per-sub-task direct URL |
+| `subtask_list` | `.parent_view_url` | Parent task URL |
+| `feature_update_implementation` | `.solution_view_url` | Solution dashboard URL |
+| `subtask_update_implementation` | `.results[].view_url` | Per-sub-task URL |
+| `subtask_update_implementation` | `.parent_view_url` | Parent task URL |
+| `get_task_by_id_or_number` | `.view_url` | Direct URL for the resolved task |
+
+**Primary path — always prefer the response `view_url`.** After every Stage 4 push, the response objects already carry every URL the summary needs. Collect them:
+
+```python
+# After Stage 4 push
+parent_url         = feature_upsert_response["features"][0]["view_url"]
+subtask_urls       = { r["subtask_object_id"]: r["view_url"] for r in subtask_upsert_response["results"] }
+solution_dashboard = feature_upsert_response["solution_view_url"]
+```
+
+**Fallback path — only for tasks NOT pushed this run** (e.g. `skipped-unchanged` features from `sync-state.json`, or `BLOCKED_ON_PLAN` tasks where Stage 4 didn't reach push):
+- Call `get_task_by_id_or_number(solution_id, task_id)` — the response includes `view_url`. This is the SUPPORTED way to get a URL for an existing task.
+- Do NOT try to construct URLs locally from `.jetrix/project.json`. The `mission_control_ui_url` in `project.json` is not authoritative — task-mcp's own env var is. If you construct locally and the two drift, your URL is wrong.
+
+**If both paths fail** (fresh feature never pushed AND `get_task_by_id_or_number` returns no view_url) → print `(not yet in MC)` inline, do NOT invent a URL.
+
+**Canonical summary shape (use this exact bullet form, not a table):**
 
 ```
 ✓ /dev:plan complete
@@ -447,30 +511,36 @@ Batch summary: .jetrix/dev/batch-runs/plan-run-2026-08-29-143207.md
 
 Succeeded (4):
   · Feature-4  Supplier Onboarding                    → 3 sub-tasks, PLANNED
-    ↳ Parent:      https://mission-control.techjays.com/task/6a94fe0ebc48d4e7d1cab15b
-    ↳ Subtask-7 (backend)   PLANNED   https://mission-control.techjays.com/task/6b72a1...
-    ↳ Subtask-8 (frontend)  PLANNED   https://mission-control.techjays.com/task/6b72a2...
-    ↳ Subtask-9 (mobile)    PLANNED   https://mission-control.techjays.com/task/6b72a3...
+    ↳ Parent:               https://mission-control.techjays.com/task/6a94fe0ebc48d4e7d1cab15b   ✓ verified (5,953 chars)
+    ↳ Subtask-7 (backend)   PLANNED   https://mission-control.techjays.com/task/6b72a1c48d4e7d1cab2c7   ✓ verified (2,343 + 32,419 chars)
+    ↳ Subtask-8 (frontend)  PLANNED   https://mission-control.techjays.com/task/6b72a2d59e5f8e6cbc3d8   ✓ verified (2,432 + 39,454 chars)
+    ↳ Subtask-9 (mobile)    PLANNED   https://mission-control.techjays.com/task/6b72a3e6af609f7dcd4e9   ✓ verified (2,187 + 28,102 chars)
   · Feature-9  Outlet Discovery                       → 2 sub-tasks, PLANNED
-    ↳ Parent:      https://mission-control.techjays.com/task/6a94ff0e...
-    ↳ Subtask-10 (backend)  PLANNED   https://mission-control.techjays.com/task/6b72a4...
-    ↳ Subtask-11 (frontend) PLANNED   https://mission-control.techjays.com/task/6b72a5...
+    ↳ Parent:               https://mission-control.techjays.com/task/6a94ff0e...   ✓ verified (4,213 chars)
+    ↳ Subtask-10 (backend)  PLANNED   https://mission-control.techjays.com/task/6b72a4f7...   ✓ verified (2,109 + 29,833 chars)
+    ↳ Subtask-11 (frontend) PLANNED   https://mission-control.techjays.com/task/6b72a5g8...   ✓ verified (2,214 + 35,712 chars)
   · Feature-12 RFP Generation                         → parent-alone, PLANNED
-    ↳ Parent:      https://mission-control.techjays.com/task/6a95001a...
+    ↳ Parent:               https://mission-control.techjays.com/task/6a95001a...   ✓ verified (33,441 chars)
   · Feature-15 Reporting Dashboard                    → 2 sub-tasks, PLANNED
-    ↳ Parent:      https://mission-control.techjays.com/task/6a950122...
-    ↳ Subtask-12 (backend)  PLANNED   https://mission-control.techjays.com/task/6b72a6...
-    ↳ Subtask-13 (frontend) PLANNED   https://mission-control.techjays.com/task/6b72a7...
+    ↳ Parent:               https://mission-control.techjays.com/task/6a950122...   ✓ verified (5,201 chars)
+    ↳ Subtask-12 (backend)  PLANNED   https://mission-control.techjays.com/task/6b72a6...   ✓ verified (2,301 + 30,105 chars)
+    ↳ Subtask-13 (frontend) PLANNED   https://mission-control.techjays.com/task/6b72a7...   ✓ verified (2,388 + 37,220 chars)
 
 Blocked on plan (1):
   ✗ Feature-7  Supplier Approval                     → BLOCKED_ON_PLAN (2 open blockers)
-    ↳ Parent:      https://mission-control.techjays.com/task/6a950230...
-    ↳ Blockers:    features/supplier-approval/dev/backend-plan-blockers.md
-    Resolve:       /dev:resolve --plan Feature-7
+    ↳ Parent:               https://mission-control.techjays.com/task/6a950230...
+    ↳ Blockers:             features/supplier-approval/dev/backend-plan-blockers.md
+    Resolve:                /dev:resolve --plan Feature-7
 
 Failed at Stage 1 (0)
 
 Skipped unchanged (0)
+
+Compose lint findings (WARN, non-blocking):
+  · Feature-4 backend §3: missing "Session-expiry handling" one-liner on POST /supplier
+  · Feature-9 frontend §5: adjacent-sentence redundancy at line 82–83
+
+Read-back verification: 11/11 pushes byte-identical (v2.3.17 §4f.i)
 
 Next:
   · Resolve Feature-7's blockers:            /dev:resolve --plan Feature-7
@@ -478,13 +548,23 @@ Next:
                                              /dev:build Feature-12  (parent-alone)
 ```
 
-**How to extract `view_url` from responses:**
+**Non-negotiable elements in the summary (fail-loud checklist BEFORE printing):**
+
+1. Every task line with a `task_object_id` has a `https://.../task/<id>` URL rendered inline. If ANY line has an id but no URL, the summary is malformed — recompute + re-render.
+2. Every pushed task shows a read-back verification token: `✓ verified (<local_char_count>[ + <server_char_count>] chars)` for match, `✗ readback-mismatch <local>/<server> chars` for mismatch.
+3. If ANY read-back mismatched, elevate the whole feature to a "⚠ Verification failures" section BEFORE "Next:" — the summary is not "complete" while a mismatch stands.
+4. If ANY compose lint WARN findings were emitted (Rule 0b), show the count + short list under a "Compose lint findings (WARN, non-blocking)" section. Zero WARNs → omit the section entirely.
+5. Table format is FORBIDDEN unless it includes an explicit `URL` column. Bullets (as shown above) are preferred and canonical.
+
+**How to extract `view_url` from responses (canonical — see Rule 7.0 above for the full field table):**
 
 - Parent: `feature_upsert_bundle` response `.features[].view_url` — one per feature per group
 - Sub-task: `subtask_upsert_bundle` response `.results[].view_url` — one per sub-task
-- For skipped-unchanged features (no fresh push this run), fall back to `sync-state.json`'s stored `taskObjectId` and build with the same URL pattern (`<UI_BASE>/task/<task_object_id>`) — `UI_BASE` comes from `.jetrix/project.json` `mission_control_ui_url` field
-- For BLOCKED_ON_PLAN tasks (Stage 4 didn't run because blockers open): fall back to the same `sync-state.json` + URL-build path; the parent MAY still have been pushed (Stage 2 succeeded, MC push happened at end of Stage 4 for tasks that reached it, but for blocked ones the parent's `task_object_id` may already be set from a prior run)
-- If NO `task_object_id` is available (fresh feature never pushed), print `(not yet in MC)` instead of a URL
+- For skipped-unchanged features (no fresh push this run): call `get_task_by_id_or_number(solution_id, task_object_id)` — the response includes `view_url`. Do NOT construct URLs locally from `.jetrix/project.json`.
+- For BLOCKED_ON_PLAN tasks (Stage 4 didn't run because blockers open): same — call `get_task_by_id_or_number` if the parent's `task_object_id` is known from a prior run's sync-state.
+- If NO `task_object_id` is available (fresh feature never pushed AND no prior sync-state entry) → print `(not yet in MC)`. Never invent a URL.
+
+**Why we do not build URLs locally:** task-mcp's `mission_control_ui_url` env var is the source of truth. `.jetrix/project.json`'s `mission_control_ui_url` may be a stale mirror. If the two drift (staging vs prod, or config out of sync), a locally-built URL points to the wrong place. task-mcp's own construction is guaranteed correct because it's the same code that would resolve any inbound MC UI redirect.
 
 Also write the same content to `.jetrix/dev/batch-runs/plan-run-<ts>.md` (append the `## Summary` section to the file created in §2b).
 

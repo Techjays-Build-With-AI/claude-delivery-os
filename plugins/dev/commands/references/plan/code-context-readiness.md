@@ -90,15 +90,58 @@ The orchestrator (`plan.md`) waits until every feature reports `STAGE_1_COMPLETE
 
 ---
 
-### 1e. Failure handling
+### 1e. QA gate check + skip-prompt (v2.3.16 — new)
+
+Before Stage 2 starts, verify `qa/quality-gates.md` state:
+
+- **Present + valid** (`harness_status: Ready` OR at minimum has `Required` gates declared for the sub-task's capability class) → continue to §1f.
+- **Missing** OR **`harness_status: Draft`** OR **required tiers not declared** → prompt the user via `AskUserQuestion`:
+
+  ```
+  question: "No QA test coverage set up for this repo yet.
+  
+  Test coverage for the NEW feature we're planning is 100% mandatory — every AC/BR/TS gets covered at every applicable tier for the stack. That happens either way.
+  
+  What we're asking about is BACKFILLING coverage for the EXISTING codebase (adding tests, wiring the harness, declaring gates). That's optional and can take a lot of work.
+  
+  Do you want to set up QA gates for the existing repo first, before we plan the new feature?"
+  
+  header: "QA coverage setup"
+  
+  options:
+    - label: "Yes — set up QA gates for existing repo first"
+      description: "Runs /qa:audit → /qa:plan → /qa:setup inline; produces qa/quality-gates.md with declared tiers before this feature's plan proceeds. Recommended if this is your first feature in this repo."
+    - label: "Skip — plan the new feature only"
+      description: "Skips the existing-code audit. New feature still gets 100% coverage at every applicable tier — tier pool detected from shared-context/technology-stack.md or repo package manifest. qa/quality-gates.md gets a `stack-inferred: true` marker written on skip."
+  
+  multiSelect: false
+  ```
+
+- **On "Yes"** → invoke `/qa:audit` → `/qa:plan` → `/qa:setup` inline (skills: `qa-audit`, `qa-plan`, `qa-test-setup`). Wait for `qa/quality-gates.md` `harness_status: Ready`. Log `qa_setup_completed: true` to `plan-run.md`. Continue to §1f.
+- **On "Skip"** → write a marker file `qa/quality-gates.md` with skeleton frontmatter `harness_status: Stack-Inferred`, `stack_inferred: true`, `inferred_from: <shared-context/technology-stack.md OR repo/package.json OR ...>`, `skipped_at_plan: <ISO timestamp>`, and the stack-detected tier pool for each capability class. Log `qa_setup_skipped: true` to `plan-run.md`. Continue to §1f.
+
+The `stack-inferred: true` marker signals to `/dev:build` Stage 0 that the tier pool came from stack detection (not from a QA audit), so the build gate is softened accordingly (see [`build.md`](../../build.md) §2 QA gate check). The NEW feature's coverage is still 100% at every applicable tier — the skip only affects backfill of the EXISTING codebase.
+
+**Stack-inferred tier pool defaults** (used when no `qa/quality-gates.md` and no `shared-context/technology-stack.md`):
+- Repo with an operations/handler layer + persistence → Backend pool: Unit + Integration + Contract + Concurrency
+- Repo with user-facing surfaces (web/mobile) → UI pool: Unit + Component + E2E
+- Repo with jobs/consumers → Worker pool: Unit + Integration + Idempotency + Retry-behaviour
+- Repo with data pipeline → Data pool: Unit + Integration + Contract + Property-based
+
+Rule 7 of `dev-stack-adaptive-implementation` reads the resolved tier pool at build time and writes tests at every declared tier for every §1 step.
+
+---
+
+### 1f. Failure handling
 
 Any Stage 1 failure isolates the feature — it does NOT halt the batch:
 
 - **Planning gate fails** (auto-plan can't complete) → write `dev/escalation-<n>.md`, set status `BLOCKED_STAGE_1`, log to `plan-run.md`, drop from Stage 2.
 - **Repo missing** → log as `SKIPPED_REPO_MISSING`, treat affected units as `[HELD · repo unavailable]` in Stage 2's compose; don't fail the feature entirely.
+- **QA setup fails after user chose "Yes"** → surface the qa-* skill's error, mark feature `BLOCKED_STAGE_1`, log to `plan-run.md`. User can re-run `/dev:plan` after fixing the QA setup issue.
 - **Any exception** → catch, log to `plan-run.md` with the stack, mark feature `BLOCKED_STAGE_1`, continue the batch.
 
-Report at end of run summarises: `planned N/M · auto-planned K · blocked-at-stage-1 J`.
+Report at end of run summarises: `planned N/M · auto-planned K · qa-setup Y · qa-skip Z · blocked-at-stage-1 J`.
 
 ---
 

@@ -7,7 +7,7 @@ The **Developer Agent** takes an approved, TL-planned feature and **builds + shi
 | **Namespace** | `/dev:` |
 | **Commands** | `/dev:bootstrap [spec]` · **`/dev:plan <task>`** · **`/dev:resolve --plan <task>`** · **`/dev:build <task>`** · **`/dev:commit <task>`** · `/dev:fix-review <task> feedback=<...>` |
 | **Input** | BA feature breakdown (`features/<slug>/`), TL context graph (`context/frontend\|backend\|database`), product repository, and (for `/dev:build`) plan artifacts `/dev:plan` produced with `plan-blockers.md` all `RESOLVED` |
-| **Output** | Working code on `feature/FEAT-<AREA>-NN-<slug>[-<repo>]`, `dev/` context files per task, `features/tracker.md`, `implementation.md §10 How to verify locally` (developer verification guide), and a merged / mergeable PR with `dev/pr-summary.md` as body |
+| **Output** | Working code on `feature/FEAT-<AREA>-NN-<slug>[-<repo>]`, `dev/` context files per task, `features/tracker.md`, `dev/local-runbook.md` (developer verification guide), and a merged / mergeable PR with `dev/pr-summary.md` as body |
 | **Skills** | `feature-delivery-loop` · `dev-stack-adaptive-implementation` · `dev-stack-adaptive-code-review` · `qa-greenfield-harness` · `dev-pr-handoff` (slimmed to content-only). `dev-validation` retired (folded into `/dev:build` Stages 7–9). |
 
 ---
@@ -32,7 +32,7 @@ The **Developer Agent** takes an approved, TL-planned feature and **builds + shi
                         ── acceptance-map vs parent AC+BR+TS+NFRs
                         ── security review — BUILD-TIME GATE: Critical-only blocking
                         ── code-context designed → implemented flip
-                        ── summary + implementation.md §10 How to verify locally
+                        ── summary + dev/local-runbook.md
 
          │  (developer verifies locally per local-runbook.md)
          ▼
@@ -51,7 +51,7 @@ The **Developer Agent** takes an approved, TL-planned feature and **builds + shi
 PR merged → DONE (human-owned)
 ```
 
-Each command is user-invoked separately — the flow never chains automatically. Between `/dev:build` and `/dev:commit`, the developer runs the feature locally using `implementation.md §10 How to verify locally` to sanity-check.
+Each command is user-invoked separately — the flow never chains automatically. Between `/dev:build` and `/dev:commit`, the developer runs the feature locally using `dev/local-runbook.md` to sanity-check.
 
 ---
 
@@ -128,13 +128,13 @@ Under a `dev/` subfolder in the task folder:
 |---|---|---|
 | `implementation.md` | `/dev:plan` | Ordered implementation steps, files, API/schema changes, test strategy |
 | `dev/plan-blockers.md` | `/dev:plan` | Plan-time blocker resolution log; `status: OPEN \| RESOLVING \| RESOLVED` |
-| `implementation.md §3 Impacted components` | `/dev:plan` | 12-dimension code impact |
+| `implementation.md §2 Impacted components` | `/dev:plan` | 12-dimension code impact |
 | `status.md` | all | Local state, owner lock, branch, next action |
 | `dev/build-run.md` | `/dev:build` | Per-stage log for build loop |
 | `dev/implementation-log.md` | `/dev:build` | Detected stack + inferred patterns + per-step evidence |
 | `dev/acceptance-map.md` | `/dev:build` (built) + `/dev:commit` (re-verified) | Parent AC + BR + TS + NFRs → validation → result |
 | `dev/security-findings-build.md` | `/dev:build` Stage 9 | Build-time findings (Critical-blocking) |
-| `implementation.md §10 How to verify locally` | `/dev:build` Stage 11 | Developer-facing manual verification guide |
+| `dev/local-runbook.md` | `/dev:build` Stage 11 | Developer-facing manual verification guide |
 | `dev/commit-run.md` | `/dev:commit` | Per-stage log for commit loop |
 | `dev/security-findings-commit.md` | `/dev:commit` Stage 3 | Commit-time findings (Critical + High blocking) |
 | `dev/code-review-findings.md` | `/dev:commit` Stage 4 | 4-tier severity findings |

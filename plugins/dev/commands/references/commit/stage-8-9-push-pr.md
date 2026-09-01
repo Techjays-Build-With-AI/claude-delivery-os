@@ -147,9 +147,9 @@ Structure:
 - 4 baseline rows preserved (EP-ORD-14, EP-INV-03, ENT-ORD-01, ENT-INV-01)
 - 0 conflicts
 
-## Deferred to E2E
+## Cross-sub-task E2E ownership
 
-- TS-4 (3-tab onboarding flow) — 2 sub-tasks remaining; last one closes this row
+- TS-4 (3-tab onboarding flow) — E2E test owned by the last-landing sub-task in the split; this PR's §1 references the E2E test file location; other sub-tasks' PR summaries reference it via §6 Touch points Cross-sub-task row.
 
 ## Reviewer instructions
 

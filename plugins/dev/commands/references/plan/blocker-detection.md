@@ -67,7 +67,7 @@ Read `shared-context/system-landscape.md`. If this task's parent `feature.md` de
 
 Missing OR listed as `TBD` → blocker.
 
-#### Source 5 — `implementation.md §3 Impacted components` `unknown` entries
+#### Source 5 — `implementation.md §2 Impacted components` `unknown` entries
 
 Read the impact analysis. In any of the 12 dimensions, entries marked `unknown` (not `N/A`) are blockers. `N/A` is a legitimate decision (dimension doesn't apply); `unknown` means we didn't figure it out.
 

@@ -16,8 +16,8 @@ You **consume** what upstream agents published and never re-run their work:
 
 - BA's **feature breakdown** under `features/<slug>/` — `feature.md`, `workflow.md`, `acceptance-criteria.md`, `business-rules.md`, `nfrs.md`, `test-scenarios.md`, `dependencies.md`, `open-questions.md`.
 - `/dev:plan` outputs (per task):
-  - Parent-alone → `features/<slug>/tl-plan.md` + `features/<slug>/implementation.md` + `implementation.md §3 Impacted components` + `dev/plan-blockers.md` (RESOLVED before build)
-  - Sub-task → `features/<slug>/subtask/<repo>/description.md` + `implementation.md` + `subtask/<repo>/implementation.md` + `implementation.md §3 Impacted components` + `dev/plan-blockers.md` (RESOLVED before build)
+  - Parent-alone → `features/<slug>/tl-plan.md` + `features/<slug>/implementation.md` + `implementation.md §2 Impacted components` + `dev/plan-blockers.md` (RESOLVED before build)
+  - Sub-task → `features/<slug>/subtask/<repo>/description.md` + `implementation.md` + `subtask/<repo>/implementation.md` + `implementation.md §2 Impacted components` + `dev/plan-blockers.md` (RESOLVED before build)
   If plan artifacts absent OR `plan-blockers.md` `status: OPEN`/`RESOLVING` → `/dev:build` halts with "run /dev:plan first" / "run /dev:plan --resume". NEVER re-plan yourself.
 - TL's **technical context graph** under `<repo>/context/code-context/{frontend,backend,database}/` — pages (`PAGE-<AREA>-NN`), endpoints (`EP-<AREA>-NN`), entities (`ENT-<AREA>-NN`), 3 indexes, `DEC-###` decisions.
 - For AI-bearing features: TL's **eval units** under `context/evals/` — `EVAL-<AREA>-NN` verifiers you run and inspect (not redesign).
@@ -40,7 +40,7 @@ Claude Code's built-in **`security-review`** skill is invoked at TWO thresholds 
 
 ### `/dev:plan <task>` — just-in-time planning
 
-Verify TL graph exists (auto-run `/tl:plan` via `tl-agent` if not). Decide multi-repo → sub-task split. Compose each sub-task's Description + Implementation via `tl-feature-compose`. Create sub-tasks in MC via `task-mcp`. Write local `implementation.md` + `implementation.md §3 Impacted components` + `status.md`. **Detect plan blockers** (from `tl-plan.md` `[HELD]` markers, BA `open-questions.md` "Blocks build" rows, `integrations.md` unresolved entries, `system-landscape.md` gaps, `implementation.md §3 Impacted components` `unknown` entries) and write `dev/plan-blockers.md` with `PB-###` IDs for user resolution. On `--resume`, fold each `Resolution:` into `implementation.md` deterministically per category and log as `DEC-###`.
+Verify TL graph exists (auto-run `/tl:plan` via `tl-agent` if not). Decide multi-repo → sub-task split. Compose each sub-task's Description + Implementation via `tl-feature-compose`. Create sub-tasks in MC via `task-mcp`. Write local `implementation.md` + `implementation.md §2 Impacted components` + `status.md`. **Detect plan blockers** (from `tl-plan.md` `[HELD]` markers, BA `open-questions.md` "Blocks build" rows, `integrations.md` unresolved entries, `system-landscape.md` gaps, `implementation.md §2 Impacted components` `unknown` entries) and write `dev/plan-blockers.md` with `PB-###` IDs for user resolution. On `--resume`, fold each `Resolution:` into `implementation.md` deterministically per category and log as `DEC-###`.
 
 End state: local `PLANNED` (MC `readyForDev`) OR `BLOCKED_ON_PLAN` (MC `blocked`) if blockers OPEN.
 
@@ -58,7 +58,7 @@ Refuses on missing plan OR unresolved `plan-blockers.md`. Runs on a decidable pl
 8. Acceptance-map validation (parent AC + BR + TS + NFRs)
 9. Security review (Critical-blocking)
 10. Update code-context units `designed → implemented`
-11. Summary + `implementation.md §10 How to verify locally`
+11. Summary + `dev/local-runbook.md`
 
 End state: local `IN_PROGRESS` (MC `inProgress`). Ready for `/dev:commit`.
 
@@ -94,4 +94,4 @@ You are a builder, not a decider. You **do not**: approve unclear business requi
 
 ## Return value
 
-Return a tight status as your final message — the closing summary on top of the live broadcasts, not a substitute. For each command: the task, its new local state + MC status, what you did (files/units touched, sub-tasks created, blockers surfaced, commits pushed, PR raised), the acceptance summary, decisions logged (`DEC-###`), any blockers/escalations, and links to `implementation.md §10 How to verify locally` / `dev/pr-summary.md` / escalation note. Detail lives in the files; give the human the headline and the next command. If the run ended `BLOCKED` (execution) or `BLOCKED_ON_PLAN`, include the explicit inline error/blocked block, not just a link.
+Return a tight status as your final message — the closing summary on top of the live broadcasts, not a substitute. For each command: the task, its new local state + MC status, what you did (files/units touched, sub-tasks created, blockers surfaced, commits pushed, PR raised), the acceptance summary, decisions logged (`DEC-###`), any blockers/escalations, and links to `dev/local-runbook.md` / `dev/pr-summary.md` / escalation note. Detail lives in the files; give the human the headline and the next command. If the run ended `BLOCKED` (execution) or `BLOCKED_ON_PLAN`, include the explicit inline error/blocked block, not just a link.
