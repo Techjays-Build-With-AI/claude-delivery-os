@@ -62,11 +62,56 @@ Three passes. Discovery enumerates cheaply; detail writes one unit at a time; **
 13. **Run the integrity check.** Every forward link has its back-link; every endpoint has a caller or a declared trigger; no orphan object (or it's marked reference/seed); every unit has a `## Summary` and every index row mirrors it; every index has a Domain Map; shared units appear once with multiple back-links; nothing duplicated. Plus the **coverage check**: every `map-coverage.md` row is `mapped`, `skipped`-with-a-note, or `removed` — no silent `pending`.
 14. **Summarise in chat.** Units per layer and per kind (created vs reconciled), coverage (enumerated vs mapped vs skipped), the confidence spread, where the tree was written, integrity findings, and the next steps.
 
-15. **Check `shared-context/coding-standards.md` and surface any gap.** The downstream dev flow (`dev-stack-adaptive-implementation` Rule 14, code-review Dimension 8) is a hard-precondition consumer of this file — without it, `/dev:build` halts. For brownfield workspaces `/tl:code-map` is the natural moment to notice the gap. Read `shared-context/coding-standards.md` if present; check for the required sections (naming, folder structure, lint & format rules, test conventions, error-handling & logging, function complexity budget, duplication policy, recursion policy, constants & magic values, state & side effects, comments & documentation, anti-patterns forbidden — see `plugins/tl/skills/tl-project-scaffold/references/scaffold-guide.md` §4 for the full spec). If the file is absent OR any section is blank/vague:
-    - Do NOT auto-fill. This skill maps STRUCTURE, not POLICY — inventing standards from repo shape is guesswork.
-    - Add a `coding-standards-gap` line to the chat summary listing which sections are missing/blank.
-    - Point the reader at the scaffold-guide template for the required section spec.
-    - This is a soft warning at map time — the hard halt fires at `/dev:build` time. Naming it here means the fix lands BEFORE the plan-and-build cycle starts.
+15. **Author `shared-context/coding-standards.md` when missing (v2.3.19).** The downstream dev flow (`dev-stack-adaptive-implementation` Rule 13/14, code-review Dimension 8) is a hard-precondition consumer of this file — without it, `/dev:build` halts at Stage 0. `/tl:code-map` is the natural author: it has ALREADY detected the stack (Pass A step 1), read lint config, and read sample source files during pattern inference. Read `shared-context/coding-standards.md` first:
+
+    - **Present + all 12 sections filled** → nothing to do. Log `coding-standards.md: present + complete` to chat summary.
+    - **Present + some sections blank / marked `[NEEDS AUTHOR]`** → fill only the blank sections. Never overwrite user-authored content.
+    - **Absent** → author the file end-to-end using the 12-section template from `plugins/tl/skills/tl-project-scaffold/references/scaffold-guide.md §4`.
+
+    **Content sourcing — stack-dynamic, never hardcoded per stack:**
+
+    - **§1 Naming, §2 Folder structure, §3 Lint & format rules, §4 Test conventions, §5 Error-handling & logging** — describe **what the repo already does**. Read from:
+      1. Existing lint/tooling config files in the repo (whatever they are for the detected stack — `.eslintrc.*` for JS-family, `pyproject.toml [tool.ruff]` for Python, `.golangci.yml` for Go, `.rustfmt.toml` for Rust, etc.). The stack determines which config files to look for.
+      2. Observed patterns from the ≤ 10 sample files Phase 2 already read.
+      3. `shared-context/technology-stack.md` if present for confirmed framework + version.
+
+    - **§6 Function complexity budget, §7 Duplication policy, §8 Recursion policy, §9 Constants & magic values, §10 State & side effects, §11 Comments & documentation, §12 Anti-patterns forbidden** — declare **engineering best practices**, resolved DYNAMICALLY per detected stack:
+      1. First: read the value from the repo's own lint/tooling config if declared (e.g. the ESLint rule for complexity, the Ruff config for max-complexity, the golangci-lint config for gocyclo — whatever the stack's lint ecosystem provides).
+      2. Otherwise: apply the ecosystem-default from the stack's own toolchain — the value that stack's standard lint suite recommends when no override is declared. Do NOT invent numbers; use what the stack's own recommended-config says.
+      3. If neither an existing config declares it NOR the stack's ecosystem has a codified default for that specific limit → write `[NEEDS AUTHOR — no <stack>-ecosystem default for this section]` and let Rule 14 halt `/dev:build` until the user fills it. Better a loud gap than a silent guess.
+
+    **File metadata (kept in file frontmatter — this is a background infra doc, not an MC task tab, so full metadata is welcome):**
+
+    ```yaml
+    ---
+    doc_type: coding-standards
+    schema_version: 1.0
+    produced_by: tl
+    generated_at: <ISO>
+    generated_by: tl-code-map (Pass C step 15)
+    detected_stack: <language>+<framework>+<version>
+    harness_status: Ready | Stack-Inferred
+    stack_inferred: <bool>
+    inferred_sections: [§6, §7, ...]           # only when Stack-Inferred; lists sections resolved via ecosystem defaults
+    existing_config_sources:                   # files read to fill §1-§5 and §6-§12 (grounded values)
+      - <path/to/repo/lint/config>
+      - <path/to/repo/format/config>
+    stack_default_sources:                     # ecosystem defaults applied where no repo config was declared
+      - "<stack>: <rule>"
+    ---
+    ```
+
+    Every numeric or categorical choice in §6–§12 ALSO logs a `DEC-###` row to `shared-context/decision-log.md` — standard decision-log flow, backs the frontmatter attribution.
+
+    **Rules for the authoring step:**
+    - No user prompt during authoring — this is silent background work in the map pass.
+    - Never overwrite an existing user-authored section — only fill blanks or `[NEEDS AUTHOR]` markers.
+    - Never invent a number. Existing config or codified ecosystem default only. If neither → `[NEEDS AUTHOR]`.
+    - Never hardcode per-stack numbers in this skill's instructions — the numbers come from the STACK'S OWN LINT ECOSYSTEM at runtime. This skill's job is to READ the stack's convention, not to encode it.
+
+    **Chat summary line:** `coding-standards.md: authored (stack=<detected>, harness_status: <Ready|Stack-Inferred>, N DECs logged, M sections marked [NEEDS AUTHOR])`.
+
+    **Effect on `/dev:build` Stage 0:** with this step authoring the file at map time, `/dev:build` Stage 0's Rule 14 hard-gate never fires for a repo that has been mapped. First `/dev:build` on an unmapped brownfield workspace will still halt with the "run /tl:code-map first" message — which is correct: map the code, then build against it.
 
 ## Boundaries
 
