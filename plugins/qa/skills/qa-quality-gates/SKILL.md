@@ -1,15 +1,15 @@
 ---
 name: qa-quality-gates
-description: Author and maintain qa-output/quality-gates.md — the machine-readable quality-gate contract that declares what "verified" means for a repository, so the dev delivery loop can check readiness and validate features against a real, agreed bar. Use when finalizing a test setup, defining or changing quality gates, or re-checking harness health ("what are our quality gates", "update the coverage floor", "is the harness still green", /qa:health). It lists each required and optional check, the exact command that runs it, and its threshold (coverage floor, which acceptance criteria demand e2e), plus the harness status. The dev readiness gate reads it to know a harness exists; dev-validation reads it to know which suites are required and to what bar. It is the single source of truth for the repo's testing bar — it does not run per-feature validation and does not write feature tests.
+description: Author and maintain qa/quality-gates.md — the machine-readable quality-gate contract that declares what "verified" means for a repository, so the dev delivery loop can check readiness and validate features against a real, agreed bar. Use when finalizing a test setup, defining or changing quality gates, or re-checking harness health ("what are our quality gates", "update the coverage floor", "is the harness still green", /qa:health). It lists each required and optional check, the exact command that runs it, and its threshold (coverage floor, which acceptance criteria demand e2e), plus the harness status. The dev readiness gate reads it to know a harness exists; dev-validation reads it to know which suites are required and to what bar. It is the single source of truth for the repo's testing bar — it does not run per-feature validation and does not write feature tests.
 ---
 
 # QA Quality Gates (the contract the dev loop verifies against)
 
-You own the one file that turns "we have some tests" into "here is exactly what verified means here": `qa-output/quality-gates.md`. It is written for machines and humans both — the dev readiness gate reads it to confirm a harness exists, and `dev-validation` reads it to know which checks are required, the command for each, and the bar each must clear. Keep it accurate and it makes the whole delivery loop's verification concrete; let it drift and the loop verifies against a lie.
+You own the one file that turns "we have some tests" into "here is exactly what verified means here": `qa/quality-gates.md`. It is written for machines and humans both — the dev readiness gate reads it to confirm a harness exists, and `dev-validation` reads it to know which checks are required, the command for each, and the bar each must clear. Keep it accurate and it makes the whole delivery loop's verification concrete; let it drift and the loop verifies against a lie.
 
 ## Operating contract
 
-Read **`delivery-os-conventions`** if it isn't in context. Your input is the proven harness (the commands and thresholds `qa-test-setup` verified green) and the repo's tooling. Your output is `qa-output/quality-gates.md` (`doc_type: quality-gates`, `produced_by: qa`), created if absent. Follow the exact schema in **`references/quality-gate-contract.md`** so consumers can parse it. If there's no workspace, write it beside the repo and note it.
+Read **`delivery-os-conventions`** if it isn't in context. Your input is the proven harness (the commands and thresholds `qa-test-setup` verified green) and the repo's tooling. Your output is `qa/quality-gates.md` (`doc_type: quality-gates`, `produced_by: qa`), created if absent. Follow the exact schema in **`references/quality-gate-contract.md`** so consumers can parse it. If there's no workspace, write it beside the repo and note it.
 
 ## What you do
 
@@ -24,4 +24,4 @@ You define and verify the *bar*, you don't do the per-feature work: you don't wr
 
 ## Return value
 
-Return the gate list (required vs optional, with thresholds and status), the harness status, and — for `/qa:health` — the drift deltas and recommended actions, with a link to `qa-output/quality-gates.md`.
+Return the gate list (required vs optional, with thresholds and status), the harness status, and — for `/qa:health` — the drift deltas and recommended actions, with a link to `qa/quality-gates.md`.

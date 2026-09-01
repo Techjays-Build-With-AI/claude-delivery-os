@@ -83,7 +83,7 @@ Trace mining is likewise optional: where LangSmith traces are available (`langsm
 ## Roles — who does what
 
 - **TL (`tl-feature-planning`)** — **designs** evals during planning: one per AI-driven acceptance criterion, with the live-vs-simulated calls and reward-hacking risks decided, linked into the graph, logged as `DEC-###`. It designs; it does not run.
-- **Dev (`feature-delivery-loop` → `dev-validation`)** — **materializes and runs** the evals during the `TESTING` phase, **inspects both sides**, feeds pass/fail into the acceptance map, and iterates failures through the bounded repair loop. It runs; it does not redesign the eval's intent (a genuinely wrong eval is fed back to the TL).
+- **Dev (`feature-delivery-loop` → `/dev:build` Stages 6-7)** — **materializes and runs** the evals during the `TESTING` phase (v2.2 = `/dev:build` Stages 6-7), **inspects both sides**, feeds pass/fail into the acceptance map at Stage 8, and iterates failures through the bounded repair loop. It runs; it does not redesign the eval's intent (a genuinely wrong eval is fed back to the TL).
 - **QA (`qa-quality-gates`)** — owns the **harness** the evals run on and may expose an eval-runner gate in `quality-gates.md`. It owns neither the design nor the run.
 
 ## Principles

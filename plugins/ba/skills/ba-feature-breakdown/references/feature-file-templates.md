@@ -1,18 +1,18 @@
 # Feature file templates
 
-The exact schema for the feature index and for each of the ten files in a feature folder. Build every file from these so the `context/features/` tree stays uniform, traceable, and machine-parseable. Fill sections from the scope and the BA registers; where a section has no supported content, write the labelled placeholder (usually `None identified yet` or `TBD`) — **never delete a heading, never invent content**.
+The exact schema for the feature index and for each of the ten files in a feature folder. Build every file from these so the `features/` tree stays uniform, traceable, and machine-parseable. Fill sections from the scope and the BA registers; where a section has no supported content, write the labelled placeholder (usually `None identified yet` or `TBD`) — **never delete a heading, never invent content**.
 
 Folder names are **lowercase kebab-case** (`supplier-onboarding`, `outlet-discovery`). Every feature folder contains all ten files, even when a section is empty.
 
-Feature IDs are stable and append-only: `FEAT-<AREA>-NN` where `<AREA>` is a short uppercase abbreviation for the capability area (Supplier → `SUP`, Sourcing → `SRC`, RFP → `RFP`) and `NN` is sequential within that area. New open questions minted here use `OQ-<AREA>-NN`; where a question is already tracked in the BA `clarification-log.md`, reuse its `CLR-###` id instead of minting a new one.
+Feature IDs are stable and append-only: `FEAT-<AREA>-NN` where `<AREA>` is a short uppercase abbreviation for the capability area (Supplier → `SUP`, Sourcing → `SRC`, RFP → `RFP`) and `NN` is sequential within that area. New open questions minted here use `OQ-<AREA>-NN`; where a question is already tracked in the BA `ba/logs/clarifications.md`, reuse its `CLR-###` id instead of minting a new one.
 
-Every feature also carries an **`initiative`** — the human-named work-batch slug (e.g. `payments-v2`) passed to `/ba:features initiative=<name>`, so a developer can later plan and build just the features from their own scoping effort even when the shared `context/features/` holds many developers' in-flight features (see `delivery-os-conventions` §3). It is written to the `initiative:` frontmatter of `feature.md` and `status.md`, and to the `Initiative` column of `feature-index.md`. On a re-run an existing feature **keeps** its initiative unless a new one is passed; a feature with none is `unassigned`.
+Every feature also carries an **`initiative`** — the human-named work-batch slug (e.g. `payments-v2`) passed to `/ba:features initiative=<name>`, so a developer can later plan and build just the features from their own scoping effort even when the shared `features/` holds many developers' in-flight features (see `delivery-os-conventions` §3). It is written to the `initiative:` frontmatter of `feature.md` and `status.md`, and to the `Initiative` column of `feature-index.md`. On a re-run an existing feature **keeps** its initiative unless a new one is passed; a feature with none is `unassigned`.
 
 ---
 
 ## feature-index.md
 
-`context/features/feature-index.md` — the map of the whole breakdown. One row per feature. On re-runs, update in place; keep retired features visible with a status (`Merged into …`, `Deferred`, `Removed`) rather than deleting the row.
+`features/feature-index.md` — the map of the whole breakdown. One row per feature. On re-runs, update in place; keep retired features visible with a status (`Merged into …`, `Deferred`, `Removed`) rather than deleting the row.
 
 ```md
 ---
@@ -430,7 +430,7 @@ When a feature has no open questions, the file body is a single line: `Open ques
 **Rules for this file:**
 
 - **Visible content is bullets** — the Dependencies tab's Open-questions sub-section renders these directly. No table headings in the body (Impact / Status live in frontmatter, not in the tab).
-- **Reuse `CLR-###` IDs** for questions already logged in the BA `clarification-log.md`; mint `OQ-<AREA>-NN` for new ones. IDs live in the frontmatter `open_questions[].id`; the bullet body names the question and the owner in prose.
+- **Reuse `CLR-###` IDs** for questions already logged in the BA `ba/logs/clarifications.md`; mint `OQ-<AREA>-NN` for new ones. IDs live in the frontmatter `open_questions[].id`; the bullet body names the question and the owner in prose.
 - **An entry here must never be promoted into a confirmed requirement elsewhere.** Once answered, close via a scope edit or a `DEC-###` and set `status: Answered` in frontmatter — do not delete the entry.
 - **Frontmatter status values:** `Open` · `Answered` · `Deferred` · `Won't-fix`. Unknown owner → `Unassigned`; never invent one.
 
@@ -496,7 +496,7 @@ YYYY-MM-DD
 
 ## 8. business-rules.md  →  Business Rules tab
 
-The feature's business-rule slice, curated per feature — not a copy of the workspace-wide `business-rule-register.md`. Feature-scoped IDs (`BR-1..N`) in visible content; global register IDs mapped in frontmatter.
+The feature's business-rule slice, curated per feature — not a copy of the workspace-wide `ba/registers/business-rules.md`. Feature-scoped IDs (`BR-1..N`) in visible content; global register IDs mapped in frontmatter.
 
 ```md
 ---

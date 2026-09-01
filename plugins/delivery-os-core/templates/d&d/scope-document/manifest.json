@@ -9,7 +9,7 @@
   "sha256": "b8624302ee3c8d8a7b770b284cd75a04d5952248ef766a6358d078f7fc41e70b",
   "bytes": 476886,
   "source": "Techjays D&D Documentation pack — 02 - Scope Document Template.docx",
-  "renders_from": "ba-output/scope.md",
+  "renders_from": "ba/scope.md",
   "rendered_by": "doc-agent (planned)",
   "conforms_section_order": [
     "Cover block",

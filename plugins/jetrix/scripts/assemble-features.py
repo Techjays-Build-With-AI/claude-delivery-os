@@ -1,10 +1,25 @@
-"""Assemble `feature_upsert_bundle` payloads from `context/features/*/`.
+"""Assemble `feature_upsert_bundle` payloads from `features/*/`.
 
 Invoked by `/jetrix:push feature` (see plugins/jetrix/commands/references/push/feature.md)
 before the MCP call. Replaces the "for each folder, Read every file, assemble
 in Claude context" iteration — walks the folders, reads files, applies the
 strip / rewrite transforms, groups features by resolved `list_name`, and emits
 one JSON blob Claude passes to N feature_upsert_bundle calls (one per group).
+
+v2.1 additions (sub-task assembly, IMPLEMENTED):
+  - For each feature folder that has `subtask/<repo>/` subfolders, ALSO
+    assembles a `subtasks_by_parent[<slug>]` list.
+  - Each sub-task payload is built from `subtask/<repo>/description.md`
+    (Description tab), `subtask/<repo>/implementation.md` (Implementation
+    tab), and shared frontmatter (subtask_number, subtask_repo,
+    parent_task_object_id, etc.) per delivery-os-conventions §v2.1.
+  - `_local_content_hash` per sub-task = sha256(description.md + implementation.md);
+    skip-unchanged via sync-state[subtasks/<subtask_object_id>].contentHash.
+  - Emit shape: `output_json["subtasks_by_parent"][slug] = [ ... ]`.
+  - Sub-task walk runs even if parent skipped-unchanged (a re-composed
+    sub-task with parent untouched still gets pushed).
+  - See plugins/jetrix/commands/references/push/feature.md §7 for the full
+    payload contract.
 
 Enforces every existing contract:
   - halt on missing feature.md / acceptance-criteria.md (halts list surfaced
@@ -23,11 +38,20 @@ Enforces every existing contract:
 
 Usage:
     python assemble-features.py \
-        --project-root .jetrix/<slug> \
+        --project-root .jetrix \
         --sync-state   .jetrix/cache/sync-state.json \
         --solution-slug PluginTest \
-        --output       /tmp/features-assembled.json \
+        --output       .jetrix/staging/push-features.json \
         [--slug user-auth ...]     # optional; default = every folder
+
+    Note (v2.3.2): --output should point to .jetrix/staging/, not .jetrix/cache/.
+    The output file is TRANSIENT staging (regenerated every push) — the caller
+    deletes it after the push cycle completes. Only sync-state.json is
+    persistent; it carries the contentHash + task_object_id per feature. See
+    plugins/jetrix/commands/references/push/feature.md § Cleanup.
+
+    (Legacy v1 workspaces pass `--project-root .jetrix/<slug>` instead; the
+    script's `_infer_workspace_root` auto-detects either shape.)
 
 The output JSON shape:
 {
@@ -36,7 +60,11 @@ The output JSON shape:
   "skipped_unchanged":           [<slug>, ...],
   "halts":                       [{"slug": "...", "reason": "..."}, ...],
   "solution_slug_fallback":      [<slug>, ...],       # features that fell all the way to solution_slug
-  "solution_slug_fallback_slugs": [<slug>, ...]        # duplicate for symmetry with §3a UX
+  "solution_slug_fallback_slugs": [<slug>, ...],       # duplicate for symmetry with §3a UX
+  "subtasks_by_parent":          {                    # v2.1 — one entry per parent slug that has subtask/<repo>/ folders locally
+    "<parent-slug>": [<subtask_payload>, ...]         # each ready for task-mcp.subtask_upsert_bundle
+  },
+  "subtasks_skipped_unchanged":  [{"parent_slug": "...", "subtask_repo": "...", "external_id": "..."}, ...]
 }
 """
 from __future__ import annotations
@@ -310,6 +338,180 @@ def _detect_blocked(feat_dir: pathlib.Path) -> bool:
     return False
 
 
+# ---------------------------------------------------------------------------
+# Sub-task assembly (v2.1) — walks features/<slug>/subtask/<repo>/ per feature.
+# One payload per sub-task, matching task-mcp.subtask_upsert_bundle's shape.
+# ---------------------------------------------------------------------------
+SUBTASK_REQUIRED_FILES = ("description.md", "implementation.md")
+
+
+def _subtask_content_hash(subtask_dir: pathlib.Path) -> str:
+    """sha256 over description.md + implementation.md bodies (files ordered)
+    so a change to either invalidates skip-unchanged. status.md is excluded
+    because /dev:plan writes to it during Stage 3 — hashing it would cause
+    every re-run to re-push."""
+    h = hashlib.sha256()
+    for name in ("description.md", "implementation.md"):
+        f = subtask_dir / name
+        if f.exists():
+            h.update(f.read_bytes())
+    return h.hexdigest()
+
+
+def _assemble_subtask(
+    subtask_dir: pathlib.Path,
+    parent_fm: dict,
+    parent_slug: str,
+) -> tuple[dict | None, str | None]:
+    """Assemble one sub-task payload from its subtask/<repo>/ folder.
+
+    Returns (payload, None) on success, (None, halt_reason) on failure.
+    """
+    repo_slug = subtask_dir.name
+
+    # Required tab files must exist. Missing description or implementation
+    # means /dev:plan didn't finish for this sub-task — halt with a specific
+    # reason so the plugin can tell the user which sub-task to re-plan.
+    missing = [f for f in SUBTASK_REQUIRED_FILES if not (subtask_dir / f).exists()]
+    if missing:
+        return None, f"subtask/{repo_slug}/ missing required files: {', '.join(missing)}"
+
+    # Read the sub-task's own frontmatter (from description.md — all three
+    # tab files share the same identity block per delivery-os-conventions §v2.1).
+    desc_text = (subtask_dir / "description.md").read_text(encoding='utf-8')
+    sub_fm, _ = split_frontmatter(desc_text)
+
+    external_id = str(sub_fm.get("feature_id") or "").strip()
+    subtask_number = sub_fm.get("subtask_number")
+    subtask_repo_fm = str(sub_fm.get("subtask_repo") or "").strip() or repo_slug
+    parent_feature_id = str(parent_fm.get("feature_id") or "").strip()
+    parent_task_object_id = str(sub_fm.get("parent_task_object_id") or parent_fm.get("jetrix_task_object_id") or "").strip()
+
+    # externalId per the sub-task spec: <feature_id>-<subtask_number>
+    if not external_id or subtask_number is None:
+        return None, (
+            f"subtask/{repo_slug}/ frontmatter missing feature_id or subtask_number "
+            "(re-run /dev:plan for this feature)"
+        )
+
+    # If the sub-task's feature_id doesn't match its parent folder's, something
+    # is deeply wrong — refuse to push a sub-task that would land under the
+    # wrong parent in MC.
+    if external_id != parent_feature_id:
+        return None, (
+            f"subtask/{repo_slug}/ feature_id ({external_id}) does not match "
+            f"parent's feature_id ({parent_feature_id})"
+        )
+
+    metadata_external_id = f"{external_id}-{subtask_number}"
+
+    # Read the two tab bodies verbatim (frontmatter stripped, H1 stripped).
+    description = read_body(subtask_dir / "description.md")
+    implementation = read_body(subtask_dir / "implementation.md")
+
+    # Title fallback: sub-task's frontmatter.title → "<parent title> — <repo>".
+    parent_title = str(parent_fm.get("title") or "").strip() or parent_slug
+    title = str(sub_fm.get("title") or "").strip() or f"{parent_title} — {subtask_repo_fm}"
+
+    # Status: derive from local status.md's current_state, else default per
+    # /dev:plan's PLANNED convention (maps to MC's "todo" until /dev:build starts).
+    status = "todo"
+    status_md = subtask_dir / "status.md"
+    if status_md.exists():
+        _, status_body = split_frontmatter(status_md.read_text(encoding='utf-8'))
+        m = re.search(r"^current_state:\s*(\S+)", status_body, re.MULTILINE)
+        if m:
+            local_state = m.group(1).strip().upper()
+            if local_state == "BLOCKED":
+                status = "blocked"
+            # PLANNED / IN_PROGRESS / REVIEW / DONE → "todo" (parent's status
+            # field carries the real workflow state; sub-task's status field
+            # is only used to mark blocks that halt Stage 2 pushes).
+
+    payload = {
+        "subtask_object_id": sub_fm.get("jetrix_subtask_object_id") or None,
+        "title": title,
+        "description": description,
+        "implementation_details": implementation,
+        # AC + TS deliberately empty on sub-tasks (parent owns validation).
+        "acceptance_criteria": "",
+        "test_scenarios": "",
+        "metadata": {
+            "externalId":       metadata_external_id,
+            "parentExternalId": external_id,
+            "subtaskNumber":    subtask_number,
+            "subtaskRepo":      subtask_repo_fm,
+            "source":           "ai",
+            "aiGenerated":      True,
+        },
+        "status": status,
+    }
+
+    return payload, None
+
+
+def _walk_subtasks(
+    feat_dir: pathlib.Path,
+    parent_fm: dict,
+    parent_slug: str,
+    sync_state: dict,
+) -> tuple[list[dict], list[dict], list[dict]]:
+    """Walk features/<slug>/subtask/*/ and assemble per-sub-task payloads.
+
+    Returns (payloads, skipped_unchanged, halts). Empty subtask/ folder or
+    no subtask/ folder at all → empty results (parent-alone feature).
+    """
+    subtask_root = feat_dir / "subtask"
+    if not subtask_root.exists() or not subtask_root.is_dir():
+        return [], [], []
+
+    payloads: list[dict] = []
+    skipped: list[dict] = []
+    halts: list[dict] = []
+
+    # Each direct child of subtask/ is a repo-named folder. Skip
+    # non-directories (e.g. a stray task-decision.md, plan-run.md at the
+    # subtask/ root — those are per-feature-plan artifacts, not per-sub-task).
+    for sub_dir in sorted(subtask_root.iterdir()):
+        if not sub_dir.is_dir():
+            continue
+
+        payload, halt_reason = _assemble_subtask(sub_dir, parent_fm, parent_slug)
+        if halt_reason:
+            halts.append({
+                "parent_slug":  parent_slug,
+                "subtask_repo": sub_dir.name,
+                "reason":       halt_reason,
+            })
+            continue
+
+        # payload is guaranteed non-None when halt_reason is None
+        assert payload is not None
+
+        # Skip-unchanged via sync-state.subtasks/<subtask_object_id>.contentHash.
+        # Falls back to hashing when the sub-task has no jetrix_subtask_object_id
+        # yet (first push) so we always assemble at least once per new sub-task.
+        current_hash = _subtask_content_hash(sub_dir)
+        payload["_local_content_hash"] = current_hash
+
+        subtask_oid = payload.get("subtask_object_id")
+        if subtask_oid:
+            state_key = f"subtasks/{subtask_oid}"
+            prev = sync_state.get(state_key, {})
+            prev_hash = (prev.get("contentHash") or "").replace("sha256:", "")
+            if prev_hash and prev_hash == current_hash:
+                skipped.append({
+                    "parent_slug":  parent_slug,
+                    "subtask_repo": sub_dir.name,
+                    "external_id":  payload["metadata"]["externalId"],
+                })
+                continue
+
+        payloads.append(payload)
+
+    return payloads, skipped, halts
+
+
 def assemble_feature(feat_dir: pathlib.Path, fm: dict, task_num_by_feat: dict[str, int]) -> dict:
     slug = fm.get("slug") or feat_dir.name
 
@@ -409,9 +611,9 @@ def main() -> int:
     project_root = pathlib.Path(args.project_root).resolve()
     sync_state_path = pathlib.Path(args.sync_state).resolve()
 
-    features_root = project_root / "context" / "features"
+    features_root = project_root / "features"
     if not features_root.exists():
-        print(json.dumps({"error": "context/features/ missing", "solution_slug": args.solution_slug}))
+        print(json.dumps({"error": "features/ missing", "solution_slug": args.solution_slug}))
         return 2
 
     sync_state = {}
@@ -435,6 +637,12 @@ def main() -> int:
     skipped:    list[str]  = []
     groups:     dict[str, list[dict]] = {}
     fallback_slugs: list[str] = []
+    # v2.1 — sub-task assembly, one entry per parent slug that has
+    # subtask/<repo>/ folders locally. Always emitted (may be empty on
+    # parent-alone-only workspaces) so the push flow can rely on the key.
+    subtasks_by_parent: dict[str, list[dict]] = {}
+    subtasks_skipped_unchanged: list[dict] = []
+    subtask_halts: list[dict] = []
 
     dirs = sorted(d for d in features_root.iterdir() if d.is_dir())
     if args.slug:
@@ -457,35 +665,65 @@ def main() -> int:
             halts.append({"slug": slug, "reason": "feature.md missing feature_id in frontmatter"})
             continue
 
-        # Skip-unchanged via folder hash.
+        # Skip-unchanged via folder hash. Note: _folder_hash only reads top-level
+        # *.md files (not recursive), so subtask/<repo>/*.md changes DON'T
+        # invalidate the parent's cache. That's intentional — parent and
+        # sub-task pushes are tracked independently in sync-state so each can
+        # skip-unchanged on its own axis.
         current_hash = _folder_hash(feat_dir)
         state_key = f"tasks/{fm['feature_id']}"
         prev = sync_state.get(state_key, {})
         prev_hash = (prev.get("contentHash") or "").replace("sha256:", "")
-        if prev_hash and prev_hash == current_hash:
+        parent_unchanged = bool(prev_hash and prev_hash == current_hash)
+
+        if not parent_unchanged:
+            payload = assemble_feature(feat_dir, fm, task_num_by_feat)
+            payload["_local_content_hash"] = current_hash  # for the write-back step
+
+            list_name, is_fallback = _resolve_list_name(fm, args.solution_slug)
+            if is_fallback:
+                fallback_slugs.append(slug)
+            groups.setdefault(list_name, []).append(payload)
+        else:
             skipped.append(slug)
-            continue
 
-        payload = assemble_feature(feat_dir, fm, task_num_by_feat)
-        payload["_local_content_hash"] = current_hash  # for the write-back step
+        # v2.1 — walk sub-tasks even if the parent is unchanged. A teammate
+        # might have re-composed only sub-tasks (e.g. /dev:plan --resume) and
+        # left parent files untouched; skipping subtasks when parent is
+        # unchanged would silently drop those updates.
+        sub_payloads, sub_skipped, sub_halts = _walk_subtasks(feat_dir, fm, slug, sync_state)
+        if sub_payloads:
+            subtasks_by_parent[slug] = sub_payloads
+        subtasks_skipped_unchanged.extend(sub_skipped)
+        subtask_halts.extend(sub_halts)
 
-        list_name, is_fallback = _resolve_list_name(fm, args.solution_slug)
-        if is_fallback:
-            fallback_slugs.append(slug)
-        groups.setdefault(list_name, []).append(payload)
+    # Sub-task halts are surfaced separately — a sub-task with missing files
+    # shouldn't halt the whole feature push (unlike the parent's required-files
+    # halt which cancels the feature entirely). Per-item isolation matches
+    # task-mcp.subtask_upsert_bundle's per-row error handling.
+    all_halts = halts + subtask_halts
 
     output = {
         "solution_slug":              args.solution_slug,
         "groups":                     [{"list_name": ln, "features": feats} for ln, feats in groups.items()],
         "skipped_unchanged":          skipped,
-        "halts":                      halts,
+        "halts":                      all_halts,
         "solution_slug_fallback":     fallback_slugs,
+        # v2.1 additions
+        "subtasks_by_parent":         subtasks_by_parent,
+        "subtasks_skipped_unchanged": subtasks_skipped_unchanged,
     }
     pathlib.Path(args.output).parent.mkdir(parents=True, exist_ok=True)
     pathlib.Path(args.output).write_text(json.dumps(output, indent=2), encoding='utf-8')
 
-    print(f"groups={len(groups)} to_push={sum(len(v) for v in groups.values())} "
-          f"skipped_unchanged={len(skipped)} halts={len(halts)} solution_slug_fallback={len(fallback_slugs)}")
+    subtask_count = sum(len(v) for v in subtasks_by_parent.values())
+    print(
+        f"groups={len(groups)} to_push={sum(len(v) for v in groups.values())} "
+        f"skipped_unchanged={len(skipped)} halts={len(halts)} "
+        f"solution_slug_fallback={len(fallback_slugs)} "
+        f"subtasks_to_push={subtask_count} subtasks_skipped_unchanged={len(subtasks_skipped_unchanged)} "
+        f"subtask_halts={len(subtask_halts)}"
+    )
     return 0
 
 

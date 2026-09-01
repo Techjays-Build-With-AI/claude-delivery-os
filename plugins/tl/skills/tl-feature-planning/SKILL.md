@@ -15,9 +15,9 @@ This skill **authors context, not code**. It produces the pages/endpoints/entiti
 
 ## Operating contract
 
-Read the **`delivery-os-conventions`** contract first if it isn't already in context — the workspace layout, the frontmatter standard, the stable-ID rules, the source-citation form (`[SRC-### › <original location>]`), and the controlled vocabulary. Your inputs are the BA's **feature breakdown** (`context/features/`, produced by `ba-feature-breakdown`) and the BA registers it cites — especially `ba-output/data-register.md` (the `DATA-###` entities) and `ba-output/integration-register.md` (the `INT-###` integrations), because your database entities and integration references must **link back to those IDs, not invent a parallel numbering**. Read `ba-feature-breakdown`'s templates if the feature-folder structure isn't already in context; each `feature.md` already declares *Related Pages*, *Related APIs / Services*, and *Related Data Entities* — those are your starting expectations, which you turn into real, linked files. **When you need to write a unit into a specific repo's `context/code-context/` tree, resolve that repo's absolute path via `plugins/jetrix/references/repo-paths.md`** — read `.jetrix/cache/repolocation.json`, ask the teammate for anything missing, skip anything marked `"SKIPPED"` (fall back to workspace-level with a `DEC-###`). For an **AI-bearing feature** (`delivery-os-conventions` §5), also read the core **`eval-engineering`** skill and this skill's **`references/eval-design.md`** — you design its evals as part of planning (step 5b).
+Read the **`delivery-os-conventions`** contract first if it isn't already in context — the workspace layout, the frontmatter standard, the stable-ID rules, the source-citation form (`[SRC-### › <original location>]`), and the controlled vocabulary. Your inputs are the BA's **feature breakdown** (`features/`, produced by `ba-feature-breakdown`) and the BA registers it cites — especially `ba/registers/data.md` (the `DATA-###` entities) and `ba/registers/integrations.md` (the `INT-###` integrations), because your database entities and integration references must **link back to those IDs, not invent a parallel numbering**. Read `ba-feature-breakdown`'s templates if the feature-folder structure isn't already in context; each `feature.md` already declares *Related Pages*, *Related APIs / Services*, and *Related Data Entities* — those are your starting expectations, which you turn into real, linked files. **When you need to write a unit into a specific repo's `context/code-context/` tree, resolve that repo's absolute path via `plugins/jetrix/references/repo-paths.md`** — read `.jetrix/cache/repolocation.json`, ask the teammate for anything missing, skip anything marked `"SKIPPED"` (fall back to workspace-level with a `DEC-###`). For an **AI-bearing feature** (`delivery-os-conventions` §5), also read the core **`eval-engineering`** skill and this skill's **`references/eval-design.md`** — you design its evals as part of planning (step 5b).
 
-**Output location.** The context graph is written to the shared `context/` tree at the project root, as siblings of `context/features/`, because it is implementation context the whole build team reads:
+**Output location.** The context graph is written to the shared `context/` tree at the project root, as siblings of `features/`, because it is implementation context the whole build team reads:
 
 ```text
 context/
@@ -25,15 +25,15 @@ context/
     feature-index.md
     <feature-slug>/ …
   frontend/
-    page-index.md
+    frontend-index.md
     pages/
       <area>/<page-slug>.md                   # PAGE-<AREA>-NN
   backend/
-    endpoint-index.md
+    backend-index.md
     domains/
       <domain>/endpoints/<endpoint-slug>.md   # EP-<AREA>-NN
   database/
-    entity-index.md
+    database-index.md
     entities/<entity-slug>.md                 # ENT-<AREA>-NN, links to DATA-###
 ```
 
@@ -45,15 +45,19 @@ Folder and file slugs are **lowercase kebab-case** (`supplier-list`, `create-sup
 
 Never write `implementation_state: Implemented` at planning time — that lie is exactly what these fields exist to prevent. Leave it at `Planned` and let the dev-build + merge agent path update it as reality unfolds.
 
-If there's no Delivery OS workspace (no `context/features/`), don't block: take the feature path the user gives you, create the `context/` sub-trees next to it, and note in the run summary that a standard workspace wasn't found. Keep the frontmatter either way; only the location changes.
+If there's no Delivery OS workspace (no `features/`), don't block: take the feature path the user gives you, create the `context/` sub-trees next to it, and note in the run summary that a standard workspace wasn't found. Keep the frontmatter either way; only the location changes.
 
 ## Workflow
 
-### 1. Read the target feature(s) and the registers behind them
-Take the target from the user: a single feature folder (`context/features/<slug>/`) or the whole set (`context/features/` / `feature-index.md`). Read each target feature's `feature.md` (the *Related Pages / APIs / Data Entities* it already expects), `implementation-plan.md` (the build areas and expected backend capabilities), `workflow.md` (the journey the pages must support), and `dependencies.md`. Then load the BA registers you'll link back to — `data-register.md` (`DATA-###`), `integration-register.md` (`INT-###`), `workflow-register.md` (`WF-###`), `business-rule-register.md` (`BR-###`) — and `shared-context/` for actors and systems. Record which sources you consulted; it goes in the run summary.
+### 1. Read the target feature(s), the connection-map, and the registers behind them
+Take the target from the user: a single feature folder (`features/<slug>/`) or the whole set (`features/` / `feature-index.md`).
+
+**Read `.jetrix/connection-map.md` FIRST** (if present) — the workspace-level solution architecture doc pulled by `/jetrix:init` from the portal. It names each repo (Frontend / Backend / Mobile / Scheduled Service / …) with its role, the Wiring edges between them (e.g. `Frontend → Backend over REST`), the auth boundary, and external integrations. This tells you the SOLUTION SHAPE before you invent new cross-repo links — a new `PAGE-` calling a new `EP-` across repos should trace through an EXISTING wiring edge in the connection-map (or the plan should explicitly note it needs a NEW wiring edge, which the connection-map's next portal-side rebuild would surface). Missing / empty → note "no connection-map — plan cross-repo integrations from feature.md alone".
+
+Then read each target feature's `feature.md` (the *Related Pages / APIs / Data Entities* it already expects), `implementation-plan.md` (the build areas and expected backend capabilities), `workflow.md` (the journey the pages must support), and `dependencies.md`. Then load the BA registers you'll link back to — `ba/registers/data.md` (`DATA-###`), `ba/registers/integrations.md` (`INT-###`), `ba/registers/workflows.md` (`WF-###`), `ba/registers/business-rules.md` (`BR-###`) — and `shared-context/` for actors and systems. Record which sources you consulted; it goes in the run summary.
 
 ### 2. Load the existing graph before creating anything
-Read the current `frontend/page-index.md`, `backend/endpoint-index.md`, and `database/entity-index.md` (they may be empty or absent on a first run). This is what lets you **reuse instead of duplicate** — you plan against the units that already exist. If the indexes are absent, you're starting the graph; create them in step 6.
+Read the current `frontend/frontend-index.md`, `backend/backend-index.md`, and `database/database-index.md` (they may be empty or absent on a first run). This is what lets you **reuse instead of duplicate** — you plan against the units that already exist. If the indexes are absent, you're starting the graph; create them in step 6.
 
 ### 3. Plan the feature's units — pages, endpoints, entities
 Using `references/planning-guide.md`, work out the logical units the feature needs, **top-down but reconciled against what exists**:
@@ -79,7 +83,7 @@ You may define request/response schemas, status codes, auth, and entity columns 
 If — and only if — the feature is **AI-bearing** (`delivery-os-conventions` §5: its behaviour depends on a model's output, or it declares `ai_component`/cites an AI `INT-###`), design the **evals** that will later verify it, using the core **`eval-engineering`** skill and this skill's **`references/eval-design.md`**. For each **AI-driven acceptance criterion**, author an `EVAL-<AREA>-NN` unit under `context/evals/<feature-slug>/` — an **instruction** (the task/input), an **environment** (fixtures, plus each tool marked **live** or **simulated** — paid or prod-writing calls are simulated), and a **verifier** (the pass condition and the reward-hacking risks it must resist, checking the *trajectory*, not just the final string). Link each eval to the criterion it proves and the `EP-/ENT-` units it exercises, add a row to `context/evals/eval-index.md`, and log each material choice as a `DEC-###`. **Skip this step entirely for deterministic features** — they're proven by the dev acceptance-map alone. You **design** the evals here; the dev loop **runs and inspects** them.
 
 ### 6. Update the three indexes
-Write / update `frontend/page-index.md`, `backend/endpoint-index.md`, `database/entity-index.md` — one row per unit (ID, name, area/domain, the features that use it, its file). On a re-run, update in place; keep a retired unit's row visible with a status (`Merged into …`, `Deferred`, `Removed`) rather than deleting it. The indexes are the map of the whole graph and the lookup you rely on in step 2 next time.
+Write / update `frontend/frontend-index.md`, `backend/backend-index.md`, `database/database-index.md` — one row per unit (ID, name, area/domain, the features that use it, its file). On a re-run, update in place; keep a retired unit's row visible with a status (`Merged into …`, `Deferred`, `Removed`) rather than deleting it. The indexes are the map of the whole graph and the lookup you rely on in step 2 next time.
 
 ### 7. Run the link-integrity check
 Before finishing, walk the graph and flag: any reference (page→endpoint, endpoint→entity, back-links) that doesn't resolve to a real file; any endpoint with no caller **and** no declared non-UI trigger; any entity used by no endpoint (orphan); any `feature.md` *Related* item you didn't place; any `DATA-###`/`INT-###` cited that doesn't exist in the register. Report these as findings — a graph with dangling links isn't done. (The full check is in `references/planning-guide.md`.)

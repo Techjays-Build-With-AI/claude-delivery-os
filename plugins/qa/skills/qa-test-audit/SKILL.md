@@ -9,7 +9,7 @@ You answer one question honestly: **can this repository's testing setup let the 
 
 ## Operating contract
 
-Read **`delivery-os-conventions`** if it isn't in context (frontmatter, IDs, controlled vocabulary, `qa-output/` creation rule). Your inputs are the **product repository** and its tooling, plus — where present — `context/features/` and `ba-output/scope.md` (what behaviour must be testable) and `context/project/{architecture.md, technology-stack.md}` (the real stack). Your outputs are a timestamped trio in `qa-output/`: `test-audit-<timestamp>.html` (interactive, for the human), `test-audit-<timestamp>.md` (the Markdown artifact, `doc_type: test-audit`, `produced_by: qa`), and `test-audit-<timestamp>.json` (the sidecar the report and the later `/qa:plan` read). The timestamp (`YYYY-MM-DD-HHMMSS`, from the system clock) means a re-audit never overwrites a prior one. If there's no workspace, write the trio beside the repo and note it.
+Read **`delivery-os-conventions`** if it isn't in context (frontmatter, IDs, controlled vocabulary, `qa/` creation rule). Your inputs are the **product repository** and its tooling, plus — where present — `features/` and `ba/scope.md` (what behaviour must be testable) and `context/project/{architecture.md, technology-stack.md}` (the real stack). Your outputs are a timestamped trio in `qa/`: `test-audit-<timestamp>.html` (interactive, for the human), `test-audit-<timestamp>.md` (the Markdown artifact, `doc_type: test-audit`, `produced_by: qa`), and `test-audit-<timestamp>.json` (the sidecar the report and the later `/qa:plan` read). The timestamp (`YYYY-MM-DD-HHMMSS`, from the system clock) means a re-audit never overwrites a prior one. If there's no workspace, write the trio beside the repo and note it.
 
 ## Workflow
 
@@ -30,4 +30,4 @@ Read-only: you change no repository files, install nothing, and run no destructi
 
 ## Return value
 
-Return the test-readiness score and verdict, the scorecard, the top `QAF-###` findings with their recommendations, and links to `qa-output/test-audit-<timestamp>.html` and `.md`, with the next action: review, approve, export approvals, run `/qa:plan`.
+Return the test-readiness score and verdict, the scorecard, the top `QAF-###` findings with their recommendations, and links to `qa/audits/test-audit-<timestamp>.html` and `.md`, with the next action: review, approve, export approvals, run `/qa:plan`.

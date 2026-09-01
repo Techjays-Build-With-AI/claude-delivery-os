@@ -32,11 +32,11 @@ attachment with the network unplugged.
 
 - **Read `delivery-os-conventions`** if a Delivery OS workspace is present (it isn't required).
 - **Source content from the workspace when it exists.** For a workflow/understanding board,
-  draft the spine and cards from `ba-output/scope.md`, `ba-output/workflow-register.md`, and
+  draft the spine and cards from `ba/scope.md`, `ba/registers/workflows.md`, and
   `shared-context/` (the modules, workflows, actors, systems). Use real names and the
   client's real numbers; never fabricate — mark unknowns as `[[NEEDS: …]]` and list them back.
-- **Write the output to `doc-output/`** (create it on first use), timestamped so runs never
-  collide: `doc-output/board-<topic>-<timestamp>.html`. If there's no workspace, write beside
+- **Write the output to `doc/`** (create it on first use), timestamped so runs never
+  collide: `doc/boards/board-<topic>-<timestamp>.html`. If there's no workspace, write beside
   the working directory and note it. **Save the HTML as UTF-8 (no BOM); don't route it through
   a shell/editor that re-encodes it** — non-ASCII glyphs (§, ×, →, …) double-encode into
   mojibake (`§`→`Â§`) on a Windows code page despite `<meta charset="utf-8">`. After writing,
@@ -89,7 +89,7 @@ Everything else — the visual design, the cards, the diagrams — is yours.
    step list can be 400–550px; wide step-cards ~1000px). Stack a cluster in a column,
    ~40–80px gaps; ~600–900px between clusters. Correct positions matter — the tour and the
    overview both frame by real geometry.
-5. **Wire the tour**, save to `doc-output/board-<topic>-<timestamp>.html`, then **offer a
+5. **Wire the tour**, save to `doc/boards/board-<topic>-<timestamp>.html`, then **offer a
    browser QA pass** (overview fits, every stop frames cleanly, no overlaps) and ask about
    enhancements.
 

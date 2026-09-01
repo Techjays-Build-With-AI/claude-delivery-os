@@ -44,7 +44,7 @@ Plugin recipe:
 Report:
 ```
 ✓ Pulled TASK-42 (FEAT-CLSF-01, "Document Classification & Extraction")
-  → context/features/document-classification-extraction/
+  → features/document-classification-extraction/
     feature.md, workflow.md, acceptance-criteria.md,
     business-rules.md, nfrs.md, test-scenarios.md,
     dependencies.md, open-questions.md, status.md

@@ -30,7 +30,7 @@ A push is a **deliberate commit**, not an autosave. Nothing a user does locally 
     │   ├── sync-state.json        # per-doc contentHash + version for skip-unchanged + optimistic-lock
     │   └── repolocation.json      # per-teammate local app repo paths
     └── <solutionSlug>/            # /delivery-os:init scaffolds this — the BA/TL/QA/Dev/Doc working copy
-        ├── ba-output/
+        ├── ba/
         ├── shared-context/
         └── context/
 ```

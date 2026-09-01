@@ -6,8 +6,8 @@ The **Quality Assurance Agent** makes a repository *properly testable* and defin
 |---|---|
 | **Namespace** | `/qa:` |
 | **Commands** | `/qa:audit [repo]` · `/qa:plan <approvals>` · `/qa:setup [plan]` · `/qa:health [repo]` |
-| **Input** | The product repository and its tooling; where present, `context/features/`, `ba-output/scope.md`, and `context/project/` |
-| **Output** | `qa-output/` — the audit report trio, `test-setup-plan.md`, the test harness itself, and **`quality-gates.md`** (the contract dev consumes) |
+| **Input** | The product repository and its tooling; where present, `features/`, `ba/scope.md`, and `shared-context/` |
+| **Output** | `qa/` — the audit report trio, `test-setup-plan.md`, the test harness itself, and **`quality-gates.md`** (the contract dev consumes) |
 | **Skills** | `qa-test-audit` · `qa-test-setup` · `qa-quality-gates` |
 
 ---
@@ -53,7 +53,7 @@ Every gap is a stable `QAF-###` finding; every gate is a `QG-###` in the contrac
 
 ## What it writes
 
-Under `qa-output/` (created on first run):
+Under `qa/` (created on first run):
 
 | File | What |
 |---|---|
@@ -67,7 +67,7 @@ Under `qa-output/` (created on first run):
 
 ## How it plugs into the dev loop
 
-`qa-output/quality-gates.md` is the join between QA and Dev:
+`qa/quality-gates.md` is the join between QA and Dev:
 
 - **Dev readiness gate** (`feature-delivery-loop`) reads it to confirm a usable harness exists before building. If it's missing or `harness_status` isn't `Active`, the gate routes to QA (`/qa:audit` → `/qa:setup`) — the same way project-zero routes to `/dev:bootstrap`.
 - **`dev-validation`** reads it to know which checks are **Required**, the exact command for each, and the bar (coverage floor, when e2e/contract tests are mandatory) — then maps results into the feature's `acceptance-map.md`.
@@ -103,4 +103,4 @@ Typical first run on an existing repo: `/qa:audit` → review the report, approv
 
 ## How it fits Delivery OS
 
-QA is a **consumer** of the BA/TL context and the **producer** of the test harness and the quality-gate contract. It reads `ba-output/scope.md`, `context/features/`, the TL `context/frontend|backend|database` graph, and `context/project/` to match the harness to the real stack and to what must be testable; it writes `produced_by: qa` files under `qa-output/` and appends `DEC-###` decisions to the shared `decision-log.md`. See the shared [`delivery-os-conventions`](../delivery-os-core/skills/delivery-os-conventions/SKILL.md) contract.
+QA is a **consumer** of the BA/TL context and the **producer** of the test harness and the quality-gate contract. It reads `ba/scope.md`, `features/`, the TL `context/frontend|backend|database` graph, and `shared-context/` to match the harness to the real stack and to what must be testable; it writes `produced_by: qa` files under `qa/` and appends `DEC-###` decisions to the shared `decision-log.md`. See the shared [`delivery-os-conventions`](../delivery-os-core/skills/delivery-os-conventions/SKILL.md) contract.

@@ -10,9 +10,9 @@ Every feature decomposes into up to three layers of logical units. Each unit is 
 
 | Layer | Unit | What one unit is | Stable ID | Lives in |
 |---|---|---|---|---|
-| **Frontend** | Page | One user-facing surface — a web page, a mobile screen, any UX view a user actually sees | `PAGE-<AREA>-NN` | `context/frontend/pages/<area>/<slug>.md` |
-| **Backend** | Endpoint | One backend operation — a request the system serves (or a job/event handler) | `EP-<AREA>-NN` | `context/backend/domains/<domain>/endpoints/<slug>.md` |
-| **Database** | Entity | One data object — a SQL table, a NoSQL collection, a view, or a stored procedure | `ENT-<AREA>-NN` | `context/database/entities/<slug>.md` |
+| **Frontend** | Page | One user-facing surface — a web page, a mobile screen, any UX view a user actually sees | `PAGE-<AREA>-NN` | `<repo>/context/code-context/frontend/pages/<area>/<slug>.md` |
+| **Backend** | Endpoint | One backend operation — a request the system serves (or a job/event handler) | `EP-<AREA>-NN` | `<repo>/context/code-context/backend/domains/<domain>/endpoints/<slug>.md` |
+| **Database** | Entity | One data object — a SQL table, a NoSQL collection, a view, or a stored procedure | `ENT-<AREA>-NN` | `<repo>/context/code-context/database/entities/<slug>.md` |
 
 `<AREA>` is a short uppercase abbreviation for the capability area, reused from the feature's ID where possible (Supplier → `SUP`, Sourcing → `SRC`, RFP → `RFP`). `NN` is sequential **within that area and layer** (`PAGE-SUP-01`, `EP-SUP-01`, `ENT-SUP-01` are three different units). IDs are append-only — never renumber, never reuse a retired ID.
 
@@ -46,7 +46,7 @@ When you reuse, you **add** back-links and extend — you never overwrite existi
 
 ### Brownfield — look up the as-built code context too
 
-On a project that has been through `/tl:code-map`, the as-built units do **not** live in the workspace `context/` tree: each mapped repository owns its own committed `context/code-context/` tree, and `<workspace>/.jetrix/<project-name>/context/code-map-registry.md` lists them. So the reuse lookup has two hops, and the second is not optional — skipping it is how a brownfield project ends up with a designed `POST /accounts` sitting beside the one that already exists in the code.
+On a project that has been through `/tl:code-map`, the as-built units do **not** live in the workspace `context/` tree: each mapped repository owns its own committed `context/code-context/` tree, and `<workspace>/.jetrix/tl/code-map-registry.md` lists them. So the reuse lookup has two hops, and the second is not optional — skipping it is how a brownfield project ends up with a designed `POST /accounts` sitting beside the one that already exists in the code.
 
 1. Read the registry if it exists. For every repo it lists, read the layer indexes it points at — **the `## Domain Map` first**, then the `## Units` table; those files are built to be read index-first, so you can resolve a match key without opening unit files.
 2. Match on the **same keys** as above (route, normalised `METHOD + path`, object name). An as-built unit is a normal unit: link the feature to it, add the `FEAT-…` to its *Used by Features*, and extend it in place.

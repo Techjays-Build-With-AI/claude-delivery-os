@@ -14,8 +14,11 @@ Contract preserved:
 Usage:
     python apply-task-responses.py \
         --responses    /tmp/task-responses.json \
-        --project-root .jetrix/<slug> \
+        --project-root .jetrix \
         --sync-state   .jetrix/cache/sync-state.json
+
+    (Legacy v1 workspaces pass `--project-root .jetrix/<slug>` instead; the
+    caller auto-detects either shape.)
 """
 from __future__ import annotations
 

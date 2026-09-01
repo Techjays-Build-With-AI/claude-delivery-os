@@ -24,11 +24,11 @@ it, at `.jetrix/` root.
 
 ## 0a. Migration — if the file is still at the old location, move it
 
-Old plugin versions wrote to `<workspace_root>/.jetrix/<solutionSlug>/context/connection-map.md`.
+Old plugin versions wrote to `<workspace_root>/.jetrix/context/connection-map.md`.
 Move it to the new canonical path if present:
 
 ```bash
-OLD="<workspace_root>/.jetrix/<solutionSlug>/context/connection-map.md"
+OLD="<workspace_root>/.jetrix/context/connection-map.md"
 NEW="<workspace_root>/.jetrix/connection-map.md"
 if [[ -f "$OLD" && ! -f "$NEW" ]]; then
   mv "$OLD" "$NEW"

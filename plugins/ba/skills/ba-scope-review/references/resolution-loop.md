@@ -35,7 +35,7 @@ The HTML report's **"Export responses"** button generates this Markdown and down
 ---
 doc_type: scope-review-responses
 source_review: 2026-06-30-143012        # the reviewId being answered — the join key
-scope: ba-output/scope.md
+scope: ba/scope.md
 generated_at: 2026-06-30 17:10
 ---
 
@@ -71,9 +71,9 @@ Write a short **adjudication rationale** for every decision — one or two sente
 
 A scope review exists to **improve the scope**, so closing a question means putting the answer where it belongs — not just marking it done in the report. For each terminal question, give the **concrete scope edit** and promote it (only when a Delivery OS workspace exists):
 
-- **`Resolved` (confirmed fact)** → state the exact edit to `ba-output/scope.md` (which §3.x sub-heading, what text), and append a `DEC-###` row to `shared-context/decision-log.md`. Set the question's `decisionId`.
-- **`Accepted-assumption`** → add an `ASM-###` row to `ba-output/assumption-register.md` (assumption, reason, risk, validation needed) — this is the RAID Assumptions `A-##` feed — and reference it from scope §7. Note the edit to the relevant §3.x.
-- **`Needs-verification` / still `Open`** (must-close items) → ensure a `CLR-###` exists in `ba-output/clarification-log.md` (the RAID Open-Questions `Q-##` feed) carrying the follow-ups, so the open question lives in the BA's own tracking, not only in the review.
+- **`Resolved` (confirmed fact)** → state the exact edit to `ba/scope.md` (which §3.x sub-heading, what text), and append a `DEC-###` row to `shared-context/decision-log.md`. Set the question's `decisionId`.
+- **`Accepted-assumption`** → add an `ASM-###` row to `ba/registers/assumptions.md` (assumption, reason, risk, validation needed) — this is the RAID Assumptions `A-##` feed — and reference it from scope §7. Note the edit to the relevant §3.x.
+- **`Needs-verification` / still `Open`** (must-close items) → ensure a `CLR-###` exists in `ba/logs/clarifications.md` (the RAID Open-Questions `Q-##` feed) carrying the follow-ups, so the open question lives in the BA's own tracking, not only in the review.
 - **`Won't-fix` / deferred** → record it as out-of-scope/phase-2 in scope §6 or the relevant §3.x.2, and log the decision (`DEC-###`) so the deferral is auditable.
 
 Baking the answer into `scope.md` is what actually closes the gap — a later `/ba:review` of the updated scope should then find nothing. Use the `DEC-###` / `ASM-###` / `CLR-###` id formats from `delivery-os-conventions` (append-only). If there's no workspace, skip the promotions and keep the resolution in the report only (note that the edits still need applying).

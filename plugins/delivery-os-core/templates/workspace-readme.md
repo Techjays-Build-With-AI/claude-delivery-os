@@ -11,8 +11,8 @@ This folder is a **Techjays Delivery OS** project workspace. Everything here was
 | `intake.index.md` | The **source registry** — every source you've added, where it really lives, how it was classified, and its summary + status. | `/ba:scope` (you can edit it too) |
 | `artifacts/` | Generated **markdown summaries** of your sources, grouped into categories that are created on demand. | `/ba:scope` |
 | `shared-context/` | Project profile, glossary, stakeholders, systems, decisions — shared with future Doc/TL/QA agents. | BA agent |
-| `ba-output/` | The **living scope document** and supporting registers (requirements, business rules, etc.). | BA agent |
-| `ba-output/intake-runs/` | One summary per intake run. | BA agent |
+| `ba/` | The **living scope document** and supporting registers (requirements, business rules, etc.). | BA agent |
+| `ba/intake-runs/` | One summary per intake run. | BA agent |
 | `final/` | Approved, client-facing deliverables. | you |
 
 ## How to use it

@@ -1,63 +1,57 @@
-# Dev Agent — Feature Delivery Loop
+# Dev Agent — Feature Delivery Loop (v2.2)
 
-The **Developer Agent** takes an approved, TL-planned feature and **builds it** — through a controlled, state-driven loop rather than a one-shot code dump. It reads the BA feature context and the TL technical graph, validates readiness, plans, implements in an isolated branch, validates against the acceptance criteria, repairs actionable failures within retry limits, tracks state, and prepares a clean pull-request handoff for a human. It escalates ambiguity, risk, and scope decisions instead of guessing, and it never merges or deploys.
+The **Developer Agent** takes an approved, TL-planned feature and **builds + ships** it — through a controlled three-command flow rather than a one-shot code dump. It reads the BA feature context and the TL technical graph, plans just-in-time (with user-driven plan-blocker resolution), builds in an isolated branch with dynamic stack-adaptive skills, validates against the acceptance criteria, runs a two-gate security model (build → commit), semantically merges the code-context against baseline, and raises a clean PR. It escalates ambiguity, risk, and scope decisions instead of guessing, and it never merges or deploys.
 
 | | |
 |---|---|
 | **Namespace** | `/dev:` |
-| **Commands** | `/dev:bootstrap [spec]` · `/dev:build <feature>` · `/dev:validate <feature>` · `/dev:fix-review <feature> feedback=<...>` · `/dev:pr <feature>` |
-| **Input** | The BA feature breakdown (`context/features/<slug>/`), the TL context graph (`context/frontend|backend|database`), and the product repository |
-| **Output** | Working code on `feature/FEAT-<AREA>-NN-<slug>`, the `dev/` context files per feature, `dev-output/feature-tracker.md`, and a `dev/pr-summary.md` review handoff |
-| **Skills** | `feature-delivery-loop` · `dev-validation` · `dev-code-review` · `dev-pr-handoff` |
+| **Commands** | `/dev:bootstrap [spec]` · **`/dev:plan <task>`** · **`/dev:resolve --plan <task>`** · **`/dev:build <task>`** · **`/dev:commit <task>`** · `/dev:fix-review <task> feedback=<...>` |
+| **Input** | BA feature breakdown (`features/<slug>/`), TL context graph (`context/frontend\|backend\|database`), product repository, and (for `/dev:build`) plan artifacts `/dev:plan` produced with `plan-blockers.md` all `RESOLVED` |
+| **Output** | Working code on `feature/FEAT-<AREA>-NN-<slug>[-<repo>]`, `dev/` context files per task, `features/tracker.md`, `dev/local-runbook.md` (developer verification guide), and a merged / mergeable PR with `dev/pr-summary.md` as body |
+| **Skills** | `feature-delivery-loop` · `dev-stack-adaptive-implementation` · `dev-stack-adaptive-code-review` · `qa-greenfield-harness` · `dev-pr-handoff` (slimmed to content-only). `dev-validation` retired (folded into `/dev:build` Stages 7–9). |
 
 ---
 
-## The loop
-
-`/dev:build` runs the full sequence for one feature:
+## The v2.2 three-command flow
 
 ```text
-Select feature (or next READY_FOR_DEV) → acquire lock
-→ Read BA + TL context, summarise → Validate readiness (gate)
-→ Analyse code-level impact → Write the technical plan
-→ Create isolated branch/worktree → Implement (scoped, with tests)
-→ Validate suite → Map results to acceptance criteria
-→ Repair actionable failures (bounded) → Self-review + security pass
-→ Update delivery status + feature tracker → Prepare PR handoff
-→ Hand off for HUMAN_REVIEW   (never merges or deploys)
+/dev:plan <task>       ── verify TL graph exists (auto-runs /tl:plan if not)
+                        ── decide multi-repo → sub-task split
+                        ── compose each sub-task's Description + Implementation
+                        ── create sub-tasks in MC (batched via task-mcp)
+                        ── detect + surface plan blockers (BB-01…) — USER resolves these
+                        ── write implementation.md + plan-blockers.md (RESOLVED) for each task
+
+         │  (user verifies each sub-task's plan; resolves blockers with DEC-### decisions)
+         ▼
+
+/dev:build <task>      ── 11-stage build loop (runs on a decidable plan; NEVER prompts mid-run)
+                        ── auto-bootstrap qa-greenfield-harness (deterministic per-stack matrix)
+                        ── dev-stack-adaptive-implementation (dynamic per stack, matches repo idioms)
+                        ── stack-adaptive test writing + local execute
+                        ── acceptance-map vs parent AC+BR+TS+NFRs
+                        ── security review — BUILD-TIME GATE: Critical-only blocking
+                        ── code-context designed → implemented flip
+                        ── summary + dev/local-runbook.md
+
+         │  (developer verifies locally per local-runbook.md)
+         ▼
+
+/dev:commit <task>     ── 10-stage commit loop
+                        ── security review — COMMIT-TIME GATE: Critical + High blocking
+                        ── dev-stack-adaptive-code-review (7 dimensions × 4 severity tiers)
+                        ── acceptance-map re-verification + last-sub-task E2E resolution
+                        ── bounded fix loop (routes back through security / review / acceptance)
+                        ── tl-semantic-context-merge (unit-level, NOT git text-merge)
+                        ── push branch, raise PR with dev/pr-summary.md as body
+
+         │  (human reviewer reviews PR; on merge, webhook flips MC to done in v2.3)
+         ▼
+
+PR merged → DONE (human-owned)
 ```
 
-Each feature moves through an explicit **state model** — `BACKLOG → READY_FOR_DEV → IN_PLANNING → BLOCKED → IN_DEVELOPMENT → TESTING → REVIEW_FIXES → READY_FOR_PR → HUMAN_REVIEW → APPROVED → MERGED → RELEASED`. The fine-grained state lives in each feature's `dev/delivery-status.md`; it is mirrored into the BA `status.md`/`feature-index.md` using the shared vocabulary, and rolled up into `dev-output/feature-tracker.md`.
-
-| State | Meaning | Owner |
-|---|---|---|
-| `READY_FOR_DEV` | Sufficient context, approved for development | TL / human |
-| `IN_PLANNING` | Reading context, preparing the technical plan | dev |
-| `BLOCKED` | Cannot continue without a decision, dependency, or clarification | dev |
-| `IN_DEVELOPMENT` | Actively making code changes | dev |
-| `TESTING` | Running the validation suite | dev |
-| `REVIEW_FIXES` | Resolving validation failures or review feedback | dev |
-| `READY_FOR_PR` | Implementation and validation complete; handoff prepared | dev |
-| `HUMAN_REVIEW` | PR waiting for human review/approval | dev → human |
-| `APPROVED` · `MERGED` · `RELEASED` | Human- or deploy-owned; the dev agent only records them | human |
-
-The agent owns transitions up to `HUMAN_REVIEW` and stops there — it never advances a feature to `APPROVED`, `MERGED`, or `RELEASED` itself. `BLOCKED` is reachable from any working state and returns to the state it left once the blocker is resolved. The full state → BA-vocabulary mapping is in [`feature-delivery-loop/references/loop-control.md`](skills/feature-delivery-loop/references/loop-control.md).
-
-### Planning gate — it plans the feature for you
-
-The very first thing `/dev:build` does is make sure the feature is **planned** — split by the TL into pages, endpoints, and database entities — because that graph is what it builds against. It detects this by reading the feature's `feature.md` and checking every declared page/API/data-entity actually **resolves** to a real TL unit file **and** is **linked** to this `FEAT-id` in the TL indexes (so a partial or stale plan is caught, not just an empty one).
-
-If the feature isn't planned (or is only partially planned), the agent **auto-plans it** — it delegates to the `tl-agent` and runs `tl-feature-planning` on that one feature (the same work `/tl:plan` does), re-verifies the graph, and then continues the loop, noting in the summary what was planned (units created/reused, `DEC-###` decisions, any open questions the TL raised). So pointing `/dev:build` at a feature folder "just works" whether or not you ran `/tl:plan` first.
-
-It only stops on the planning step in two cases: the **TL plugin isn't installed** (it blocks and asks you to run `/tl:plan`), or **TL planning itself hits a genuine unknown** (a missing integration contract, an undecided auth model) — in which case it carries the TL's blocking open questions up as the escalation rather than building on a half-graph. Prefer to review the technical design before any code is written? Run `/tl:plan <feature>` yourself first; the gate will see it's already planned and go straight to building.
-
-### Greenfield — starting a project with no code yet
-
-The dev loop builds *into* a repository. On a brand-new (design-only) workspace there isn't one, and the agent won't scaffold on a guessed stack — the stack is an architecture decision. So `/dev:build` also has a **repository gate**: if it finds no product repo at all (project-zero), it routes to **bootstrap** instead of dead-ending.
-
-Run `/dev:bootstrap` once at the start of a greenfield project (or let `/dev:build` route you there). It delegates to the TL's `tl-project-scaffold`: reads the architecture / tech spec, **asks you — with a recommendation — for any required stack decision the architecture doesn't pin down** (framework, database, hosting, repo layout…), then scaffolds the skeleton, lint/format/type/test/build tooling, `coding-standards.md`, and a **green base build**, logging each stack choice as a `DEC-###`. Once it's done, the repository gate passes and `/dev:build <feature>` proceeds normally.
-
-If the **tl plugin isn't installed**, bootstrap blocks and asks you to run `/tl:scaffold` (or install it) — it will not scaffold with a guessed stack. Already have a repo? Point the dev agent at it (`repo=<path>`) and the gate treats it as brownfield — bootstrap isn't needed.
+Each command is user-invoked separately — the flow never chains automatically. Between `/dev:build` and `/dev:commit`, the developer runs the feature locally using `dev/local-runbook.md` to sanity-check.
 
 ---
 
@@ -66,101 +60,132 @@ If the **tl plugin isn't installed**, bootstrap blocks and asks you to run `/tl:
 | Command | Does | Stops at |
 |---|---|---|
 | `/dev:bootstrap [spec]` | Greenfield — ensure a usable, green product repo exists (scaffolds via the TL on project-zero) | build-ready workspace |
-| `/dev:build <feature>` | The full loop — implement, validate, repair, track, prepare PR | `HUMAN_REVIEW` (or `BLOCKED`) |
-| `/dev:validate <feature>` | Runs the validation suite and maps results to acceptance criteria; no code changes | acceptance-map report |
-| `/dev:fix-review <feature> feedback=<path\|PR>` | Folds reviewer comments back in, re-validates, refreshes the PR summary | `HUMAN_REVIEW` (or `BLOCKED`) |
-| `/dev:pr <feature>` | Verifies completion criteria and writes the PR handoff | `HUMAN_REVIEW` |
+| **`/dev:plan <task>`** | Just-in-time planning — verify TL graph, decide sub-task split, run per-task analysis (Stage 2 scratchpad), detect plan blockers (Stage 3), compose Description + Implementation and push to MC (Stage 4 — only after blockers resolved) | `PLANNED` (blockers `RESOLVED`) or `BLOCKED_ON_PLAN` |
+| **`/dev:resolve --plan <task>`** | Interactive plan-blocker resolution — walks every OPEN PB-### across the task's `dev/*plan-blockers.md`, presents options + TL recommendation per blocker, asks you to pick / type free text / skip, writes Resolution: fields to disk, then invokes `/dev:plan --resume` to fold + compose + push | `PLANNED` (blockers `RESOLVED`) OR still `BLOCKED_ON_PLAN` if any blockers were skipped |
+| **`/dev:build <task>`** | The 11-stage build loop — branch, harness bootstrap, implement, test, security-build-gate (Critical only), acceptance-map, code-context flip, local-runbook. Refuses on unresolved blockers | local `IN_PROGRESS`, MC `inProgress` |
+| **`/dev:commit <task>`** | The 10-stage commit loop — security-commit-gate (Critical + High), code review (Blocker + Major), acceptance re-verify, semantic-context-merge, push, PR raise | local `REVIEW`, MC `devReview` |
+| `/dev:fix-review <task> feedback=<path\|PR>` | Fold reviewer PR comments back in, re-verify, update `dev/pr-summary.md`; re-run relevant `/dev:commit` stages | local `REVIEW`, MC `devReview` |
 
-`<feature>` is a `FEAT-<AREA>-NN` id, a `context/features/<slug>/` folder, or a slug. `/dev:build` with no target picks the next feature at `READY_FOR_DEV`.
+`<task>` accepts any of: MC task number (`Task-N` / `Feature-N` / `Subtask-N`), `FEAT-<AREA>-NN` id, `features/<slug>/` folder, sub-task folder path (`features/<slug>/subtask/<repo>/`), or a bare slug. `/dev:plan` also accepts multi-target forms (`list=<name>`, `initiative=<name>`, `--all`). `/dev:build` with no target picks the next task at `PLANNED`; `/dev:commit` with no target picks the task most recently at `IN_PROGRESS`.
+
+Retired in v2.2: **`/dev:validate`** (folded into `/dev:build` Stages 7-9), **`/dev:pr`** (folded into `/dev:commit`).
 
 ---
 
-## What it writes (per feature)
+## MC status mapping (v2.2)
 
-Alongside the BA's seven files, under a `dev/` subfolder so nothing collides:
+Uses MC's existing enum verbatim — no invented local variants.
 
-| File | What |
-|---|---|
-| `dev/dev-plan.md` | The technical implementation plan (ordered steps, files, API/schema changes, test strategy, rollback, risks) |
-| `dev/impacted-components.md` | Concrete code-level impact across 12 dimensions (frontend, backend, DB/migrations, authz, integrations, jobs, notifications, monitoring, tests, docs, flags, analytics) |
-| `dev/acceptance-map.md` | Each acceptance criterion → validation method → result → evidence artifact |
-| `dev/implementation-log.md` | Dated log of steps, validation results, failures, repair attempts, next actions |
-| `dev/delivery-status.md` | The loop state, owner lock, branch, validation status, blocker, next action |
-| `dev/decisions.md` | Technical decisions (also appended as `DEC-###` to `shared-context/decision-log.md`) |
-| `dev/pr-summary.md` | The review-ready PR handoff |
-| `dev/escalation-<n>.md` | A structured blocker note when the feature goes `BLOCKED` |
+| Local state | MC status | Set by |
+|---|---|---|
+| `PLANNED` | `readyForDev` | `/dev:plan` end |
+| `BLOCKED_ON_PLAN` | `readyForDev` (unchanged) | `/dev:plan` when `plan-blockers.md` OPEN |
+| `IN_PROGRESS` (build done) | `inProgress` | `/dev:build` Stage 11 |
+| `REVIEW` | `devReview` | `/dev:commit` Stage 1 |
+| `MERGE_CONFLICT` | `devReview` (unchanged) | `/dev:commit` Stage 7 halt |
+| `BLOCKED` | `blocked` | Any stage's escalation |
+| `DONE` | `done` | PR-merge webhook (v2.3) |
 
-Plus the cross-feature `dev-output/feature-tracker.md`.
+---
+
+## Two-gate security model
+
+The `security-review` skill runs TWICE with different thresholds:
+
+- **`/dev:build` Stage 9 (build-time)** — Critical-only blocking. High + Medium + Low logged, non-blocking. Rapid-iteration friendly.
+- **`/dev:commit` Stage 3 (commit-time)** — Critical + High blocking. Medium warns. Low logged. Strict pre-PR gate.
+
+Build-deferred Highs surface at commit-time; they either got fixed in dev iteration or now block.
+
+---
+
+## Stack-adaptive skills (dynamic, not per-stack playbooks)
+
+- **`dev-stack-adaptive-implementation`** — detects stack + infers repo patterns (naming, imports, DI, error handling, async, testing conventions) then implements + writes tests matching THIS repo's idioms. No per-stack playbook — the repo is the source of truth.
+- **`dev-stack-adaptive-code-review`** — 7 review dimensions (correctness / conventions / errors / testability / BR enforcement / naming / reuse) × 4 severity tiers (Blocker / Major / Minor / Nit). Blocker + Major block at commit-time; Minor + Nit surface in PR body.
+- **`qa-greenfield-harness`** — auto-bootstraps a deterministic per-stack test harness when `qa/quality-gates.md` is missing / Draft. NEVER prompts the user during `/dev:build`. Prompts only in `/qa:audit` / `/qa:plan`.
+
+---
+
+## Semantic context merge
+
+New in v2.2: **`tl-semantic-context-merge`** runs at `/dev:commit` Stage 7. Merges the feature branch's flipped `origin: implemented` units against the `main` env baseline via context-mcp. Graph-aware, unit-level merge — NOT a git text-level merge:
+
+- Frontmatter fields: LWW by `updated_at` (with transition-order rules for `origin`)
+- Layer indexes: row-union by `unit_id`
+- `Source References` sections: append-only
+- Real conflicts (tied timestamps, incompatible immutable fields, method / table_name changes) → halt with `dev/context-merge-conflicts.md` for human resolution
+
+Solves Dharma's "Semantic Memory Merging" concern from the design meeting.
+
+---
+
+## What it writes (per task)
+
+Under a `dev/` subfolder in the task folder:
+
+| File | Written by | Purpose |
+|---|---|---|
+| `implementation.md` | `/dev:plan` | Ordered implementation steps, files, API/schema changes, test strategy |
+| `dev/plan-blockers.md` | `/dev:plan` | Plan-time blocker resolution log; `status: OPEN \| RESOLVING \| RESOLVED` |
+| `implementation.md §2 Impacted components` | `/dev:plan` | 12-dimension code impact |
+| `status.md` | all | Local state, owner lock, branch, next action |
+| `dev/build-run.md` | `/dev:build` | Per-stage log for build loop |
+| `dev/implementation-log.md` | `/dev:build` | Detected stack + inferred patterns + per-step evidence |
+| `dev/acceptance-map.md` | `/dev:build` (built) + `/dev:commit` (re-verified) | Parent AC + BR + TS + NFRs → validation → result |
+| `dev/security-findings-build.md` | `/dev:build` Stage 9 | Build-time findings (Critical-blocking) |
+| `dev/local-runbook.md` | `/dev:build` Stage 11 | Developer-facing manual verification guide |
+| `dev/commit-run.md` | `/dev:commit` | Per-stage log for commit loop |
+| `dev/security-findings-commit.md` | `/dev:commit` Stage 3 | Commit-time findings (Critical + High blocking) |
+| `dev/code-review-findings.md` | `/dev:commit` Stage 4 | 4-tier severity findings |
+| `dev/context-merge-log.md` | `/dev:commit` Stage 7 | Semantic merge outcome per unit + index |
+| `dev/context-merge-conflicts.md` | `/dev:commit` Stage 7 (on halt) | Human-resolvable merge conflicts |
+| `dev/pr-summary.md` | `/dev:commit` Stage 9 | Reviewer-facing PR body |
+| `dev/decisions.md` | all | `DEC-###` audit trail |
+| `dev/escalation-<n>.md` | any (on `BLOCKED`) | Structured escalation for human |
+
+Plus cross-feature `features/tracker.md`.
 
 ---
 
 ## Guardrails
 
-The loop is bounded and permission-fenced by design:
+- **`/dev:build` invariant** — runs on a decidable plan or refuses. Never prompts the user mid-run. Plan blockers MUST resolve at `/dev:plan` time.
+- **Retry limits** — 3 focused repair attempts per finding, 2 broad re-runs per stage. Exceed → escalate.
+- **Never without human approval** — merge a PR, deploy to production, delete production data, modify secrets, change infra permissions, disable security controls, ignore failing tests, or `--no-verify` on push / signing.
+- **Scope discipline** — one repo per sub-task; cross-repo edits require a scope escalation.
+- **Escalate, don't guess** — business, architecture, security, dependency, or bounds-exceeded → structured `dev/escalation-<n>.md`.
 
-- **Retry limits** — 3 focused repair attempts per failure, 2 broad validation cycles, 2 auto-generated plans per feature, 0 scope-expansion attempts without human approval. No blind retries.
-- **Never without human approval** — merge a PR, deploy to production, delete production data, modify secrets, change infra permissions, disable security controls, or ignore failing tests.
-- **Scope discipline** — works only on the selected feature's files; a real cross-feature impact is documented and a scope escalation is raised *before* touching the unrelated module.
-- **Escalate, don't guess** — business/scope, technical (schema-risk, unavailable dependency, unclear authz, breaking contract), security/compliance, and stuck-retry situations go to a human with a structured, decision-ready note. Escalating well is a success.
-
-A feature never reaches `READY_FOR_PR` because code was written — only when the mandatory completion criteria all hold, including acceptance criteria validated with evidence.
+A task never reaches PR because code was written — only when the mandatory completion criteria hold (acceptance map green, security gates passed, code review clean, semantic merge clean).
 
 ---
 
 ## Setup
 
-Installation and workspace setup are shared across all Delivery OS plugins — see **[docs/SETUP.md](../../docs/SETUP.md)**. The short version for `dev`:
-
-1. **Install** the core, then the dev plugin:
-   ```text
-   /plugin marketplace add techjays/claude-delivery-os
-   /plugin install delivery-os@techjays-delivery-os
-   /plugin install dev@techjays-delivery-os
-   /plugin install tl@techjays-delivery-os   # needed for auto-planning and greenfield scaffold
-   ```
-2. **Run the BA breakdown first; TL planning is automatic.** The dev agent consumes the BA feature breakdown (`/ba:features`), so that must exist. TL planning it will handle for you: `/dev:build` opens with a **planning gate** that checks whether the feature is already split into pages/endpoints/entities and, if not, auto-plans it via `tl-feature-planning` before building (see below). You can still run `/tl:plan` yourself beforehand if you want to review the technical design first.
-3. **Greenfield? Bootstrap once.** If the project has no application code yet, run `/dev:bootstrap` (or let `/dev:build` route you there) to scaffold the initial repo via the TL before building features — see [Greenfield](#greenfield--starting-a-project-with-no-code-yet) below. The `tl` plugin must be installed for this.
-
----
-
-## Worked example
-
-You've run `/ba:features` and `/tl:plan`, so `FEAT-SUP-001 — Supplier Onboarding` sits at `Ready for Planning` with a full feature folder and a TL context graph (pages `PAGE-SUP-01…03`, endpoints `EP-SUP-01…04`, entities `ENT-SUP-01…03`). You run:
+See **[docs/SETUP.md](../../docs/SETUP.md)**. Short version:
 
 ```text
-/dev:build FEAT-SUP-001
+/plugin marketplace add techjays/claude-delivery-os
+/plugin install delivery-os@techjays-delivery-os
+/plugin install dev@techjays-delivery-os
+/plugin install tl@techjays-delivery-os   # needed for /dev:plan auto-planning + greenfield
+/plugin install qa@techjays-delivery-os   # optional — enables /qa:audit + /qa:plan interactive gates
 ```
-
-The agent acquires the lock, reads the seven BA files and the TL units, and validates readiness — all critical gates pass except one: the acceptance criterion *"Duplicate tax ID is rejected"* has no defined rule for what counts as a duplicate, and there's no tax-validation API contract in the context or repo. Rather than guess, it implements everything it safely can — the onboarding form, draft supplier creation, the approval workflow — logs its decisions as `DEC-###`, then **stops on the one blocker** and writes `dev/escalation-1.md`:
-
-> **Blocker** — Tax validation API contract is not available in the project context or repository.
-> **Impact** — Acceptance criterion "Duplicate tax ID is rejected" cannot be validated.
-> **Decision needed** — (1) use the existing internal compliance service, (2) integrate a third-party service, or (3) handle validation by manual review for now.
-> **Recommended** — Option 1, if the internal service exists.
-> **Can continue in parallel** — front-end form, draft supplier creation, admin approval workflow.
-
-The feature goes `BLOCKED`, mirrored to `In Development → Blocked` in `feature-index.md`, with the row and next action in `dev-output/feature-tracker.md`. The headline it returns leads with the decision you need to make.
-
-You answer *"use the internal compliance service, duplicate = same tax ID in the same country"*. You re-run `/dev:build FEAT-SUP-001`; the agent folds the decision in (`DEC-###`), clears the blocker, wires the duplicate check, and finishes the loop — validation green, every acceptance criterion mapped to evidence in `dev/acceptance-map.md`, a self-review + security pass, and `dev/pr-summary.md` written. The feature lands at `HUMAN_REVIEW` on branch `feature/FEAT-SUP-001-supplier-onboarding`, ready for you to review and merge. It never merges or deploys.
-
----
-
-## How it fits Delivery OS
-
-The dev agent is a **consumer** in the Delivery OS contract: it reads the BA feature folders, the TL `context/frontend|backend|database` graph, `shared-context/`, and the BA registers, and never re-runs BA discovery or TL planning. It writes `produced_by: dev` files under each feature's `dev/` folder and `dev-output/`, mirrors feature state into the BA `feature-index.md`/`status.md` using the shared vocabulary, and appends its `DEC-###` decisions to the shared `decision-log.md`. See the shared [`delivery-os-conventions`](../delivery-os-core/skills/delivery-os-conventions/SKILL.md) skill for the full document contract.
 
 ---
 
 ## FAQ
 
-**Does it actually run tests and git?** Yes — the agent creates the branch/worktree, edits code, and runs lint/type/test/build in the shell against the real repo. It does not merge or deploy.
+**Does it actually run tests and git?** Yes — creates branch, edits code, runs lint/type/test/build in the shell. Does not merge or deploy.
 
-**What if the feature has no TL plan yet?** The planning gate handles it — `/dev:build` auto-plans the feature via `tl-feature-planning` (delegating to the `tl-agent`) before building, then continues. It only blocks on planning if the TL plugin isn't installed (run `/tl:plan` first) or if TL planning itself hits a genuine unknown, which it carries up as the escalation.
+**What if `/dev:plan` hasn't run?** `/dev:build` refuses with "run /dev:plan first". `/dev:build` never re-plans.
 
-**What if the feature has no acceptance criteria?** That's a critical readiness gap the planning gate can't fill. The agent sets the feature `BLOCKED`, writes an escalation note naming what's missing, and stops — it won't build blind.
+**What if `dev/plan-blockers.md` has OPEN entries?** `/dev:build` refuses. User resolves via `/dev:plan --resume`, ticks the blocker as RESOLVED with a DEC-###, then re-runs `/dev:build`.
 
-**Can two people build different features at once?** Yes. Each feature carries an owner lock in `dev/delivery-status.md`; the agent won't take a feature another agent already holds unless told to.
+**Why two security gates?** Fast build iteration (Critical only) + strict pre-PR check (Critical + High). Same skill, two thresholds.
 
-**Why did it stop and escalate instead of finishing?** Because it hit one of the escalation triggers — an ambiguous rule, a schema/data-loss risk, a security concern, an unavailable dependency, or a failure that survived three focused repairs. The escalation note frames the decision with options and a recommendation; once you decide, re-run `/dev:build` to resume.
+**Passing unit tests = done?** No. Completion is a filled acceptance map + zero commit-time Blocker/Major/Critical/High + clean semantic merge.
 
-**Does passing unit tests mean it's done?** No. Completion is a filled acceptance map — every mandatory acceptance criterion backed by a validation method and an evidence artifact — plus the rest of the completion criteria. A green unit run alone is not enough.
+**Can two people build different tasks at once?** Yes. Each task carries an owner lock in `status.md`.
+
+**Why did it stop and escalate?** One of: plan blocker unresolved, ambiguous rule, schema-risk, security concern, unavailable dependency, or bounds-exceeded fix loop. Escalation frames the decision with options + recommendation.

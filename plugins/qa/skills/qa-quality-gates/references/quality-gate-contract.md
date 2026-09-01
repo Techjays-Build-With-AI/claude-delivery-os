@@ -1,6 +1,6 @@
 # Quality-gate contract — the schema dev reads
 
-`qa-output/quality-gates.md` is the single source of truth for what "verified" means in this repo. It must be **parseable and unambiguous** because three consumers depend on it:
+`qa/quality-gates.md` is the single source of truth for what "verified" means in this repo. It must be **parseable and unambiguous** because three consumers depend on it:
 
 - The **dev readiness gate** (`feature-delivery-loop` → `readiness-and-planning.md` §1b) reads it to confirm a usable test harness exists before building a feature.
 - **`dev-validation`** reads it to know which checks are **Required**, the exact command for each, and the threshold each must clear — instead of guessing the repo's tooling.

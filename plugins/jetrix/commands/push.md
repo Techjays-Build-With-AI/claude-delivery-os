@@ -9,11 +9,11 @@ Publish local delivery-os work to Jetrix. The first argument names the **stage**
 
 | Stage | MCP | What it pushes |
 |---|---|---|
-| `scope` | `scope-mcp` | BA outputs — `ba-output/*.md`, `shared-context/*.md`, `context/features/feature-index.md` |
-| `feature` | `task-mcp` | Per-feature MC Tasks — creates ONE Task per `context/features/<slug>/` folder |
+| `scope` | `scope-mcp` | BA outputs — `ba/*.md`, `shared-context/*.md`, `features/feature-index.md` |
+| `feature` | `task-mcp` | Per-feature MC Tasks — creates ONE parent Task per `features/<slug>/` folder AND (v2.1+) creates one Sub-task per `features/<slug>/subtask/<repo>/` folder under that parent, in a batched `subtask_upsert_bundle` call |
 | `task` | `task-mcp` | Ad-hoc tasks — ONE MC Task per `.md` file. Accepts a file, a folder, or omit for `tasks/**/*.md`. Optional `--list=<name\|id>` or `--sprint=<id>` chooses the target. |
-| `implementation` | `task-mcp` | TL plan → each Task's Implementation tab (`implementationDetails`), status → `READY_FOR_DEV` |
-| `deliverable` | `deliverable-mcp` | Client HTMLs — `doc-output/*.html` |
+| `implementation` | `task-mcp` | Parent Implementation tab from `tl-plan.md` AND (v2.1+) each sub-task's Implementation tab from `subtask/<repo>/implementation.md` via `feature_update_implementation`. Status → `READY_FOR_DEV`. |
+| `deliverable` | `deliverable-mcp` | Client HTMLs — `doc/*.html` |
 | `all` | (all above) | Runs every implemented stage in order. |
 
 Every stage uses a **three-phase direct-to-GCS pattern** on its MCP (`*_prepare_push` → local `curl` PUTs → `*_finalize_push`) so the plugin does at most 2 MCP calls + 1 Bash call per push, regardless of file count. **File bytes never enter Claude's context**; they go straight from local disk to GCS via signed URLs (same pattern the UI's KnowledgeHubService uses).
@@ -28,20 +28,23 @@ The per-stage flow (walk / hash / MCP call sequence / skip-unchanged rules / pre
 
 1. Walk up from `$PWD` looking for **`.jetrix/project.json`** (up to 3 parent levels). If missing everywhere → stop and tell the user to run `/jetrix:init <projectId | slug>` first.
 2. Read `solutionId` + `solutionSlug` from it. Note the folder that CONTAINS `.jetrix/` as **`workspace_root`** — the entire `.jetrix/` is gitignored; it's the local working copy.
-3. The delivery-os container is the nested folder `<workspace_root>/.jetrix/<solutionSlug>/` (e.g. if `solutionSlug: "larkiq"` then `.jetrix/larkiq/`). Note this as **`project_root`** — every content file walk below is relative to it.
-4. Verify the container exists. If missing → tell the user to run `/delivery-os:init`.
+3. Note `<workspace_root>/.jetrix/` as **`project_root`** — every content file walk below is relative to it. (Legacy v1 workspaces nested content under `.jetrix/<solutionSlug>/`; `/jetrix:init` §0.5 migrates those to v2 on the next run, so you never build a v1 path yourself.)
+4. Verify the role folders exist (`ba/`, `shared-context/`, `features/`, …). If missing → tell the user to run `/delivery-os:init` (or re-run `/jetrix:init` without `--skip-scaffold`).
 
 > **Directory contract (referenced throughout every stage file):**
 > ```
 > <workspace_root>/
-> └── .jetrix/                         ← ENTIRELY gitignored
+> └── .jetrix/                         ← project_root, ENTIRELY gitignored
 >     ├── project.json
+>     ├── connection-map.md            (if the portal built one)
 >     ├── cache/sync-state.json        ← sync-state ALWAYS lives here
->     └── <solutionSlug>/              ← project_root
->         ├── ba-output/
->         ├── shared-context/
->         ├── context/
->         └── ...
+>     ├── shared-context/
+>     ├── ba/                          (scope.md, registers/, logs/, artifacts/, reviews/, …)
+>     ├── features/                    (feature-index.md + per-feature <slug>/{feature.md, dev/, …})
+>     ├── tl/                          (reviews/, maturity/, code-map-registry.md)
+>     ├── qa/                          (quality-gates.md, audits/, health/, escalations/)
+>     ├── doc/                         (decks/, walkthroughs/, workflows/, boards/)
+>     └── tasks/
 > ```
 > Every `sync-state.json` reference in any stage file resolves to `<workspace_root>/.jetrix/cache/sync-state.json` — NEVER inside `<project_root>/`.
 
@@ -88,4 +91,4 @@ Every stage file assumes:
 - `.jetrix/project.json` exists (verified by preflight §0 above).
 - `.jetrix/cache/sync-state.json` exists (create empty `{}` if absent — done once at first push).
 
-Any stage-specific prereq (e.g. `context/features/` for `feature` stage) is checked inside that stage's file. Failures produce a clear "run this command first" message; never a silent crash.
+Any stage-specific prereq (e.g. `features/` for `feature` stage) is checked inside that stage's file. Failures produce a clear "run this command first" message; never a silent crash.

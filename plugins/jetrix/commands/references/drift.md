@@ -58,9 +58,9 @@ If drift is non-empty:
 
 ```
 ⚠ Local changes not yet on Jetrix:
-    ● context/features/user-auth/feature.md       (drifted, last push 2d ago)
-    ● context/features/user-auth/dependencies.md  (new — never pushed)
-    ● context/features/user-auth/tl-plan.md       (drifted, last push 15m ago)
+    ● features/user-auth/feature.md       (drifted, last push 2d ago)
+    ● features/user-auth/dependencies.md  (new — never pushed)
+    ● features/user-auth/tl-plan.md       (drifted, last push 15m ago)
 
   Continue? (y = build with local as-is / s = stop and let me push first): 
 ```

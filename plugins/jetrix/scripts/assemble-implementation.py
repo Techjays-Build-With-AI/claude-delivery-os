@@ -1,4 +1,4 @@
-"""Assemble `feature_update_implementation` payloads from `context/features/*/tl-plan.md`.
+"""Assemble `feature_update_implementation` payloads from `features/*/tl-plan.md`.
 
 Invoked by `/jetrix:push implementation` (see plugins/jetrix/commands/references/push/implementation.md)
 before the MCP call. Walks feature folders, extracts feature_id + task_object_id
@@ -21,9 +21,28 @@ Contract preserved verbatim:
 
 Usage:
     python assemble-implementation.py \
-        --project-root .jetrix/<slug> \
+        --project-root .jetrix \
         --sync-state   .jetrix/cache/sync-state.json \
         --output       /tmp/impl-assembled.json
+
+    (Legacy v1 workspaces pass `--project-root .jetrix/<slug>` instead; the
+    caller auto-detects either shape.)
+
+v2.1 additions (IMPLEMENTED):
+  - Also walks `features/<slug>/subtask/<repo>/implementation.md` for
+    features with sub-task folders on disk, emitting
+    `subtask_implementations_by_parent[<slug>] = [ ... ]`. Each row matches
+    `task-mcp.subtask_update_implementation`'s per-item schema
+    (subtask_object_id + implementation_details + status), plus
+    `_local_impl_hash` for the response-apply step.
+  - Skip-unchanged via `sync-state.subtasks/<subtask_object_id>.implementationHash`
+    — matches materialize-subtasks.py's key so pull → push round-trips
+    are no-ops.
+  - Sub-task blocker detection reuses the same signals as parent
+    (`[HELD]` in implementation.md; parent's open-questions / dependencies
+    still gate) but sub-tasks don't have their own open-questions files —
+    only tl-plan.md marker + parent-level signals count.
+  - Same 60 KB size cap applies per sub-task.
 """
 from __future__ import annotations
 
@@ -65,6 +84,133 @@ def _get_fm_scalar(text: str, key: str) -> str:
     return val.strip()
 
 
+def _get_subtask_fm_scalar(text: str, key: str) -> str:
+    """Read a frontmatter scalar from a sub-task tab file. Same shape as
+    the parent variant but scoped to the frontmatter block only."""
+    if not text.startswith("---"):
+        return ""
+    m = re.search(r"^---\s*$", text[3:], re.MULTILINE)
+    fm_block = text[3:3 + m.start()] if m else ""
+    return _get_fm_scalar(fm_block, key)
+
+
+def _walk_subtask_implementations(
+    feat_dir: pathlib.Path,
+    parent_feature_id: str,
+    parent_blocked: bool,
+    sync_state: dict,
+) -> tuple[list[dict], list[dict], list[dict]]:
+    """Walk features/<slug>/subtask/*/implementation.md and assemble per-sub-task
+    implementation payloads.
+
+    Returns (payloads, skipped, warnings). Empty subtask/ folder → empty results.
+    """
+    subtask_root = feat_dir / "subtask"
+    if not subtask_root.exists() or not subtask_root.is_dir():
+        return [], [], []
+
+    payloads: list[dict] = []
+    skipped:  list[dict] = []
+    warnings: list[dict] = []
+
+    for sub_dir in sorted(subtask_root.iterdir()):
+        if not sub_dir.is_dir():
+            continue
+
+        impl_md = sub_dir / "implementation.md"
+        desc_md = sub_dir / "description.md"
+
+        # implementation.md required — Description alone is not a buildable
+        # sub-task push. Description tab lives on `feature_upsert_bundle`'s
+        # sub-task path, not the Implementation-tab push.
+        if not impl_md.exists():
+            skipped.append({
+                "slug":         f"{feat_dir.name}/subtask/{sub_dir.name}",
+                "reason":       "no-implementation",
+            })
+            continue
+
+        # Identity — pulled from description.md's frontmatter (all three tab
+        # files share it per §v2.1); implementation.md's frontmatter also
+        # carries it as a fallback.
+        identity_source = desc_md if desc_md.exists() else impl_md
+        id_text = _read(identity_source)
+        subtask_object_id = _get_subtask_fm_scalar(id_text, "jetrix_subtask_object_id")
+        external_id       = _get_subtask_fm_scalar(id_text, "feature_id")
+        subtask_number    = _get_subtask_fm_scalar(id_text, "subtask_number")
+
+        if not subtask_object_id:
+            # Sub-task hasn't been pushed yet — /jetrix:push feature §7 must
+            # create it first (via subtask_upsert_bundle) before its
+            # Implementation can be updated by object_id.
+            skipped.append({
+                "slug":   f"{feat_dir.name}/subtask/{sub_dir.name}",
+                "reason": "no-subtask-object-id (run /jetrix:push feature first)",
+            })
+            continue
+
+        if external_id and parent_feature_id and external_id != parent_feature_id:
+            warnings.append({
+                "slug":    f"{feat_dir.name}/subtask/{sub_dir.name}",
+                "message": (
+                    f"sub-task feature_id ({external_id}) does not match "
+                    f"parent's ({parent_feature_id}) — pushing anyway per "
+                    "object_id, but sync-state may be inconsistent"
+                ),
+            })
+
+        body = _strip_frontmatter(_read(impl_md)).replace("\r", "")
+        body = re.sub(r"^\s*\n+", "", body)
+
+        first_line = body.splitlines()[0] if body else ""
+        if any(first_line.startswith(k) for k in LEAKED_FM_KEYS):
+            warnings.append({
+                "slug":    f"{feat_dir.name}/subtask/{sub_dir.name}",
+                "message": f"body starts with leaked frontmatter key: {first_line[:40]!r}",
+            })
+
+        size = len(body)
+        body_hash = hashlib.sha256(body.encode("utf-8")).hexdigest()
+
+        if size > SIZE_CAP:
+            skipped.append({
+                "slug":   f"{feat_dir.name}/subtask/{sub_dir.name}",
+                "reason": f"size-cap ({size} > {SIZE_CAP})",
+            })
+            continue
+        if size > SIZE_WARN_AT:
+            warnings.append({
+                "slug":    f"{feat_dir.name}/subtask/{sub_dir.name}",
+                "message": f"{size} chars, near {SIZE_CAP} cap",
+            })
+
+        prev = sync_state.get(f"subtasks/{subtask_object_id}", {})
+        prev_impl_hash = (prev.get("implementationHash") or "").replace("sha256:", "")
+        if prev_impl_hash == body_hash:
+            skipped.append({
+                "slug":   f"{feat_dir.name}/subtask/{sub_dir.name}",
+                "reason": f"unchanged (hash={body_hash[:16]})",
+            })
+            continue
+
+        # Blocker detection for sub-tasks: `[HELD]` in implementation.md or
+        # parent-level blocker signals propagate. Sub-tasks don't have their
+        # own open-questions.md.
+        sub_blocked = parent_blocked or ("[HELD]" in body)
+
+        payloads.append({
+            "subtask_object_id":      subtask_object_id,
+            "external_id":            external_id,
+            "subtask_number":         subtask_number,
+            "implementation_details": body,
+            "status":                 "blocked" if sub_blocked else "todo",
+            "_local_impl_hash":       body_hash,
+            "_local_size":            size,
+        })
+
+    return payloads, skipped, warnings
+
+
 def _detect_blocked(feat_dir: pathlib.Path, tl_plan_body: str) -> bool:
     # tl-plan.md marker
     if "[HELD]" in tl_plan_body:
@@ -96,13 +242,13 @@ def main() -> int:
     project_root    = pathlib.Path(args.project_root).resolve()
     sync_state_path = pathlib.Path(args.sync_state).resolve()
 
-    features_root = project_root / "context" / "features"
+    features_root = project_root / "features"
     if not features_root.exists():
         pathlib.Path(args.output).write_text(json.dumps({
             "features": [], "skipped": [], "warnings": [],
-            "halts": [{"reason": "context/features/ missing"}],
+            "halts": [{"reason": "features/ missing"}],
         }, indent=2), encoding="utf-8")
-        print("no context/features/")
+        print("no features/")
         return 0
 
     sync_state = {}
@@ -115,18 +261,26 @@ def main() -> int:
     features: list[dict] = []
     skipped:  list[dict] = []   # {slug, reason} — no-tl-plan, no-feature-id, unchanged, size-cap
     warnings: list[dict] = []   # {slug, message}
+    # v2.1 — sub-task Implementation payloads grouped by parent slug so the
+    # push flow can iterate `for parent, subs in bundle.items()` and issue
+    # one subtask_update_implementation call per parent.
+    subtask_implementations_by_parent: dict[str, list[dict]] = {}
+    subtask_parent_context: dict[str, dict] = {}  # slug → {feature_id, task_object_id}
 
     for feat_dir in sorted(d for d in features_root.iterdir() if d.is_dir()):
         slug = feat_dir.name
 
-        feature_md = feat_dir / "feature.md"
-        tl_plan    = feat_dir / "tl-plan.md"
+        feature_md          = feat_dir / "feature.md"
+        # v2.3: parent Implementation source is `implementation.md` at feature root
+        # (parent-alone case). If absent, fall back to `tl-plan.md` — used for the
+        # SPLIT case's parent rollup, and as backward-compat for v2.2 workspaces
+        # that still carry a parent-alone tl-plan.md.
+        implementation_md   = feat_dir / "implementation.md"
+        tl_plan             = feat_dir / "tl-plan.md"
+        parent_impl_source  = implementation_md if implementation_md.exists() else tl_plan
 
         if not feature_md.exists():
             continue  # not a feature folder
-        if not tl_plan.exists():
-            skipped.append({"slug": slug, "reason": "no-tl-plan"})
-            continue
 
         fm_text = _read(feature_md)
         # Extract just the frontmatter block for field lookups.
@@ -136,61 +290,94 @@ def main() -> int:
         feature_id     = _get_fm_scalar(fm_block, "feature_id")
         task_object_id = _get_fm_scalar(fm_block, "jetrix_task_object_id")
 
-        if not feature_id:
+        parent_blocked_for_subs = False
+        parent_pushed = False
+
+        if not parent_impl_source.exists():
+            skipped.append({"slug": slug, "reason": "no-implementation-source (neither implementation.md nor tl-plan.md)"})
+        elif not feature_id:
             skipped.append({"slug": slug, "reason": "no-feature-id"})
-            continue
-        if not task_object_id:
+        elif not task_object_id:
             skipped.append({"slug": slug, "reason": "no-task-object-id"})
-            continue
+        else:
+            body = _strip_frontmatter(_read(parent_impl_source)).replace("\r", "")
+            body = re.sub(r"^\s*\n+", "", body)
 
-        body = _strip_frontmatter(_read(tl_plan)).replace("\r", "")
-        # Strip leading blank lines.
-        body = re.sub(r"^\s*\n+", "", body)
+            first_line = body.splitlines()[0] if body else ""
+            if any(first_line.startswith(k) for k in LEAKED_FM_KEYS):
+                warnings.append({"slug": slug, "message": f"body starts with leaked frontmatter key: {first_line[:40]!r}"})
 
-        # Sanity: body must not start with a leaked frontmatter key.
-        first_line = body.splitlines()[0] if body else ""
-        if any(first_line.startswith(k) for k in LEAKED_FM_KEYS):
-            warnings.append({"slug": slug, "message": f"body starts with leaked frontmatter key: {first_line[:40]!r}"})
+            size = len(body)
+            body_hash = hashlib.sha256(body.encode("utf-8")).hexdigest()
 
-        size = len(body)
-        body_hash = hashlib.sha256(body.encode("utf-8")).hexdigest()
+            if size > SIZE_CAP:
+                skipped.append({"slug": slug, "reason": f"size-cap ({size} > {SIZE_CAP})"})
+            else:
+                if size > SIZE_WARN_AT:
+                    warnings.append({"slug": slug, "message": f"{size} chars, near {SIZE_CAP} cap"})
 
-        # Size gate.
-        if size > SIZE_CAP:
-            skipped.append({"slug": slug, "reason": f"size-cap ({size} > {SIZE_CAP})"})
-            continue
-        if size > SIZE_WARN_AT:
-            warnings.append({"slug": slug, "message": f"{size} chars, near {SIZE_CAP} cap"})
+                prev = sync_state.get(f"tasks/{feature_id}", {})
+                prev_impl_hash = (prev.get("implementation_hash") or "").replace("sha256:", "")
+                if prev_impl_hash == body_hash:
+                    skipped.append({"slug": slug, "reason": f"unchanged (hash={body_hash[:16]})"})
+                else:
+                    parent_blocked_for_subs = _detect_blocked(feat_dir, body)
+                    status = "blocked" if parent_blocked_for_subs else "readyForDev"
 
-        # Skip-unchanged.
-        prev = sync_state.get(f"tasks/{feature_id}", {})
-        prev_impl_hash = (prev.get("implementation_hash") or "").replace("sha256:", "")
-        if prev_impl_hash == body_hash:
-            skipped.append({"slug": slug, "reason": f"unchanged (hash={body_hash[:16]})"})
-            continue
+                    features.append({
+                        "feature_id":             feature_id,
+                        "slug":                   slug,
+                        "task_object_id":         task_object_id,
+                        "implementation_details": body,
+                        "status":                 status,
+                        "_local_impl_hash":       body_hash,
+                        "_local_size":            size,
+                    })
+                    parent_pushed = True
 
-        status = "blocked" if _detect_blocked(feat_dir, body) else "readyForDev"
+        # v2.1 — walk sub-task implementations even if the parent is skipped
+        # (a re-composed sub-task with the parent's tl-plan.md unchanged
+        # still needs to land). parent_blocked_for_subs propagates only when
+        # we actually detected it from parent's tl-plan; when we didn't
+        # compute it (skip path), leave sub-tasks to detect from their own
+        # `[HELD]` marker.
+        if feature_id and task_object_id and (feat_dir / "subtask").exists():
+            sub_payloads, sub_skipped, sub_warnings = _walk_subtask_implementations(
+                feat_dir=feat_dir,
+                parent_feature_id=feature_id,
+                parent_blocked=parent_blocked_for_subs,
+                sync_state=sync_state,
+            )
+            skipped.extend(sub_skipped)
+            warnings.extend(sub_warnings)
+            if sub_payloads:
+                subtask_implementations_by_parent[slug] = sub_payloads
+                subtask_parent_context[slug] = {
+                    "feature_id":            feature_id,
+                    "parent_task_object_id": task_object_id,
+                }
 
-        features.append({
-            "feature_id":             feature_id,
-            "slug":                   slug,
-            "task_object_id":         task_object_id,
-            "implementation_details": body,
-            "status":                 status,
-            "_local_impl_hash":       body_hash,
-            "_local_size":            size,
-        })
+        # Unused local — quiet the linter.
+        _ = parent_pushed
 
+    subtask_count = sum(len(v) for v in subtask_implementations_by_parent.values())
     output = {
         "features": features,
         "skipped":  skipped,
         "warnings": warnings,
         "halts":    [],
+        # v2.1 additions
+        "subtask_implementations_by_parent": subtask_implementations_by_parent,
+        "subtask_parent_context":            subtask_parent_context,
     }
     pathlib.Path(args.output).parent.mkdir(parents=True, exist_ok=True)
     pathlib.Path(args.output).write_text(json.dumps(output, indent=2), encoding="utf-8")
 
-    print(f"to_push={len(features)} skipped={len(skipped)} warnings={len(warnings)}")
+    print(
+        f"to_push={len(features)} skipped={len(skipped)} warnings={len(warnings)} "
+        f"subtasks_to_push={subtask_count} "
+        f"subtask_parents={len(subtask_implementations_by_parent)}"
+    )
     return 0
 
 

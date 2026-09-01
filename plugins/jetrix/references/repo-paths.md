@@ -1,6 +1,6 @@
 # Resolving local repo paths — ask, don't scan
 
-Every skill that needs to reach into a repo (`/tl:plan`, `/tl:compose`,
+Every skill that needs to reach into a repo (`/tl:plan`, `/dev:plan` Stage 2 compose,
 `/dev:build`, and any other) uses the same rule to find the absolute path
 of an app's local clone. The paths live in
 `<workspace>/.jetrix/cache/repolocation.json`, which `/jetrix:init` step 9

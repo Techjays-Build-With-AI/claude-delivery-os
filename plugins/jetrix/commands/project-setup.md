@@ -180,7 +180,7 @@ Now that the Solution + apps exist in Jetrix, re-run the standard init sequence:
 
 ## 5. Scaffold the delivery-os folder tree — inline `/delivery-os:init`
 
-Rather than telling the teammate to run a second command, invoke `/delivery-os:init` inline. That creates `.jetrix/<solutionSlug>/` with `ba-output/`, `context/`, `tl-output/`, `qa-output/`, `dev-output/`, `doc-output/`, `shared-context/` (with seeded templates), and `artifacts/`.
+Rather than telling the teammate to run a second command, invoke `/delivery-os:init` inline. That seeds the v2 role-centric tree under `.jetrix/`: `shared-context/` (with seeded templates), `ba/` (with `registers/`, `logs/`, `artifacts/`, `intake-runs/`, `reviews/`), `features/` (empty — per-feature bundles land here from `/ba:features`, and the per-feature `dev/` sub-tree lives under `features/<slug>/dev/`), `tl/` (with `reviews/`, `maturity/`, `code-map-registry.md`), `qa/` (with `audits/`, `health/`, `escalations/`, `quality-gates.md`), `doc/` (with `decks/`, `walkthroughs/`, `workflows/`, `boards/`), and `tasks/`. There is no top-level `dev/`, no `context/` under `.jetrix/`, and no `<solutionSlug>/` wrapper — everything sits at `.jetrix/` root. Seeding is idempotent; existing files are never overwritten.
 
 ## 6. Final summary
 
@@ -214,16 +214,15 @@ Connection map:  · Not built yet — open portal → Connections tab → Build 
 
 Workspace layout:
   .jetrix/project.json
+  .jetrix/connection-map.md       (if the portal built one)
   .jetrix/cache/                  (repolocation.json + sync-state.json)
-  .jetrix/<slug>/                 (delivery-os working tree)
-    ├── ba-output/
-    ├── context/
-    ├── tl-output/
-    ├── qa-output/
-    ├── dev-output/
-    ├── doc-output/
-    ├── shared-context/           (seeded templates)
-    └── artifacts/
+  .jetrix/shared-context/         (seeded templates + baseline-profile)
+  .jetrix/ba/                     (intake.index seeded; registers/ logs/ artifacts/ intake-runs/ reviews/)
+  .jetrix/features/               (empty — per-feature bundles from /ba:features; dev/ lives under <slug>/)
+  .jetrix/tl/                     (reviews/ maturity/ code-map-registry.md)
+  .jetrix/qa/                     (audits/ health/ escalations/ + quality-gates placeholder)
+  .jetrix/doc/                    (decks/ walkthroughs/ workflows/ boards/)
+  .jetrix/tasks/                  (empty — non-feature MC tasks)
 
 Next:
   /ba:scope                       — start the BA scope conversation

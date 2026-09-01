@@ -15,7 +15,7 @@ Response:
   "ready": N,
   "docs": [
     {
-      "path": "ba-output/scope.md",
+      "path": "ba/scope.md",
       "documentId": "doc_abc123",
       "version": 3,
       "tags": ["scope"],
@@ -23,7 +23,7 @@ Response:
       "signed_download_url": "https://storage.googleapis.com/...",
       "ok": true
     },
-    { "path": "ba-output/foo.md", "ok": false, "error": "..." },
+    { "path": "ba/foo.md", "ok": false, "error": "..." },
     ...
   ]
 }
@@ -34,7 +34,7 @@ scope-mcp filters to docs whose `tags` intersect `{"scope", "scope-context"}` (b
 **About `path` in the response:** each doc's `path` is a *relative local path*, but the write root depends on the shape:
 
 - **`.jetrix/…` prefix** → **workspace-root-relative**. Write to `<workspace_root>/<path>`. Reserved for Solution-scoped singletons that don't belong under `<slug>/`. Currently only `connection-map.md` uses this shape (path = `.jetrix/connection-map.md`, tags include `connection-map`).
-- **Anything else** → **project-root-relative**. Write to `<project_root>/<path>`. All BA docs, registers, shared-context, feature-index (e.g. `ba-output/scope.md`, `shared-context/glossary.md`, `context/features/feature-index.md`).
+- **Anything else** → **project-root-relative**. Write to `<project_root>/<path>`. All BA docs, registers, shared-context/, feature-index (e.g. `ba/scope.md`, `shared-context/glossary.md`, `features/feature-index.md`).
 
 Path shape → write root. Do NOT interpret tags client-side; the manifest already applied the override. The apply script (`apply-scope-manifest.py`) does this routing automatically — you just pass both roots on the command line.
 
@@ -71,9 +71,9 @@ META=$(mktemp)
 # workspace_root vs project_root when moving out of staging.
 cat > "$CFG" <<'CURLCFG'
 url = "<signed_download_url_1>"
-output = "<STAGING_absolute>/ba-output/scope.md"
+output = "<STAGING_absolute>/ba/scope.md"
 url = "<signed_download_url_2>"
-output = "<STAGING_absolute>/ba-output/data-register.md"
+output = "<STAGING_absolute>/ba/registers/data.md"
 url = "<signed_download_url_3>"
 output = "<STAGING_absolute>/.jetrix/connection-map.md"
 # ...one url+output pair per needs-download doc
@@ -82,13 +82,13 @@ CURLCFG
 # --- Manifest sidecar: per-path metadata the apply script writes to sync-state ---
 cat > "$META" <<'METAEOF'
 {
-  "ba-output/scope.md":         {"documentId": "doc_abc123", "version": 3, "contentHash": "<40hex>"},
-  "ba-output/data-register.md": {"documentId": "doc_def456", "version": 1, "contentHash": "<40hex>"}
+  "ba/scope.md":         {"documentId": "doc_abc123", "version": 3, "contentHash": "<40hex>"},
+  "ba/registers/data.md": {"documentId": "doc_def456", "version": 1, "contentHash": "<40hex>"}
 }
 METAEOF
 
 # --- Parallel HTTP/2-multiplexed download (single curl process, 8 concurrent) ---
-# --create-dirs handles nested staging paths (ba-output/, shared-context/, context/, context/features/).
+# --create-dirs handles nested staging paths (ba/, shared-context/, context/, features/).
 # --write-out logs "<staged_path>|<http_code>" per completed transfer to $LOG.
 curl --parallel --parallel-max 8 --create-dirs \
      -sS --show-error \
@@ -124,11 +124,11 @@ Why staging + atomic move: solves the earlier data-loss bug — `curl -o "$abs_p
 ```
 ✓ Pulled 12 scope-stage docs (Solution: LarkIQ).
 
-  ba-output/scope.md                       ← doc_abc123 (v3, updated)
-  ba-output/data-register.md               ← doc_def456 (v1, first pull)
-  ba-output/workflow-register.md           ← unchanged (local matches remote)
+  ba/scope.md                       ← doc_abc123 (v3, updated)
+  ba/registers/data.md               ← doc_def456 (v1, first pull)
+  ba/registers/workflows.md           ← unchanged (local matches remote)
   shared-context/glossary.md               ← doc_ghi789 (v2, updated)
-  context/features/feature-index.md        ← doc_jkl012 (v1, first pull)
+  features/feature-index.md        ← doc_jkl012 (v1, first pull)
   ...
 
 Updated:  8    Unchanged:  4    Failed:  0
@@ -138,7 +138,7 @@ Failed pulls: list each with its error message; sync-state.json NOT updated for 
 
 ### 5. Phase 3 — feature-folder materialization (single MCP call to task-mcp)
 
-`/jetrix:pull scope` is COMBINED — after scope-mcp finishes writing docs, invoke task-mcp to reconstruct `context/features/<slug>/*.md` folders from MC Tasks. This is what makes a fresh clone look byte-identical to the pusher's workspace.
+`/jetrix:pull scope` is COMBINED — after scope-mcp finishes writing docs, invoke task-mcp to reconstruct `features/<slug>/*.md` folders from MC Tasks. This is what makes a fresh clone look byte-identical to the pusher's workspace.
 
 ```
 mcp__task-mcp__feature_pull_bundle(solution_id = <from project.json>)
@@ -242,11 +242,90 @@ generated_at: <today>
 
 Sync-state is updated inside the materializer script — `.jetrix/cache/sync-state.json` gets one `tasks/<feature_id>` entry per feature with `taskNumber`, `taskObjectId`, `slug`, `contentHash` (sha256 of the concatenated file contents), `lastPulled`. Merge-safe: existing keys for other stages (scope docs, context units) are preserved.
 
-### 7. Report
+### 7. Sub-task materialization (v2.1+)
+
+After Phase 3 finishes and every parent feature is on disk, walk the pulled features to fetch and materialize any sub-tasks. This is what reconstructs the `features/<slug>/subtask/<repo>/` tree on a cold clone.
+
+**Detection.** For each feature just written to disk whose `feature.md` frontmatter has `jetrix_task_object_id`, call `task-mcp.subtask_list(solution_id, parent_task_id=<jetrix_task_object_id>)`. Fires per feature — for a batch pull, parallelise across features (bounded, say 5 concurrent).
+
+Response shape:
+
+```json
+{
+  "subtasks": [
+    {
+      "subtask_object_id": "6b72...",
+      "task_number":       "Subtask-7",
+      "task_type":         "subtask",
+      "title":             "Supplier Onboarding — backend",
+      "status":            "todo",
+      "description":            "<HTML/Markdown>",
+      "implementation_details": "<HTML/Markdown>",
+      "acceptance_criteria":    "",
+      "test_scenarios":         "",
+      "metadata": {
+        "externalId":       "FEAT-SUP-001-1",
+        "parentExternalId": "FEAT-SUP-001",
+        "subtaskNumber":    1,
+        "subtaskRepo":      "backend",
+        "source":           "ai",
+        "aiGenerated":      true
+      }
+    },
+    ...
+  ]
+}
+```
+
+**Skip when empty.** A feature with `subtasks: []` is parent-alone — no local sub-task tree needed. Do not create empty `subtask/` folders.
+
+**Assembly + write via script.** Do NOT `Read` / `Write` sub-task files individually — invoke `materialize-subtasks.py`. It handles frontmatter (§v2.1 sub-task frontmatter — `doc_type`, identity fields, `composed_at`, `inputs_hash`), the write for `description.md` + `implementation.md` + `status.md` under `features/<parent_slug>/subtask/<subtaskRepo>/`, optional AC/TS tab files (only when MC has non-empty content), idempotency via content-hash, sync-state update, MC status → local 5-state mapping (`todo`/`readyForDev` → `PLANNED`, `inProgress` → `IN_PROGRESS`, etc.), and detached-subtask warnings (never deletes local folders that lack MC counterparts).
+
+Per parent feature:
+
+```bash
+BUNDLE="<workspace_root>/.jetrix/cache/.pull-subtasks-<parent-slug>.json"
+mkdir -p "$(dirname "$BUNDLE")"
+
+# Compose the bundle from the parent's fetched context + this subtask_list response.
+cat > "$BUNDLE" <<'JETRIX_SUB_EOF'
+{
+  "parent_slug":            "<parent-slug>",
+  "parent_feature_id":      "<FEAT-<AREA>-NN from parent's feature.md>",
+  "parent_task_object_id":  "<parent's jetrix_task_object_id>",
+  "parent_task_number":     "<parent's jetrix_task_number, e.g. Feature-4>",
+  "subtasks":               <subtask_list.subtasks — verbatim>
+}
+JETRIX_SUB_EOF
+
+python "$CLAUDE_PLUGIN_ROOT/scripts/materialize-subtasks.py" \
+  --bundle       "$BUNDLE" \
+  --project-root "<absolute project_root>" \
+  --sync-state   "<workspace_root>/.jetrix/cache/sync-state.json"
+
+rm -f "$BUNDLE"
+```
+
+The script writes:
 
 ```
-Pulled:  15 scope docs + 14 features
-        (10 features created locally, 4 unchanged)
+features/<parent_slug>/subtask/<subtaskRepo>/
+├── description.md          # Description tab, with §v2.1 frontmatter
+├── implementation.md       # Implementation tab, with §v2.1 frontmatter
+├── status.md               # current_state / owner_lock / branch
+├── acceptance-criteria.md  # (only when MC's tab is non-empty)
+└── test-scenarios.md       # (only when MC's tab is non-empty)
+```
+
+Sync-state entries per sub-task under `subtasks/<subtask_object_id>` with `contentHash`, `implementationHash`, `taskNumber`, `parentTaskObjectId`, `subtaskRepo`, `subtaskNumber`, `lastPulled`. Merge-safe.
+
+**Cleanup for detached sub-tasks** is handled inside the script: a local `subtask/<repo>/` folder without a matching MC counterpart in this pull triggers a warning, never a delete — avoids accidental data loss if MC's list is stale.
+
+### 8. Report
+
+```
+Pulled:  15 scope docs + 14 features + 6 sub-tasks
+        (10 features created locally, 4 unchanged; 6 sub-tasks across 2 features)
 ```
 
 ## Prompts count

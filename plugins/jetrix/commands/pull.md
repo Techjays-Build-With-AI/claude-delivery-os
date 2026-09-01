@@ -9,7 +9,7 @@ Refresh the local delivery-os container from Jetrix. The first argument names th
 
 | Stage | MCP | What it pulls |
 |---|---|---|
-| `scope` | `scope-mcp` + `task-mcp` | Everything Solution-scoped: BA outputs, shared-context, feature-index, **connection-map**, and every feature folder — one combined pull |
+| `scope` | `scope-mcp` + `task-mcp` | Everything Solution-scoped: BA outputs, shared-context/, feature-index, **connection-map**, and every feature folder — one combined pull |
 | `connection-map` | `scope-mcp` | Targeted pull of just the Solution's `connection-map.md`. Rarely needed — `scope` already includes it. Use when you want to skip BA/feature pulls. |
 | `task <ref>` | `task-mcp` | ONE feature folder — `<ref>` is `TASK-<number>`, `FEAT-<id>`, or a MongoDB `_id` |
 | `sprint <ref>` | `task-mcp` | Every feature currently in a sprint — `<ref>` is a sprint number or MongoDB `_id` |
@@ -28,20 +28,26 @@ The per-stage flow (manifest call, filter, curl loop, sync-state update) lives i
 
 1. Walk up from `$PWD` looking for **`.jetrix/project.json`** (up to 3 parent levels). If missing → tell the user to run `/jetrix:init` first.
 2. Read `solutionId` + `solutionSlug` from it. Note the folder that CONTAINS `.jetrix/` as **`workspace_root`** — the entire `.jetrix/` is gitignored; it's the local working copy.
-3. The delivery-os container is nested at `<workspace_root>/.jetrix/<solutionSlug>/`. Note this as **`project_root`**.
-4. If `project_root` is missing, create the empty tree (`ba-output/`, `shared-context/`, `context/features/`) — Pull is the natural onboarding flow for a fresh teammate who just cloned the repo and ran `/jetrix:init`.
+3. The delivery-os container is nested at `<workspace_root>/.jetrix/`. Note this as **`project_root`**.
+4. If `project_root` is missing, create the empty tree (`ba/`, `shared-context/`, `features/`) — Pull is the natural onboarding flow for a fresh teammate who just cloned the repo and ran `/jetrix:init`.
 
 > **Directory contract:**
 > ```
 > <workspace_root>/
-> └── .jetrix/                         ← ENTIRELY gitignored
+> └── .jetrix/                         ← project_root, ENTIRELY gitignored
 >     ├── project.json
+>     ├── connection-map.md            (if the portal built one)
 >     ├── cache/sync-state.json        ← sync-state ALWAYS lives here
->     └── <solutionSlug>/              ← project_root
->         ├── ba-output/
->         ├── shared-context/
->         └── context/
+>     ├── shared-context/
+>     ├── ba/                          (scope.md, registers/, logs/, artifacts/, reviews/, …)
+>     ├── features/                    (feature-index.md + per-feature <slug>/{feature.md, dev/, …})
+>     ├── tl/                          (reviews/, maturity/, code-map-registry.md)
+>     ├── qa/                          (quality-gates.md, audits/, health/, escalations/)
+>     ├── doc/                         (decks/, walkthroughs/, workflows/, boards/)
+>     └── tasks/
 > ```
+> (Legacy v1 workspaces nested content under `.jetrix/<solutionSlug>/`; `/jetrix:init` §0.5 migrates those to v2 on the next run.)
+>
 > Sync-state reads/writes in any stage file resolve to `<workspace_root>/.jetrix/cache/sync-state.json` — NEVER inside `<project_root>/`.
 
 ## 1. Parse the stage argument
@@ -69,7 +75,7 @@ If the stage file cannot be read → halt and report; do NOT reconstruct the flo
 
 ## Stage: `all`
 
-Alias for `scope`. Since `scope_pull_manifest` now returns every Solution-scoped doc (BA outputs, shared-context, feature-index, connection-map) in one call, running `scope` refreshes everything the workspace needs. Just execute `references/pull/scope.md`.
+Alias for `scope`. Since `scope_pull_manifest` now returns every Solution-scoped doc (BA outputs, shared-context/, feature-index, connection-map) in one call, running `scope` refreshes everything the workspace needs. Just execute `references/pull/scope.md`.
 
 `task` / `sprint` / `list` are NOT part of `all` — those are targeted single-ref pulls, opt-in only.
 

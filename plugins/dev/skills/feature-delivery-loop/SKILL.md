@@ -1,113 +1,177 @@
 ---
 name: feature-delivery-loop
-description: Autonomously deliver one approved feature through a controlled, state-driven loop — implement, validate, fix, track, and prepare for review — rather than a one-shot code dump. Use whenever the user asks to "build/implement a feature", "run the delivery loop", "develop FEAT-…", "take this feature to a PR", or hand an approved, TL-planned feature to development. Point it at one feature (a FEAT-<AREA>-NN id or a context/features/<slug>/ folder) or let it pick the next feature at READY_FOR_DEV. It reads the BA feature breakdown and the TL technical context graph, validates feature readiness, analyses concrete code-level impact, writes a technical implementation plan, works in an isolated branch/worktree, implements scoped changes with tests, runs validation and maps results to acceptance criteria, repairs actionable failures within retry limits, moves the feature through an explicit state model, updates delivery status and the feature tracker, and prepares a pull-request handoff. It escalates business, architecture, schema, security, dependency, and scope blockers instead of guessing, and never merges, deploys, modifies secrets, or expands scope without human approval. It orchestrates the dev-validation, dev-code-review, and dev-pr-handoff skills. Re-run it to continue a feature, respond to review feedback, or pick up after an escalation is resolved.
+description: Deliver one already-planned task (a parent feature or a sub-task) through the v2.2 three-command flow — `/dev:build` (11-stage build loop) followed by `/dev:commit` (10-stage commit loop) — rather than a one-shot code dump. Use when the user asks to "build/implement a task", "run the delivery loop", "develop FEAT-…", "take this feature to a PR", or hand an already-planned task to development. Refuses if `/dev:plan` hasn't run for this task OR if `dev/plan-blockers.md` has unresolved entries — those routes to `/dev:plan` / `/dev:plan --resume`. Enforces the two-gate security model (Critical-only at build, Critical+High at commit), the dynamic stack-adaptive skills (implementation + code-review + qa-greenfield-harness), and semantic context merge (unit-level, not text-level) via `tl-semantic-context-merge`. Uses MC's existing status enum (`todo | readyForDev | inProgress | agentExecuting | devReview | blocked | done`) — never invents local MC states. Orchestrates `/dev:build` first then `/dev:commit`; each is user-invoked (never runs both back-to-back on its own).
 ---
 
-# Feature Delivery Loop (approved feature → validated, review-ready implementation)
+# Feature Delivery Loop (v2.2 — planned task → validated PR handoff)
 
-You are turning an **approved, planned feature** into working, validated code and a clean review handoff. The BA answered *what capability and why* (`context/features/`); the TL answered *which pages, endpoints, and entities* (`context/frontend|backend|database`). You answer *the working implementation, proven against the acceptance criteria*. This is an **execution and verification loop**, not a single code-generation call: you implement, you prove, you fix, you track, and you either reach a review-ready state or you escalate — you never declare a feature done because code exists.
+You are the outer wrapper that turns an **already-planned task** — either a parent feature (parent-alone) or one sub-task of a split feature — into a working, validated, review-ready PR. Planning (readiness gate, impact analysis, implementation.md, plan-blocker resolution) is `/dev:plan`'s job. Building (branch, harness, implement, test, security-build-gate, context flip) is `/dev:build`'s job. Committing (security-commit-gate, code review, acceptance re-verify, semantic-context-merge, push, PR) is `/dev:commit`'s job.
 
-The defining behaviour of this skill is the **state-driven loop with hard guardrails**. Every feature moves through explicit states; every meaningful change is validated; every acceptance criterion is backed by evidence; repairs are bounded; and ambiguity, risk, and scope decisions are escalated rather than guessed. You are the **build authority** for the feature's scope, but "build authority" is not "licence to decide the business" — where the context is silent on something that changes behaviour (a business rule, an auth model, a schema risk, an integration contract), you raise a blocker, not a guess.
+This skill is the **loop coordinator** — it doesn't run the stages itself; it ensures the developer invokes `/dev:build` and `/dev:commit` in the right order with the right preconditions.
+
+**Not a one-shot dispatch.** `/dev:build` finishes → developer verifies locally (via `dev/local-runbook.md`) → developer invokes `/dev:commit`. Never chain the two automatically.
 
 ## Operating contract
 
-Read the **`delivery-os-conventions`** contract first if it isn't in context — the workspace layout, the frontmatter standard, the stable-ID rules, the source-citation form, and the controlled vocabulary. Your **inputs** are published upstream work you consume and never regenerate:
+Read the **`delivery-os-conventions`** skill first (v2.2) — the loop-control state model + MC status mapping. Then read the task's `status.md`.
 
-- BA feature folder `context/features/<slug>/` — `feature.md`, `workflow.md`, `acceptance-criteria.md`, `dependencies.md`, `open-questions.md`, `status.md`, and `implementation-plan.md` (BA's build-areas scoping notes — read for scoping context only, never as the buildable spec).
-- **`context/features/<slug>/tl-plan.md`** — TL's per-feature buildable implementation spec (the 9-section technical plan produced by `/tl:compose`). **When present, this is the primary buildable input** — read it first, treat it as the authoritative technical brief. When absent (e.g. an older workspace that hasn't run `/tl:compose` yet), fall back to reading `implementation-plan.md` + the TL unit files listed below and note in the run summary that the feature was built from the legacy inputs; recommend `/tl:compose` for the next run. Do NOT reconstruct a `tl-plan.md`-shaped document from those legacy inputs — the composition responsibility belongs to `/tl:compose`, not you.
-- TL context graph — the `PAGE-/EP-/ENT-<AREA>-NN` unit files the feature maps to (via the feature's *Related Pages / APIs / Data Entities*), the three layer indexes, and the `DEC-###` decisions in `shared-context/decision-log.md`. The graph lives **per-repo** at `<repo>/context/code-context/{frontend|backend|database}/` — travels with the code via `git`. **To find each repo's absolute path when you need it, follow `plugins/jetrix/references/repo-paths.md`** — read `.jetrix/cache/repolocation.json`; if a required path is missing or the folder has moved, ask the teammate and update the JSON; if it's marked `"SKIPPED"`, skip that repo without asking. Read the graph as **reference** when `tl-plan.md` cites a unit id — the plan is self-contained for owned units but cites reused/external units by id. If an index or a cited unit file is missing in a resolved repo, ask the user to sync that repo (`git pull`) or, if the unit doesn't exist yet, run `/tl:plan` to create it — do not silently proceed against an incomplete graph.
-- `shared-context/` (actors, systems, glossary, decisions) and the BA registers in `ba-output/` (data, integration, workflow, business-rule) for the rules your code must honour.
-- The **product repository** you implement in — its `coding-standards.md`/`architecture.md` (from `context/project/` or the repo), its test/lint/build tooling, and its git state.
+**Inputs (from upstream — never re-derive):**
 
-You **write** your dev context alongside the feature, under a `dev/` subfolder so you never collide with the BA's seven files or the TL's graph, plus a cross-feature tracker in `dev-output/`:
+- `/dev:plan` outputs (parent-alone or sub-task):
+  - `implementation.md` — the build script
+  - `implementation.md §2 Impacted components` — what's touched
+  - `status.md` — current state, ownership, branch
+  - `dev/plan-blockers.md` — plan-time blocker resolution (v2.2). MUST be absent or `status: RESOLVED` before `/dev:build` can start.
+- Parent BA files (`feature.md`, `workflow.md`, `acceptance-criteria.md`, `business-rules.md`, `nfrs.md`, `test-scenarios.md`, `dependencies.md`, `open-questions.md`)
+- Parent's TL Implementation content (`tl-plan.md`) OR sub-task's Description + Implementation tabs
+- TL context graph — per-repo `context/code-context/` (frontend/backend/database)
+- `shared-context/decision-log.md`, `ba/` registers
+- Project metadata via `mcp__project-mcp__project_get_project` + `.jetrix/project.json` + `.jetrix/cache/repolocation.json`
 
-```text
-context/features/<slug>/
-  feature.md  implementation-plan.md  workflow.md  acceptance-criteria.md
-  dependencies.md  open-questions.md  status.md            # BA (input, read-only)
-  tl-plan.md                                                # TL (input, read-only) — primary buildable spec
-  dev/                                                      # you write these (produced_by: dev)
-    dev-plan.md              # the technical implementation plan
-    impacted-components.md   # concrete code-level impact analysis
-    acceptance-map.md        # acceptance criterion → validation method → result → evidence
-    implementation-log.md    # per-run step / validation / failure / next-action log
-    delivery-status.md       # the fine-grained loop state, owner lock, blockers
-    decisions.md             # technical decisions (also appended to shared-context/decision-log.md)
-    pr-summary.md            # the PR / review handoff (dev-pr-handoff writes this)
-    escalation-<n>.md        # structured blocker notes when BLOCKED
-dev-output/
-  feature-tracker.md         # cross-feature delivery dashboard (one row per feature)
-```
+**Writes coordinated by this loop (via the two commands):**
 
-Every file follows the exact schema in **`references/dev-context-templates.md`** — build them from it so the dev layer stays uniform. Keep the frontmatter (`produced_by: dev`) on every file. If there is no Delivery OS workspace, don't block: take the feature and repo paths the user gives you, create the `dev/` and `dev-output/` folders next to them, and note in the run summary that a standard workspace wasn't found.
+- `dev/build-run.md` (by `/dev:build`)
+- `dev/commit-run.md` (by `/dev:commit`)
+- `dev/implementation-log.md`, `dev/acceptance-map.md`, `dev/decisions.md`, `dev/security-findings-build.md`, `dev/security-findings-commit.md`, `dev/code-review-findings.md`, `dev/context-merge-log.md`, `dev/context-merge-conflicts.md`, `dev/local-runbook.md`, `dev/pr-summary.md`, `dev/escalation-<n>.md`
+- MC task status via `mcp__task-mcp__update_task_status`
+- Context-mcp: `context_pull_manifest` (baseline read) at Stage 7 semantic merge
 
-## The loop
+## The v2.2 three-command flow
 
-Follow the state model, retry limits, permission/scope guardrails, escalation rules, and the state → BA-vocabulary mapping in **`references/loop-control.md`**. Follow the readiness gate, impact-analysis dimensions, and implementation-planning method in **`references/readiness-and-planning.md`**. Delegate validation to **`dev-validation`**, self-review and the security pass to **`dev-code-review`**, and the PR/escalation handoff to **`dev-pr-handoff`**. For an **applied-AI feature**, follow the eval materialize/run/inspect method in **`references/eval-runner.md`** (and the core **`eval-engineering`** skill) to run the `EVAL-<AREA>-NN` verifiers the TL designed under `context/evals/`.
+### 1. `/dev:plan <target>` — MUST run first
 
-**Report progress as you go — don't go dark until the end.** Every time the feature changes state, emit the one-line progress broadcast defined in `references/loop-control.md` ("Progress broadcasts") *before* you start the work of that state, and drop a short `↳` heartbeat sub-line whenever you enter a distinct phase of a long-running state (implementation, validation, repair). When you set `BLOCKED`, print the inline error/blocked block from that same reference *in addition to* writing the escalation file — never make the human open the markdown to learn what broke. The steps below note where a transition happens; the `→ broadcast` marker means "print the state line here."
+Produces `implementation.md` + `implementation.md §2 Impacted components` + `dev/plan-blockers.md` + `status.md` at `current_state: PLANNED`. Any blocker → `dev/plan-blockers.md` with `status: OPEN | RESOLVING | RESOLVED` — resolution is user-driven at plan time.
 
-### 1. Select the feature and acquire the lock
-Take the target from the user (a `FEAT-<AREA>-NN`, a feature folder, or a slug), or — if none is given — pick the next feature at `READY_FOR_DEV` from `feature-index.md`. If an **`initiative=<name>`** filter was given, restrict selection to features whose `feature.md`/`feature-index` `initiative` matches it — with a blank target pick the next `READY_FOR_DEV` feature *within that initiative only* (so one developer's batch isn't affected by another's in-flight features in the shared `context/features/`), and with an explicit target confirm it belongs to that initiative before building. Skip blocked, incomplete, or already-active features unless explicitly told otherwise. Write your owner into `dev/delivery-status.md` so another agent won't take the same feature. Set state `IN_PLANNING` **and broadcast the transition** (`READY_FOR_DEV → IN_PLANNING`).
+If `/dev:plan` hasn't run → this loop refuses and instructs the user to run `/dev:plan <target>` first.
 
-### 2. Read the context and summarise before coding
-Read the feature's seven BA files, the TL units it maps to, `shared-context/`, and the relevant registers. Read the parts of the **existing codebase** those units touch — the real pages, routes, services, schema, and tests — so your plan reflects the code that exists, not an imagined one. Record which sources you consulted. Do not begin implementation until you can state what "done" is in terms of the acceptance criteria.
+### 2. `/dev:build <target>` — 11 stages
 
-### 3. Ensure the feature is planned, then validate readiness (gate)
-**Planning gate first** (`references/readiness-and-planning.md` §0). The dev loop builds against the TL context graph, so before anything else confirm the feature is **planned** — detect it by verifying every page/endpoint/entity the feature's `feature.md` declares **resolves** to a real unit file **and** is **linked** to this `FEAT-id` in the TL indexes. If it's *not planned* or *partially planned*, auto-plan it: delegate to the **`tl-agent`** subagent (running `tl-feature-planning` on this one feature folder — the same work `/tl:plan` does), or, if subagent delegation isn't available, run the `tl-feature-planning` skill directly; then **re-verify** it comes back planned and carry the result (units created/reused, `DEC-###`, TL open questions) into the run summary. Only escalate here if TL planning is **unavailable** (set `BLOCKED`, tell the user to run `/tl:plan`) or **can't complete** (carry the TL's blocking open questions up). For an **AI-bearing feature** (`delivery-os-conventions` §5), a complete plan also includes its `EVAL-<AREA>-NN` eval units under `context/evals/` — the same TL delegation designs them if they're missing. Then continue the loop.
+**Precondition:** `implementation.md` exists, `status.md` `current_state: PLANNED`, and any `dev/plan-blockers.md` is either absent or fully `status: RESOLVED`.
 
-**Then the readiness checklist.** Run the rest of the gate in `references/readiness-and-planning.md`, including the **repository gate** (§1a): if there is **no product repository at all** (project-zero — a design-only workspace), don't plain-block — route to bootstrap: auto-delegate to the TL `tl-project-scaffold` when a confirmed architecture exists, or hand off to `/dev:bootstrap` when stack decisions are still missing (it runs the scaffold's recommend-and-ask flow), or escalate if the TL scaffold isn't available. Never scaffold with a guessed stack. For every other critical failure — no acceptance criteria, unresolved blocking open questions, unavailable/unmocked dependency, an already-broken *existing* repo build, missing credentials/tools, or a lock held by another agent — set state `BLOCKED`, write `dev/escalation-<n>.md` (template in `dev-context-templates.md`), update the trackers, and **stop**. Do not implement around a genuine readiness gap.
+Stages (see `plugins/dev/commands/build.md` + refs):
 
-### 4. Analyse impact
-Identify concrete impacts across the dimensions in `references/readiness-and-planning.md` — frontend pages/components, backend APIs/services, DB schema and migrations, authn/authz, third-party integrations, background jobs/queues, notifications, monitoring, existing tests, docs, feature flags, analytics. Name real files/modules where you can. Write `dev/impacted-components.md`.
+1. Identity + plan verification (hard gate on blockers)
+2. Lock + mount context
+3. Pre-flight (MC status + drift + cross-sub-task deps)
+4. Branch creation FIRST
+5. QA harness gate (auto-bootstraps via `qa-greenfield-harness` skill — deterministic, no prompts)
+6. Implementation (via `dev-stack-adaptive-implementation` skill — dynamic per stack)
+7. Test writing (same skill)
+8. Test execution locally
+9. Acceptance map validation
+10. Security review — **build-time gate, Critical-blocking only**
+11. Update code-context units (`designed → implemented`)
+12. Summary + `dev/local-runbook.md`
 
-### 5. Plan the implementation
-Write or refresh `dev/dev-plan.md`: ordered implementation steps, affected files/modules, required API changes, required schema changes, test strategy, rollback considerations, risks and assumptions, validation criteria, complexity, and cross-feature/team dependencies. The plan must let another agent continue from the same point. Max **2** auto-generated plans per feature — if the second plan still can't produce an actionable path, escalate.
+**Ends with:** local state `IN_PROGRESS`, MC status `inProgress`. Never pushes; never raises PR.
 
-### 6. Create the isolated environment
-Create the branch or worktree `feature/FEAT-<AREA>-NN-<slug>` off the integration branch. **Never** commit implementation changes directly to `main`, `master`, or `production`. Confirm the working tree is clean and the base build is green before you change anything (a pre-existing broken build is an escalation, not your bug to silently fix).
+### 3. Developer verifies locally
 
-### 7. Implement (state IN_DEVELOPMENT — → broadcast the transition)
-Make scoped changes that follow `coding-standards.md`, reuse existing patterns and abstractions, avoid unnecessary refactoring, keep within the approved feature scope, and add or update tests **with** the code. Maintain backward compatibility unless the feature explicitly requires a break (and if it does, that break is a decision to log and likely to escalate). Log material technical decisions to `dev/decisions.md` and append a `DEC-###` row to `shared-context/decision-log.md`. Stay inside the scope boundary in `references/loop-control.md`: touching an unrelated module requires a scope escalation first.
+The `dev/local-runbook.md` from `/dev:build` Stage 11 tells the developer how to run the feature manually. This is NOT part of the loop — it's a human step.
 
-### 8. Validate (state TESTING — → broadcast the transition)
-Invoke **`dev-validation`**: run the applicable suite (lint, format, type-check, unit, integration, API-contract, e2e, build, migration validation, security scan, dependency check, plus any feature-specific acceptance tests), record results in `dev/implementation-log.md`, then build `dev/acceptance-map.md` mapping every acceptance criterion to a validation method, result, and evidence file. Passing unit tests alone is **not** completion — the acceptance map is.
+### 4. `/dev:commit <target>` — 10 stages
 
-**Applied-AI features — run and inspect the evals.** If the feature is AI-bearing and the TL designed `EVAL-<AREA>-NN` units under `context/evals/<feature-slug>/`, materialize and run them as first-class verifiers via **`references/eval-runner.md`** (and the core **`eval-engineering`** skill): run each verifier, wiring the live-vs-simulated tool calls the eval declares, and feed its pass/fail into the acceptance map as the evidence for its AI-driven criterion. **Inspect both sides** — the model's *trajectory* and the verifier's *verdict* — before calling an AI criterion passed, so an agent that reward-hacks the verifier (claims an action it didn't take, over-cites, exploits reachable answers) is caught rather than scored green. A failing or reward-hacked eval is a failure the repair loop handles like any other; a genuinely wrong eval goes back to the TL to revise, not around. Deterministic features skip this — the acceptance map alone proves them.
+**Precondition:** `status.md` `current_state: IN_PROGRESS`, `ready_for_dev_commit: true`, branch checked out in target repo.
 
-### 9. Repair loop (state REVIEW_FIXES on failure — → broadcast the transition; heartbeat each repair attempt)
-For each failure: identify the cause, decide whether it is actionable, make a **focused** correction, re-run the narrow check first, then the broader suite once the focused fix passes, and record the attempt and result in `dev/implementation-log.md`. Honour the limits in `references/loop-control.md`: **3** focused repair attempts per failure, **2** broad validation cycles. The same failure surviving three focused repairs, a fix that keeps causing regressions elsewhere, or a root cause you can't isolate with the available context → **escalate**. No blind repeated retries.
+Stages (see `plugins/dev/commands/commit.md` + refs):
 
-### 10. Self-review and security pass
-Invoke **`dev-code-review`**: review the diff for quality, maintainability, regressions, and standards, and run the security pass (authn/authz, secrets, input validation, common vulnerabilities). Fix actionable findings (still within retry limits); anything sensitive-data, vulnerability, or permissions related is a security escalation, not a silent fix.
+1. Identity + branch verification
+2. Lock + flip to `REVIEW` (local) + `devReview` (MC)
+3. Base branch selection
+4. Security review — **commit-time strict gate, Critical + High blocking** (same skill as build, stricter threshold)
+5. Code review — via `dev-stack-adaptive-code-review` skill, Blocker + Major blocking
+6. Acceptance-map re-verification + last-sub-task E2E resolution
+7. Bounded fix loop (routes back to Stages 3–5 on findings)
+8. Semantic context merge — via `tl-semantic-context-merge` skill, unit-level not line-level
+9. Push branch
+10. Raise PR (body = `dev/pr-summary.md`, composed via slim `dev-pr-handoff` skill)
+11. Terminal summary
 
-### 11. Update documentation and trackers
-After meaningful progress update `dev/delivery-status.md`, `dev/implementation-log.md`, `dev/dev-plan.md`, `dev/decisions.md` (where applicable), the BA `status.md` and `feature-index.md` (state mapped per `references/loop-control.md`), and `dev-output/feature-tracker.md` (state, owner, start/updated dates, current blocker, validation status, PR link, next action).
+**Ends with:** local state `REVIEW`, MC status `devReview`. Human reviews PR. On PR merge, webhook (v2.3) flips MC to `done`.
 
-### 12. Prepare the PR handoff
-Only when **every** completion criterion in `references/loop-control.md` is met — feature scope implemented, required acceptance criteria validated, relevant tests + build + static checks pass, docs updated, no unresolved critical/high defect, no unresolved blocker, tracker current — invoke **`dev-pr-handoff`** to write `dev/pr-summary.md` (purpose, scope of changes, technical approach, affected pages/APIs/services, tests run, acceptance-criteria status, risks/rollout, open follow-ups, reviewer instructions). Move the feature `READY_FOR_PR` → `HUMAN_REVIEW` (**broadcast both transitions**). **Do not merge or deploy** — hand off to the human.
+## MC status mapping (v2.2)
 
-### Re-runs and other modes
-- **Continue** a feature: read `dev/delivery-status.md` for the current state and pick up there; update in place, never blind-overwrite a log.
-- **Validate only**: run steps 2, 8, 9 and report — no implementation.
-- **Fix review feedback**: re-enter at step 9/10 with the reviewer's comments as the failure set, fix actionable ones within the limits, re-validate, and refresh `dev/pr-summary.md`.
-- **After an escalation resolves**: fold the human's decision in (log the `DEC-###`), clear the blocker, move off `BLOCKED`, and resume.
+Use MC's existing enum verbatim. Never invent local variants.
 
-### Report in chat
-This closing report is the summary *on top of* the live progress broadcasts you've been emitting throughout the run (see "Progress broadcasts" in `references/loop-control.md`) — not a replacement for them. Give the headline: the feature and its new state, what you implemented (files/units), the validation summary and the acceptance-criteria pass/fail table, decisions logged, blockers/escalations raised, and links to `dev/pr-summary.md` (or the escalation note) and `dev-output/feature-tracker.md`. Keep it tight — the detail lives in the files. If the run ended `BLOCKED`, the final message must include the inline error/blocked block, not just a link.
+| Local state | MC status | Set by |
+|---|---|---|
+| PLANNED | readyForDev | `/dev:plan` end |
+| IN_PLANNING | inProgress | `/dev:build` Stage 1 (build-time re-mount) |
+| IN_DEVELOPMENT | inProgress | `/dev:build` Stage 5 start |
+| TESTING | inProgress | `/dev:build` Stage 7 start |
+| IN_PROGRESS (build done) | inProgress | `/dev:build` Stage 11 finish |
+| REVIEW | devReview | `/dev:commit` Stage 1 |
+| MERGE_CONFLICT | devReview (unchanged) | `/dev:commit` Stage 7 halt |
+| BLOCKED | blocked | any stage's escalation |
+| BLOCKED_ON_PLAN | readyForDev (unchanged) | `/dev:plan` Stage 6a (plan-blocker OPEN) |
+| DONE | done | PR merge webhook (v2.3) |
 
-## Completion criteria
+The webhook that flips MC `done` on PR merge is v2.3 scope. In v2.2 the MC status stays at `devReview` after `/dev:commit` — human reviewer + merge close the loop manually.
 
-A feature reaches `READY_FOR_PR` only when: the feature scope is implemented; required acceptance criteria are validated with evidence (or formally waived by a human); relevant tests, build, and static checks pass; required docs are updated; no unresolved critical or high-severity defect remains; no unresolved blocker remains; the feature tracker reflects the latest state; and the PR summary is prepared. Optional gates (accessibility, performance, e2e, security sign-off, feature-flag config, release notes) apply where the project requires them. (Full checklist in `references/loop-control.md`.)
+## Two-gate security model
+
+Security review runs TWICE with different thresholds:
+
+- **`/dev:build` Stage 9 (build-time)** — Critical-only blocking. High/Medium/Low logged but non-blocking. Rapid dev iteration friendly.
+- **`/dev:commit` Stage 3 (commit-time)** — Critical + High blocking. Medium warns. Low logged. Strict pre-PR gate.
+
+Same `security-review` skill invocation with different `severity_threshold`. Build-deferred Highs surface at commit time; they either got fixed in dev iteration or now block.
+
+## New v2.2 skills orchestrated
+
+- `dev-stack-adaptive-implementation` — dynamic implementation guide; detects stack + infers repo patterns; writes idiomatic code + behavioral tests. Invoked at `/dev:build` Stages 5+6. Also invoked in fix-mode from both build's repair loop and commit's Stage 6 fix loop.
+- `qa-greenfield-harness` — auto-bootstraps a deterministic per-stack test harness when `qa/quality-gates.md` is missing / Draft. Invoked at `/dev:build` Stage 4. NEVER prompts the user.
+- `dev-stack-adaptive-code-review` — dynamic diff review; 7 dimensions × 4 severity tiers. Invoked at `/dev:commit` Stage 4.
+- `tl-semantic-context-merge` — unit-level merge of code-context vs baseline. Invoked at `/dev:commit` Stage 7.
+- `dev-pr-handoff` (slimmed) — composes `pr-summary.md` OR `escalation-<n>.md` content ONLY. No state transitions, no MC calls. Invoked at `/dev:commit` Stage 9 (PR body compose) or at any escalation point (content compose).
+
+Retired: `dev-validation` (folded into `/dev:build` Stages 7-9), `/dev:pr` command (folded into `/dev:commit`), `/dev:validate` command (retired).
+
+## Guardrails (from `references/loop-control.md`)
+
+- Bounded fix loops: 3 focused fix attempts per finding, 2 broad re-runs per stage. Exceed → escalate.
+- Escalation format: `dev/escalation-<n>.md` — chain of attempts, precise blocker, decision needed, recommendation, parallel work.
+- Never merge, deploy, or approve.
+- Never modify secrets or `.env` files.
+- Never expand scope (touching unrelated modules or other repos → scope escalation first).
+- Every material design choice → `DEC-###` in `dev/decisions.md` + append to `shared-context/decision-log.md`.
+- Broadcast every state transition in chat as it happens; don't go dark.
+
+## Sub-task rules (from v2.1, unchanged in v2.2)
+
+- One repo per sub-task (per `subtask_repo` frontmatter).
+- Parent's AC/BR/NFR/TS are the validation contract; sub-task's own AC/TS tabs are empty by design.
+- E2E ACs spanning sub-tasks marked `deferred-to-e2e` — closed by the LAST sub-task to land (per parent's rollup Sub-tasks table's remaining-not-DONE count).
+- Cross-sub-task hard deps → halt with escalation if the dep sub-task is not `done` on MC.
+- One PR per sub-task per repo — never combine sub-tasks into a spanning PR.
+
+## Report in chat
+
+For each command run, emit progress broadcasts:
+
+- On state transition: one-line broadcast `<prev> → <next>` before starting the work of that state
+- On long-running phases (implement, validate, repair, semantic-merge): `↳` heartbeat sub-line
+- On blocker: inline error/blocked block IN ADDITION to writing `dev/escalation-<n>.md` — never make the human open the markdown to see what broke
+- On completion: closing headline — file paths, next command, and terminal-visible summary
+
+## Completion criteria (per command)
+
+**`/dev:build` complete** when Stage 11 finishes; local `IN_PROGRESS`, MC `inProgress`. `dev/local-runbook.md` written.
+
+**`/dev:commit` complete** when Stage 10 (summary) finishes; local `REVIEW`, MC `devReview`. PR opened. `dev/pr-summary.md` is the PR body.
+
+**Task delivered** when PR is merged (out of this loop's scope in v2.2 — human reviewer + merge closes it).
 
 ## Principles
 
-- **Context is the source of truth.** Don't begin until the feature is sufficiently ready; a genuine gap is a blocker, not a guess.
-- **Plan before coding, validate every change.** Tests and acceptance criteria are the evidence of completion — code existing is not.
-- **Prove AI behaviour with evals.** For an applied-AI feature, run and inspect the TL-designed `EVAL-` verifiers as part of validation, checking the *trajectory*, not just the verifier's verdict — a reward-hacked pass is a failure. Deterministic features need none.
-- **Bound the repair loop.** Focused fixes, narrow-then-broad re-runs, three attempts, then escalate. Never retry blindly.
-- **Stay in scope.** Work only the selected feature's files; document cross-feature impact and raise a scope escalation before touching unrelated modules.
-- **Persist everything.** Progress, decisions, and blockers live in the `dev/` context and the tracker so any agent or human can continue.
-- **Stay visible.** Broadcast every state transition in chat as it happens, heartbeat long phases, and surface blockers inline — the human should never have to open a markdown file to find out where the loop is or why it stopped.
-- **Escalate, don't guess.** Business, architecture, schema, security, dependency, and stuck-retry situations go to a human with a structured note. Escalating well is success.
-- **Never overstep the guardrails.** No merge, no deploy, no secret changes, no scope expansion, no disabling of controls, no ignoring failing tests — without explicit human approval.
+- **Context is the source of truth.** Don't begin `/dev:build` until `/dev:plan` produced a decidable plan. A missing blocker resolution IS a blocker.
+- **Two-gate security.** Fast at build, strict at commit. Same skill, two configs.
+- **Stack-adaptive, not stack-hardcoded.** No per-stack playbooks — repo patterns are the source.
+- **Semantic merge, not line merge.** Unit-level context merge on commit; git text-merge can't handle the graph.
+- **Prove behaviour with evidence.** Acceptance-map rows must cite tests that actually run.
+- **Bound the repair loops.** Focused fixes, narrow-then-broad, hard bounds, then escalate.
+- **Stay in scope.** No cross-repo edits from a single sub-task; no unrelated refactors.
+- **Persist everything.** Every stage writes its run log; any agent or human can resume.
+- **Stay visible.** State transitions broadcast in chat; blockers inline; never go dark.
+- **Escalate, don't guess.** Business, architecture, security, dependency, or bounds-exceeded → structured escalation. Escalating well is success.
+- **Never overstep guardrails.** No merge, deploy, secret changes, scope expansion, disabled controls, or skipped hooks — without explicit human approval.

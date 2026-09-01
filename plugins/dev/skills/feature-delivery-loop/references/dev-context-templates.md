@@ -2,11 +2,13 @@
 
 The exact schema for every file the dev agent writes. Build each from these so the `dev/` layer and the tracker stay uniform, traceable, and machine-parseable. Fill sections from the feature context, the TL graph, and the run; where a section has no supported content write the labelled placeholder (`None identified yet` / `TBD`) — never delete a heading, never invent content.
 
-All dev files carry `produced_by: dev` and live under `context/features/<slug>/dev/`, except `feature-tracker.md`, which lives at `dev-output/feature-tracker.md`. Dates are ISO (`YYYY-MM-DD`), read from the system clock. Decisions logged here are **also** appended as `DEC-###` rows to `shared-context/decision-log.md`.
+All dev files carry `produced_by: dev` and live under `features/<slug>/dev/`, except `feature-tracker.md`, which lives at `features/tracker.md`. Dates are ISO (`YYYY-MM-DD`), read from the system clock. Decisions logged here are **also** appended as `DEC-###` rows to `shared-context/decision-log.md`.
+
+> **v2.3+ NOTE — Sections 1 and 2 below (`dev-plan`, `dev-impacted-components`) are RETIRED templates.** The v2.3 flat-3-file layout collapsed both into a single `implementation.md` authored by `tl-feature-compose` per the v2.3.15 9-section stack-agnostic frame. The current source of truth for implementation.md shape lives in `plugins/tl/skills/tl-feature-compose/SKILL.md` (Rules 1–15) and `plugins/tl/skills/tl-feature-compose/references/implementation-plan-template.md`. Sections 1 and 2 are kept for reference during migration from pre-v2.3 workspaces; new work should NOT produce these files.
 
 ---
 
-## 1. dev-plan.md
+## 1. implementation.md (RETIRED — pre-v2.3 template only)
 
 ```md
 ---
@@ -58,7 +60,7 @@ Low | Medium | High — driver: …
 
 ---
 
-## 2. impacted-components.md
+## 2. implementation.md §2 Impacted components (RETIRED — pre-v2.3 template only)
 
 ```md
 ---
@@ -73,25 +75,25 @@ generated_at: YYYY-MM-DD
 
 | Dimension | Impact | Files / Units | Notes |
 |---|---|---|---|
-| Frontend pages/components | … | PAGE-SUP-01 | |
-| Backend APIs/services | … | EP-SUP-01 | |
-| Database schema/migrations | … | ENT-SUP-01 → DATA-003 | data-loss risk? |
-| Authn / authz | … | | |
-| Third-party integrations | … | INT-002 | contract available? |
-| Background jobs / queues | N/A | | |
+| Surfaces | … | PAGE-<AREA>-NN | |
+| Operations | … | EP-<AREA>-NN | |
+| Stored data | … | ENT-<AREA>-NN → DATA-### | data-loss risk? |
+| Authz | … | | |
+| Integrations | … | INT-### | contract available? |
+| Background jobs | N/A — <reason> | | |
 | Notifications | … | | |
-| Monitoring / observability | … | | |
+| Observability | … | | |
 | Existing tests | … | | |
-| Documentation | … | | |
-| Feature flags | … | | |
-| Analytics / event tracking | … | | |
+| Docs | … | | |
+| Flags | … | | |
+| Analytics | … | | |
 ```
 
 ---
 
 ## 3. acceptance-map.md
 
-The evidence table — a feature cannot reach READY_FOR_PR until every mandatory row is `Passed` or human-`Waived`.
+The evidence table — a task cannot advance past `/dev:build` Stage 8 (build) or `/dev:commit` Stage 5 (commit re-verify) until every mandatory row is `Passed` or human-`Waived`.
 
 ```md
 ---
@@ -158,7 +160,7 @@ Re-run supplier-api.test.ts, then the broad suite.
 
 ---
 
-## 5. delivery-status.md
+## 5. status.md
 
 The fine-grained loop state and owner lock for this feature.
 
@@ -201,7 +203,7 @@ None | dev/pr-summary.md | <PR link>
 Fix duplicate tax ID error contract and re-validate.
 ```
 
-Loop-state values and their BA/index mapping are in `loop-control.md`. Whenever this file changes state, mirror the mapped value into the feature's `status.md`, `feature-index.md`, and `dev-output/feature-tracker.md`.
+Loop-state values and their BA/index mapping are in `loop-control.md`. Whenever this file changes state, mirror the mapped value into the feature's `status.md`, `feature-index.md`, and `features/tracker.md`.
 
 ---
 
@@ -309,7 +311,7 @@ Use the existing internal compliance validation service if available.
 
 ## 9. feature-tracker.md
 
-`dev-output/feature-tracker.md` — the cross-feature delivery dashboard. One row per feature the dev agent has touched; update in place.
+`features/tracker.md` — the cross-feature delivery dashboard. One row per feature the dev agent has touched; update in place.
 
 ```md
 ---

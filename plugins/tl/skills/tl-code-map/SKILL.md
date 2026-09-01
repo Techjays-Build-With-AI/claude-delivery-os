@@ -18,9 +18,9 @@ You read the repository; you change nothing in it except the `code-context/` tre
 
 Read the **`delivery-os-conventions`** contract first if it isn't in context (frontmatter standard, stable IDs, controlled vocabulary). Your file schemas are in **`references/code-context-templates.md`** — the exact shape of every index, unit and manifest, and the index-first read protocol they exist to serve. Your extraction method — how to find each layer per stack, how to derive business domains, how to read validation and data access, how to mark confidence — is in **`references/extraction-guide.md`**. Read `tl-feature-planning`'s `references/planning-guide.md` for the reuse match keys, so a later `/tl:plan` reuses your units instead of duplicating them.
 
-**Input:** the **product repository** (via `repo=<path>` or the current workspace) and, where present, `context/project/{architecture.md, technology-stack.md}` for the confirmed stack.
+**Input:** the **product repository** (via `repo=<path>` or the current workspace) and, where present, `shared-context/{architecture.md, technology-stack.md}` for the confirmed stack.
 
-**Output — and this is the important placement rule:** the tree is written **inside the mapped repository**, at `<repo>/context/code-context/` — a `context/` folder at the repo root, with `code-context/` inside it — and is **committed with the code**. Even when `/tl:code-map` runs from a parent workspace over several repos, each repo's context goes into that repo — never into the workspace, never inside `.jetrix/` (which is gitignored). The context then travels with the code: it is reviewable in a pull request, it diffs when the code changes, and anyone who clones the repo gets it. The only workspace-level artifact you write is **`<workspace>/.jetrix/<project-name>/context/code-map-registry.md`** — a small pointer file listing each mapped repo, its context root, its indexes and its area tokens, so cross-repo links resolve and `/tl:plan` can find the as-built units.
+**Output — and this is the important placement rule:** the tree is written **inside the mapped repository**, at `<repo>/context/code-context/` — a `context/` folder at the repo root, with `code-context/` inside it — and is **committed with the code**. Even when `/tl:code-map` runs from a parent workspace over several repos, each repo's context goes into that repo — never into the workspace, never inside `.jetrix/` (which is gitignored). The context then travels with the code: it is reviewable in a pull request, it diffs when the code changes, and anyone who clones the repo gets it. The only workspace-level artifact you write is **`<workspace>/.jetrix/tl/code-map-registry.md`** — a small pointer file listing each mapped repo, its context root, its indexes and its area tokens, so cross-repo links resolve and `/tl:plan` can find the as-built units.
 
 ```text
 <repo>/context/code-context/          # create the repo's context/ folder if it has none
@@ -41,7 +41,7 @@ Three passes. Discovery enumerates cheaply; detail writes one unit at a time; **
 
 ### Pass A — Discovery (enumerate and orient; write no unit files)
 
-1. **Detect the stack and layout.** Read `context/project/technology-stack.md` if present, else infer from the repo — package manifests, framework config, folder conventions. Establish languages, frontend framework + router, backend framework + routing style, the ORM/data layer, and the database engine and migration tool. This decides *where* pages, endpoints and database objects live (see `references/extraction-guide.md`). Write a short per-layer **`_overview.md`** capturing that layer's stack, conventions and entry points, so every unit file below can stay lean and inherit shared context from one place.
+1. **Detect the stack and layout.** Read `shared-context/technology-stack.md` if present, else infer from the repo — package manifests, framework config, folder conventions. Establish languages, frontend framework + router, backend framework + routing style, the ORM/data layer, and the database engine and migration tool. This decides *where* pages, endpoints and database objects live (see `references/extraction-guide.md`). Write a short per-layer **`_overview.md`** capturing that layer's stack, conventions and entry points, so every unit file below can stay lean and inherit shared context from one place.
 2. **Derive the business domains.** Cluster the repo into domains (`account`, `billing`, `subscription`, `core`) using the ladder in the extraction guide — module/folder structure first, then route prefixes, then naming, then foreign-key clusters. Assign each domain an `<AREA>` token, **reusing tokens already in the registry** so IDs never collide across repos. The domain decomposition is the backbone of the whole tree: it determines the backend folders, the page areas, and how the database index groups. Log a `DEC-###` for any non-obvious grouping call.
 3. **Load any existing context.** Read this repo's `code-context/` indexes if they exist, and the workspace registry, so you **reconcile, not duplicate** — a previous map run or a hand-authored graph is extended in place by match key.
 4. **Enumerate every unit from the declarative sources.** Prefer an authoritative registry over hand-reading every file: an **OpenAPI/Swagger spec or route manifest** for endpoints, the **frontend router config** for pages, the **schema/migration state** for database objects. List every route (`METHOD + path`), every job/consumer/webhook with its trigger, every routed page, and every persisted object **of every kind** — tables, collections, views, procedures, functions, triggers — into **`code-context/map-coverage.md`**, every row `pending`, each with its source file and provisional domain. This manifest is the checklist Pass B burns down and the scope guard for a large app: it makes "what have we not looked at yet" explicit so nothing is silently missed.
@@ -58,9 +58,60 @@ Three passes. Discovery enumerates cheaply; detail writes one unit at a time; **
 
 10. **Write the semantic indexes.** For each layer, write the index in two parts: a **`## Domain Map`** — a few lines per domain saying what the domain *is*, what kinds of operations or objects live in it, what it touches, and when to look elsewhere — and a **`## Units`** table with one row per unit whose `Summary` cell is **copied verbatim** from that unit's own `## Summary` line, so the two can never drift. The database index carries both views: domains in the Domain Map, and the unit tables grouped by **kind**. Then write the root `code-context-index.md` (layers, domains, coverage, confidence) and the `README.md` stating the index-first read protocol. Synthesise the Domain Map **from the units you actually wrote** — it is a summary of evidence, never a guess about what a domain probably contains.
 11. **Respect the index budget.** A layer index must stay readable in one pass. If its Units table passes ~150 rows or the file passes ~500 lines, keep the Domain Map and a roll-up in the layer index and split the per-unit rows into per-domain `<domain>-index.md` files. Never let an index degrade into a directory listing.
-12. **Update the workspace registry** (`<workspace>/.jetrix/<project-name>/context/code-map-registry.md`): this repo's path, layers, context root, commit, unit counts, index paths, area tokens, and any cross-repo link whose other end isn't mapped yet. **Single-repo run: write the file.** **Multi-repo run: do not write it** — concurrent mappers would clobber each other; **return** your registry row and pending-link rows to the caller, which merges them. This is what makes cross-repo links resolvable and as-built units reusable.
+12. **Update the workspace registry** (`<workspace>/.jetrix/tl/code-map-registry.md`): this repo's path, layers, context root, commit, unit counts, index paths, area tokens, and any cross-repo link whose other end isn't mapped yet. **Single-repo run: write the file.** **Multi-repo run: do not write it** — concurrent mappers would clobber each other; **return** your registry row and pending-link rows to the caller, which merges them. This is what makes cross-repo links resolvable and as-built units reusable.
 13. **Run the integrity check.** Every forward link has its back-link; every endpoint has a caller or a declared trigger; no orphan object (or it's marked reference/seed); every unit has a `## Summary` and every index row mirrors it; every index has a Domain Map; shared units appear once with multiple back-links; nothing duplicated. Plus the **coverage check**: every `map-coverage.md` row is `mapped`, `skipped`-with-a-note, or `removed` — no silent `pending`.
 14. **Summarise in chat.** Units per layer and per kind (created vs reconciled), coverage (enumerated vs mapped vs skipped), the confidence spread, where the tree was written, integrity findings, and the next steps.
+
+15. **Author `shared-context/coding-standards.md` when missing (v2.3.19).** The downstream dev flow (`dev-stack-adaptive-implementation` Rule 13/14, code-review Dimension 8) is a hard-precondition consumer of this file — without it, `/dev:build` halts at Stage 0. `/tl:code-map` is the natural author: it has ALREADY detected the stack (Pass A step 1), read lint config, and read sample source files during pattern inference. Read `shared-context/coding-standards.md` first:
+
+    - **Present + all 12 sections filled** → nothing to do. Log `coding-standards.md: present + complete` to chat summary.
+    - **Present + some sections blank / marked `[NEEDS AUTHOR]`** → fill only the blank sections. Never overwrite user-authored content.
+    - **Absent** → author the file end-to-end using the 12-section template from `plugins/tl/skills/tl-project-scaffold/references/scaffold-guide.md §4`.
+
+    **Content sourcing — stack-dynamic, never hardcoded per stack:**
+
+    - **§1 Naming, §2 Folder structure, §3 Lint & format rules, §4 Test conventions, §5 Error-handling & logging** — describe **what the repo already does**. Read from:
+      1. Existing lint/tooling config files in the repo (whatever they are for the detected stack — `.eslintrc.*` for JS-family, `pyproject.toml [tool.ruff]` for Python, `.golangci.yml` for Go, `.rustfmt.toml` for Rust, etc.). The stack determines which config files to look for.
+      2. Observed patterns from the ≤ 10 sample files Phase 2 already read.
+      3. `shared-context/technology-stack.md` if present for confirmed framework + version.
+
+    - **§6 Function complexity budget, §7 Duplication policy, §8 Recursion policy, §9 Constants & magic values, §10 State & side effects, §11 Comments & documentation, §12 Anti-patterns forbidden** — declare **engineering best practices**, resolved DYNAMICALLY per detected stack:
+      1. First: read the value from the repo's own lint/tooling config if declared (e.g. the ESLint rule for complexity, the Ruff config for max-complexity, the golangci-lint config for gocyclo — whatever the stack's lint ecosystem provides).
+      2. Otherwise: apply the ecosystem-default from the stack's own toolchain — the value that stack's standard lint suite recommends when no override is declared. Do NOT invent numbers; use what the stack's own recommended-config says.
+      3. If neither an existing config declares it NOR the stack's ecosystem has a codified default for that specific limit → write `[NEEDS AUTHOR — no <stack>-ecosystem default for this section]` and let Rule 14 halt `/dev:build` until the user fills it. Better a loud gap than a silent guess.
+
+    **File metadata (kept in file frontmatter — this is a background infra doc, not an MC task tab, so full metadata is welcome):**
+
+    ```yaml
+    ---
+    doc_type: coding-standards
+    schema_version: 1.0
+    produced_by: tl
+    generated_at: <ISO>
+    generated_by: tl-code-map (Pass C step 15)
+    detected_stack: <language>+<framework>+<version>
+    harness_status: Ready | Stack-Inferred
+    stack_inferred: <bool>
+    inferred_sections: [§6, §7, ...]           # only when Stack-Inferred; lists sections resolved via ecosystem defaults
+    existing_config_sources:                   # files read to fill §1-§5 and §6-§12 (grounded values)
+      - <path/to/repo/lint/config>
+      - <path/to/repo/format/config>
+    stack_default_sources:                     # ecosystem defaults applied where no repo config was declared
+      - "<stack>: <rule>"
+    ---
+    ```
+
+    Every numeric or categorical choice in §6–§12 ALSO logs a `DEC-###` row to `shared-context/decision-log.md` — standard decision-log flow, backs the frontmatter attribution.
+
+    **Rules for the authoring step:**
+    - No user prompt during authoring — this is silent background work in the map pass.
+    - Never overwrite an existing user-authored section — only fill blanks or `[NEEDS AUTHOR]` markers.
+    - Never invent a number. Existing config or codified ecosystem default only. If neither → `[NEEDS AUTHOR]`.
+    - Never hardcode per-stack numbers in this skill's instructions — the numbers come from the STACK'S OWN LINT ECOSYSTEM at runtime. This skill's job is to READ the stack's convention, not to encode it.
+
+    **Chat summary line:** `coding-standards.md: authored (stack=<detected>, harness_status: <Ready|Stack-Inferred>, N DECs logged, M sections marked [NEEDS AUTHOR])`.
+
+    **Effect on `/dev:build` Stage 0:** with this step authoring the file at map time, `/dev:build` Stage 0's Rule 14 hard-gate never fires for a repo that has been mapped. First `/dev:build` on an unmapped brownfield workspace will still halt with the "run /tl:code-map first" message — which is correct: map the code, then build against it.
 
 ## Boundaries
 

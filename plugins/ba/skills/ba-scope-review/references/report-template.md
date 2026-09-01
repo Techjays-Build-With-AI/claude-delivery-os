@@ -13,7 +13,7 @@ This is the JSON injected into `assets/report.html` at the `__REVIEW_DATA__` tok
 ```json
 {
   "project": "Acme Customer Portal",
-  "documentReviewed": "ba-output/scope.md",
+  "documentReviewed": "ba/scope.md",
   "documentVersion": "0.3 (Emerging)",
   "reviewDate": "2026-06-30 14:30",
   "reviewId": "2026-06-30-143012",
@@ -21,7 +21,7 @@ This is the JSON injected into `assets/report.html` at the `__REVIEW_DATA__` tok
   "priorReview": null,
   "knowledgeBase": {
     "examplesChecked": 12,
-    "registersChecked": ["example-register.md", "requirement-register.md", "clarification-log.md", "system-landscape.md"],
+    "registersChecked": ["ba/registers/examples.md", "ba/registers/requirements.md", "ba/logs/clarifications.md", "system-landscape.md"],
     "note": "Cross-checked against 12 client examples (EX-001–EX-012) and the requirement register; no contradiction-log present."
   },
   "overallScore": 3.4,

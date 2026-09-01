@@ -6,15 +6,15 @@ The **Technical Lead Agent** does two jobs a seasoned TL does. It **authors** th
 |---|---|
 | **Namespace** | `/tl:` |
 | **Commands** | `/tl:plan <feature-or-features>` · `/tl:review <doc> [out=<prefix>]` · `/tl:resolve <responses-file>` · `/tl:scaffold [spec] [repo=<path>]` · `/tl:code-map [repo=<path>]` · `/tl:maturity [repo=<path>] [strict-baseline]` |
-| **Input** | Feature planning: the BA feature breakdown under `context/features/`. Spec review: a tech spec / architecture / system-design / HLD / SRS document (`.md`, `.docx`, or `.pdf`). Scaffold: the confirmed architecture (spec / `context/project/`) + the context graph |
-| **Output** | Feature planning: the linked `context/frontend|backend|database` graph + three indexes. Spec review: `tl-output/spec-review-<timestamp>.{html, md, json}`. Scaffold: the initial application repository (skeleton + tooling + green base) and `context/project/{technology-stack, architecture, coding-standards}.md` |
-| **Skills** | `tl-feature-planning` · `tl-spec-review` · `tl-project-scaffold` · `tl-code-map` · `tl-maturity-audit` |
+| **Input** | Feature planning: the BA feature breakdown under `features/`. Spec review: a tech spec / architecture / system-design / HLD / SRS document (`.md`, `.docx`, or `.pdf`). Scaffold: the confirmed architecture (spec / `shared-context/`) + the context graph |
+| **Output** | Feature planning: the linked `<repo>/context/code-context/{frontend,backend,database}/` graph + three indexes. Spec review: `tl/spec-review-<timestamp>.{html, md, json}`. Scaffold: the initial application repository (skeleton + tooling + green base) and `shared-context/{technology-stack, architecture, coding-standards}.md` |
+| **Skills** | `tl-feature-planning` · `tl-spec-review` · `tl-project-scaffold` · `tl-code-map` · `tl-maturity-audit` · `tl-semantic-context-merge` (invoked by `/dev:commit` — v2.2) |
 
 ---
 
 ## Feature planning (`/tl:plan`)
 
-Point it at one feature folder or the whole `context/features/` set. For each feature it maps the pages/APIs/data-entities the BA declared into real, linked unit files: **pages** (`context/frontend/pages/`), **endpoints** (`context/backend/domains/`), and **entities** (`context/database/entities/`). It **reuses** a unit and adds a back-link where its match key already exists (page route, endpoint `METHOD + path`, entity object name), and creates it — minting the next `PAGE-`/`EP-`/`ENT-<AREA>-NN` — where it doesn't, so shared units live once with many links rather than duplicated per feature.
+Point it at one feature folder or the whole `features/` set. For each feature it maps the pages/APIs/data-entities the BA declared into real, linked unit files: **pages** (`<repo>/context/code-context/frontend/pages/`), **endpoints** (`<repo>/context/code-context/backend/domains/`), and **entities** (`<repo>/context/code-context/database/entities/`). It **reuses** a unit and adds a back-link where its match key already exists (page route, endpoint `METHOD + path`, entity object name), and creates it — minting the next `PAGE-`/`EP-`/`ENT-<AREA>-NN` — where it doesn't, so shared units live once with many links rather than duplicated per feature.
 
 The result is a **bidirectional graph**: a page links to the endpoints it consumes, an endpoint to its callers and the entities it touches, an entity back to its consuming endpoints and to the BA `DATA-###` it realises. Database entities cite the BA data-register (not a parallel ID space), material design decisions are logged as `DEC-###`, genuine unknowns become open questions rather than invented contracts, and a **link-integrity check** flags any dangling reference, uncalled endpoint, or orphan entity. Backend-only features (jobs, events, webhooks, integrations) enter at endpoints, skipping the page layer.
 
@@ -24,11 +24,31 @@ The result is a **bidirectional graph**: a page links to the endpoints it consum
 
 Feature planning and code both need a codebase to live in. On a **greenfield** project there isn't one yet — and the dev agent refuses to scaffold with a guessed stack, because the stack is an architecture decision. `/tl:scaffold` is where that decision gets made and executed, under the TL's architecture hat.
 
-Point it at the tech spec / architecture (or let it read `context/project/` + `shared-context/`). It extracts every stack choice the architecture **confirms**, and for every required choice it leaves **open** — application type, repo layout, frontend framework, backend language/framework, database, package manager, test framework — it **asks you with a recommended option and a one-line rationale** grounded in the project profile and the shape of the context graph. It never silently guesses a critical stack decision.
+Point it at the tech spec / architecture (or let it read `shared-context/` + `shared-context/`). It extracts every stack choice the architecture **confirms**, and for every required choice it leaves **open** — application type, repo layout, frontend framework, backend language/framework, database, package manager, test framework — it **asks you with a recommended option and a one-line rationale** grounded in the project profile and the shape of the context graph. It never silently guesses a critical stack decision.
 
-Then it scaffolds: the idiomatic skeleton (preferring official generators like `create-vite`, `spring init`, `poetry new`), package-manager manifests, lint/format/type/test/build tooling, one trivial passing test, a README and `.gitignore`, and it writes `context/project/{technology-stack.md, architecture.md, coding-standards.md}`. Every stack decision — spec-confirmed or you-answered — is logged as a `DEC-###`. Before handing off it runs `install → lint → type-check → test → build` and confirms the **base build is green** — the exact readiness item the dev agent checks. It scaffolds the *foundation*, not features; the dev agent's `feature-delivery-loop` builds those into it.
+Then it scaffolds: the idiomatic skeleton (preferring official generators like `create-vite`, `spring init`, `poetry new`), package-manager manifests, lint/format/type/test/build tooling, one trivial passing test, a README and `.gitignore`, and it writes `shared-context/{technology-stack.md, architecture.md, coding-standards.md}`. Every stack decision — spec-confirmed or you-answered — is logged as a `DEC-###`. Before handing off it runs `install → lint → type-check → test → build` and confirms the **base build is green** — the exact readiness item the dev agent checks. It scaffolds the *foundation*, not features; the dev agent's `feature-delivery-loop` builds those into it.
 
 Once it's done, the workspace is build-ready: `/dev:build <feature>` (and the dev agent's `/dev:bootstrap` greenfield check) will pass.
+
+---
+
+## Semantic context merge (`tl-semantic-context-merge` — invoked by `/dev:commit` Stage 7)
+
+New in v2.2. Merges a feature branch's flipped `origin: implemented` code-context units against the `main` env baseline via `context-mcp` — **graph-aware, unit-level merge**, not a git text-level merge.
+
+- **Per-unit fields:** LWW by `updated_at`, with transition-order rules for `origin` (`deprecated > implemented > designed`; never regress)
+- **Layer indexes** (`backend-index.md`, `frontend-index.md`, `database-index.md` — filenames on disk; doc_types are `endpoint-index` / `page-index` / `entity-index` respectively): row union by `unit_id`; per-row field-level LWW using the underlying unit file's `updated_at`
+- **`Source References` sections:** append-only union
+- **Overview files:** LWW for prose, derived counts regenerated after the union
+- **Real conflicts** (tied timestamps, incompatible immutable fields like `unit_id` / `layer` / `method` / `table_name`, contract type mismatches): halt with `dev/context-merge-conflicts.md` for human resolution; `[x]`-tick a choice or hand-merge, then `/dev:commit --resume`
+
+Baseline is read-only (`context-mcp` `context_pull_manifest(env='main')`). Never invokes `git merge`. Solves the "Semantic Memory Merging" concern from the design meeting: index rows update as a set, unit files update as records, and unit ids are the merge key across branches.
+
+Full spec in `plugins/tl/skills/tl-semantic-context-merge/`:
+- `SKILL.md` — 3-phase workflow + hard rules
+- `references/field-merge-rules.md` — per-frontmatter-field + per-body-section merge rules
+- `references/index-rebuild.md` — row-union merge for the 3 layer indexes
+- `references/conflict-resolution.md` — halt sequence + `context-merge-conflicts.md` format + `--force-context-merge=ours` escape hatch
 
 ---
 
@@ -41,7 +61,7 @@ It scores four domains, each out of 10 (average of applicable sub-areas; any Blo
 | Domain | What it looks at |
 |---|---|
 | **Code Quality & Maintainability** | lint cleanliness & enforcement, complexity, duplication, dependency hygiene, docs/ADRs, architectural adherence |
-| **Test Quality & Verifiability** | unit/integration/e2e presence, coverage level & enforcement, CI gating — **consumes `qa-output/quality-gates.md`; does not re-score testability** |
+| **Test Quality & Verifiability** | unit/integration/e2e presence, coverage level & enforcement, CI gating — **consumes `qa/quality-gates.md`; does not re-score testability** |
 | **Infrastructure & Operations** | CI/CD reliability, deployment safety (rollback, zero-downtime, migration safety), observability, scalability, env parity / IaC |
 | **Security** | dependency CVEs, SAST, secrets in code/history, authN/authZ posture, secrets management |
 
@@ -49,7 +69,7 @@ It scores four domains, each out of 10 (average of applicable sub-areas; any Blo
 
 **The QA baseline gate.** In preflight it reads the active `baseline-profile.md` and `quality-gates.md`'s `baseline_status` to check whether the mandatory tooling floor (enforced lint, coverage gate, dependency + secret scanning) is in place. If it isn't, it **reminds and routes** to `/qa:audit` → `/qa:setup` and — by default — still scores in **degraded mode** at reduced Audit Confidence; with `strict-baseline` it stops before scoring. It never establishes the baseline itself.
 
-**Read-only, always.** It installs nothing into the repo, changes no code or tests, and routes tooling gaps back to QA rather than fixing them. Output is a timestamped trio in `tl-output/` — `maturity-<timestamp>.{html, md, json}` — the interactive report carries the domain scorecard, the Audit Confidence split, and a `MAT-###` findings register with per-finding evidence and `routes-to-QA` badges. The JSON sidecar is keyed for a future org-wide portfolio rollup.
+**Read-only, always.** It installs nothing into the repo, changes no code or tests, and routes tooling gaps back to QA rather than fixing them. Output is a timestamped trio in `tl/` — `maturity-<timestamp>.{html, md, json}` — the interactive report carries the domain scorecard, the Audit Confidence split, and a `MAT-###` findings register with per-finding evidence and `routes-to-QA` badges. The JSON sidecar is keyed for a future org-wide portfolio rollup.
 
 ```text
 /tl:maturity                                   # score the current workspace / repo
@@ -105,8 +125,8 @@ Installation and workspace setup are the same across all Delivery OS plugins, so
 
 | | With a workspace (`init` was run) | Standalone (no workspace) |
 |---|---|---|
-| **Report location** | `tl-output/spec-review-<timestamp>.{html,md}` (the agent creates `tl-output/` on first run) | written **beside the reviewed document**, with a note that no workspace was found |
-| **Input context** | also reads `ba-output/scope.md` and `shared-context/` if present, to ground the review | reviews only the document you point it at |
+| **Report location** | `tl/spec-review-<timestamp>.{html,md}` (the agent creates `tl/` on first run) | written **beside the reviewed document**, with a note that no workspace was found |
+| **Input context** | also reads `ba/scope.md` and `shared-context/` if present, to ground the review | reviews only the document you point it at |
 
 So: run `/delivery-os:init` if you want the review filed inside a project workspace and cross-referenced with BA discovery; skip it for a quick one-off review of any spec.
 
@@ -122,10 +142,10 @@ So: run `/delivery-os:init` if you want the review filed inside a project worksp
 - **`out=<prefix>`** — optional. Overrides where the report is written. A run timestamp is **always** appended, so repeated reviews never overwrite each other.
 
 Where the report lands:
-- Inside a Delivery OS workspace → `tl-output/spec-review-<timestamp>.{html,md}`
+- Inside a Delivery OS workspace → `tl/spec-review-<timestamp>.{html,md}`
 - No workspace → written **beside the reviewed document**, with a note that no workspace was found.
 
-Each run is timestamped (`spec-review-2026-06-25-162658.html`), so `tl-output/` accumulates a full review history — re-review after the spec is revised and compare.
+Each run is timestamped (`spec-review-2026-06-25-162658.html`), so `tl/` accumulates a full review history — re-review after the spec is revised and compare.
 
 ---
 
@@ -198,8 +218,8 @@ A review *raises* findings; the loop *closes* them. Each finding is an open item
 **The flow:**
 
 1. **Respond in the report.** Open `spec-review-<timestamp>.html`, scroll to **Open items**, and under each finding type your response and pick an intent (`resolve` / `accept-risk` / `need-info` / `wont-fix`).
-2. **Export.** Click **Export responses**. The page downloads `spec-review-<timestamp>-responses.md` — named with the **same timestamp** as the review, which is the key that ties responses back to it. (Browsers can't write to disk, so it lands in your Downloads — move it into `tl-output/`.)
-3. **Resolve.** Run `/tl:resolve tl-output/spec-review-<timestamp>-responses.md`. The agent matches the timestamp to the review's `.json`, then **adjudicates each response**:
+2. **Export.** Click **Export responses**. The page downloads `spec-review-<timestamp>-responses.md` — named with the **same timestamp** as the review, which is the key that ties responses back to it. (Browsers can't write to disk, so it lands in your Downloads — move it into `tl/`.)
+3. **Resolve.** Run `/tl:resolve tl/spec-review-<timestamp>-responses.md`. The agent matches the timestamp to the review's `.json`, then **adjudicates each response**:
    - **Resolved** — the answer addresses the concern with verifiable specifics; it records the rationale and, where relevant, the exact spec edit to bake the answer into the document.
    - **Accepted-risk** — you explicitly accept a valid, unfixed concern; the residual risk is noted.
    - **Needs-verification** — plausible but thin; it asks 1–3 targeted follow-up questions and keeps the item open.
@@ -215,7 +235,7 @@ A review *raises* findings; the loop *closes* them. Each finding is an open item
 
 ## How it fits Delivery OS
 
-The TL agent is a **consumer** in the Delivery OS contract: when a workspace exists it reads `ba-output/scope.md` and `shared-context/` as input context, and writes its review to `tl-output/` with standard frontmatter (`doc_type: spec-review`, `produced_by: tl`). It **reviews** specs — it doesn't author or rewrite them, and it doesn't run BA discovery. Where it suspects work was done but not written down, it raises a clarifying question rather than asserting a Blocker.
+The TL agent is a **consumer** in the Delivery OS contract: when a workspace exists it reads `ba/scope.md` and `shared-context/` as input context, and writes its review to `tl/` with standard frontmatter (`doc_type: spec-review`, `produced_by: tl`). It **reviews** specs — it doesn't author or rewrite them, and it doesn't run BA discovery. Where it suspects work was done but not written down, it raises a clarifying question rather than asserting a Blocker.
 
 See the shared [`delivery-os-conventions`](../delivery-os-core/skills/delivery-os-conventions/SKILL.md) skill for the full document contract.
 

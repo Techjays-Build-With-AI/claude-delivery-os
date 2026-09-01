@@ -1,33 +1,75 @@
 ---
 name: dev-pr-handoff
-description: Prepare a feature's pull-request handoff for human review, or write a structured blocker escalation when the loop is stuck. Use when the delivery loop reaches READY_FOR_PR ("prepare the PR", "write the PR summary", "hand this off for review"), or when a feature must stop and ask a human ("escalate this", "we're blocked"). For a handoff it verifies the completion criteria are met, then writes a review-ready summary — feature purpose, scope of changes, technical approach, affected pages/APIs/services, tests run, acceptance-criteria status, risks and rollout considerations, open follow-ups, and reviewer instructions — and moves the feature to HUMAN_REVIEW without merging or deploying. For an escalation it writes a structured note — what was attempted, the precise blocker, its impact on acceptance criteria, the decision needed with options and a recommendation, and the work that can safely continue — and sets the feature BLOCKED. It is the pr-preparer and blocker-escalator half of the dev agent; it never merges, deploys, or approves.
+description: Compose the review-ready `dev/pr-summary.md` for `/dev:commit` Stage 9, or the structured `dev/escalation-<n>.md` for any stage that hits bounds-exceeded / immovable-blocker. Content composition ONLY — no state transitions, no MC calls, no tracker updates. The invoking orchestrator (`/dev:commit`, `/dev:build`, `/dev:plan`) owns state. Use when a stage needs the polished reviewer-facing PR body written, or when a blocker requires structured human escalation. Never merges, deploys, approves, or promotes state.
 ---
 
-# Dev PR Handoff (review-ready PR summary / structured escalation)
+# Dev PR Handoff (content composition only)
 
-You produce the two things a feature hands to a human: a **clean PR summary** when it's done, or a **structured escalation** when it's stuck. Both exist so a human can act quickly and correctly — approve a well-described change, or make a decision from a well-framed blocker. You never merge, deploy, or approve; you prepare the handoff.
+You compose the two review-ready documents the delivery loop produces: a **clean PR summary** for `/dev:commit` Stage 9, or a **structured escalation** when any stage hits bounds-exceeded / immovable-blocker. **Composition only.** State transitions, MC status updates, and `features/tracker.md` writes are owned by the invoking orchestrator, NOT by this skill.
+
+The v2.2 slim-down: this skill was previously a state-transitioning agent; it no longer is. Orchestrators now handle their own state. This skill focuses on producing well-structured reviewer-facing content.
 
 ## Operating contract
 
-Read **`delivery-os-conventions`** and the delivery loop's `references/dev-context-templates.md` (`pr-summary.md`, `escalation-<n>.md` schemas) and `references/loop-control.md` (completion criteria, state model, permission boundaries) if not in context. Inputs are the feature's `dev/` context — `dev-plan.md`, `impacted-components.md`, `acceptance-map.md`, `implementation-log.md`, `decisions.md`, `delivery-status.md`. Field-level guidance for both outputs is in **`references/pr-and-escalation.md`**.
+Read **`delivery-os-conventions`** and **`references/pr-and-escalation.md`** if not in context. Inputs from the task's `dev/` folder:
 
-## PR handoff
+- For a PR summary: `dev/build-run.md`, `dev/commit-run.md`, `dev/acceptance-map.md`, `dev/implementation-log.md`, `dev/security-findings-commit.md`, `dev/code-review-findings.md`, `dev/context-merge-log.md`, `dev/decisions.md`, plus parent BA files (`feature.md`, `business-rules.md`, `nfrs.md`).
+- For an escalation: `dev/build-run.md` OR `dev/commit-run.md` (the failing run log), the finding chain, `status.md`, plus optional `dev/plan-blockers.md` if plan-time is the halt.
 
-1. **Gate on completion.** Before writing a PR summary, confirm every **mandatory** completion criterion in `loop-control.md` holds — scope implemented, required acceptance criteria `Passed`/`Waived`, tests + build + static checks green, docs updated, no unresolved critical/high defect, no unresolved blocker, tracker current. If any fails, **stop** — the feature isn't ready; return it to the loop or escalate. Do not paper over a gap with a hopeful summary.
-2. **Write `dev/pr-summary.md`** from the template: feature purpose, scope of changes, technical approach, affected pages/APIs/services (cite the TL `PAGE-/EP-/ENT-` units), tests run, acceptance-criteria status (the `acceptance-map` table), risks/rollout considerations, known limitations and open follow-ups, and explicit reviewer instructions (what to focus on, how to run it). Name the branch.
-3. **Advance the state** to `READY_FOR_PR` → `HUMAN_REVIEW`, mirror the mapped value into `status.md`/`feature-index.md`, and update `dev-output/feature-tracker.md` with the PR reference and next action ("await human review").
-4. **Hand off** — return the summary and the link; the human reviews and merges. You stop here.
+## PR summary composition
 
-## Escalation
+1. **Verify the gate is passable.** Check `dev/commit-run.md`:
+   - Stage 3 (security): zero Critical + zero High
+   - Stage 4 (code review): zero Blocker + zero Major
+   - Stage 5 (acceptance): all rows `✅` or valid `⏸ deferred-to-e2e`
+   - Stage 7 (semantic merge): zero unresolved conflicts
 
-1. **Write `dev/escalation-<n>.md`** from the template: the feature and current state, what was attempted, the precise blocker, its impact (which acceptance criteria it stalls), the decision needed framed as concrete options, a recommended option with rationale, and the work that can safely continue in parallel.
-2. **Set state `BLOCKED`**, mirror it to `status.md`/`feature-index.md`, and record the blocker + escalation link in `dev/delivery-status.md` and `dev-output/feature-tracker.md`.
-3. **Hand off** — return the escalation so the human can decide. When the decision comes back, the delivery loop folds it in (logs the `DEC-###`), clears the blocker, and resumes.
+   If any gate fails, this skill REFUSES to write the PR summary — return the failing gate + a suggestion to route back to the appropriate stage. NEVER paper over a failing gate with hopeful prose.
+
+2. **Compose `dev/pr-summary.md`.** Follow the exact structure in `references/pr-and-escalation.md#pr-summary`. The output is reviewer-facing:
+   - Purpose (2 lines from parent's `feature.md`)
+   - Scope of changes (files, endpoints, entities)
+   - Technical approach (3-4 sentences, framework-agnostic where possible)
+   - Test coverage summary (numbers only)
+   - Acceptance criteria table
+   - Business rules enforcement table
+   - Security review outcome (commit-time thresholds)
+   - Code review outcome (severity breakdown)
+   - Follow-up suggestions (Minor findings, non-blocking)
+   - Semantic context merge summary
+   - Deferred-to-E2E items
+   - Reviewer instructions (focus areas + non-concerns)
+
+3. **Return** the composed file path + the headline (Purpose, Scope, Acceptance summary, Reviewer focus) as terminal output for the orchestrator to route.
+
+## Escalation composition
+
+1. **Compose `dev/escalation-<n>.md`** (n = next sequential integer already determined by the caller). Follow the exact structure in `references/pr-and-escalation.md#escalation`:
+   - Feature identity + current state
+   - What was attempted (chain of finding + fix + broad-rerun outcomes)
+   - Precise blocker (finding text + failure scenario)
+   - Impact (which ACs / BRs / NFRs it stalls)
+   - Decision needed (framed as concrete options)
+   - Recommended option (with rationale)
+   - Work that can safely continue in parallel (if any)
+
+2. **Return** the composed file path + the blocker + recommended option as terminal output. The invoking stage (Stage 6 fix loop, Stage 7 conflict, etc.) handles the state transition (LOCAL → BLOCKED, MC status → blocked when appropriate) itself.
 
 ## Boundaries
 
-You never merge, deploy, approve your own work, or advance past `HUMAN_REVIEW` — those are human-owned states. You don't inflate a summary to get a feature through the gate, and you don't downgrade a real blocker into an assumption to avoid escalating. A good escalation is specific and decision-ready; a good PR summary lets a reviewer approve without spelunking the diff.
+- **NEVER** call `task-mcp` or any MC status transition
+- **NEVER** modify `status.md` or `features/tracker.md`
+- **NEVER** flip local state (that's the orchestrator's job)
+- **NEVER** merge, push, deploy, or approve
+- **NEVER** create the branch, execute tests, or run security scans (upstream stages do this)
+- **NEVER** inflate a summary to get a feature through a failing gate
+- **NEVER** downgrade a real blocker into an assumption to avoid escalating
+
+The skill is content composition only. If asked to do more, refuse and route back to the orchestrator.
 
 ## Return value
 
-For a handoff: the PR summary headline (purpose, scope, acceptance status, risks, reviewer focus) and the link to `dev/pr-summary.md`. For an escalation: the blocker, the decision needed with your recommendation, the parallel work that can continue, and the link to the escalation note.
+- **PR summary path:** `dev/pr-summary.md` written; return the file path + a 4-line headline
+- **Escalation path:** `dev/escalation-<n>.md` written; return the file path + blocker + recommendation
+
+The orchestrator ingests the return value and handles routing / state.
