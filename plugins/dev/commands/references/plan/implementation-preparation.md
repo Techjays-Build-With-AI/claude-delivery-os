@@ -116,11 +116,40 @@ owner_lock: null
 branch: null
 ```
 
-**After all N sub-task subagents return successfully:**
+**After all N sub-task subagents return successfully:** the rollup compose is DEFERRED until after the sub-task MC push completes (§4e) and read-back verifies (§4f.i). See §4c.i below.
 
-Sequential: compose the **parent's rollup**. One call to `tl-feature-compose` in **rollup mode** on the parent — reads each sub-task's `description.md` + `implementation.md` + frontmatter to build the Sub-tasks table (rows sorted by `subtask_number`; `Depends on`/`Blocks` derived from cross-sub-task references found in each Implementation's Touch points).
+---
 
-Write to `.jetrix/features/<slug>/tl-plan.md` with `compose_mode: rollup` in frontmatter.
+### 4c.i. Strict sequential push order for split features (v2.3.18 — closes the parallel-recovery-orchestration gap)
+
+The compose steps above wrote sub-task files to disk. The parent rollup has NOT been composed yet. Enforce this exact order for the rest of Stage 4:
+
+1. **Push sub-tasks** — call `subtask_upsert_bundle` with all N sub-tasks (§4e).
+2. **Read-back verify each sub-task tab** with bounded 1-retry per §4f.i.
+   - If any tab mismatches on both attempts → HALT the whole Stage 4 for this feature. Do NOT compose the rollup. Do NOT push the parent.
+   - If all sub-task tabs verify (possibly with 1 retry) → continue.
+3. **Now** compose the parent rollup. One inline call to `tl-feature-compose` in `rollup` mode — reads each sub-task's on-disk `description.md` + `implementation.md` + the just-returned MC `subtask_object_id` + `subtaskNumber` per sub-task, to build the Sub-tasks table (rows sorted by `subtask_number`; `MC Task` column = each sub-task's `jetrix_subtask_number`; `Depends on`/`Blocks` derived from cross-sub-task references in each Implementation's Touch points).
+4. **Write rollup to disk** at `.jetrix/features/<slug>/tl-plan.md` with `compose_mode: rollup` in frontmatter.
+5. **Push parent rollup** via `feature_update_implementation` (§4f).
+6. **Read-back verify parent rollup** with bounded 1-retry per §4f.i.
+
+**Why this order matters:** the rollup's Sub-tasks table references `Subtask-<N>` numbers assigned by MC on sub-task creation. Composing the rollup BEFORE sub-tasks land means either fabricating numbers (wrong) or leaving placeholders (broken links in the pushed rollup). Composing AFTER sub-tasks land uses the actual numbers and skips the placeholder problem.
+
+**What v2.3.18 forbids:** composing the rollup IN PARALLEL with sub-task-push retries or recovery. In the v2.3.17 flow, a read-back mismatch triggered user-visible recovery orchestration, and to save wall-clock time a separate agent would start composing the rollup while the recovery was still in flight — resulting in the "why is compose happening again" confusion. Under v2.3.18: strict sequential (steps 1–2 finish before step 3 starts). Any retry within step 2 uses the bounded 1-retry from §4f.i; step 3 only begins once step 2 fully succeeds.
+
+**Wall-clock cost:** in the common case (no retry needed), this order is a few seconds slower than the v2.3.17 "start compose in parallel" pattern because the rollup compose sits idle until sub-task push + verify finishes. That cost is worth paying to eliminate cross-agent orchestration confusion. In the retry case, the wall-clock is roughly the same because the rollup compose couldn't have completed reliably against not-yet-verified sub-task data anyway.
+
+**Failure cases + halt semantics:**
+
+| Where fails | Halt state | Recovery |
+|---|---|---|
+| Step 1 push errors | Halt before verify | `/dev:plan` re-run — sub-tasks may need to be created or the payload may need adjustment |
+| Step 2 sub-task tab mismatches on both attempts | Halt before rollup compose | User investigates task-mcp / MC bug; sync-state unchanged; `/dev:plan` re-run |
+| Step 3 rollup compose fails | Halt before parent push | User re-runs `/dev:plan --resume`; sub-tasks stay in MC as-is |
+| Step 5 parent push errors | Halt before rollup verify | User re-runs `/dev:plan --resume`; sub-tasks and rollup files stay on disk |
+| Step 6 rollup mismatches on both attempts | Halt with sub-tasks pushed + verified but parent inconsistent | User investigates; `/dev:plan --resume` may re-attempt just the parent push |
+
+Sub-task files on disk are ALWAYS preserved regardless of where the halt occurs — that's what makes `/dev:plan --resume` cheap for recovery.
 
 ---
 
@@ -253,9 +282,11 @@ task-mcp.feature_update_implementation(
 
 ---
 
-### 4f.i. Read-back verification (v2.3.17 — REQUIRED, no more silent trust of `ok: true`)
+### 4f.i. Read-back verification with bounded auto-retry (v2.3.17, updated v2.3.18 — bounded retry replaces "no retry")
 
-**The gap this closes.** A prior run pushed sub-task implementation content, task-mcp returned `ok: true`, and `sync-state.json` recorded a `contentHash` — but MC stored a payload 44 characters shorter than what was sent. Every subsequent skip-unchanged check was then wrong in the same direction. Trusting `ok: true` alone at the push boundary is a bug; the fix is a deterministic read-back-and-compare step.
+**The gap this closes.** A prior run pushed sub-task implementation content, task-mcp returned `ok: true`, and `sync-state.json` recorded a `contentHash` — but MC stored a payload 44 characters shorter than what was sent. Every subsequent skip-unchanged check was then wrong in the same direction. Trusting `ok: true` alone at the push boundary is a bug; the fix is a deterministic read-back-and-compare step with ONE bounded retry for a known transient failure class.
+
+**Known transient failure class (v2.3.18).** In several recent runs, `subtask_upsert_bundle` returned `ok: true` while MC stored the Implementation tab as empty (`implementationDetails: null`, `metadata: null`). Description tabs on the same call landed byte-perfect. Root cause is either in task-mcp's payload translation OR MC's Task API's handling of the Implementation field in the initial POST — either way it's a well-characterized bug, and a single explicit retry with the same payload reliably lands the content on the second attempt. This is NOT a retry loop — it's ONE bounded second attempt for a known class of intermittent failure, followed by halt if the second attempt also fails.
 
 **For every push in §4e (sub-task upsert) and §4f (Implementation update), immediately after `ok: true`:**
 
@@ -266,25 +297,36 @@ task-mcp.feature_update_implementation(
 2. **Compute SHA-256 of both:** the LOCAL string sent + the SERVER-returned string, both normalized (strip trailing whitespace, CRLF → LF, ensure UTF-8).
 3. **Compare hashes:**
    - **Match** → proceed. Record BOTH `local_hash` and `server_hash` (identical) in `sync-state.json` under this task's `implementation_details_hash` field. Log `readback: ok` to `plan-run.md`.
-   - **Mismatch** → do NOT record any hash in sync-state. Log `readback: mismatch` + `local_len: <N>` + `server_len: <M>` + `first_diff_at: <offset>` to `plan-run.md`. Print a big warning to the user:
+   - **Mismatch on attempt 1 (v2.3.18 bounded retry)** → do NOT record any hash yet. Log `readback: mismatch, attempt 1` to `plan-run.md`. Print a one-line notice:
 
      ```
-     ⚠ MC read-back mismatch on <task-ref>
-       Local sent:   <N> chars, sha256 <hash>
-       Server stored: <M> chars, sha256 <hash>
-       First difference at byte offset <offset>.
-
-       Push returned ok:true but MC stored a different payload. Investigate:
-       (a) task-mcp translation may be stripping fields
-       (b) MC schema may be rejecting content silently
-       (c) transport truncation
-       Do NOT trust this push. sync-state is unchanged; next /dev:plan run will re-push.
+     ⚠ Read-back mismatch on <task-ref>[.<tab>] (attempt 1/2)
+       Local: <N> chars   Server: <M> chars   Retrying push with same payload...
      ```
-   - Do NOT retry automatically. Report and stop this task.
+
+     Immediately re-invoke the SAME push call with the SAME payload for the specific failed tab only (do not re-push the tabs that already verified). Then re-read and re-compare.
+
+     - **Match on attempt 2** → record both hashes with `readback: ok (on retry)` in `plan-run.md`. This is the normal recovery path for the known transient failure class.
+     - **Mismatch on attempt 2** → HALT. This is a real problem — either a persistent bug in task-mcp / MC, or a schema issue. Do NOT record any hash in sync-state. Print the big warning:
+
+       ```
+       ⚠ MC read-back mismatch on <task-ref>[.<tab>] — persistent after retry
+         Attempt 1: local <N> chars, server <M> chars
+         Attempt 2: local <N> chars, server <M2> chars
+         First difference at byte offset <offset>.
+
+         Push returned ok:true both times but MC stored a different payload. Investigate:
+         (a) task-mcp translation may be stripping fields
+         (b) MC schema may be rejecting content silently
+         (c) transport truncation
+         Do NOT trust this push. sync-state is unchanged; the next /dev:plan run will re-push.
+       ```
+
+**Retry budget: max 1 additional attempt per tab per Stage 4 run.** Never a third attempt. This is a bounded recovery for a specific known bug class — not a retry loop that masks silent failures. If the same tab mismatches on attempt 2, halt.
 
 This step runs for BOTH sub-task tabs (Description + Implementation) after §4e, and for the parent Implementation tab after §4f. It is not optional. It is not gated by any flag. `ok: true` alone is not sufficient evidence of a successful push.
 
-**Rationale:** the compose skill (Rule 0) is deterministic locally; the push-boundary is where silent divergence enters. A one-shot hash compare per push adds ~1 MCP call per tab (already cached in most cases) and turns a category of silent bugs into loud, obvious ones.
+**Rationale:** the compose skill (Rule 0) is deterministic locally; the push-boundary is where silent divergence enters. The v2.3.17 "no retry" rule was too strict for a known transient failure class — it forced user-visible multi-agent recovery orchestration when a single automatic retry would have covered the same ground more cleanly. The v2.3.18 bounded-retry rule (max 1 additional attempt) keeps the silent-bug guarantee (halt if the retry also fails) while removing the parallel-recovery-orchestration overhead the "no retry" version produced.
 
 ---
 
