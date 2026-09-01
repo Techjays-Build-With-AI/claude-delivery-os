@@ -58,21 +58,54 @@ Any missing → halt with "run /dev:build first" message.
 - Read `dev/implementation-log.md` (detected_stack + inferred_patterns, feeds Stage 4)
 - Record start in `dev/commit-run.md`
 
-## 4. Stage 2 — Base branch selection
+## 4. Stage 2 — Base branch selection + pull (v2.3.25 — user confirmation required; base branch pulled locally before Stage 7)
 
-Resolve base from `.jetrix/project.json`:
+**Step 1 — Resolve default from `.jetrix/project.json`:**
 
 - Sub-task with `<repo>` frontmatter → find matching `apps[].name`; use `env_branches.dev` (default: `develop`)
 - Parent-alone → primary product repo's `env_branches.dev`
 
-If the branch in `.jetrix/project.json` is `main` / `master` / `staging` / `production` — refuse (branch-protection defaults). Require explicit override.
+**Step 2 — Confirm with the user via `AskUserQuestion` (v2.3.25 — no more silent defaulting):**
 
-Run `git fetch <remote>` and check the branch is fresh:
+```
+Which branch is this PR merging INTO?
 
-- `git log HEAD..<remote>/<base>` — must be empty (branch is descendant of base). Otherwise halt: "rebase against <base> and re-run".
-- Confirm base build is green in target repo (best-effort: read the last CI status via `gh` if available).
+  [<default from project.json — highlighted as recommended>]  — e.g. develop
+  [main / master]                                              — allowed only with explicit override; refuses if branch-protected
+  [staging / release/*]                                        — release-train branches; typed by user
+  [other]                                                      — user types the exact branch name
+```
 
-Log to `commit-run.md`.
+Rationale: silent defaulting hid mistakes when a repo's `env_branches.dev` was stale or pointed at a branch the user didn't actually intend. Asking once per `/dev:commit` invocation surfaces the decision.
+
+If user picks `main` / `master` / `production` OR the branch is under branch-protection → refuse UNLESS user passes `--allow-protected-base` on the same run. Standard commit flow always targets a mutable dev branch.
+
+**Step 3 — Fetch + pull the base branch locally (v2.3.25 — REQUIRED for Stage 7):**
+
+```bash
+cd <target-repo>
+git fetch <remote>
+git fetch <remote> <base>:refs/remotes/<remote>/<base>
+```
+
+Stage 7's semantic context merge needs the base branch's context units on disk to reconcile against. Without this step, Stage 7's tl-semantic-context-merge either hallucinates a diff or (as the user just observed) rationalizes itself into a no-op. This pull is what makes the merge REAL.
+
+Verify:
+- `git log HEAD..<remote>/<base>` — must be empty (this feature branch is descendant of base). If NOT empty → halt: "rebase your feature branch against <base> and re-run: `git rebase <remote>/<base>`".
+- `git rev-parse <remote>/<base>` — record base's tip SHA to `commit-run.md`.
+- Base build green check (best-effort: read last CI status via `gh` if available); non-green is a WARN, not a halt.
+
+Log to `commit-run.md`:
+
+```yaml
+stage-2:
+  status: DONE
+  base_branch: develop
+  base_confirmed_by_user: true         # from Step 2's AskUserQuestion answer
+  base_remote_sha: <sha>               # recorded for Stage 7 + Stage 8 preconditions
+  base_pulled_at: <ISO>
+  base_ci_status: green | non-green | unknown
+```
 
 ## 5. Route to Stages 3–9
 
@@ -94,9 +127,30 @@ Read each stage's reference file and execute verbatim. Fix loop is inline routin
 
 **Read** `plugins/dev/commands/references/commit/stage-6-fix-loop.md`. Not a standalone stage — invoked from Stages 3, 4, or 5 when findings block. After each fix batch, upstream stages re-run in order. Bounds exceeded → escalation + halt.
 
-### Stage 7 — Semantic context merge
+### Stage 7 — Semantic context merge (v2.3.25 — MANDATORY EXECUTION, not skippable)
 
 **Read** `plugins/dev/commands/references/commit/stage-7-semantic-merge.md` and execute verbatim. Delegates to `tl-semantic-context-merge` skill. Halts cleanly on conflict with `dev/context-merge-conflicts.md` for human resolution.
+
+**Rule (v2.3.25):** this stage MUST invoke `tl-semantic-context-merge` skill via the Skill tool with observable trace. The skill invocation is verified in `commit-run.md` as:
+
+```yaml
+stage-7:
+  status: DONE
+  tl_semantic_context_merge_invocation:
+    invoked_at: <ISO>
+    subagent_id: <agent id from Skill tool response>
+    base_ref: <remote>/<base>@<sha>              # must match stage-2.base_remote_sha
+    input_units_scanned: <count of context/code-context files touched by this run>
+    baseline_units_scanned: <count from base branch>
+    merged_units: <count>
+    conflicts: <count>
+    conflict_file: dev/context-merge-conflicts.md   # or null if no conflicts
+  merged_at: <ISO>
+```
+
+**"I reasoned it would be a no-op and skipped" is NOT permitted (v2.3.25 — user-reported gap).** Even if the skill reports zero-changes, it MUST run and record its no-op result. The skill's own log is the evidence of execution; internal reasoning is not.
+
+Stage 8's precondition (§8a below in `stage-8-9-push-pr.md`) verifies this block exists in `commit-run.md`. If missing → Stage 8 HALTS with `blocker: stage-7-not-executed`.
 
 ### Stage 7.5 — Gather working-tree changes + structure commit(s) (v2.3.20 — REQUIRED)
 

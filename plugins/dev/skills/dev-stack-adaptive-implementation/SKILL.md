@@ -69,7 +69,56 @@ For each ordered step in `implementation.md`:
 
 **Rule 1 — Read before writing.** Never write a file before running Phase 2's pattern inference on the target repo. A "how it should look" template is a failed run.
 
-**Rule 2 — Reuse over parallel abstraction.** If the repo has a `UserRepository`, do not introduce a `SupplierRepositoryV2` alongside — extend the pattern, don't parallel it. If reuse would break the change, escalate as a scope issue, don't create the parallel.
+**Rule 2 — Reuse over parallel abstraction. Includes AUTH PATTERN reuse (v2.3.24).** If the repo has a `UserRepository`, do not introduce a `SupplierRepositoryV2` alongside — extend the pattern, don't parallel it. If reuse would break the change, escalate as a scope issue, don't create the parallel.
+
+**Rule 2a — Auth-pattern alignment check (v2.3.24 — closes the Bearer null bug at write time).**
+
+Before writing any code that makes a request to a gated endpoint (backend service call, or frontend/mobile API call), do the following alignment check — MECHANICALLY, not from memory:
+
+1. Look up the endpoint in the TL code-context tree: `<repo>/context/code-context/backend/domains/<domain>/endpoints/<slug>.md`.
+2. Read its `## Auth` section. Extract the `Client obtains via` code snippet + `Header format` string. These are the ONLY correct values for what the code you're about to write should emit.
+3. When writing the request code, USE those values verbatim. Do NOT:
+   - Substitute `localStorage.getItem(<key>)` if `Client obtains via` says `await auth.currentUser.getIdToken()`
+   - Substitute a generic `"Bearer " + token` if `Header format` says `Authorization: Bearer <id-token>` where `<id-token>` is a specific credential class
+   - Copy an auth pattern from a SIBLING file in the same repo that turns out to use a different mechanism — the endpoint's `## Auth` is the authority, not sibling code
+4. If the endpoint's `## Auth` section is FREE-PROSE (unstructured) → **halt with `blocker: endpoint-auth-not-structured`**. The compose that produced the plan should have halted first via Rule 11.3 §8; if we're here, /tl:code-map needs re-running against the endpoint's source to produce structured `## Auth`.
+5. If the `## Auth` `Server prerequisites` list env vars, those get flagged into `dev/local-runbook.md` §3 by Stage 11.
+
+**Concrete example — the exact bug from the user's real run:**
+
+Endpoint `/api/register` unit's `## Auth`:
+```
+- Token type: Firebase ID token
+- Client obtains via: await firebase.auth().currentUser.getIdToken()
+- Header format: Authorization: Bearer <id-token>
+```
+
+Correct client code (v2.3.24 — Rule 2a passes):
+```javascript
+const idToken = await firebase.auth().currentUser.getIdToken();
+const response = await axios.post(`${BASE_URL}/api/register`, {}, {
+  headers: { Authorization: `Bearer ${idToken}` }
+});
+```
+
+Incorrect client code (v2.3.24 — Rule 2a HALTS):
+```javascript
+// BAD: doesn't call getIdToken(); reads a stale localStorage value that's
+// been unset since the backend was hardened at commit 89b37c7
+const response = await axios.post(`${BASE_URL}/api/register`, { email: userEmail });
+// (missing headers entirely — halt)
+```
+
+or
+
+```javascript
+// BAD: sends "Bearer null" when localStorage is empty
+const token = localStorage.getItem('jwtToken');
+const response = await axios.post(url, {}, {
+  headers: { Authorization: `Bearer ${token}` }
+});
+// (client acquisition doesn't match endpoint's `## Auth` `Client obtains via` — halt)
+```
 
 **Rule 3 — Match error handling.** If the repo throws custom errors, throw one. If it returns `Result<T, E>`, return one. Never introduce a second error paradigm alongside the existing one.
 
@@ -79,7 +128,76 @@ For each ordered step in `implementation.md`:
 
 **Rule 6 — No framework leakage in identifiers or comments.** Component names, function names, and code comments are business-language, not framework-language. `SupplierListPage`, not `SupplierListReactPage`. `sendConfirmationEmail`, not `sendConfirmationEmailWithNodemailer`.
 
-**Rule 7 — 100% coverage from the stack tier pool. Every implementation.md build sequence step gets tests AT EVERY APPLICABLE TIER (v2.3.16 sharpened).** No "we'll add tests later." No "deferred to E2E." Every §1 step that touches business logic gets at least one test AT EVERY TIER declared as `Required` for the step's concern class in `qa/quality-gates.md`. Missing tier coverage → the step isn't complete.
+**Rule 7 — 100% coverage from the stack tier pool. Every implementation.md build sequence step gets tests AT EVERY APPLICABLE TIER (v2.3.16 sharpened; v2.3.23 anti-mock hardening).** No "we'll add tests later." No "deferred to E2E." No "mocked backend counts as integration." Every §1 step that touches business logic gets at least one test AT EVERY TIER declared as `Required` for the step's concern class in `qa/quality-gates.md`. Missing tier coverage → the step isn't complete.
+
+**Rule 7.i — MOCKS DO NOT SATISFY INTEGRATION OR E2E TIERS (v2.3.23). This closes the "tests pass, real endpoint 401s" gap.**
+
+A test that mocks the HTTP call, mocks the database, or mocks the auth middleware is a UNIT test — no matter what its file is named or where it lives. Claiming it as "Integration" or "E2E" in `dev/acceptance-map.md` is a FALSE COVERAGE CLAIM.
+
+**Tier definitions (binding):**
+
+| Tier | Real HTTP? | Real DB / real store? | Real auth middleware? | Real backend service running? | Real frontend service running? |
+|---|---|---|---|---|---|
+| Unit | No (mocked or in-process only) | No (in-memory / mocked) | No (mocked) | No | No |
+| Component (frontend) | No (mocked axios/fetch) | N/A | N/A | No | No |
+| Integration | **YES** | **YES** (real test DB — Postgres/Mongo/etc. — with fixtures, torn down after) | **YES** (real middleware runs) | **YES** (backend process actually started) | N/A |
+| Contract | YES (real HTTP against a running service) | Any | Any | **YES** | N/A |
+| Concurrency | YES (real DB roundtrip; multiple concurrent connections) | **YES** | Any | **YES** | N/A |
+| E2E | **YES** | **YES** | **YES** | **YES** | **YES** (real browser or headless — Playwright / Cypress / Puppeteer against a running dev server) |
+
+**If ANY column marked YES for the claimed tier is actually mocked → the test does NOT satisfy that tier.** It becomes a Unit test only. If Integration was the only claimed tier for an AC/BR/TS and the test is actually mocked, the AC/BR/TS is UNCOVERED. Acceptance-map.md row must be flagged.
+
+**Rule 7.ii — Every test file MUST declare its `# tier:` at the top OR carry an obvious tier signature the compose can detect.** For test files under this build sequence's write:
+
+```javascript
+// tier: integration
+// requires: backend-running, real-db, real-auth
+```
+
+or
+
+```python
+# tier: e2e
+# requires: backend-running, frontend-running, playwright
+```
+
+If a test file's tier declaration doesn't match its actual behavior (e.g. declares `integration` but mocks axios), Rule 13 halts before writing.
+
+**Rule 7.iii — Acceptance-map.md rows carry a `mocked` field per test evidence entry.** Schema:
+
+```yaml
+- id: AC-1
+  status: Passed | Failed | Not-covered
+  tier: Unit | Component | Integration | Contract | Concurrency | E2E
+  evidence:
+    - file: tests/holiday.controller.test.js
+      test_name: creates_authenticated
+      mocked: false            # real HTTP + real DB + real middleware
+      external_processes_required: [backend-8080, postgres-test]
+    - file: tests/holiday.mock.test.js
+      test_name: unit_shape
+      mocked: true             # unit-tier only; does not satisfy an Integration claim
+      external_processes_required: []
+  passed: false                # aggregate: false if ANY row's tier claim is contradicted by its mocked flag
+```
+
+**Rule 7.iv — Rule 13's write-time check enforces the mock/tier alignment.** BEFORE writing a test file, this skill's write-time pass:
+
+1. Reads the intended tier declaration from Rule 7.ii's header
+2. Detects imports/patterns that indicate mocking: `jest.mock(`, `vi.mock(`, `sinon.stub(`, `nock(`, `msw`, `axios-mock-adapter`, `unittest.mock`, `MagicMock`, `pytest.MonkeyPatch`, `mockery`, etc.
+3. If `tier: integration` or higher AND ANY mocking-library import is used → HALT with escalation. Options: (a) remove the mock and use a real fixture, (b) demote the tier declaration to Unit and cover the higher tier with a separate test that actually runs against real infrastructure, (c) declare a documented exception in `qa/quality-gates.md` (e.g. "third-party payment provider mocked because we can't hit it in dev — separate contract-testing job runs against staging").
+
+**Rule 7.v — Backend-running requirement for Integration/Contract/Concurrency/E2E tests.**
+
+Before Stage 7 (Execute tests) runs any test file whose `tier:` header is `integration` / `contract` / `concurrency` / `e2e`:
+
+1. Check the backend's own README + `package.json` scripts + `.env.example` for the actual startup requirement (env vars, dependent services, DB connection)
+2. Attempt to start the backend (`npm run dev` / `python manage.py runserver` / equivalent) with a health-check timeout (max 30s)
+3. If startup fails (missing env var, port conflict, DB unreachable) → HALT the test run for that tier, mark the tier as `Not-covered` in acceptance-map.md, DO NOT claim Passed. Escalate as `dev/escalation-<n>.md` with the missing prerequisites.
+
+**Rule 7.vi — For consumer sub-tasks (frontend/mobile), the wire integration test hits the REAL backend running from the sibling sub-task's build.** If the sibling sub-task hasn't been built yet, the wire integration is `Not-covered` in this sub-task's acceptance-map, and the AC/BR/TS is marked `Deferred to cross-sub-task landing` — surfaced as a §6 Touch points cross-sub-task row: `Integration for AC-M owned by cross-sub-task landing test — closes when frontend + backend both merge to develop`.
+
+This is DIFFERENT from the retired "Deferred to E2E" plan-time concept. Here it's a build-time evidence gap that resolves when both sub-tasks land, not a plan-time skip.
 
 **Where the tier pool comes from:**
 - `qa/quality-gates.md` `harness_status: Ready` — Required tiers declared for each capability class. Read directly.
@@ -136,6 +254,12 @@ For every function or block about to be written:
 6. **Magic value check.** Any numeric or string literal outside the neutral small set (`0`, `1`, `-1`, `""`, `null`, `true`, `false`) goes into a named constant per `§9`. Do not inline a threshold, a URL, a timeout value.
 7. **Anti-pattern check.** Before finalizing a function/class/file, sanity-check against `§12`'s forbidden list — god unit doing multiple unrelated concerns, wrapper with one caller, silent catch, comment-code mismatch, dead code. If a hit, restructure BEFORE writing.
 8. **State & side-effect check.** External IO, time, randomness, config reads go through the injection mechanism `§10` names. Do not hardcode.
+
+9. **Auth-header null-guard check (v2.3.24 — closes the Bearer null bug).** Scan every emitted line that constructs an `Authorization` header. Detect the anti-pattern where an interpolated value could be `null` / `undefined` / empty at runtime:
+   - Regex on the emitted string: `Authorization.*Bearer\s*[\+\`\$][^;]*(localStorage\.getItem|sessionStorage\.getItem|cookies\.get|process\.env|getenv|.getVal|.getValue|.currentUser|.user|.token)`
+   - For each match, verify the emitted code has a null-guard IMMEDIATELY around the acquisition (either `if (!token) throw ...` or `const token = <acquire>(); if (!token) return; ...` OR the acquisition is `await`ed on a promise that throws on absence per the auth library's contract).
+   - If NO null-guard is present → HALT. The specific failure mode this catches: the value is `null` at runtime, the emitted code sends `Authorization: Bearer null`, the server's bearer-prefix check passes, `jwt.verify` fails, the user sees "session expired" when they were never signed in.
+   - This is a Rule 12 anti-pattern (silent null-swallowing) applied specifically to auth headers because it's the highest-blast-radius instance of it.
 
 If a limit CANNOT be met without a real architectural change (splitting the sub-task, altering the plan, adding an abstraction not in implementation.md's `§6 Touch points`), escalate as `dev/escalation-<n>.md` — do NOT write past-limit code and add a `TODO: refactor later` comment. Past-limit code accepted at write time becomes review debt, then production debt.
 

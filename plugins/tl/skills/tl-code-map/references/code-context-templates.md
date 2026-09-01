@@ -564,9 +564,56 @@ Called by page(s) — see *Called by*.
 - `500` — transaction rolled back; no partial invoice
 
 ## Auth
-Requires a valid JWT and the `billing.write` permission; `lineItemOverrides` additionally
-requires `billing.override`. Tenant isolation is enforced by a row-level `tenant_id`
-filter injected in the ORM subscriber (`src/db/tenant.subscriber.ts`). | Confirmed
+
+Structured fields (v2.3.24 — stack-agnostic shape, extraction procedure per `references/extraction-guide.md § Auth-pattern extraction`):
+
+- **Token type:** `Firebase ID token` (from `firebase-admin` — `admin.auth().verifyIdToken()`)
+- **Verified by:** `verifyFirebaseIdToken()` @ `src/auth/authController.js:28`
+- **Client obtains via:** `await firebase.auth().currentUser.getIdToken()`  ← from consumer repo grep for the auth library's client-side counterpart
+- **Header format:** `Authorization: Bearer <id-token>`
+- **Server extracts from token:** `req.user.email`, `req.user.uid`
+- **Failure responses:**
+  - Missing header → `401 { code: "NO_CREDENTIAL" }`
+  - Invalid / expired token → `401 { code: "INVALID_CREDENTIAL" }`
+  - Server config not initialized → `401 { code: "FIREBASE_NOT_CONFIGURED" }`
+- **Server prerequisites:** env vars `FIREBASE_SERVICE_ACCOUNT` OR `GOOGLE_APPLICATION_CREDENTIALS`; `firebase-admin` SDK initialized at startup
+- **Permissions layered on top of authentication:** `billing.write` (this endpoint); `billing.override` (only if `lineItemOverrides` is in body)
+
+Confidence: Confirmed (extracted from `src/auth/authController.js` at commit 89b37c7)
+
+<!--
+  This section is READ BY tl-feature-compose at §8 Shared contract composition
+  AND BY dev-stack-adaptive-implementation at client-side write time. Both
+  copy fields verbatim rather than paraphrasing. Free-prose auth notes at
+  compose time triggers a halt (Rule 11.3 §8) — this section MUST have the
+  structured fields above, extracted deterministically per the extraction guide.
+-->
+
+## Config prerequisites
+
+Structured fields (v2.3.24 — every env var and external service the endpoint's handler + middleware chain reads at runtime):
+
+**Env vars this endpoint's chain requires:**
+- `DATABASE_URL` — required; consumed by ORM connection at handler entry
+- `FIREBASE_SERVICE_ACCOUNT` — required; consumed by auth middleware at request time
+- `HOLIDAY_MAX_YEAR_LOOKAHEAD` — optional; defaults to `2`; consumed in handler business logic
+
+**Services this endpoint's chain depends on being reachable:**
+- Postgres database (per `shared-context/technology-stack.md`)
+- Firebase Admin SDK (initialized once at startup from `FIREBASE_SERVICE_ACCOUNT`)
+
+**Failure mode if any prerequisite is missing:**
+- `FIREBASE_SERVICE_ACCOUNT` unset → server fails to start OR verifyFirebaseIdToken returns `FIREBASE_NOT_CONFIGURED` → 401 on every request
+- `DATABASE_URL` unset → connection pool init throws → 500 on every request
+- `HOLIDAY_MAX_YEAR_LOOKAHEAD` unset → default `2` applies; no failure
+
+Confidence: Confirmed (extracted from source references above)
+
+<!--
+  Read by dev-stack-adaptive-implementation Rule 7.v (Stage 7 real-service startup)
+  to pre-verify env vars before running integration/E2E tier tests. Also read by
+  Stage 11 (local-runbook §3 Env vars) to populate the developer-facing setup guide.
+-->
 
 ## Side Effects
 - Emits `invoice.issued` to `outbox_events`; the notification worker (EP-NTF-04) sends the customer email.
