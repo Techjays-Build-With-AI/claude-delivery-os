@@ -1,0 +1,1400 @@
+<title>Delivery OS Commands</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+
+<style>
+  :root {
+    --ground: #FAFBFC;
+    --panel: #FFFFFF;
+    --ink: #0F172A;
+    --muted: #546274;
+    --rule: #DFE3E8;
+    --accent: #0E7C7B;
+    --accent-soft: #E5F1F0;
+    --code-bg: #F0F2F5;
+    --code-ink: #0F172A;
+    --code-arg: #B5651D;
+    --code-flag: #6D6875;
+    --good: #0A7A34;
+    --shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 12px rgba(15, 23, 42, 0.04);
+  }
+
+  :root:not([data-theme="light"]) {
+    @media (prefers-color-scheme: dark) {
+      --ground: #0C0E11;
+      --panel: #14171C;
+      --ink: #E7EAEE;
+      --muted: #8B94A3;
+      --rule: #1F242C;
+      --accent: #4FBFB5;
+      --accent-soft: #16262A;
+      --code-bg: #171A20;
+      --code-ink: #E7EAEE;
+      --code-arg: #E1A868;
+      --code-flag: #9AA3B1;
+      --good: #4FBF80;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 6px 24px rgba(0, 0, 0, 0.35);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #0C0E11;
+    --panel: #14171C;
+    --ink: #E7EAEE;
+    --muted: #8B94A3;
+    --rule: #1F242C;
+    --accent: #4FBFB5;
+    --accent-soft: #16262A;
+    --code-bg: #171A20;
+    --code-ink: #E7EAEE;
+    --code-arg: #E1A868;
+    --code-flag: #9AA3B1;
+    --good: #4FBF80;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 6px 24px rgba(0, 0, 0, 0.35);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    font-family: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--ground);
+    color: var(--ink);
+    margin: 0;
+    line-height: 1.55;
+    font-size: 15.5px;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  code, kbd, pre {
+    font-family: "JetBrains Mono", ui-monospace, "Cascadia Mono", Menlo, monospace;
+    font-feature-settings: "calt" 1, "liga" 0;
+  }
+
+  .brand-strip {
+    border-bottom: 1px solid var(--rule);
+    background: var(--panel);
+    position: sticky;
+    top: 0;
+    z-index: 20;
+  }
+
+  .brand-inner {
+    max-width: 1440px;
+    margin: 0 auto;
+    padding: 18px 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .brand-mark {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .brand-glyph {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: var(--accent);
+    display: grid;
+    place-items: center;
+    color: white;
+    font-weight: 700;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 13px;
+    letter-spacing: -0.02em;
+  }
+
+  .brand-name {
+    font-weight: 600;
+    font-size: 15px;
+    letter-spacing: -0.005em;
+  }
+
+  .brand-name .divider {
+    color: var(--rule);
+    margin: 0 8px;
+    font-weight: 400;
+  }
+
+  .brand-name .sub {
+    color: var(--muted);
+    font-weight: 500;
+  }
+
+  .brand-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .version {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px;
+    color: var(--muted);
+    padding: 4px 8px;
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    background: var(--ground);
+  }
+
+  .theme-toggle {
+    background: none;
+    border: 1px solid var(--rule);
+    color: var(--muted);
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    transition: color 120ms ease, border-color 120ms ease;
+  }
+
+  .theme-toggle:hover {
+    color: var(--ink);
+    border-color: var(--muted);
+  }
+
+  .theme-toggle:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .theme-toggle svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  .tab-strip {
+    border-bottom: 1px solid var(--rule);
+    background: var(--panel);
+    position: sticky;
+    top: 65px;
+    z-index: 15;
+  }
+
+  .tab-inner {
+    max-width: 1440px;
+    margin: 0 auto;
+    padding: 0 40px;
+    display: flex;
+    gap: 4px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .tab-inner::-webkit-scrollbar { display: none; }
+
+  .tab {
+    background: none;
+    border: none;
+    padding: 14px 4px;
+    margin: 0 12px;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--muted);
+    cursor: pointer;
+    position: relative;
+    white-space: nowrap;
+    transition: color 120ms ease;
+    letter-spacing: -0.005em;
+  }
+
+  .tab:first-child { margin-left: 0; }
+
+  .tab:hover { color: var(--ink); }
+  .tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 2px; }
+
+  .tab[aria-selected="true"] {
+    color: var(--ink);
+    font-weight: 600;
+  }
+
+  .tab[aria-selected="true"]::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1px;
+    height: 2px;
+    background: var(--accent);
+    border-radius: 2px 2px 0 0;
+  }
+
+  .tab-num {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    color: var(--muted);
+    margin-right: 6px;
+    font-weight: 400;
+  }
+  .tab[aria-selected="true"] .tab-num { color: var(--accent); }
+
+  main {
+    max-width: 1440px;
+    margin: 0 auto;
+    padding: 56px 40px 96px;
+  }
+
+  .panel { display: none; }
+  .panel[aria-hidden="false"] { display: block; }
+
+  .panel-lede {
+    margin-bottom: 40px;
+    max-width: 68ch;
+  }
+
+  .cmd-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 20px;
+    margin-bottom: 16px;
+  }
+  @media (min-width: 900px) {
+    .cmd-grid { grid-template-columns: 1fr 1fr; }
+  }
+  @media (min-width: 1280px) {
+    .cmd-grid.three { grid-template-columns: 1fr 1fr 1fr; }
+  }
+
+  .cmd-grid > .cmd { margin-bottom: 0; }
+
+  h1 {
+    font-family: "IBM Plex Sans", sans-serif;
+    font-weight: 700;
+    font-size: 34px;
+    line-height: 1.15;
+    letter-spacing: -0.025em;
+    margin: 0 0 12px;
+    text-wrap: balance;
+  }
+
+  h1 .stage-num {
+    font-family: "JetBrains Mono", monospace;
+    font-weight: 400;
+    font-size: 20px;
+    color: var(--muted);
+    letter-spacing: -0.01em;
+    display: block;
+    margin-bottom: 6px;
+  }
+
+  .lede {
+    font-size: 17px;
+    color: var(--muted);
+    line-height: 1.55;
+    max-width: 60ch;
+    margin: 0;
+  }
+
+  h2 {
+    font-family: "IBM Plex Sans", sans-serif;
+    font-weight: 600;
+    font-size: 15px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin: 48px 0 20px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  h3 {
+    font-family: "IBM Plex Sans", sans-serif;
+    font-weight: 600;
+    font-size: 18px;
+    letter-spacing: -0.01em;
+    margin: 0 0 6px;
+    color: var(--ink);
+  }
+
+  p { margin: 0 0 12px; }
+
+  .cmd {
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    padding: 22px 24px;
+    margin: 0 0 16px;
+    box-shadow: var(--shadow);
+  }
+
+  .cmd-summary {
+    color: var(--muted);
+    font-size: 14.5px;
+    margin: 0 0 16px;
+    line-height: 1.55;
+  }
+
+  .cmd-code {
+    display: block;
+    background: var(--code-bg);
+    color: var(--code-ink);
+    padding: 12px 44px 12px 14px;
+    border-radius: 6px;
+    font-size: 13.5px;
+    line-height: 1.6;
+    overflow-x: auto;
+    white-space: pre;
+    position: relative;
+    border: 1px solid transparent;
+  }
+
+  .cmd-code + .cmd-code { margin-top: 8px; }
+
+  .cmd-code .flag { color: var(--code-flag); }
+  .cmd-code .arg { color: var(--code-arg); }
+  .cmd-code .accent { color: var(--accent); font-weight: 500; }
+
+  .code-wrap {
+    position: relative;
+    margin: 0 0 4px;
+  }
+
+  .copy-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    color: var(--muted);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 150ms ease, color 120ms ease;
+  }
+  .code-wrap:hover .copy-btn { opacity: 1; }
+  .copy-btn:hover { color: var(--ink); border-color: var(--muted); }
+  .copy-btn:focus-visible {
+    opacity: 1;
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .copy-btn.copied { color: var(--good); border-color: var(--good); }
+
+  .args {
+    margin-top: 16px;
+    border-top: 1px solid var(--rule);
+    padding-top: 14px;
+  }
+
+  .args-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+
+  .arg-row {
+    display: grid;
+    grid-template-columns: minmax(160px, 220px) 1fr;
+    gap: 16px;
+    padding: 8px 0;
+    font-size: 13.5px;
+    line-height: 1.5;
+    border-top: 1px solid var(--rule);
+  }
+  .arg-row:first-of-type { border-top: none; padding-top: 4px; }
+
+  .arg-key {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12.5px;
+    color: var(--code-arg);
+  }
+
+  .arg-desc {
+    color: var(--muted);
+  }
+
+  .note {
+    background: var(--accent-soft);
+    border-left: 3px solid var(--accent);
+    padding: 12px 16px;
+    border-radius: 0 6px 6px 0;
+    color: var(--ink);
+    font-size: 14px;
+    margin: 24px 0;
+  }
+  .note strong { color: var(--accent); font-weight: 600; }
+
+  .pair {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin: 0 0 16px;
+  }
+  @media (max-width: 640px) {
+    .pair { grid-template-columns: 1fr; }
+  }
+
+  .path-card {
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    padding: 18px 20px;
+  }
+
+  .path-card h4 {
+    font-family: "IBM Plex Sans", sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    letter-spacing: 0.02em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin: 0 0 6px;
+  }
+
+  .path-card p { font-size: 14px; color: var(--ink); margin: 0 0 10px; line-height: 1.5; }
+  .path-card code { font-size: 12.5px; background: var(--code-bg); padding: 2px 6px; border-radius: 3px; color: var(--code-ink); }
+
+  .steps {
+    counter-reset: step;
+    padding: 0;
+    margin: 24px 0 32px;
+    list-style: none;
+  }
+
+  .steps li {
+    counter-increment: step;
+    padding: 14px 0 14px 44px;
+    position: relative;
+    border-top: 1px solid var(--rule);
+    font-size: 14.5px;
+    line-height: 1.6;
+  }
+  .steps li:first-child { border-top: none; padding-top: 4px; }
+  .steps li:first-child::before { top: 4px; }
+
+  .steps li::before {
+    content: counter(step);
+    position: absolute;
+    left: 0;
+    top: 14px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--accent-soft);
+    color: var(--accent);
+    display: grid;
+    place-items: center;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .steps code {
+    background: var(--code-bg);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 12.5px;
+    color: var(--code-ink);
+  }
+
+  hr.soft {
+    border: none;
+    border-top: 1px solid var(--rule);
+    margin: 40px 0;
+  }
+
+  footer {
+    max-width: 1440px;
+    margin: 0 auto;
+    padding: 32px 40px 48px;
+    border-top: 1px solid var(--rule);
+    color: var(--muted);
+    font-size: 13px;
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  footer a {
+    color: var(--muted);
+    text-decoration: none;
+    border-bottom: 1px dotted var(--muted);
+  }
+  footer a:hover { color: var(--ink); border-color: var(--ink); }
+</style>
+
+<div class="brand-strip">
+  <div class="brand-inner">
+    <div class="brand-mark">
+      <div class="brand-glyph">D</div>
+      <div class="brand-name">Delivery OS <span class="divider">/</span> <span class="sub">Command Reference</span></div>
+    </div>
+    <div class="brand-right">
+      <span class="version">v2.3.25</span>
+      <button class="theme-toggle" id="theme-toggle" aria-label="Toggle color theme">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="4"></circle>
+          <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path>
+        </svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="tab-strip" role="tablist" aria-label="Delivery OS stages">
+  <div class="tab-inner">
+    <button class="tab" role="tab" aria-selected="true" aria-controls="p-setup" id="t-setup">
+      <span class="tab-num">01</span>Setup
+    </button>
+    <button class="tab" role="tab" aria-selected="false" aria-controls="p-init" id="t-init">
+      <span class="tab-num">02</span>Init
+    </button>
+    <button class="tab" role="tab" aria-selected="false" aria-controls="p-ba" id="t-ba">
+      <span class="tab-num">03</span>BA
+    </button>
+    <button class="tab" role="tab" aria-selected="false" aria-controls="p-tl" id="t-tl">
+      <span class="tab-num">04</span>TL &middot; Code-map
+    </button>
+    <button class="tab" role="tab" aria-selected="false" aria-controls="p-plan" id="t-plan">
+      <span class="tab-num">05</span>Plan
+    </button>
+    <button class="tab" role="tab" aria-selected="false" aria-controls="p-build" id="t-build">
+      <span class="tab-num">06</span>Build
+    </button>
+    <button class="tab" role="tab" aria-selected="false" aria-controls="p-commit" id="t-commit">
+      <span class="tab-num">07</span>Commit
+    </button>
+    <button class="tab" role="tab" aria-selected="false" aria-controls="p-qa" id="t-qa">
+      <span class="tab-num">08</span>QA
+    </button>
+  </div>
+</div>
+
+<main>
+  <!-- ============================================================ -->
+  <!-- SETUP -->
+  <section class="panel" id="p-setup" role="tabpanel" aria-labelledby="t-setup" aria-hidden="false">
+    <div class="panel-lede">
+      <h1><span class="stage-num">Stage 01</span>Install the plugin, wire the MCP servers</h1>
+      <p class="lede">Two steps, both once per developer machine. First install from the Techjays marketplace so the <code>/ba</code>, <code>/tl</code>, <code>/dev</code>, <code>/qa</code>, <code>/jetrix</code>, <code>/doc</code>, and <code>/delivery-os</code> commands become available inside Claude Code. Then run <code>/delivery-os:setup</code> to point the plugin's MCP servers at your Jetrix environment.</p>
+    </div>
+
+    <h2>Add the marketplace</h2>
+
+    <div class="cmd">
+      <h3>/plugin marketplace add</h3>
+      <p class="cmd-summary">Register the <code>techjays-delivery-os</code> marketplace with Claude Code. Runs once &mdash; the marketplace stays known until you remove it. All seven bundled plugins become installable after this.</p>
+      <div class="code-wrap">
+        <pre class="cmd-code"><span class="accent">/plugin marketplace add</span> <span class="arg">Techjays-Build-With-AI/claude-delivery-os</span></pre>
+        <button class="copy-btn" data-copy="/plugin marketplace add Techjays-Build-With-AI/claude-delivery-os">Copy</button>
+      </div>
+    </div>
+
+    <h2>Install the plugins</h2>
+
+    <div class="cmd">
+      <h3>/plugin install</h3>
+      <p class="cmd-summary">Install <code>delivery-os</code> first &mdash; it carries the shared core every other plugin depends on. Then add whichever domain plugins the workspace needs; installing all seven is the common case for a full-flow machine.</p>
+      <div class="code-wrap">
+        <pre class="cmd-code"><span class="accent">/plugin install</span> <span class="arg">delivery-os</span>@techjays-delivery-os</pre>
+        <button class="copy-btn" data-copy="/plugin install delivery-os@techjays-delivery-os">Copy</button>
+      </div>
+      <div class="code-wrap">
+        <pre class="cmd-code"><span class="accent">/plugin install</span> <span class="arg">jetrix</span>@techjays-delivery-os</pre>
+        <button class="copy-btn" data-copy="/plugin install jetrix@techjays-delivery-os">Copy</button>
+      </div>
+      <div class="code-wrap">
+        <pre class="cmd-code"><span class="accent">/plugin install</span> <span class="arg">ba</span>@techjays-delivery-os</pre>
+        <button class="copy-btn" data-copy="/plugin install ba@techjays-delivery-os">Copy</button>
+      </div>
+      <div class="code-wrap">
+        <pre class="cmd-code"><span class="accent">/plugin install</span> <span class="arg">tl</span>@techjays-delivery-os</pre>
+        <button class="copy-btn" data-copy="/plugin install tl@techjays-delivery-os">Copy</button>
+      </div>
+      <div class="code-wrap">
+        <pre class="cmd-code"><span class="accent">/plugin install</span> <span class="arg">dev</span>@techjays-delivery-os</pre>
+        <button class="copy-btn" data-copy="/plugin install dev@techjays-delivery-os">Copy</button>
+      </div>
+      <div class="code-wrap">
+        <pre class="cmd-code"><span class="accent">/plugin install</span> <span class="arg">qa</span>@techjays-delivery-os</pre>
+        <button class="copy-btn" data-copy="/plugin install qa@techjays-delivery-os">Copy</button>
+      </div>
+      <div class="code-wrap">
+        <pre class="cmd-code"><span class="accent">/plugin install</span> <span class="arg">doc</span>@techjays-delivery-os</pre>
+        <button class="copy-btn" data-copy="/plugin install doc@techjays-delivery-os">Copy</button>
+      </div>
+
+      <div class="args">
+        <div class="args-label">What each plugin brings</div>
+        <div class="arg-row"><div class="arg-key">delivery-os</div><div class="arg-desc">Shared core: workspace scaffold, document contract, canonical templates. Install first.</div></div>
+        <div class="arg-row"><div class="arg-key">jetrix</div><div class="arg-desc"><code>/jetrix:init</code>, <code>/jetrix:pull</code>, <code>/jetrix:push</code>, <code>/jetrix:task-update</code> &mdash; the sync layer between the workspace and Mission Control.</div></div>
+        <div class="arg-row"><div class="arg-key">ba</div><div class="arg-desc"><code>/ba:scope</code>, <code>/ba:review</code>, <code>/ba:resolve</code>, <code>/ba:features</code> &mdash; discovery to feature breakdown.</div></div>
+        <div class="arg-row"><div class="arg-key">tl</div><div class="arg-desc"><code>/tl:plan</code>, <code>/tl:review</code>, <code>/tl:resolve</code>, <code>/tl:scaffold</code>, <code>/tl:code-map</code> &mdash; technical context graph.</div></div>
+        <div class="arg-row"><div class="arg-key">dev</div><div class="arg-desc"><code>/dev:plan</code>, <code>/dev:build</code>, <code>/dev:commit</code>, <code>/dev:fix-review</code>, <code>/dev:resolve</code>, <code>/dev:bootstrap</code> &mdash; the delivery loop.</div></div>
+        <div class="arg-row"><div class="arg-key">qa</div><div class="arg-desc"><code>/qa:audit</code>, <code>/qa:plan</code>, <code>/qa:setup</code>, <code>/qa:health</code> &mdash; the test harness contract.</div></div>
+        <div class="arg-row"><div class="arg-key">doc</div><div class="arg-desc"><code>/doc:proposal</code>, <code>/doc:deck</code>, <code>/doc:magic-board</code>, <code>/doc:workflow</code>, <code>/doc:walkthrough</code> &mdash; client-facing artifacts in the Techjays house style.</div></div>
+      </div>
+    </div>
+
+    <h2>Keep them fresh</h2>
+
+    <div class="cmd-grid">
+      <div class="cmd">
+        <h3>/plugin marketplace update</h3>
+        <p class="cmd-summary">Refresh the marketplace metadata &mdash; picks up plugins added or removed from <code>techjays-delivery-os</code> since you registered it. Run before a mass update if a new plugin was published.</p>
+        <div class="code-wrap">
+          <pre class="cmd-code"><span class="accent">/plugin marketplace update</span> <span class="arg">techjays-delivery-os</span></pre>
+          <button class="copy-btn" data-copy="/plugin marketplace update techjays-delivery-os">Copy</button>
+        </div>
+      </div>
+
+      <div class="cmd">
+        <h3>/plugin update</h3>
+        <p class="cmd-summary">Pull the latest version of a specific plugin. Repeat per plugin, or pass <code>--all</code> to update every installed plugin from every registered marketplace.</p>
+        <div class="code-wrap">
+          <pre class="cmd-code"><span class="accent">/plugin update</span> <span class="arg">delivery-os</span>@techjays-delivery-os</pre>
+          <button class="copy-btn" data-copy="/plugin update delivery-os@techjays-delivery-os">Copy</button>
+        </div>
+        <div class="code-wrap">
+          <pre class="cmd-code"><span class="accent">/plugin update</span> <span class="flag">--all</span></pre>
+          <button class="copy-btn" data-copy="/plugin update --all">Copy</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="note">
+      <strong>Order matters on updates.</strong> If <code>delivery-os</code> has a new shared-core version, update it first &mdash; the other plugins read its templates and vocabulary at load. A stale core against a fresh <code>ba</code>/<code>tl</code>/<code>dev</code> can throw contract errors.
+    </div>
+
+    <h2>Wire up the MCP servers</h2>
+
+    <div class="cmd">
+      <h3>/delivery-os:setup</h3>
+      <p class="cmd-summary">Register <code>project-mcp</code>, <code>scope-mcp</code>, <code>task-mcp</code> under their canonical short names. Triggers Claude Code's OAuth flow the first time.</p>
+      <div class="code-wrap">
+        <pre class="cmd-code"><span class="accent">/delivery-os:setup</span></pre>
+        <button class="copy-btn" data-copy="/delivery-os:setup">Copy</button>
+      </div>
+
+      <div class="args">
+        <div class="args-label">Environment flags</div>
+        <div class="arg-row"><div class="arg-key">&nbsp;</div><div class="arg-desc">Prod URLs (default when no flag is passed)</div></div>
+        <div class="arg-row"><div class="arg-key">--staging</div><div class="arg-desc">Point every MCP at staging URLs</div></div>
+        <div class="arg-row"><div class="arg-key">--local</div><div class="arg-desc">Point at localhost — only for MCP developers running the servers themselves</div></div>
+      </div>
+    </div>
+
+    <div class="note">
+      <strong>One environment per machine.</strong> To switch (e.g. prod &rarr; staging), <code>claude mcp remove &lt;name&gt;</code> for each server, then re-run <code>/delivery-os:setup</code> with the new flag. Idempotent &mdash; safe to re-run any time.
+    </div>
+
+    <h2>What each MCP handles</h2>
+
+    <div class="cmd-grid three">
+      <div class="cmd">
+        <h3>project-mcp</h3>
+        <p class="cmd-summary">Reads Solution + app + env-config + repository-integration metadata from Jetrix. Used by <code>/jetrix:init</code> and every other Delivery OS flow to resolve identity.</p>
+      </div>
+
+      <div class="cmd">
+        <h3>scope-mcp</h3>
+        <p class="cmd-summary">Pushes and pulls BA outputs (scope, registers, feature-index, shared-context) direct to Google Cloud Storage. File bytes never route through Claude's context.</p>
+      </div>
+
+      <div class="cmd">
+        <h3>task-mcp</h3>
+        <p class="cmd-summary">Writes directly to Mission Control's Task &amp; List APIs &mdash; feature Tasks, sub-tasks, Implementation tab bodies, status transitions, PR handoff.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- INIT -->
+  <section class="panel" id="p-init" role="tabpanel" aria-labelledby="t-init" aria-hidden="true">
+    <div class="panel-lede">
+      <h1><span class="stage-num">Stage 02</span>Bind the workspace to a Jetrix Solution</h1>
+      <p class="lede">Every workspace binds to one Solution. This writes <code>.jetrix/project.json</code> (gitignored), pulls the connection map, and seeds the tree that BA, TL, QA, and Dev agents write into.</p>
+    </div>
+
+    <div class="cmd">
+      <h3>/jetrix:init</h3>
+      <p class="cmd-summary">Bind to an existing Solution and scaffold the working tree in one shot. Accepts the Solution slug, ObjectId, or shows an interactive picker if no argument is passed.</p>
+      <div class="code-wrap">
+        <pre class="cmd-code"><span class="accent">/jetrix:init</span></pre>
+        <button class="copy-btn" data-copy="/jetrix:init">Copy</button>
+      </div>
+      <div class="code-wrap">
+        <pre class="cmd-code"><span class="accent">/jetrix:init</span> <span class="arg">&lt;solution-slug&gt;</span></pre>
+        <button class="copy-btn" data-copy="/jetrix:init <solution-slug>">Copy</button>
+      </div>
+      <div class="code-wrap">
+        <pre class="cmd-code"><span class="accent">/jetrix:init</span> <span class="arg">&lt;solution-object-id&gt;</span></pre>
+        <button class="copy-btn" data-copy="/jetrix:init <solution-object-id>">Copy</button>
+      </div>
+
+      <div class="args">
+        <div class="args-label">Flags</div>
+        <div class="arg-row"><div class="arg-key">--skip-scaffold</div><div class="arg-desc">Bind only; skip seeding <code>.jetrix/</code> tree. Useful when re-binding a workspace that already has content.</div></div>
+      </div>
+    </div>
+
+    <div class="cmd">
+      <h3>/jetrix:project-setup</h3>
+      <p class="cmd-summary">Onboard from zero &mdash; interactive Q&amp;A creates a new Solution and apps, binds this workspace to it, and scaffolds the tree. Prints a portal handoff block for linking GitHub repos and setting env branches in Jetrix.</p>
+      <div class="code-wrap">
+        <pre class="cmd-code"><span class="accent">/jetrix:project-setup</span></pre>
+        <button class="copy-btn" data-copy="/jetrix:project-setup">Copy</button>
+      </div>
+    </div>
+
+    <div class="cmd">
+      <h3>/delivery-os:init</h3>
+      <p class="cmd-summary">Re-seed the <code>.jetrix/</code> tree without touching identity. Idempotent &mdash; never clobbers existing files. Runs automatically inside <code>/jetrix:init</code>; only call directly to re-seed after <code>--skip-scaffold</code>.</p>
+      <div class="code-wrap">
+        <pre class="cmd-code"><span class="accent">/delivery-os:init</span></pre>
+        <button class="copy-btn" data-copy="/delivery-os:init">Copy</button>
+      </div>
+    </div>
+
+    <h2>Choose your next step</h2>
+
+    <div class="pair">
+      <div class="path-card">
+        <h4>Greenfield</h4>
+        <p>No source repo yet. Create the initial application skeleton with a green base build, tooling wired, and the <code>shared-context/</code> layer authored.</p>
+        <p>Next: <code>/tl:scaffold</code></p>
+      </div>
+      <div class="path-card">
+        <h4>Brownfield</h4>
+        <p>Existing repos to onboard. Reverse-map every repo into a committed code-context tree that lives inside each repo and travels with the code.</p>
+        <p>Next: <code>/tl:code-map</code> (see Tab 04)</p>
+      </div>
+    </div>
+
+    <div class="note">
+      <strong>The entire <code>.jetrix/</code> folder is gitignored.</strong> It is a disposable local working copy of Jetrix state. Regenerate any time via <code>/jetrix:init</code>. Never commit anything under it.
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- BA -->
+  <section class="panel" id="p-ba" role="tabpanel" aria-labelledby="t-ba" aria-hidden="true">
+    <div class="panel-lede">
+      <h1><span class="stage-num">Stage 03</span>Discovery &mdash; scope, review, break into features</h1>
+      <p class="lede">The BA agent turns client artifacts into a living scope document plus supporting registers, reviews it critically, folds client answers back in, and finally decomposes it into a folder-per-feature implementation-ready breakdown.</p>
+    </div>
+
+    <h2>Register sources</h2>
+
+    <div class="cmd">
+      <h3>/ba:scope add</h3>
+      <p class="cmd-summary">Register a discovery source without copying or moving the original. Six usage modes are auto-detected (transcript, requirements doc, wireframe, etc.).</p>
+      <div class="code-wrap">
+        <pre class="cmd-code"><span class="accent">/ba:scope</span> add <span class="arg">"path/to/client-folder/"</span></pre>
+        <button class="copy-btn" data-copy='/ba:scope add "path/to/client-folder/"'>Copy</button>
+      </div>
+      <div class="code-wrap">
+        <pre class="cmd-code"><span class="accent">/ba:scope</span> add <span class="arg">"meeting-transcript.md"</span></pre>
+        <button class="copy-btn" data-copy='/ba:scope add "meeting-transcript.md"'>Copy</button>
+      </div>
+      <div class="code-wrap">
+        <pre class="cmd-code"><span class="accent">/ba:scope</span> add <span class="arg">"https://drive.google.com/&hellip;"</span></pre>
+        <button class="copy-btn" data-copy='/ba:scope add "https://drive.google.com/..."'>Copy</button>
+      </div>
+    </div>
+
+    <h2>Build &amp; refresh</h2>
+
+    <div class="cmd">
+      <h3>/ba:scope</h3>
+      <p class="cmd-summary">Build or update the living scope from every registered source. Incremental by default. Produces <code>ba/scope.md</code> plus registers under <code>ba/registers/</code>.</p>
+      <div class="code-wrap">
+        <pre class="cmd-code"><span class="accent">/ba:scope</span></pre>
+        <button class="copy-btn" data-copy="/ba:scope">Copy</button>
+      </div>
+      <div class="code-wrap">
+        <pre class="cmd-code"><span class="accent">/ba:scope</span> <span class="flag">--refresh</span></pre>
+        <button class="copy-btn" data-copy="/ba:scope --refresh">Copy</button>
+      </div>
+
+      <div class="args">
+        <div class="args-label">Flags</div>
+        <div class="arg-row"><div class="arg-key">--refresh</div><div class="arg-desc">Full re-processing instead of incremental &mdash; rare; use when a source changed materially.</div></div>
+      </div>
+    </div>
+
+    <h2>Review &amp; resolve</h2>
+
+    <div class="cmd-grid">
+      <div class="cmd">
+        <h3>/ba:review</h3>
+        <p class="cmd-summary">Score every feature from a paranoid BA perspective. Renders an interactive HTML dashboard under <code>ba/reviews/</code> that surfaces gaps, weak assumptions, and open questions for the client.</p>
+        <div class="code-wrap">
+          <pre class="cmd-code"><span class="accent">/ba:review</span></pre>
+          <button class="copy-btn" data-copy="/ba:review">Copy</button>
+        </div>
+        <div class="code-wrap">
+          <pre class="cmd-code"><span class="accent">/ba:review</span> <span class="arg">ba/scope.md</span></pre>
+          <button class="copy-btn" data-copy="/ba:review ba/scope.md">Copy</button>
+        </div>
+      </div>
+
+      <div class="cmd">
+        <h3>/ba:resolve</h3>
+        <p class="cmd-summary">Fold client answers back into the scope. Point at the <code>*-responses.md</code> file exported from the review HTML; the agent judges each answer and closes the questions.</p>
+        <div class="code-wrap">
+          <pre class="cmd-code"><span class="accent">/ba:resolve</span> <span class="arg">ba/reviews/scope-review-&lt;ts&gt;-responses.md</span></pre>
+          <button class="copy-btn" data-copy="/ba:resolve ba/reviews/scope-review-<ts>-responses.md">Copy</button>
+        </div>
+      </div>
+    </div>
+
+    <h2>Decompose into features</h2>
+
+    <div class="cmd">
+      <h3>/ba:features</h3>
+      <p class="cmd-summary">Break the approved scope into implementation-ready features &mdash; one folder per feature under <code>features/&lt;slug&gt;/</code> holding <code>feature.md</code>, <code>workflow.md</code>, <code>acceptance-criteria.md</code>, <code>business-rules.md</code>, <code>nfrs.md</code>, <code>test-scenarios.md</code>, <code>dependencies.md</code>, <code>open-questions.md</code>, and <code>status.md</code>.</p>
+      <div class="code-wrap">
+        <pre class="cmd-code"><span class="accent">/ba:features</span></pre>
+        <button class="copy-btn" data-copy="/ba:features">Copy</button>
+      </div>
+      <div class="code-wrap">
+        <pre class="cmd-code"><span class="accent">/ba:features</span> <span class="arg">features/&lt;slug&gt;</span></pre>
+        <button class="copy-btn" data-copy="/ba:features features/<slug>">Copy</button>
+      </div>
+    </div>
+
+    <h2>Sync up to Jetrix</h2>
+
+    <div class="cmd-grid">
+      <div class="cmd">
+        <h3>/jetrix:push scope</h3>
+        <p class="cmd-summary">Publish <code>ba/*.md</code>, <code>shared-context/*.md</code>, and <code>feature-index.md</code> to Jetrix. Direct-to-GCS &mdash; 100 files is as fast as 1.</p>
+        <div class="code-wrap">
+          <pre class="cmd-code"><span class="accent">/jetrix:push</span> scope</pre>
+          <button class="copy-btn" data-copy="/jetrix:push scope">Copy</button>
+        </div>
+      </div>
+
+      <div class="cmd">
+        <h3>/jetrix:push feature</h3>
+        <p class="cmd-summary">Create the Mission Control Task hierarchy from your feature folders &mdash; one parent Task per feature, one Sub-task per repo when a feature is split.</p>
+        <div class="code-wrap">
+          <pre class="cmd-code"><span class="accent">/jetrix:push</span> feature</pre>
+          <button class="copy-btn" data-copy="/jetrix:push feature">Copy</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- TL / CODE-MAP -->
+  <section class="panel" id="p-tl" role="tabpanel" aria-labelledby="t-tl" aria-hidden="true">
+    <div class="panel-lede">
+      <h1><span class="stage-num">Stage 04</span>Technical context graph</h1>
+      <p class="lede">The Tech Lead agent turns your repos into a linked context graph &mdash; pages, endpoints, entities, each captured as a markdown unit with a semantic index so Dev-time agents can find the right file without opening any other.</p>
+    </div>
+
+    <h2>Brownfield &mdash; reverse-map existing repos</h2>
+
+    <div class="cmd">
+      <h3>/tl:code-map</h3>
+      <p class="cmd-summary">Detect stack &rarr; extract every page, endpoint, and database object &rarr; write the code-context tree inside each mapped repo at <code>&lt;repo&gt;/context/code-context/</code>. Auto-authors <code>shared-context/coding-standards.md</code> from detected lint config + stack defaults if missing.</p>
+      <div class="code-wrap">
+        <pre class="cmd-code"><span class="accent">/tl:code-map</span></pre>
+        <button class="copy-btn" data-copy="/tl:code-map">Copy</button>
+      </div>
+      <div class="code-wrap">
+        <pre class="cmd-code"><span class="accent">/tl:code-map</span> <span class="arg">&lt;repo-path&gt;</span></pre>
+        <button class="copy-btn" data-copy="/tl:code-map <repo-path>">Copy</button>
+      </div>
+
+      <div class="args">
+        <div class="args-label">Arguments</div>
+        <div class="arg-row"><div class="arg-key">&nbsp;</div><div class="arg-desc">No arg &mdash; maps every repo declared in <code>.jetrix/project.json</code></div></div>
+        <div class="arg-row"><div class="arg-key">&lt;repo-path&gt;</div><div class="arg-desc">Absolute path to a single repository to map</div></div>
+      </div>
+    </div>
+
+    <div class="note">
+      <strong>Output travels with the code.</strong> The <code>context/code-context/</code> tree is written inside the mapped repo (not in <code>.jetrix/</code>) and is meant to be committed. It diffs when the code changes, and anyone who clones the repo gets it.
+    </div>
+
+    <h2>Greenfield &mdash; scaffold the initial application</h2>
+
+    <div class="cmd">
+      <h3>/tl:scaffold</h3>
+      <p class="cmd-summary">Create the initial repository &mdash; skeleton, tooling, green base build, and the <code>shared-context/{technology-stack, architecture, coding-standards}.md</code> layer. The dev agent's <code>feature-delivery-loop</code> writes actual features on top of this.</p>
+      <div class="code-wrap">
+        <pre class="cmd-code"><span class="accent">/tl:scaffold</span></pre>
+        <button class="copy-btn" data-copy="/tl:scaffold">Copy</button>
+      </div>
+      <div class="code-wrap">
+        <pre class="cmd-code"><span class="accent">/tl:scaffold</span> <span class="flag">--stack</span>=<span class="arg">&lt;name&gt;</span></pre>
+        <button class="copy-btn" data-copy="/tl:scaffold --stack=<name>">Copy</button>
+      </div>
+
+      <div class="args">
+        <div class="args-label">Flags</div>
+        <div class="arg-row"><div class="arg-key">--stack=&lt;name&gt;</div><div class="arg-desc">Override the stack choice picked from <code>technology-stack.md</code></div></div>
+      </div>
+    </div>
+
+    <h2>Plan features into technical units</h2>
+
+    <div class="cmd">
+      <h3>/tl:plan</h3>
+      <p class="cmd-summary">Wire each feature to the pages, endpoints, and entities it needs. Reuses what already exists in the graph; creates only what's missing. Runs a link-integrity check at the end.</p>
+      <div class="code-wrap">
+        <pre class="cmd-code"><span class="accent">/tl:plan</span> <span class="arg">&lt;feature-slug&gt;</span></pre>
+        <button class="copy-btn" data-copy="/tl:plan <feature-slug>">Copy</button>
+      </div>
+      <div class="code-wrap">
+        <pre class="cmd-code"><span class="accent">/tl:plan</span> <span class="flag">--all</span></pre>
+        <button class="copy-btn" data-copy="/tl:plan --all">Copy</button>
+      </div>
+      <div class="code-wrap">
+        <pre class="cmd-code"><span class="accent">/tl:plan</span> initiative=<span class="arg">&lt;name&gt;</span></pre>
+        <button class="copy-btn" data-copy="/tl:plan initiative=<name>">Copy</button>
+      </div>
+
+      <div class="args">
+        <div class="args-label">Target selection</div>
+        <div class="arg-row"><div class="arg-key">&lt;feature-slug&gt;</div><div class="arg-desc">Single feature by folder slug</div></div>
+        <div class="arg-row"><div class="arg-key">FEAT-&lt;AREA&gt;-NN</div><div class="arg-desc">Single feature by internal id</div></div>
+        <div class="arg-row"><div class="arg-key">--all</div><div class="arg-desc">Every feature in <code>feature-index.md</code></div></div>
+        <div class="arg-row"><div class="arg-key">initiative=&lt;name&gt;</div><div class="arg-desc">Every feature tagged with this initiative</div></div>
+      </div>
+    </div>
+
+    <div class="cmd">
+      <h3>/tl:review &nbsp; &middot; &nbsp; /tl:resolve</h3>
+      <p class="cmd-summary">Score the technical plan (<code>/tl:review</code>) and fold answers back into it (<code>/tl:resolve</code>). Same review-then-resolve pattern as the BA layer.</p>
+      <div class="code-wrap">
+        <pre class="cmd-code"><span class="accent">/tl:review</span> <span class="arg">&lt;feature&gt;</span></pre>
+        <button class="copy-btn" data-copy="/tl:review <feature>">Copy</button>
+      </div>
+      <div class="code-wrap">
+        <pre class="cmd-code"><span class="accent">/tl:resolve</span> <span class="arg">&lt;responses.md&gt;</span></pre>
+        <button class="copy-btn" data-copy="/tl:resolve <responses.md>">Copy</button>
+      </div>
+    </div>
+
+    <h2>Sync the context graph up</h2>
+
+    <div class="cmd">
+      <h3>/jetrix:push context</h3>
+      <p class="cmd-summary">Publish each repo's <code>code-context/</code> tree to Jetrix so other agents (and future runs from any workstation) can pull it back.</p>
+      <div class="code-wrap">
+        <pre class="cmd-code"><span class="accent">/jetrix:push</span> context</pre>
+        <button class="copy-btn" data-copy="/jetrix:push context">Copy</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- PLAN -->
+  <section class="panel" id="p-plan" role="tabpanel" aria-labelledby="t-plan" aria-hidden="true">
+    <div class="panel-lede">
+      <h1><span class="stage-num">Stage 05</span>Just-in-time feature planning</h1>
+      <p class="lede">Reads the TL context graph, decides whether a feature needs sub-tasks (multi-repo &rarr; one per repo; single-repo &rarr; parent alone), composes each sub-task's Description &amp; Implementation, creates them in Mission Control, and surfaces every plan-time decision that would need build-time input as a blocker.</p>
+    </div>
+
+    <div class="cmd">
+      <h3>/dev:plan</h3>
+      <p class="cmd-summary">Plan one feature or a batch. Runs four stages: identity &rarr; code-context readiness (auto-prompts for QA gates &amp; coding standards if missing) &rarr; per-task analysis &rarr; compose + MC push with read-back verify.</p>
+      <div class="code-wrap">
+        <pre class="cmd-code"><span class="accent">/dev:plan</span> <span class="arg">&lt;feature-slug&gt;</span></pre>
+        <button class="copy-btn" data-copy="/dev:plan <feature-slug>">Copy</button>
+      </div>
+      <div class="code-wrap">
+        <pre class="cmd-code"><span class="accent">/dev:plan</span> <span class="arg">features/&lt;slug&gt;</span></pre>
+        <button class="copy-btn" data-copy="/dev:plan features/<slug>">Copy</button>
+      </div>
+      <div class="code-wrap">
+        <pre class="cmd-code"><span class="accent">/dev:plan</span> <span class="arg">FEAT-&lt;AREA&gt;-NN</span></pre>
+        <button class="copy-btn" data-copy="/dev:plan FEAT-<AREA>-NN">Copy</button>
+      </div>
+      <div class="code-wrap">
+        <pre class="cmd-code"><span class="accent">/dev:plan</span> <span class="arg">Feature-N</span>  &nbsp; <span class="flag"># by MC task number</span></pre>
+        <button class="copy-btn" data-copy="/dev:plan Feature-N">Copy</button>
+      </div>
+
+      <div class="args">
+        <div class="args-label">Target selection</div>
+        <div class="arg-row"><div class="arg-key">&lt;feature-slug&gt;</div><div class="arg-desc">Local feature folder name under <code>features/</code></div></div>
+        <div class="arg-row"><div class="arg-key">FEAT-&lt;AREA&gt;-NN</div><div class="arg-desc">Internal feature id</div></div>
+        <div class="arg-row"><div class="arg-key">Task-N &middot; Feature-N &middot; Subtask-N</div><div class="arg-desc">MC task number</div></div>
+        <div class="arg-row"><div class="arg-key">list=&lt;name&gt;</div><div class="arg-desc">Every feature under a specific MC list</div></div>
+        <div class="arg-row"><div class="arg-key">initiative=&lt;name&gt;</div><div class="arg-desc">Every feature tagged with the initiative</div></div>
+        <div class="arg-row"><div class="arg-key">--all</div><div class="arg-desc">Every feature in the workspace</div></div>
+        <div class="arg-row"><div class="arg-key">&nbsp;</div><div class="arg-desc">No target &mdash; picks the next task at status <code>PLANNED</code> from the tracker</div></div>
+      </div>
+
+      <div class="args">
+        <div class="args-label">Behavior flags</div>
+        <div class="arg-row"><div class="arg-key">--split</div><div class="arg-desc">Force multi-repo sub-task decomposition</div></div>
+        <div class="arg-row"><div class="arg-key">--no-split</div><div class="arg-desc">Force parent-alone (single repo) even when multi-repo signals are present</div></div>
+        <div class="arg-row"><div class="arg-key">--resume</div><div class="arg-desc">Fold filled <code>Resolution:</code> fields from <code>dev/plan-blockers.md</code>, re-compose, and re-push</div></div>
+        <div class="arg-row"><div class="arg-key">--dry-run</div><div class="arg-desc">Compose everything locally; do not touch MC</div></div>
+        <div class="arg-row"><div class="arg-key">--concurrency=N</div><div class="arg-desc">Parallelism cap when planning many features at once (default 5)</div></div>
+      </div>
+    </div>
+
+    <h2>Resolve blockers interactively</h2>
+
+    <div class="cmd">
+      <h3>/dev:resolve --plan</h3>
+      <p class="cmd-summary">If <code>/dev:plan</code> lands a task in <code>BLOCKED_ON_PLAN</code>, this walks every open <code>PB-###</code> blocker interactively &mdash; presents options and a recommendation, collects your choice, writes it back, then invokes <code>/dev:plan --resume</code> automatically.</p>
+      <div class="code-wrap">
+        <pre class="cmd-code"><span class="accent">/dev:resolve</span> <span class="flag">--plan</span></pre>
+        <button class="copy-btn" data-copy="/dev:resolve --plan">Copy</button>
+      </div>
+      <div class="code-wrap">
+        <pre class="cmd-code"><span class="accent">/dev:resolve</span> <span class="flag">--plan</span> <span class="arg">&lt;target&gt;</span></pre>
+        <button class="copy-btn" data-copy="/dev:resolve --plan <target>">Copy</button>
+      </div>
+
+      <div class="args">
+        <div class="args-label">Arguments</div>
+        <div class="arg-row"><div class="arg-key">&nbsp;</div><div class="arg-desc">Blank &mdash; picks the one feature with open blockers; asks which if more than one</div></div>
+        <div class="arg-row"><div class="arg-key">&lt;target&gt;</div><div class="arg-desc">Feature slug, folder, MC task number, or FEAT-&lt;AREA&gt;-NN</div></div>
+      </div>
+    </div>
+
+    <h2>Patch a single MC field</h2>
+
+    <div class="cmd">
+      <h3>/jetrix:task-update</h3>
+      <p class="cmd-summary">Surgical patch of one field on an existing Mission Control task &mdash; never re-composes description or implementation, changes exactly what you point at. Use it for status corrections, small metadata edits, or re-syncing after someone changed a field directly in MC.</p>
+      <div class="code-wrap">
+        <pre class="cmd-code"><span class="accent">/jetrix:task-update</span> <span class="arg">--1</span></pre>
+        <button class="copy-btn" data-copy="/jetrix:task-update --1">Copy</button>
+      </div>
+      <div class="code-wrap">
+        <pre class="cmd-code"><span class="accent">/jetrix:task-update</span> <span class="arg">--3</span> <span class="flag">--field</span>=status <span class="flag">--value</span>=<span class="arg">readyForDev</span></pre>
+        <button class="copy-btn" data-copy="/jetrix:task-update --3 --field=status --value=readyForDev">Copy</button>
+      </div>
+      <div class="code-wrap">
+        <pre class="cmd-code"><span class="accent">/jetrix:task-update</span> <span class="arg">--7</span> <span class="flag">--field</span>=description</pre>
+        <button class="copy-btn" data-copy="/jetrix:task-update --7 --field=description">Copy</button>
+      </div>
+
+      <div class="args">
+        <div class="args-label">Arguments</div>
+        <div class="arg-row"><div class="arg-key">--&lt;task-number&gt;</div><div class="arg-desc">MC task number (e.g. <code>--1</code>, <code>--12</code>). Required.</div></div>
+        <div class="arg-row"><div class="arg-key">--field=&lt;name&gt;</div><div class="arg-desc">Field to patch: <code>status</code>, <code>description</code>, <code>implementation</code>, <code>tags</code>, or any custom field. Interactive picker if omitted.</div></div>
+        <div class="arg-row"><div class="arg-key">--value=&lt;value&gt;</div><div class="arg-desc">New value. Interactive prompt if omitted.</div></div>
+      </div>
+    </div>
+
+    <div class="note">
+      <strong>Not a re-plan.</strong> If the description or implementation needs a real re-derivation from the feature folder, re-run <code>/dev:plan &lt;target&gt;</code> instead &mdash; that goes through the 4-stage compose. <code>task-update</code> is for one-field patches only.
+    </div>
+
+    <h2>What lands after /dev:plan runs</h2>
+
+    <ol class="steps">
+      <li>Local <code>implementation.md</code> written per sub-task (8-section stack-agnostic frame &mdash; Build sequence, Impacted components, Operations, Stored data, User-facing surfaces, Touch points, Risks + rollback, Shared contract).</li>
+      <li>Local <code>description.md</code> written per sub-task in user-story format (As a &hellip; I want &hellip; So that &hellip;).</li>
+      <li>Mission Control parent Task + one Sub-task per repo created; every push verified byte-identical via SHA-256 read-back.</li>
+      <li>Local state at <code>PLANNED</code>; MC status at <code>readyForDev</code>.</li>
+      <li>Terminal summary shows every task's clickable MC URL and the read-back token per push.</li>
+    </ol>
+
+    <div class="note">
+      <strong>Next stop &rarr; Build.</strong> Once a task is at <code>PLANNED</code>, run <code>/dev:build &lt;target&gt;</code>. That's the stage where code and tests actually get written &mdash; and it never commits or pushes. Commit and PR happen only in <code>/dev:commit</code>.
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- BUILD -->
+  <section class="panel" id="p-build" role="tabpanel" aria-labelledby="t-build" aria-hidden="true">
+    <div class="panel-lede">
+      <h1><span class="stage-num">Stage 06</span>Write the code &mdash; never the commit</h1>
+      <p class="lede">Takes a task at <code>PLANNED</code> and produces working code + tests on a fresh feature branch. Runs the tests against real services, applies build-time security fixes, flips context units from <code>designed</code> to <code>implemented</code>, and stops. Zero commits, zero stages, zero pushes from this command &mdash; that's <code>/dev:commit</code>.</p>
+    </div>
+
+    <div class="cmd">
+      <h3>/dev:build</h3>
+      <p class="cmd-summary">Run the 11-stage build loop on one sub-task, a whole feature, or a batch. Auto-invokes <code>/qa:setup</code> when a repo has no <code>quality-gates.md</code> yet.</p>
+      <div class="code-wrap">
+        <pre class="cmd-code"><span class="accent">/dev:build</span> <span class="arg">&lt;target&gt;</span></pre>
+        <button class="copy-btn" data-copy="/dev:build <target>">Copy</button>
+      </div>
+      <div class="code-wrap">
+        <pre class="cmd-code"><span class="accent">/dev:build</span> <span class="arg">Subtask-4</span> <span class="flag">--resume</span></pre>
+        <button class="copy-btn" data-copy="/dev:build Subtask-4 --resume">Copy</button>
+      </div>
+      <div class="code-wrap">
+        <pre class="cmd-code"><span class="accent">/dev:build</span> <span class="arg">FEAT-SUP-001</span> <span class="flag">--parallel</span></pre>
+        <button class="copy-btn" data-copy="/dev:build FEAT-SUP-001 --parallel">Copy</button>
+      </div>
+
+      <div class="args">
+        <div class="args-label">Target selection</div>
+        <div class="arg-row"><div class="arg-key">&lt;feature-slug&gt;</div><div class="arg-desc">Runs every sub-task of the feature (sequentially, unless <code>--parallel</code>)</div></div>
+        <div class="arg-row"><div class="arg-key">FEAT-&lt;AREA&gt;-NN</div><div class="arg-desc">Runs every sub-task under the internal feature id</div></div>
+        <div class="arg-row"><div class="arg-key">Task-N &middot; Feature-N &middot; Subtask-N</div><div class="arg-desc">MC task number</div></div>
+        <div class="arg-row"><div class="arg-key">&nbsp;</div><div class="arg-desc">No target &mdash; picks the next sub-task at <code>PLANNED</code></div></div>
+      </div>
+
+      <div class="args">
+        <div class="args-label">Behavior flags</div>
+        <div class="arg-row"><div class="arg-key">--parallel</div><div class="arg-desc">Fan out sub-tasks of a split parent across repos concurrently (each on its own branch)</div></div>
+        <div class="arg-row"><div class="arg-key">--concurrency=N</div><div class="arg-desc">Cap for <code>--parallel</code> (default 3)</div></div>
+        <div class="arg-row"><div class="arg-key">--resume</div><div class="arg-desc">Continue after a halt: skip stages that already have their evidence block in <code>build-run.md</code></div></div>
+        <div class="arg-row"><div class="arg-key">--dry-run</div><div class="arg-desc">Read <code>implementation.md</code>, print the plan of files to touch, but write nothing</div></div>
+      </div>
+    </div>
+
+    <div class="cmd">
+      <h3>/dev:bootstrap</h3>
+      <p class="cmd-summary">Greenfield project-zero scaffold. Delegates to TL to create the initial application (repo skeleton + tooling + green base build + <code>shared-context/</code>). Run once before <code>/dev:build</code> on a brand-new solution.</p>
+      <div class="code-wrap">
+        <pre class="cmd-code"><span class="accent">/dev:bootstrap</span> <span class="arg">&lt;app-name&gt;</span></pre>
+        <button class="copy-btn" data-copy="/dev:bootstrap <app-name>">Copy</button>
+      </div>
+    </div>
+
+    <h2>The 11 stages, in order</h2>
+
+    <ol class="steps">
+      <li><strong>Branch</strong> &mdash; <code>feature/&lt;slug&gt;-&lt;sub&gt;</code> off the configured base, fresh from remote.</li>
+      <li><strong>Harness check</strong> &mdash; if the repo has no <code>qa/quality-gates.md</code>, auto-invoke <code>/qa:setup</code> so tests can actually run.</li>
+      <li><strong>Implement</strong> &mdash; <code>dev-stack-adaptive-implementation</code> reads <code>implementation.md</code>'s 8-section frame + code-context units and writes source, dynamic per detected stack.</li>
+      <li><strong>Write tests</strong> &mdash; unit + integration + E2E per the QA harness contract; mock/tier alignment enforced (mocked tests cannot claim integration or E2E tier).</li>
+      <li><strong>Start external services</strong> &mdash; Postgres, Redis, message broker, etc. brought up via docker-compose; env vars verified before Stage 6.</li>
+      <li><strong>Run tests for real</strong> &mdash; against those live services. Bearer-null and auth-alignment regexes run as hard-fail checks.</li>
+      <li><strong>Acceptance map</strong> &mdash; every AC from <code>feature.md</code> linked to the test that proves it; missing links halt.</li>
+      <li><strong>Security review</strong> &mdash; Critical-only findings at build time (High+Critical is deferred to commit).</li>
+      <li><strong>Auto-fix loop</strong> &mdash; bounded: one compose + one lint + one auto-fix; further failures halt to human.</li>
+      <li><strong>Context flip</strong> &mdash; touched units go <code>origin: designed &rarr; implemented</code>; the three layer indexes rebuild.</li>
+      <li><strong>local-runbook.md</strong> &mdash; how to run the feature locally (env vars, seed data, commands). Working tree ends here, no git write.</li>
+    </ol>
+
+    <div class="note">
+      <strong>No commits, no stages, no pushes.</strong> The working tree at the end has your new files + tests; <code>git status</code> will show them unstaged. That's the correct state &mdash; hand off to <code>/dev:commit</code>.
+    </div>
+
+    <div class="note">
+      <strong>Mock / tier alignment is a hard fail.</strong> Tests marked <code>integration</code> or <code>e2e</code> that patch the database, HTTP client, or auth verifier fail Stage 6 with <code>mock-contradicts-tier</code>. Real backend calls only for those tiers.
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- COMMIT -->
+  <section class="panel" id="p-commit" role="tabpanel" aria-labelledby="t-commit" aria-hidden="true">
+    <div class="panel-lede">
+      <h1><span class="stage-num">Stage 07</span>Review, merge context, commit, push, PR</h1>
+      <p class="lede">Takes a task at <code>BUILT</code> and lands it. Asks which base branch to merge into, pulls it locally, runs the full commit-time review (security + code + acceptance), semantically merges the context graph against that baseline, commits the working tree, pushes the branch, and raises the PR &mdash; falling back through a four-step ladder if <code>gh</code> is unavailable.</p>
+    </div>
+
+    <div class="cmd">
+      <h3>/dev:commit</h3>
+      <p class="cmd-summary">Run the 10-stage commit loop. Every stage records its evidence to <code>commit-run.md</code>; Stage 8 refuses to push unless every prior stage's evidence block is present.</p>
+      <div class="code-wrap">
+        <pre class="cmd-code"><span class="accent">/dev:commit</span> <span class="arg">&lt;target&gt;</span></pre>
+        <button class="copy-btn" data-copy="/dev:commit <target>">Copy</button>
+      </div>
+      <div class="code-wrap">
+        <pre class="cmd-code"><span class="accent">/dev:commit</span> <span class="arg">Subtask-4</span> <span class="flag">--resume</span></pre>
+        <button class="copy-btn" data-copy="/dev:commit Subtask-4 --resume">Copy</button>
+      </div>
+      <div class="code-wrap">
+        <pre class="cmd-code"><span class="accent">/dev:commit</span> <span class="arg">Subtask-4</span> <span class="flag">--structured</span></pre>
+        <button class="copy-btn" data-copy="/dev:commit Subtask-4 --structured">Copy</button>
+      </div>
+
+      <div class="args">
+        <div class="args-label">Behavior flags</div>
+        <div class="arg-row"><div class="arg-key">--resume</div><div class="arg-desc">Skip stages already recorded in <code>commit-run.md</code>; re-enter Stage 7 with resolved conflicts if halted there.</div></div>
+        <div class="arg-row"><div class="arg-key">--structured</div><div class="arg-desc">Multiple commits by concern (source / tests / context / docs). Default is one commit for the whole diff.</div></div>
+        <div class="arg-row"><div class="arg-key">--force-context-merge=ours</div><div class="arg-desc">Emergency only &mdash; every semantic-merge conflict resolves to the feature-branch value; the PR body flags the override.</div></div>
+      </div>
+    </div>
+
+    <div class="cmd">
+      <h3>/dev:fix-review</h3>
+      <p class="cmd-summary">After a reviewer leaves feedback on the PR, fold their comments back through the relevant commit stages &mdash; runs the code fix, re-runs affected tests, re-generates the acceptance map if AC changed, then pushes an update commit.</p>
+      <div class="code-wrap">
+        <pre class="cmd-code"><span class="accent">/dev:fix-review</span> <span class="flag">--pr</span>=<span class="arg">&lt;number&gt;</span></pre>
+        <button class="copy-btn" data-copy="/dev:fix-review --pr=<number>">Copy</button>
+      </div>
+      <div class="code-wrap">
+        <pre class="cmd-code"><span class="accent">/dev:fix-review</span> <span class="flag">--file</span>=<span class="arg">feedback.md</span></pre>
+        <button class="copy-btn" data-copy="/dev:fix-review --file=feedback.md">Copy</button>
+      </div>
+    </div>
+
+    <h2>The 10 stages, in order</h2>
+
+    <ol class="steps">
+      <li><strong>Preconditions</strong> &mdash; local state <code>BUILT</code>, MC <code>agentExecuting</code>, working tree not empty.</li>
+      <li><strong>Base branch prompt + pull</strong> &mdash; interactive picker (main / develop / release/*), then <code>git fetch &lt;remote&gt; &lt;base&gt;:refs/remotes/&lt;remote&gt;/&lt;base&gt;</code>. Records <code>base_remote_sha</code>.</li>
+      <li><strong>Security review</strong> &mdash; Critical + High findings at commit time (build handled Critical-only).</li>
+      <li><strong>Code review</strong> &mdash; 7 dimensions &times; 4 severities via <code>dev-stack-adaptive-code-review</code>.</li>
+      <li><strong>Acceptance re-verify</strong> &mdash; last sub-task also runs a real E2E against the freshly built stack.</li>
+      <li><strong>Bounded fix loop</strong> &mdash; up to 3 rounds; each round re-runs tests. Exhausted &rarr; halt to human.</li>
+      <li><strong>Semantic context merge</strong> &mdash; <code>tl-semantic-context-merge</code> against the pulled baseline. <em>Non-skippable</em>: Stage 8 refuses to push unless the invocation block is written to <code>commit-run.md</code>, even for a zero-change no-op.</li>
+      <li><strong>Gather &amp; commit</strong> (7.5) &mdash; stage the working tree, commit with generated message (or <code>--structured</code> multi-commit split).</li>
+      <li><strong>Push</strong> &mdash; <code>git push -u &lt;remote&gt; &lt;branch&gt;</code>, verify remote SHA matches local.</li>
+      <li><strong>Raise PR</strong> &mdash; four-step fallback ladder (below). MC status flips to <code>devReview</code>.</li>
+    </ol>
+
+    <h2>PR-creation fallback ladder</h2>
+
+    <ol class="steps">
+      <li><code>gh pr create</code> &mdash; happy path when the GitHub CLI is installed and authenticated.</li>
+      <li><code>git credential fill</code> &mdash; if <code>gh</code> is missing but the OS keychain has GitHub credentials, use them against the REST API directly.</li>
+      <li><code>gh auth login --with-token</code> &mdash; prompt with a paste-token flow if the keychain has nothing.</li>
+      <li><strong>Web URL fallback</strong> &mdash; print a <code>https://github.com/&lt;owner&gt;/&lt;repo&gt;/compare/&lt;base&gt;...&lt;branch&gt;</code> URL with title + body pre-filled; you open it and click <em>Create pull request</em>.</li>
+    </ol>
+
+    <div class="note">
+      <strong>Semantic merge is not <code>git merge</code>.</strong> It walks unit-level fields per <code>field-merge-rules.md</code> so, for example, an endpoint's <code>## Auth</code> block from your branch and the same block from the base branch don't line-clobber each other. Conflicts open <code>dev/context-merge-conflicts.md</code> for a checkbox resolution.
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- QA -->
+  <section class="panel" id="p-qa" role="tabpanel" aria-labelledby="t-qa" aria-hidden="true">
+    <div class="panel-lede">
+      <h1><span class="stage-num">Stage 08</span>Own the harness, not the tests</h1>
+      <p class="lede">The QA agent makes a repo <em>testable</em> &mdash; frameworks, config, CI wiring, fixtures, coverage thresholds, E2E scaffold &mdash; and publishes <code>qa/quality-gates.md</code>, the machine-readable contract that <code>/dev:build</code> and <code>/dev:commit</code> read to know what "green" means. It never writes per-feature tests (dev does that on the harness) and never weakens tests to go green.</p>
+    </div>
+
+    <div class="cmd-grid">
+      <div class="cmd">
+        <h3>/qa:audit</h3>
+        <p class="cmd-summary">Read-only assessment of the current harness. Scores unit, integration, E2E, coverage, lint, type-check, CI, fixtures, mocks, and contract-tests. Produces a gap report for human review &mdash; no writes.</p>
+        <div class="code-wrap">
+          <pre class="cmd-code"><span class="accent">/qa:audit</span></pre>
+          <button class="copy-btn" data-copy="/qa:audit">Copy</button>
+        </div>
+        <div class="code-wrap">
+          <pre class="cmd-code"><span class="accent">/qa:audit</span> <span class="arg">&lt;repo-path&gt;</span></pre>
+          <button class="copy-btn" data-copy="/qa:audit <repo-path>">Copy</button>
+        </div>
+      </div>
+
+      <div class="cmd">
+        <h3>/qa:plan</h3>
+        <p class="cmd-summary">Turn approved audit recommendations into a test-setup plan + a draft <code>quality-gates.md</code>. Escalates strategy choices (framework, coverage floor, what counts as E2E-worthy) instead of guessing.</p>
+        <div class="code-wrap">
+          <pre class="cmd-code"><span class="accent">/qa:plan</span></pre>
+          <button class="copy-btn" data-copy="/qa:plan">Copy</button>
+        </div>
+      </div>
+
+      <div class="cmd">
+        <h3>/qa:setup</h3>
+        <p class="cmd-summary">Implement the harness against the approved plan. Bounded implement &rarr; verify loop; every green run stamps <code>quality-gates.md</code>. This is the command that unblocks a repo for <code>/dev:build</code>.</p>
+        <div class="code-wrap">
+          <pre class="cmd-code"><span class="accent">/qa:setup</span></pre>
+          <button class="copy-btn" data-copy="/qa:setup">Copy</button>
+        </div>
+      </div>
+
+      <div class="cmd">
+        <h3>/qa:health</h3>
+        <p class="cmd-summary">Re-check for drift. Re-runs the audit against the current harness, compares to the last stamped gate, and flags regressions (dropped coverage, broken CI, disabled tests, mocked-out integration).</p>
+        <div class="code-wrap">
+          <pre class="cmd-code"><span class="accent">/qa:health</span></pre>
+          <button class="copy-btn" data-copy="/qa:health">Copy</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="note">
+      <strong><code>/dev:build</code> auto-invokes <code>/qa:setup</code></strong> when it hits a repo without <code>quality-gates.md</code>. The two commands chain &mdash; you rarely call <code>/qa:setup</code> by hand outside greenfield.
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div>Delivery OS &middot; command reference &middot; use each tab as a quick lookup while running the flow.</div>
+  <div><a href="https://github.com/Techjays-Build-With-AI/claude-delivery-os">GitHub</a></div>
+</footer>
+
+<script>
+  (function () {
+    // Tabs
+    var tabs = document.querySelectorAll('.tab');
+    var panels = document.querySelectorAll('.panel');
+
+    function activate(id) {
+      tabs.forEach(function (t) {
+        var isActive = t.getAttribute('aria-controls') === id;
+        t.setAttribute('aria-selected', isActive ? 'true' : 'false');
+        if (isActive) t.setAttribute('tabindex', '0');
+        else t.setAttribute('tabindex', '-1');
+      });
+      panels.forEach(function (p) {
+        p.setAttribute('aria-hidden', p.id === id ? 'false' : 'true');
+      });
+      try { localStorage.setItem('dos-active-tab', id); } catch (e) {}
+    }
+
+    tabs.forEach(function (t) {
+      t.addEventListener('click', function () { activate(t.getAttribute('aria-controls')); });
+      t.addEventListener('keydown', function (e) {
+        var arr = Array.prototype.slice.call(tabs);
+        var i = arr.indexOf(t);
+        if (e.key === 'ArrowRight') { arr[(i + 1) % arr.length].focus(); e.preventDefault(); }
+        if (e.key === 'ArrowLeft') { arr[(i - 1 + arr.length) % arr.length].focus(); e.preventDefault(); }
+        if (e.key === 'Home') { arr[0].focus(); e.preventDefault(); }
+        if (e.key === 'End') { arr[arr.length - 1].focus(); e.preventDefault(); }
+        if (e.key === 'Enter' || e.key === ' ') { activate(t.getAttribute('aria-controls')); e.preventDefault(); }
+      });
+    });
+
+    // Restore active tab
+    try {
+      var saved = localStorage.getItem('dos-active-tab');
+      if (saved && document.getElementById(saved)) activate(saved);
+    } catch (e) {}
+
+    // Copy buttons
+    document.querySelectorAll('.copy-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var text = btn.getAttribute('data-copy') || '';
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(text).then(function () {
+            btn.textContent = 'Copied';
+            btn.classList.add('copied');
+            setTimeout(function () { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1400);
+          });
+        }
+      });
+    });
+
+    // Theme toggle
+    var toggle = document.getElementById('theme-toggle');
+    function currentTheme() {
+      var stored = null;
+      try { stored = localStorage.getItem('dos-theme'); } catch (e) {}
+      if (stored === 'dark' || stored === 'light') return stored;
+      return 'system';
+    }
+    function applyTheme(t) {
+      if (t === 'system') document.documentElement.removeAttribute('data-theme');
+      else document.documentElement.setAttribute('data-theme', t);
+      try { localStorage.setItem('dos-theme', t); } catch (e) {}
+    }
+    // Cycle: system -> light -> dark -> system
+    var order = ['system', 'light', 'dark'];
+    toggle.addEventListener('click', function () {
+      var cur = currentTheme();
+      var next = order[(order.indexOf(cur) + 1) % order.length];
+      applyTheme(next);
+    });
+    // Restore
+    var saved = currentTheme();
+    if (saved !== 'system') applyTheme(saved);
+  })();
+</script>
