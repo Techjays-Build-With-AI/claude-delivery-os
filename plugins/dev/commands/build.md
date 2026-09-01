@@ -11,6 +11,8 @@ Read the **`delivery-os-conventions`** skill first if it's not in context — th
 
 **The single invariant:** `/dev:build` runs on a decidable plan or refuses. Never prompts the user mid-run.
 
+**Never commits, never stages, never pushes (v2.3.20 clarified — the git-write boundary belongs to `/dev:commit`).** All source files, test files, and context-unit updates that `/dev:build` produces LAND IN THE WORKING TREE. Never `git add`, never `git commit`, never `git push`, never open a PR — that's the separation of concerns the plugin has always documented, and this is the invariant that enforces it. `/dev:commit` gathers everything from the working tree, structures the commit(s), pushes, and opens the PR after its stricter security + review gates pass. Stage 10 (context-graph update) writes updated units to the working tree without committing them; Stage 11 writes `dev/local-runbook.md` without committing it; all Stages 5-6 code + test writes land in the working tree without commits per §1 build step.
+
 ---
 
 ## 1. Parse arguments
@@ -59,11 +61,48 @@ Rationale: `dev-stack-adaptive-implementation` Rule 13/14 and code-review Dimens
 
 The Stack-Inferred path is the intentional escape hatch for teams that want to plan+build a new feature WITHOUT first backfilling test coverage on an existing codebase. The NEW feature still gets 100% coverage at every applicable tier — the inference just skips the audit-of-existing-code step. Backfill of existing coverage is deferred to a later `/qa:audit → /qa:plan → /qa:setup` run.
 
-## 3. Route to stages 1–11 (serial per task; resume-aware)
+## 3. Route to stages 1–11 (per-task workers; parallel fan-out for split-parent targets; resume-aware)
 
-For the resolved target, spawn ONE build-loop worker per task (parent-alone → 1; sub-task → 1). No cross-task parallelism at build-time — each `/dev:build` targets one task.
+**Target-based routing (v2.3.20 — parallel fan-out for split features):**
 
-Read each stage's reference file and execute verbatim. Stages 1–3 (mount + preflight + branch) are inline in this command file below; Stages 4–11 delegate.
+| Resolved target | Workers | Concurrency |
+|---|---|---|
+| Sub-task ID (`Subtask-N`, `subtask/<repo>` folder, or feature ID + `--subtask=<repo>`) | 1 worker for THIS sub-task | Single |
+| Feature ID / slug / folder of a PARENT-ALONE feature | 1 worker for the parent | Single |
+| Feature ID / slug / folder of a SPLIT feature (has `subtask/<repo>/` children) | ONE worker PER sub-task, FAN OUT in PARALLEL | Bounded by `--concurrency=N` (default: 5) |
+| Blank → next PLANNED from tracker | If next PLANNED is a split-parent, fan out per above; else 1 worker | Same as above |
+
+**Fan-out semantics for split-parent targets:**
+
+- Each sub-task worker is fully independent: its own repo, its own branch (created in Stage 3), its own Stages 1–11, its own `dev/build-run.md` under `features/<slug>/subtask/<repo>/dev/build-run.md`.
+- Workers run in parallel up to `--concurrency=N`. A default of 5 matches the `/dev:plan` batch behavior.
+- Per-worker isolation: one sub-task's Stage 8 failure halts THAT worker only — sibling workers keep running.
+- `--resume` on a split-parent target resumes each sub-task worker independently based on its own `build-run.md`.
+- Sub-task builds are safe to parallelize because the wire contract is locked in §8 Shared contract of every sub-task's plan (Rule 11.3 verbatim inheritance); the frontend tests against a mocked backend that matches §8, not against the running backend.
+
+**Consolidated report after all workers complete (or halt):**
+
+```
+✓ /dev:build <feature-ref> complete — <N> sub-tasks built (or halted)
+
+Per sub-task results:
+  ✓ Subtask-2 (backend)   — 12/12 §1 steps, 273+28 tests green, 0 Critical security
+    ↳ Branch: feature/FEAT-HCAL-01-holiday-calendar-management-backend
+    ↳ MC:     https://mission-control.techjays.com/task/6a95e0a0...   ↳ Local state: IN_PROGRESS
+  ✓ Subtask-3 (frontend)  — 9/9 §1 steps, 148 tests green, 0 Critical security
+    ↳ Branch: feature/FEAT-HCAL-01-holiday-calendar-management-frontend
+    ↳ MC:     https://mission-control.techjays.com/task/6a95e0a1...   ↳ Local state: IN_PROGRESS
+
+Working tree (per repo):
+  · Inhouse-server:   <M> files changed (+624/-12), uncommitted   ← /dev:commit Subtask-2 gathers these
+  · Inhouse-client:   <K> files changed (+412/-8),  uncommitted   ← /dev:commit Subtask-3 gathers these
+
+Next:
+  · /dev:commit Subtask-2   ← runs stricter security + review + gathers Inhouse-server working tree → commits + pushes + PR
+  · /dev:commit Subtask-3   ← same for Inhouse-client
+```
+
+**Per-worker execution:** Read each stage's reference file and execute verbatim. Stages 1–3 (mount + preflight + branch) are inline in this command file below; Stages 4–11 delegate. No stage in any worker calls `git add` / `git commit` / `git push` — the "Never commits, never stages, never pushes" invariant at the top of this file applies uniformly.
 
 ### Stage 1 — Acquire lock + mount context
 

@@ -98,6 +98,41 @@ Read each stage's reference file and execute verbatim. Fix loop is inline routin
 
 **Read** `plugins/dev/commands/references/commit/stage-7-semantic-merge.md` and execute verbatim. Delegates to `tl-semantic-context-merge` skill. Halts cleanly on conflict with `dev/context-merge-conflicts.md` for human resolution.
 
+### Stage 7.5 — Gather working-tree changes + structure commit(s) (v2.3.20 — REQUIRED)
+
+**`/dev:build` writes to the working tree without committing** (per its top-of-file invariant). `/dev:commit` owns the commit boundary. This stage runs BEFORE Stage 8 (push).
+
+**Read** `plugins/dev/commands/references/commit/stage-7-5-gather-and-commit.md` and execute verbatim. Summary of what it does:
+
+1. **Scan the working tree** in the target repo (parent-alone → primary product repo; sub-task → sub-task's repo per `subtask_repo` frontmatter). Enumerate every modified / new / deleted file. Categorize each file:
+   - `src/*` — source code changes (Stages 5-6 output)
+   - `tests/*` — test code changes (Stages 5-6 output)
+   - `context/code-context/*` — context-unit updates (Stage 10 output)
+   - `dev/local-runbook.md` — runbook (Stage 11 output — LOCAL only, NEVER pushed to remote; excluded from commit)
+   - Other — surface as a warning, ask which category (source / test / context / dev-only-do-not-commit)
+
+2. **Structure commit(s) — default: ONE well-formed commit for the whole task's diff.** Message follows the convention:
+
+   ```
+   feat(<domain>): <what shipped in this task, from parent's feature.md Objective, one line>
+
+   Sub-task: <task-ref, e.g. FEAT-HCAL-01-1 backend>
+   §1 Build sequence steps: <N> steps landed
+   Tests: <M> tier(s), <acceptance-map row count> parent AC/BR/TS covered
+
+   Refs: <parent's business-rules that this sub-task enforced, comma-separated>
+   ```
+
+3. **Alternative: `--structured` flag** for multi-commit convention (docs / feat / refactor / test / chore — one per category above). Same author identity, same head-of-branch commit for the PR.
+
+4. **Never commits `dev/local-runbook.md`** — LOCAL developer artefact only.
+
+5. **Never commits secrets** — final `grep` for `.env*`, `*credentials*`, `*secret*`, `*token*`, `*.pem`, `*.key` file patterns; if any found in the stage-worthy set, HALT with `blocker: secrets-in-staged-set` — do NOT auto-add to a gitignore, halt for human review.
+
+6. **Commit stays on branch** — do NOT rebase, do NOT push in this stage. Stage 8 pushes.
+
+If the working tree has nothing to commit (someone already committed manually mid-flow) → skip this stage cleanly, log to `dev/<repo>-commit-run.md`, continue to Stage 8.
+
 ### Stage 8 — Push the branch
 
 **Read** `plugins/dev/commands/references/commit/stage-8-9-push-pr.md` §Stage 8 and execute verbatim.

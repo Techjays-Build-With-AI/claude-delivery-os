@@ -110,30 +110,18 @@ Do NOT try to preview the merge here — just write to HEAD; commit later.
 
 ---
 
-### 10g. Stage the updates (git add, no commit yet)
+### 10g. Leave the updates in the working tree — NO staging, NO commit (v2.3.20)
 
-Run in the target repo:
+**Per the top-of-file invariant in `build.md`, /dev:build never runs `git add`, `git commit`, or `git push`. Stage 10's context-unit updates land in the working tree and stay there until `/dev:commit` gathers them.**
 
-```bash
-cd <target-repo>
-git add "context/code-context/"
-```
+The updates ARE part of what `/dev:commit` will gather:
+- Source + test code from Stages 5-6 (working tree, uncommitted)
+- Context-unit updates from Stage 10 (working tree, uncommitted)
+- Any local-runbook.md written by Stage 11 (working tree, uncommitted)
 
-The updates become part of the branch's next commit. `/dev:build` doesn't commit — that's `/dev:commit`'s Stage 8. If Stage 11's summary generation needs the git state clean, this staging keeps the working tree tidy while leaving the commit itself for the developer to make (or for `/dev:commit` to make en-masse).
+`/dev:commit`'s Stage N gather-working-tree step collects ALL of this and structures the commit(s) per the user's preference (default: one well-formed commit; `--structured`: multiple by convention). The developer sees ONE clean commit history from `/dev:commit`, not a scatter of per-stage commits from `/dev:build`.
 
-Alternatively, wait for Stage 11 to commit code + context together as one commit `chore: update code-context units to implemented`. Ship a single well-formed commit rather than a partial staging.
-
-Recommendation: **commit here, one commit per Stage-10 run**, with a fixed message:
-
-```
-chore(context): mark 3 units implemented for FEAT-SUP-001-1
-
-- backend/domains/supplier/endpoints/create.md — implemented @ src/routes/supplier.ts:42
-- backend/domains/supplier/endpoints/duplicate-check.md — implemented @ src/routes/supplier.ts:78
-- database/tables/supplier.md — implemented @ src/db/migrations/20260831142400_add_supplier_table.ts
-```
-
-One clean commit; easy to see in the branch.
+Under NO circumstances does Stage 10 shell out to git. If the codebase you're mapping REQUIRES a specific staging pattern (e.g. some monorepo tools that scan git index), escalate as `dev/escalation-<n>.md` — don't unilaterally add git operations to Stage 10.
 
 ---
 
@@ -177,6 +165,6 @@ If new commits were added to the branch between the last Stage 10 run and the re
 ### Skills / agents invoked
 
 - Direct file writes to `<repo>/context/code-context/` — no subagent
-- Shell for `git add` + `git commit` if using single-commit-per-stage strategy (§10g)
+- No shell to git (v2.3.20). Stage 10 does NOT stage, does NOT commit. See §10g and the top-of-file invariant in `build.md`.
 
 Never invoke `tl-semantic-context-merge` from Stage 10 — that's `/dev:commit` Stage 7. Never invoke `tl-code-map` — that's user-driven brownfield reverse-map.
