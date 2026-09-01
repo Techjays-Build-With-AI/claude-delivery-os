@@ -8,11 +8,38 @@
 
 ---
 
-### 7a. Preconditions
+### 7a. Preconditions (v2.3.25 — base branch on disk is now REQUIRED)
 
 - Stages 3–5 clean
 - `dev/build-run.md` Stage 10 has `context_units_updated: [<paths>]` list
 - Access to the context-mcp `context_pull_manifest` tool for `env='main'`
+- **`commit-run.md` `stage-2.base_pulled_at` is set** (v2.3.25 — base branch was pulled locally in Stage 2). Without the base on disk, this stage cannot merge against a real baseline — it would either hallucinate a diff OR (as seen in real runs) rationalize itself into a no-op. Missing → HALT with `blocker: base-branch-not-pulled-for-merge`.
+- **`commit-run.md` `stage-2.base_remote_sha` matches `git rev-parse <remote>/<base>` right now** — if the remote has moved since Stage 2 ran, someone else pushed to base while this commit ran; re-fetch and re-run Stage 2 before proceeding.
+
+### 7a.i. Non-skippable execution (v2.3.25 — closes the "reasoned it would be a no-op" gap)
+
+**This stage MUST invoke `tl-semantic-context-merge` via the Skill tool. Internal reasoning that "it would be a no-op" is NOT sufficient evidence of execution — the skill's own invocation log is the evidence. Skip = spec violation.**
+
+Every `/dev:commit` run — even trivial ones with zero context-unit changes — invokes the skill and records the invocation in `commit-run.md`. Zero-change results are LEGITIMATE outcomes; skipping the invocation IS NOT.
+
+Recording format (Stage 8's precondition §8a checks this):
+
+```yaml
+stage-7:
+  status: DONE
+  tl_semantic_context_merge_invocation:
+    invoked_at: <ISO>                              # required — presence proves invocation
+    subagent_id: <id from Skill tool response>     # required — proves a real skill call happened, not a mental reasoning
+    base_ref: <remote>/<base>@<sha>                # required — must match stage-2.base_remote_sha
+    input_units_scanned: <count>                    # this branch's units the merge considered
+    baseline_units_scanned: <count>                 # base branch's units the merge considered
+    merged_units: <count>                           # units the merge wrote (may be zero for no-op)
+    conflicts: <count>                              # units flagged for human resolution
+    conflict_file: dev/context-merge-conflicts.md   # or null if no conflicts
+  merged_at: <ISO>
+```
+
+If Stage 7 completes without this block being written → Stage 8 refuses to push (see stage-8-9-push-pr.md §8a). No workaround. No "I checked internally, it's fine" bypass.
 
 ---
 

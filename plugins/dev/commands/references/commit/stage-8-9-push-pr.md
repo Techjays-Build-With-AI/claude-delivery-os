@@ -10,11 +10,17 @@ Two closely-coupled stages. Combined in one reference file because their state t
 
 ## Stage 8 — Push the branch
 
-### 8a. Preconditions
+### 8a. Preconditions (v2.3.25 — HARD gates that refuse push if any is missing)
 
-- Stage 7 committed the semantic-merge changes locally
-- Branch has no uncommitted changes (`git status --porcelain` empty)
-- `.jetrix/project.json` has the target repo's remote name (default `origin`)
+- **Stage 2 base-branch confirmed by user** — check `commit-run.md` `stage-2.base_confirmed_by_user: true`; missing → HALT with `blocker: stage-2-base-not-confirmed` (user must re-run so the branch prompt fires)
+- **Stage 2 base pulled locally** — check `commit-run.md` `stage-2.base_pulled_at` timestamp exists; missing → HALT with `blocker: base-branch-not-pulled` (Stage 7 can't merge against a base that isn't on disk)
+- **Stage 7 semantic-merge INVOKED** — check `commit-run.md` `stage-7.tl_semantic_context_merge_invocation.invoked_at` is set with a real subagent_id; MISSING or NULL → HALT with `blocker: stage-7-not-executed` (this is the user-reported gap: agent skipped Stage 7 by "reasoning it was a no-op"; the skill invocation is the ONLY evidence of execution)
+- **Stage 7 merged base matches Stage 2 base** — check `stage-7.tl_semantic_context_merge_invocation.base_ref` sha matches `stage-2.base_remote_sha`; mismatch → HALT with `blocker: stage-7-merged-against-wrong-base` (means Stage 7 pulled its own base separately from Stage 2's; not allowed)
+- **Stage 7.5 commits landed** — check `stage-7-5.commits_made` list is non-empty (or `stage-7-5.status: SKIPPED` with reason `working tree has no source/test/context uncommitted changes`)
+- **Working tree clean** — `git status --porcelain` shows only allowed `dev-local` / `workspace-local` files (see Stage 7.5 §7.5b categorization)
+- **`.jetrix/project.json`** has the target repo's remote name (default `origin`)
+
+Any halt at 8a means the developer needs to re-run `/dev:commit --resume <task-ref>` — the missing stage will re-run from where the trace shows the gap.
 
 ### 8b. Push
 
