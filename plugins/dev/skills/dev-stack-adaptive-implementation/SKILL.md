@@ -69,7 +69,56 @@ For each ordered step in `implementation.md`:
 
 **Rule 1 — Read before writing.** Never write a file before running Phase 2's pattern inference on the target repo. A "how it should look" template is a failed run.
 
-**Rule 2 — Reuse over parallel abstraction.** If the repo has a `UserRepository`, do not introduce a `SupplierRepositoryV2` alongside — extend the pattern, don't parallel it. If reuse would break the change, escalate as a scope issue, don't create the parallel.
+**Rule 2 — Reuse over parallel abstraction. Includes AUTH PATTERN reuse (v2.3.24).** If the repo has a `UserRepository`, do not introduce a `SupplierRepositoryV2` alongside — extend the pattern, don't parallel it. If reuse would break the change, escalate as a scope issue, don't create the parallel.
+
+**Rule 2a — Auth-pattern alignment check (v2.3.24 — closes the Bearer null bug at write time).**
+
+Before writing any code that makes a request to a gated endpoint (backend service call, or frontend/mobile API call), do the following alignment check — MECHANICALLY, not from memory:
+
+1. Look up the endpoint in the TL code-context tree: `<repo>/context/code-context/backend/domains/<domain>/endpoints/<slug>.md`.
+2. Read its `## Auth` section. Extract the `Client obtains via` code snippet + `Header format` string. These are the ONLY correct values for what the code you're about to write should emit.
+3. When writing the request code, USE those values verbatim. Do NOT:
+   - Substitute `localStorage.getItem(<key>)` if `Client obtains via` says `await auth.currentUser.getIdToken()`
+   - Substitute a generic `"Bearer " + token` if `Header format` says `Authorization: Bearer <id-token>` where `<id-token>` is a specific credential class
+   - Copy an auth pattern from a SIBLING file in the same repo that turns out to use a different mechanism — the endpoint's `## Auth` is the authority, not sibling code
+4. If the endpoint's `## Auth` section is FREE-PROSE (unstructured) → **halt with `blocker: endpoint-auth-not-structured`**. The compose that produced the plan should have halted first via Rule 11.3 §8; if we're here, /tl:code-map needs re-running against the endpoint's source to produce structured `## Auth`.
+5. If the `## Auth` `Server prerequisites` list env vars, those get flagged into `dev/local-runbook.md` §3 by Stage 11.
+
+**Concrete example — the exact bug from the user's real run:**
+
+Endpoint `/api/register` unit's `## Auth`:
+```
+- Token type: Firebase ID token
+- Client obtains via: await firebase.auth().currentUser.getIdToken()
+- Header format: Authorization: Bearer <id-token>
+```
+
+Correct client code (v2.3.24 — Rule 2a passes):
+```javascript
+const idToken = await firebase.auth().currentUser.getIdToken();
+const response = await axios.post(`${BASE_URL}/api/register`, {}, {
+  headers: { Authorization: `Bearer ${idToken}` }
+});
+```
+
+Incorrect client code (v2.3.24 — Rule 2a HALTS):
+```javascript
+// BAD: doesn't call getIdToken(); reads a stale localStorage value that's
+// been unset since the backend was hardened at commit 89b37c7
+const response = await axios.post(`${BASE_URL}/api/register`, { email: userEmail });
+// (missing headers entirely — halt)
+```
+
+or
+
+```javascript
+// BAD: sends "Bearer null" when localStorage is empty
+const token = localStorage.getItem('jwtToken');
+const response = await axios.post(url, {}, {
+  headers: { Authorization: `Bearer ${token}` }
+});
+// (client acquisition doesn't match endpoint's `## Auth` `Client obtains via` — halt)
+```
 
 **Rule 3 — Match error handling.** If the repo throws custom errors, throw one. If it returns `Result<T, E>`, return one. Never introduce a second error paradigm alongside the existing one.
 
@@ -205,6 +254,12 @@ For every function or block about to be written:
 6. **Magic value check.** Any numeric or string literal outside the neutral small set (`0`, `1`, `-1`, `""`, `null`, `true`, `false`) goes into a named constant per `§9`. Do not inline a threshold, a URL, a timeout value.
 7. **Anti-pattern check.** Before finalizing a function/class/file, sanity-check against `§12`'s forbidden list — god unit doing multiple unrelated concerns, wrapper with one caller, silent catch, comment-code mismatch, dead code. If a hit, restructure BEFORE writing.
 8. **State & side-effect check.** External IO, time, randomness, config reads go through the injection mechanism `§10` names. Do not hardcode.
+
+9. **Auth-header null-guard check (v2.3.24 — closes the Bearer null bug).** Scan every emitted line that constructs an `Authorization` header. Detect the anti-pattern where an interpolated value could be `null` / `undefined` / empty at runtime:
+   - Regex on the emitted string: `Authorization.*Bearer\s*[\+\`\$][^;]*(localStorage\.getItem|sessionStorage\.getItem|cookies\.get|process\.env|getenv|.getVal|.getValue|.currentUser|.user|.token)`
+   - For each match, verify the emitted code has a null-guard IMMEDIATELY around the acquisition (either `if (!token) throw ...` or `const token = <acquire>(); if (!token) return; ...` OR the acquisition is `await`ed on a promise that throws on absence per the auth library's contract).
+   - If NO null-guard is present → HALT. The specific failure mode this catches: the value is `null` at runtime, the emitted code sends `Authorization: Bearer null`, the server's bearer-prefix check passes, `jwt.verify` fails, the user sees "session expired" when they were never signed in.
+   - This is a Rule 12 anti-pattern (silent null-swallowing) applied specifically to auth headers because it's the highest-blast-radius instance of it.
 
 If a limit CANNOT be met without a real architectural change (splitting the sub-task, altering the plan, adding an abstraction not in implementation.md's `§6 Touch points`), escalate as `dev/escalation-<n>.md` — do NOT write past-limit code and add a `TODO: refactor later` comment. Past-limit code accepted at write time becomes review debt, then production debt.
 

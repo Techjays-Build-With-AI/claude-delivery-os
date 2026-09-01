@@ -758,6 +758,20 @@ Boring decisions (no pagination / no rate limit / no permission model / no optim
 `§8 Shared contract` contents (fixed shape; all mandatory when the feature is split; parent-alone gets whatever subset applies). Every row describes the WIRE / CONTRACT / CONVENTION at the interface — never a framework field path or code extraction (see Rule 11.3a below):
 
 - **How the caller is identified.** The credential the wire carries (bearer token, cookie, signed header, mTLS cert, session cookie, service-account key), where the caller reads it from (session store, keychain, env var, secret manager), and what identity the receiver EXPOSES to its own code — described as the abstract identity (the identity of the calling user / calling service), not the exact server-side accessor.
+
+  **v2.3.24 — this row is FILLED VERBATIM from the endpoint units' `## Auth` structured fields, NEVER paraphrased or invented.** Procedure:
+  1. For every endpoint referenced in this sub-task's §3 Operations (whether owned or consumed), read the endpoint unit file's `## Auth` section from the TL code-context tree.
+  2. If ANY endpoint's `## Auth` is free-prose (like `"Requires a valid JWT"`) instead of the structured fields defined in `tl-code-map/references/code-context-templates.md` (Token type / Verified by / Client obtains via / Header format / Server extracts / Failure responses / Server prerequisites) → **HALT** the compose with `blocker: endpoint-auth-not-structured` naming which endpoint unit needs re-mapping. The compose does NOT invent an auth pattern from thin air.
+  3. If every referenced endpoint has structured `## Auth`, VERIFY they all use the SAME `Token type` + `Client obtains via` (a sub-task can't sensibly consume two different auth mechanisms in one shared contract). If they differ → HALT with `blocker: auth-pattern-inconsistent` naming which endpoints diverge.
+  4. Compose §8's "How the caller is identified" row by copying VERBATIM from the endpoint unit's `## Auth`:
+     - The `Token type` string
+     - The `Client obtains via` code snippet (exact — this is what the frontend must call)
+     - The `Header format` string
+     - The `Server extracts from token` list
+  5. Also compose §8's "Global session-expiry behaviour" row from the endpoint unit's `## Auth` `Failure responses` list — pick the branch that covers expiry/invalid-token.
+  6. Also compose §8's server-prerequisite awareness — if the endpoint's `## Auth` `Server prerequisites` lists env vars like `FIREBASE_SERVICE_ACCOUNT`, those flow into `§2 Impacted components` "Integrations" row as external config the deploy must set.
+
+  **The frontend implementation.md §5 service layer then inherits the exact `Client obtains via` code snippet from §8 verbatim.** No generic Bearer flow. No `localStorage.getItem('jwtToken')` unless the endpoint's `## Auth` `Client obtains via` explicitly says so.
 - **Shape of one record.** How a single record travels on the wire — bare object vs wrapped, id encoding, whether nulls are omitted or explicit.
 - **Shape of a list (or collection).** How a collection travels on the wire — array-under-key vs bare array, empty representation, envelope key name, whether pagination fields ride here.
 - **How a caller knows an operation failed.** The abstract distinction between success and refusal at the wire — success shape ≠ refusal shape / discriminated union tag / status field / etc. Named as the CONDITION the caller checks, not the code path in a specific framework's helper.

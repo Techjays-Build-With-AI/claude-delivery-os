@@ -238,3 +238,116 @@ Run `tl-feature-planning`'s link-integrity check, plus these map-specific ones:
 - Objects not referenced by any endpoint or object — flag as possible orphan/reference data.
 - Any link below `Likely` confidence — surfaced so a human (or a later spec review) can verify.
 - **No secrets, credentials, connection strings or customer data anywhere in the tree** — it is about to be committed.
+
+---
+
+## Auth-pattern extraction (v2.3.24 — stack-agnostic 6-step procedure)
+
+**Purpose.** The endpoint unit's `## Auth` section is READ VERBATIM by `tl-feature-compose` at §8 Shared contract composition and by `dev-stack-adaptive-implementation` at client-side write time. If this section contains generic prose ("requires a valid JWT"), the downstream compose halts and the resulting frontend code hardcodes a generic Bearer flow that doesn't match the actual server middleware. This procedure produces the STRUCTURED shape the template requires — regardless of stack.
+
+**The DATA MODEL is universal** (see the endpoint template's `## Auth` section for the exact fields). **The EXTRACTION PROCEDURE below finds those fields dynamically per detected stack.** No stack-specific logic in the procedure itself — the stack determines WHAT is found, not HOW the search happens.
+
+### The 6 steps (apply to every endpoint during Pass B)
+
+**Step 1 — Find the middleware chain in the endpoint's handler registration.**
+
+Every stack has one. Look for whichever of these applies:
+- Express / Fastify / Koa (JS/TS): `router.<method>(path, mw1, mw2, ..., handler)`
+- FastAPI (Python): `Depends(mw)` in the route signature
+- Django DRF: `@authentication_classes([...])` / `@permission_classes([...])` decorators
+- Django views: `dispatch()` method + `@method_decorator` or `MIDDLEWARE` in settings
+- Spring Boot (Java): `@PreAuthorize`, `@Secured`, `HandlerInterceptor` order
+- ASP.NET Core: `[Authorize]` attributes + `services.AddAuthentication()` scheme
+- Rails: `before_action` filters
+- Axum / Actix / Rocket (Rust): `.layer(tower_http::auth::...)` / `.wrap(HttpAuthentication::...)` / route guards
+- Go: `mux.Use(mw)` / `mw(handler)` wrappers in the composition point
+- Laravel: `middleware(['auth:api'])` in the route
+
+Extract the ordered list of middlewares. Auth middleware is almost always FIRST or FIRST-AFTER-BODY-PARSING.
+
+**Step 2 — Identify the auth middleware by import + name signal.**
+
+Read the middleware function's own file. Its imports reveal the AUTH LIBRARY. Cross-reference against `references/auth-library-registry.md` — that file lists known libraries and how to detect + extract from each. If the library isn't in the registry, add a new entry (extending it is the point).
+
+Common name signals: `verifyAuth`, `requireAuth`, `authenticate`, `authorize`, `checkToken`, `firebase*`, `jwt*`, `session*`, `passport*`, `Devise*`, `spring-security*`, `next-auth*`, etc.
+
+**Step 3 — Follow the middleware to its verification function; extract the token type.**
+
+Open the file where the auth middleware is defined. Look at the imports at the top. Match against `auth-library-registry.md`. The registry entry names the `token_type` (`Firebase ID token` / `Opaque JWT` / `OAuth2 Password Bearer` / `Session cookie` / etc.) — copy verbatim into the endpoint's `## Auth` `Token type` field.
+
+**Step 4 — Extract the CLIENT ACQUISITION pattern.**
+
+For each consuming repo (identified via `code-map-registry.md`), grep the consumer repo for the library's client-side counterpart, as declared in the registry entry's `client_acquisition_pattern` field:
+- Firebase → grep for `getIdToken()` / `signInWith*()` in `<repo>/src/` — find the actual pattern in use
+- next-auth → grep for `useSession()`, `getSession()`, `signIn()`
+- Passport local → grep for the login endpoint call
+- OAuth2 → grep for `authorization_endpoint` redirects or `token_endpoint` calls
+
+If a consumer repo has NO client-side counterpart (the endpoint is called but the auth acquisition is missing OR uses a different mechanism), that's a MISMATCH — log as an open question at map time, before it becomes a runtime 401.
+
+Copy the ACTUAL client acquisition code into the endpoint's `## Auth` `Client obtains via` field.
+
+**Step 5 — Extract SERVER EXTRACTS from the verification function's post-verification code.**
+
+In the auth middleware's implementation, after `verify()` returns, look for what gets set on the request context:
+- Express: `req.user = ...`
+- Koa: `ctx.state.user = ...`
+- FastAPI: `return current_user` from the dependency
+- Django: `request.user = ...` (usually via authentication class)
+- Spring: `SecurityContextHolder.getContext().setAuthentication(...)`
+
+Record each field set + its source (which token claim it came from). Copy into `Server extracts from token`.
+
+**Step 6 — Extract FAILURE RESPONSES + SERVER PREREQUISITES.**
+
+- **Failure responses:** scan the auth middleware's error branches. Every path that returns/throws a response captures: which failure condition, what status, what code/message. Copy every distinct branch into `Failure responses`.
+- **Server prerequisites — env vars:** scan the auth middleware AND the verification library's init code for `process.env.<X>` / `os.environ["<X>"]` / `System.getenv("<X>")` / equivalent. Every env var accessed is a prerequisite.
+- **Server prerequisites — services:** the auth library's init code often loads external configuration (a Firebase app, a Redis session store, a database session table). Record each as `<Service> initialized at startup from <mechanism>`.
+
+Copy all three sub-fields into the endpoint's `## Auth` `Server prerequisites` and `Failure responses` sections.
+
+### What triggers `Needs Clarification`
+
+- Consumer repo has NO client-side counterpart for the detected auth library → auth pattern mismatch, likely a runtime 401 waiting to happen
+- Multiple different auth libraries in different endpoints of the same repo → document each per endpoint; if the pattern is inconsistent within a domain, log as an open question
+- The library isn't in `references/auth-library-registry.md` → extend the registry; log a DEC-### recording the new entry
+
+### What NEVER goes into the endpoint's `## Auth` section
+
+- Free-prose sentences ("Requires a valid JWT") — Rule 11.3 §8 in tl-feature-compose halts on this
+- Guesses ("probably uses passport") — mark Assumed with a citation OR log as open question
+- Hardcoded values invented by the LLM — every field must trace to a specific file:line in the source
+
+---
+
+## Config-prerequisite extraction (v2.3.24)
+
+**Purpose.** The endpoint unit's `## Config prerequisites` section is READ BY:
+- `dev-stack-adaptive-implementation` Rule 7.v to pre-verify env vars before Stage 7's integration tests start the backend
+- Stage 11 (local-runbook §3) to populate the developer-facing setup guide
+
+Without this section, the "backend won't start because `FIREBASE_SERVICE_ACCOUNT` is missing" failure only surfaces when the developer runs the feature locally — which is exactly the class of bug v2.3.23 was written to catch.
+
+### Procedure (stack-agnostic)
+
+For each endpoint, walk the handler + every middleware in the chain (from Step 1 above). In each file:
+
+1. **Env vars.** Grep for the language's env-access pattern:
+   - JavaScript/TypeScript: `process.env.<NAME>`
+   - Python: `os.environ["<NAME>"]`, `os.getenv("<NAME>")`, `settings.<NAME>` (Django), `config.<NAME>` (FastAPI-common)
+   - Java: `System.getenv("<NAME>")`, `@Value("${<NAME>}")` (Spring), `ConfigProperty` (Quarkus)
+   - .NET: `Configuration["<NAME>"]`, `Environment.GetEnvironmentVariable("<NAME>")`
+   - Go: `os.Getenv("<NAME>")`
+   - Rust: `std::env::var("<NAME>")`
+   - Ruby: `ENV["<NAME>"]`
+   Each unique env var accessed → one row.
+
+2. **Optional vs required.** If the code accesses the var with a default fallback (`?? "..."`, `os.getenv("<X>", default)`, `configuration.GetValue("X", "default")`, `env::var("X").unwrap_or("...")`), it's optional. Else required.
+
+3. **Failure mode per required var.** If var is missing, what happens? Grep for the init code — does it throw? Return an error response? Return null and cascade to a 401?
+
+4. **External service dependencies.** Look for library initialization calls in the middleware chain — `initializeApp()` (Firebase), `createConnection()` (ORMs), `new Client({...})` (HTTP clients), Redis / Memcached connections, message-queue connections. Each is a service the endpoint needs reachable.
+
+### Cross-reference with `.env.example`
+
+If the repo has a `.env.example` file, cross-reference every extracted required var. Var in code but missing from `.env.example` → log a `code-map-warning` (undocumented dependency). Var in `.env.example` but never accessed in any endpoint's chain → also warn (dead documented var).
