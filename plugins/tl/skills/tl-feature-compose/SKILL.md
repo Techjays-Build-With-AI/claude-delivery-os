@@ -423,6 +423,84 @@ If HALT findings exist, the block instead reports:
 
 **Rule 0c — Compose runs the lint pass INLINE with the compose LLM call, not as a separate subagent invocation.** Same context, same pass. No fan-out to a "verifier" subagent that adds token overhead. The compose call's system prompt includes the lint checklist; the compose emits `<lint-findings>` after the draft.
 
+**Rule 0c.i — MANDATORY POST-COMPOSE, PRE-WRITE MECHANICAL FIX PASS (v2.3.21 — CLOSES THE "rules exist but aren't executing" BUG).**
+
+The compose LLM's output is TREATED AS UNRELIABLE for mechanical format. Rules 0a/0d/11.5 describe the CONTRACT; the mechanical fix pass ENFORCES it. Without this step, the compose LLM sometimes emits pipe-run-on tables, unfenced mermaid, or missing blank-lines — and the "auto-fix" described in Rule 0a becomes hopeful text nobody executes.
+
+**The fix pass is an EXPLICIT tool-call sequence, not a mental note. The `tl-feature-compose` skill MUST run this sequence between the LLM's draft emit and the `Write` call:**
+
+1. **Capture the draft as a string in memory** — do NOT `Write` it yet.
+2. **Run the deterministic transformations below IN ORDER**, applying each to the string:
+
+   ```pseudocode
+   text = compose_llm_output
+
+   # Transform 1: table row-per-line — the exact bug from user screenshots
+   # Pattern: a physical line containing 2+ pipe-runs looking like `| … | | \d+ | …`
+   # or `|---|---|---| \| \d+ \|` — split at row boundaries.
+   text = split_table_rows(text)   # regex + newline insertion; see reference implementation below
+
+   # Transform 2: header-separator missing
+   # Pattern: pipe-header line followed by a pipe-data line, no `|---|` between them
+   text = insert_header_separator(text)
+
+   # Transform 3: blank line before/after every table, code fence, mermaid, heading
+   text = ensure_blank_line_surrounds(text, patterns=["|", "```", "```mermaid", "##"])
+
+   # Transform 4: mermaid fence needs language tag
+   # Pattern: ``` on its own line followed by `flowchart|graph|sequenceDiagram|stateDiagram|classDiagram|…`
+   text = tag_bare_mermaid_fences(text)
+
+   # Transform 5: retired-concept string removal (auto-fixable halts from Rule 0a)
+   text = strip_retired_headings(text, retired=[
+       "## 7. Coverage", "**Coverage.**",
+       "**Assumptions.**", "## Assumptions",
+       "Deferred to E2E", "| Deferred |",
+       "# FEAT-",
+   ])
+   ```
+
+3. **Re-scan the transformed string** for HALT-only conditions (payload > 60 000 chars, unclosed code fence, framework field path in §8). Any HALT → report + do NOT `Write`.
+4. **VERIFY by re-parsing:** attempt to parse the transformed string with the same GFM parser MC uses (or a mental equivalent — scan for any remaining `| \d+ |` run on the same line as a header separator; scan for any `| …` line where the preceding non-empty line is a `|` line but not a separator). Any remaining issue → auto-fix again OR HALT if the fix doesn't converge in ONE additional pass.
+5. **ONLY NOW call `Write`** with the transformed string.
+6. **AFTER `Write`:** call `Read` on the just-written file, compute SHA-256 of the read-back vs the transformed string. Match → proceed. Mismatch → HALT with `blocker: write-tool-mangled-output` — a rare filesystem or line-ending corruption case.
+
+**Reference implementation of the pipe-run-on split (Transform 1) — the compose LLM subagent is instructed to apply this exact regex logic:**
+
+```python
+import re
+
+def split_table_rows(text: str) -> str:
+    lines = text.split("\n")
+    out = []
+    for line in lines:
+        # Detect: line contains 2+ occurrences of "| \d+ |" cell boundaries
+        # OR contains a table-separator pattern followed by " | \d+ |"
+        if re.search(r"\|---.*\|.*\| \d+ \|", line) or len(re.findall(r"\| \d+ \|", line)) >= 2:
+            # Attempt split at "|---|" boundary first (separator run into data row)
+            if "|---" in line:
+                # Split before the first data cell after the separator
+                separator_match = re.search(r"(\|(?:---\|)+)(\s*)(\| .*)", line)
+                if separator_match:
+                    out.append(separator_match.group(1))
+                    # Then split the remaining data cells
+                    remaining = separator_match.group(3)
+                    for row in re.split(r"(?<=\|)\s*(?=\| \d+ \|)", remaining):
+                        out.append(row.strip())
+                    continue
+            # Otherwise split at "| \d+ |" data-row boundaries
+            rows = re.split(r"(?<=\|)\s*(?=\| \d+ \|)", line)
+            for row in rows:
+                out.append(row.strip())
+        else:
+            out.append(line)
+    return "\n".join(out)
+```
+
+The `tl-feature-compose` skill's execution instructions MUST include this exact function (or an equivalent it can execute) — this is not a suggestion, it's a mandatory pre-`Write` step.
+
+**Failure to run Rule 0c.i's mechanical fix pass makes v2.3.17.1 Rule 0a/0d/11.5 all cosmetic documentation. Do not skip.**
+
 **Rule 0d — MC rendering contract (v2.3.17 — MUST be included verbatim in the compose LLM's system prompt).**
 
 MC's Task detail view renders `implementationDetails` with `react-markdown v9 + remark-gfm v4 + mermaid v11.6`. Confirmed by reading `BuildWithAIPortal_UI/package.json` and `src/components/Chat/BaDiagnosisPhase.tsx` (mermaid intercept on `className === 'language-mermaid'`). The compose MUST emit markdown that this exact toolchain renders correctly. Non-negotiable format rules:
@@ -1026,8 +1104,24 @@ If either precondition fails, REFUSE to compose. Return a `stage_4_precondition_
 
 Rule 2's "no framework names" applies here too, more strictly. See §"Compose modes" > "Mode: description" for the 6-section structure + example.
 
-### 7. Write the file + update inputs_hash
+### 7. **Mechanical fix pass (Rule 0c.i) — MUST run before Write** (v2.3.21 — CRITICAL, do not skip)
+
+BEFORE calling `Write`, run the deterministic transformations from **Rule 0c.i** on the compose LLM's draft output string:
+
+1. `split_table_rows(text)` — split pipe-run-on lines at row boundaries; insert `\n` between rows
+2. `insert_header_separator(text)` — insert `|---|---|…|` between header and body if missing
+3. `ensure_blank_line_surrounds(text, ["|", "```", "```mermaid", "##"])` — insert `\n\n` around every table, code fence, mermaid block, heading if missing
+4. `tag_bare_mermaid_fences(text)` — insert `mermaid` after ` ``` ` if followed by `flowchart|graph|sequenceDiagram|…`
+5. `strip_retired_headings(text)` — remove `## 7. Coverage`, `**Assumptions.**`, `Deferred to E2E`, `# FEAT-`, etc.
+
+After transformations, **RE-SCAN** the transformed string for HALT-only conditions (payload > 60 000 chars, unclosed code fence, framework field paths in §8, mis-aligned column counts after auto-fix). Any HALT → report + do NOT `Write`.
+
+**This step is mandatory. The compose LLM's output is not treated as reliable for mechanical format** — see Rule 0c.i for the exact reference implementation the tl-feature-compose skill invokes.
+
+### 8. Write the file + update inputs_hash + read-back verify
 Write to the mode-appropriate output path with the mode-appropriate frontmatter (see the two frontmatter shapes at the top of the Operating contract section). `inputs_hash` is set to the sha256 computed in step 2 — for `description` and per-sub-task `implementation`, hash the sub-task's owned unit files, not the whole feature's owned units. Use CRLF-safe I/O — write with `\n` line endings; the push stage handles CRLF normalisation.
+
+**IMMEDIATELY AFTER `Write`:** call `Read` on the just-written file, compute SHA-256 of the read-back content vs the transformed string sent to `Write`. Match → proceed. Mismatch → HALT with `blocker: write-tool-mangled-output`. This catches the rare case where line-ending normalization or filesystem encoding mangled the content.
 
 **Mode → output path recap:**
 - `implementation` on parent-alone → `features/<slug>/implementation.md` (frontmatter: `doc_type: implementation`, `compose_mode: implementation`)
@@ -1039,10 +1133,10 @@ Write to the mode-appropriate output path with the mode-appropriate frontmatter 
 
 Preserve any manual developer edits marked with `<!-- KEEP -->` HTML comment sentinels — read the existing file first, extract fenced regions between `<!-- KEEP -->` and `<!-- /KEEP -->`, and reinsert them at the same section anchor on write. If a KEEP region has no matching anchor in the newly composed body, keep it at the section tail and warn the user.
 
-### 8. Log material decisions
+### 9. Log material decisions
 If composing forced a real design choice (e.g. picking one of two plausible target file paths, choosing which of two reused endpoints a page consumes), append a `DEC-###` row to `shared-context/decision-log.md`. Composition choices that are pure arrangement (order of sections, choice of table vs list) don't need a decision — only technical choices that later reviewers might contest.
 
-### 9. Report per feature
+### 10. Report per feature
 Return: features composed vs skipped-unchanged (with reason each), the size per feature, open items surfaced (grouped by feature), and any features where the repo-scan preflight left file paths as `TBD`. Link to each `tl-plan.md`. If any feature refused to compose (missing units, size overflow, unresolved TBD in a critical field), name it and the reason — never silently swallow.
 
 ## Completion criteria
