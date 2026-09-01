@@ -73,7 +73,7 @@ stage-8:
 
 - Stage 8 pushed successfully
 - `dev/pr-summary.md` exists (composed at the end of Stage 5 + augmented after Stages 6 + 7 with follow-up items + merge results)
-- `gh` CLI is available; `gh auth status` clean
+- A working PR-creation mechanism per §9c's ladder (v2.3.22 — no longer requires `gh`)
 
 ### 9b. Compose `dev/pr-summary.md`
 
@@ -159,33 +159,143 @@ Structure:
 
 Every section is auto-populated from the actual commit-run's data. Never placeholders.
 
-### 9c. Raise the PR
+### 9c. Raise the PR — 4-step fallback ladder (v2.3.22)
 
-```
-gh pr create \
-  --base <resolved-base-branch> \
-  --head <feature-branch> \
-  --title "<computed title>" \
-  --body-file dev/pr-summary.md
-```
-
-PR title format:
+PR title format (used by all three ladder steps):
 
 - Parent-alone: `<feature title>` (from parent's `feature.md`)
 - Sub-task: `<parent title> — <repo>` (e.g. `Supplier Onboarding — backend`)
 
-If `gh pr create` reports the PR already exists (re-run on `--resume`), fetch its URL via `gh pr view --json url --jq .url` and update its body instead:
+Resolve `<owner>/<repo>` from the target repo's `origin` remote:
+
+```bash
+ORIGIN=$(git -C <target-repo> config --get remote.origin.url)
+# Extract owner/repo from git@github.com:<owner>/<repo>.git OR https://github.com/<owner>/<repo>.git
+OWNER_REPO=$(echo "$ORIGIN" | sed -E 's#(git@github.com:|https://github.com/)([^/]+/[^/.]+)(\.git)?#\2#')
+OWNER=$(echo "$OWNER_REPO" | cut -d/ -f1)
+REPO=$(echo "$OWNER_REPO" | cut -d/ -f2)
+```
+
+**Try each step in order. On success, log which step ran to `dev/commit-run.md` and proceed.**
+
+**Step 1 — `gh` CLI (if installed + authed):**
+
+```bash
+if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
+  gh pr create \
+    --base <resolved-base-branch> \
+    --head <feature-branch> \
+    --title "<computed title>" \
+    --body-file dev/pr-summary.md
+  # Log: pr_method: gh_cli
+fi
+```
+
+**Step 2 — Extract token from git credential store (works because you already authenticated for `git push`):**
+
+Windows Git Credential Manager, macOS Keychain, and Linux libsecret all cache the HTTPS token you used when you first pushed. If the remote is HTTPS AND the cached credential is a PAT with `repo` scope (GCM's default), we can piggyback:
+
+```bash
+if [ -z "$PR_METHOD" ]; then
+  CREDS=$(echo -e "protocol=https\nhost=github.com\n" | git credential fill 2>/dev/null)
+  TOKEN=$(echo "$CREDS" | grep '^password=' | cut -d= -f2)
+  if [ -n "$TOKEN" ]; then
+    BODY=$(jq -Rs . < dev/pr-summary.md)
+    RESPONSE=$(curl -s -X POST \
+      -H "Authorization: Bearer $TOKEN" \
+      -H "Accept: application/vnd.github+json" \
+      -H "X-GitHub-Api-Version: 2022-11-28" \
+      "https://api.github.com/repos/$OWNER/$REPO/pulls" \
+      -d "{\"title\":\"<computed title>\",\"body\":$BODY,\"head\":\"<feature-branch>\",\"base\":\"<resolved-base-branch>\"}")
+    PR_URL=$(echo "$RESPONSE" | jq -r '.html_url // empty')
+    if [ -n "$PR_URL" ]; then
+      # Log: pr_method: git_credential_fill
+      echo "PR opened: $PR_URL"
+    fi
+  fi
+fi
+```
+
+**Step 3 — Read token from `gh` config file (if `gh` was authed even though `gh` binary is missing):**
+
+Sometimes `gh` was installed on a previous machine or the binary was removed but the config remains. `~/.config/gh/hosts.yml` (`%APPDATA%\GitHub CLI\hosts.yml` on Windows) contains the OAuth token from `gh auth login`. Extract and use it:
+
+```bash
+if [ -z "$PR_METHOD" ]; then
+  GH_HOSTS="${XDG_CONFIG_HOME:-$HOME/.config}/gh/hosts.yml"
+  [ ! -f "$GH_HOSTS" ] && [ -f "$APPDATA/GitHub CLI/hosts.yml" ] && GH_HOSTS="$APPDATA/GitHub CLI/hosts.yml"
+  if [ -f "$GH_HOSTS" ]; then
+    TOKEN=$(grep -A5 'github.com:' "$GH_HOSTS" | grep 'oauth_token:' | head -1 | awk '{print $2}')
+    if [ -n "$TOKEN" ]; then
+      # Same curl call as Step 2
+      # Log: pr_method: gh_config_read
+    fi
+  fi
+fi
+```
+
+**Step 4 — Web UI URL fallback (nothing available; user completes in browser):**
+
+```bash
+if [ -z "$PR_METHOD" ]; then
+  TITLE_ENC=$(printf '%s' "<computed title>" | jq -sRr @uri)
+  BODY_ENC=$(cat dev/pr-summary.md | jq -sRr @uri)
+  COMPARE_URL="https://github.com/$OWNER/$REPO/compare/<base>...<head>?expand=1&title=$TITLE_ENC&body=$BODY_ENC"
+  echo "PR-creation auth not available. Open this URL in your browser — the form will be pre-filled with title + body:"
+  echo ""
+  echo "  $COMPARE_URL"
+  echo ""
+  echo "After you click Create pull request, paste the PR URL back if you want /dev:commit --resume to record it."
+  # Log: pr_method: web_url_fallback + compare_url in commit-run.md
+  # State: /dev:commit exits successfully; user manually completes the PR in browser
+fi
+```
+
+**"PR already exists" handling** — if Step 1 or Steps 2/3 return a "PR already exists" error (`422 Unprocessable Entity` with `A pull request already exists for <head>`):
+
+```bash
+# Step 1: gh pr edit <pr-number> --body-file dev/pr-summary.md
+# Steps 2/3 curl: PATCH /repos/$OWNER/$REPO/pulls/<pr-number> with body update
+```
+
+Fetch existing PR: `GET /repos/$OWNER/$REPO/pulls?head=$OWNER:<feature-branch>&base=<base>&state=open` → take `.[0].number` → PATCH its body.
+
+### 9c.i. Optional: install `gh` on demand (prompt-gated, v2.3.22)
+
+If Steps 1–3 all fail AND the machine has no cached HTTPS token at all (only SSH auth for git), OFFER — do NOT silently install — to install `gh`:
 
 ```
-gh pr edit <pr-number> --body-file dev/pr-summary.md
+Nothing to auth PR creation against (no gh, no cached HTTPS token, no gh config).
+Install gh via <detected package manager>? [y]es / [n]o (fall back to web URL)
+
+Detected package managers on this machine:
+  · scoop (available)
+  · winget (available)
+
+If you say yes, I'll run:
+  scoop install gh
+  gh auth login   (opens browser for device code — you enter it once)
+Then re-attempt PR create in this run.
 ```
 
-### 9d. PR-raise failures
+Use `AskUserQuestion` for the yes/no. On `y`: run the install, run `gh auth login` (user provides device code), retry Step 1. On `n`: proceed to Step 4 (web URL).
 
-- **Existing PR from same branch → same base** — update body (see 9c above)
-- **RBAC / permission denied** — halt with "requires PR-create access to <repo>"
-- **Wrong base branch (branch is behind base)** — halt with rebase instructions
-- **`gh` not authenticated** — halt with `gh auth login` instructions
+**Never install without explicit user confirmation.** This is a persistent system change.
+
+### 9d. PR-raise failures per ladder step
+
+| Failure | Step | Behavior |
+|---|---|---|
+| `gh` missing | Step 1 | Continue to Step 2 (no error surfaced) |
+| `gh auth status` fails | Step 1 | Continue to Step 2 |
+| `git credential fill` returns no password | Step 2 | Continue to Step 3 |
+| Token from credential fill lacks `repo` scope (401 from API) | Step 2 | Continue to Step 3 |
+| `gh` config file missing | Step 3 | Continue to Step 4 |
+| Web URL computed | Step 4 | Success (manual completion) |
+| API returns `422` "PR already exists" | Any step | Fetch existing PR + update body via PATCH; do NOT create new |
+| API returns `403 RBAC forbidden` | Any step | HALT with "requires PR-create access to <owner>/<repo>" — token lacks permission |
+| API returns `422 head branch not found` | Any step | HALT — Step 8 push didn't land or was force-cleaned. User verifies branch on remote. |
+| Network error | Any step | HALT with the error; user re-runs `/dev:commit --resume` when connectivity returns |
 
 ### 9e. Progress log
 
@@ -193,14 +303,16 @@ Append to `dev/commit-run.md`:
 
 ```yaml
 stage-9:
-  status: DONE | HALTED
+  status: DONE | HALTED | PENDING_USER_BROWSER
   started_at: <ISO>
   finished_at: <ISO>
-  pr_number: 247
-  pr_url: https://github.com/acme/acme-backend/pull/247
+  pr_method: gh_cli | git_credential_fill | gh_config_read | gh_installed_on_demand | web_url_fallback
+  pr_number: 247                                       # empty when pr_method == web_url_fallback
+  pr_url: https://github.com/acme/acme-backend/pull/247   # empty when pr_method == web_url_fallback (compare_url instead)
+  compare_url: https://github.com/.../compare/...      # only when pr_method == web_url_fallback
   pr_title: "Supplier Onboarding — backend"
   pr_body_file: dev/pr-summary.md
-  action: created | updated
+  action: created | updated | pending_user_completion
 ```
 
 ### 9f. On `--resume`
