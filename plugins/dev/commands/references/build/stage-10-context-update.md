@@ -8,11 +8,13 @@
 
 ---
 
-### 10a. Preconditions
+### 10a. Preconditions (v2.3.27 — HARD gates)
 
 - `dev/build-run.md` `stage-9.status: DONE` (or SKIPPED)
 - Branch commits present — `git log <base>..HEAD` returns ≥ 1 commit
 - Target repo has `<repo>/context/code-context/` — created by `/tl:plan` OR `/tl:code-map`
+- **Stage 9 repair loop invoked if it had Critical findings (v2.3.27)** — read `build-run.md` `stage-9.findings`. If pre-repair `findings.critical > 0` but no `stage-9.repair_loop_invocation.invoked_at` block exists → HALT with `blocker: stage-9-repair-loop-not-invoked`. Same enforcement pattern as `/dev:commit` Stage 8 §8a for its fix loops. Flipping context units to `origin: implemented` on code with an unaddressed Critical security finding would misrepresent the graph as "verified" when the review actively said "block".
+- **Stage 9 final findings ARE clean** — after any repair loop, `stage-9.findings.critical` must be zero. Non-zero → HALT with `blocker: stage-9-repair-loop-did-not-clear-critical` (fix loop ran but ended ESCALATED; check `dev/escalation-<n>.md`).
 
 If context tree is missing → escalate. `/dev:plan` should have run `/tl:plan` to create the graph; if we got here without it, that's a plan-side gap.
 

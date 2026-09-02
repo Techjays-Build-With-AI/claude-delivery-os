@@ -72,7 +72,7 @@ Preserve the build-time column. Add the commit-time column. Never delete or over
 
 **Every row `✅ pass` or acceptably `⏸ deferred-to-e2e`** → mark Stage 5 done. Advance to Stage 7 (semantic merge).
 
-**One or more `⚠ regression` or `❌ fail`** → jump to `stage-6-fix-loop.md`. After fix loop, Stages 3+4+5 all re-run from the top.
+**One or more `⚠ regression` or `❌ fail`** → invoke the fix loop per `stage-6-fix-loop.md` §6a.i (v2.3.27). The fix loop is **MANDATORY and VERIFIABLE** — this stage MUST invoke `dev-stack-adaptive-implementation` in fix-mode via the Skill / Agent tool and record a `stage-5.fix_loop_invocation:` block in `commit-run.md` (fields per §6a.i). Applying the fix inline without recording the invocation trace is a spec violation and Stage 8 §8a will refuse to push. After fix loop, Stages 3+4+5 all re-run from the top.
 
 ---
 
