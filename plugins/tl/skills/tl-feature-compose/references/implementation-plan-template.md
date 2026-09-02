@@ -70,10 +70,25 @@ Feature identity lives in frontmatter (and MC task metadata). Never in the visib
 
 <one paragraph naming the phases + their dependency order. Marks any [HELD · waiting on OQ-<id>] phase explicitly.>
 
-| # | Step | Files | Units | Satisfies |
-|---|---|---|---|---|
-| 1 | <step description> | New: <path> / Modified: <path> | <unit IDs> | <parent AC/BR/TS IDs this step satisfies — Satisfies column is the canonical plan-time coverage owner per Rule 11.11 v2.3.16> |
-| 2 | … | … | … | … |
+### Step 1 — <short step title>
+
+- **Files** — New: `<path>` · Modified: `<path>`
+- **Units** — `<unit IDs, comma separated>`
+- **Satisfies** — `<parent AC/BR/TS IDs>`  <!-- canonical plan-time coverage owner per Rule 11.11 v2.3.16 -->
+
+<one-line directive of what the developer writes in these files. No rationale.>
+
+### Step 2 — <short step title>
+
+- **Files** — …
+- **Units** — …
+- **Satisfies** — …
+
+<one-line directive.>
+
+<!-- Continue § Step 3, Step 4, … one section per step. If a step is HELD, add
+     a line "**Status:** [HELD · waiting on OQ-<id>]" immediately under the H3
+     and skip the Files/Units/Satisfies bullets. -->
 
 ```mermaid
 flowchart LR
@@ -82,6 +97,8 @@ flowchart LR
 ```
 
 Node labels MUST be quoted (`["1. <phase>"]`, not `[1. <phase>]`) — unquoted labels are parsed as ordered-list markdown, which breaks rendering.
+
+**Why per-step sections instead of a pipe table (v2.3.26):** GFM pipe tables fail in many external MD viewers when a step's `Satisfies` cell carries multiple long IDs — the row wraps, the separator row can be misread as a setext H2 underline, and the header shows larger than the section heading above it. Per-step H3 blocks render correctly in every viewer AND survive the Rule 0c.i mechanical fix pass without ambiguity. The `Files`/`Units`/`Satisfies` bullets carry the same data the old columns did — no plan content is lost.
 
 ## 2. Impacted components
 
