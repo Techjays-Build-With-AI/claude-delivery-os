@@ -385,6 +385,7 @@ Compose runs in **at most two passes**, never more:
 | 8 | `# FEAT-` H1 heading (feature ID leak) | remove the heading line | Rule 4 |
 | 9 (NEW v2.3.17) | Mermaid block without `language-mermaid` tag (fenced but tag missing/wrong) | insert `mermaid` after opening fence | MC's `<MermaidDiagram>` component checks `className === 'language-mermaid'`; without it, block renders as a plain code fence, no diagram |
 | 10 (NEW v2.3.17) | Missing blank line before/after a table or code fence | insert `\n\n` at the boundary | remark-gfm silently DROPS blocks without blank-line surrounds — content vanishes from the render |
+| 11 (NEW v2.3.26) | Solo-pipe line OR table column-count mismatch (header cells ≠ separator cells) | Transform 0 deletes solo-pipe lines unconditionally; column-count mismatch HALTS (ambiguous fix) | CommonMark parsers see `|---|---|` as an H2 setext underline for the preceding line — the pipe-header renders as a huge false heading and the section's real H2 disappears into the noise |
 
 **Auto-fix scope (v2.3.17 clarification).** Auto-fix operations are pure string transforms applied IN the lint pass — remove a heading line, insert a newline, insert `mermaid` after ` ``` `. They do not count against Rule 0's max-one-auto-fix budget (that budget covers RE-COMPOSE cycles). Auto-fix runs deterministically on the lint scan output; if all halt triggers auto-fix cleanly, the file writes on the same pass. If any halt trigger cannot auto-fix (halt #1, #6, #7 have no auto-fix; auto-fixable ones fail on ambiguous boundaries), the compose HALTS with the byte range.
 
@@ -435,6 +436,16 @@ The compose LLM's output is TREATED AS UNRELIABLE for mechanical format. Rules 0
    ```pseudocode
    text = compose_llm_output
 
+   # Transform 0 (v2.3.26): strip solo-pipe noise lines
+   # Pattern: a physical line containing ONLY pipes + whitespace (no cell content),
+   # e.g. "|" or "|  |" or "  |  " on its own line. These are LLM artifacts that
+   # (a) break table detection in remark-gfm and (b) cause the following `|---|---|`
+   # separator to be interpreted as a setext H2 underline for the row above it —
+   # producing the "table header renders larger than the section heading" bug in
+   # every viewer that follows the CommonMark setext rule. Delete these lines
+   # unconditionally; they carry no semantic content.
+   text = strip_solo_pipe_lines(text)   # see reference implementation below
+
    # Transform 1: table row-per-line — the exact bug from user screenshots
    # Pattern: a physical line containing 2+ pipe-runs looking like `| … | | \d+ | …`
    # or `|---|---|---| \| \d+ \|` — split at row boundaries.
@@ -443,6 +454,15 @@ The compose LLM's output is TREATED AS UNRELIABLE for mechanical format. Rules 0
    # Transform 2: header-separator missing
    # Pattern: pipe-header line followed by a pipe-data line, no `|---|` between them
    text = insert_header_separator(text)
+
+   # Transform 2a (v2.3.26): table column-count integrity
+   # Pattern: a `| a | b | c |` header row whose separator `|---|---|` has a
+   # DIFFERENT number of columns. remark-gfm rejects this as a table and
+   # falls back to setext-heading interpretation, producing the "header row
+   # shows as huge heading" bug. Halt with the exact byte range — this is
+   # never safe to auto-fix because the LLM's intent (which column got dropped
+   # or added) is ambiguous.
+   text = check_table_column_counts(text)  # halts on mismatch, per Rule 0a #11
 
    # Transform 3: blank line before/after every table, code fence, mermaid, heading
    text = ensure_blank_line_surrounds(text, patterns=["|", "```", "```mermaid", "##"])
@@ -459,6 +479,58 @@ The compose LLM's output is TREATED AS UNRELIABLE for mechanical format. Rules 0
        "# FEAT-",
    ])
    ```
+
+**Reference implementation of the solo-pipe strip (Transform 0) — the compose LLM subagent MUST apply this before Transform 1:**
+
+```python
+import re
+
+_SOLO_PIPE = re.compile(r"^\s*\|+\s*$")
+
+def strip_solo_pipe_lines(text: str) -> str:
+    """Delete lines containing only pipes + whitespace.
+
+    These lines produce the setext-heading-underline bug: the following
+    `|---|---|---|` separator row gets misread as an H2 underline for the
+    row above, and the pipe-header renders larger than the section heading.
+    LLM output sometimes emits a stray `|` between a paragraph and a table
+    header; strip it unconditionally.
+    """
+    return "\n".join(line for line in text.split("\n") if not _SOLO_PIPE.match(line))
+```
+
+**Reference implementation of the column-count integrity check (Transform 2a):**
+
+```python
+def check_table_column_counts(text: str) -> str:
+    """Halt if a table's separator row has a different column count than its header.
+
+    A `| a | b | c |` (3 cells) header followed by `|---|---|` (2 cells) is
+    rendered as setext H2 by CommonMark, not as a table. Auto-fixing is not
+    safe — we don't know whether to add a column to the separator or drop one
+    from the header. Report the byte range and halt.
+    """
+    lines = text.split("\n")
+    for i, line in enumerate(lines):
+        # A header is `| x | y | z |` — count pipes minus 1 for cell count
+        if not re.match(r"^\s*\|.+\|\s*$", line):
+            continue
+        if i + 1 >= len(lines):
+            continue
+        sep = lines[i + 1]
+        # A separator is `|---|---|` (or `|:---|---:|`)
+        if not re.match(r"^\s*\|(\s*:?-+:?\s*\|)+\s*$", sep):
+            continue
+        header_cells = line.count("|") - 1
+        sep_cells = sep.count("|") - 1
+        if header_cells != sep_cells:
+            raise HaltError(
+                f"Table column mismatch at line {i+1}: "
+                f"header has {header_cells} cells, separator has {sep_cells}. "
+                f"Rule 0a #11 (v2.3.26). Re-compose this section."
+            )
+    return text
+```
 
 3. **Re-scan the transformed string** for HALT-only conditions (payload > 60 000 chars, unclosed code fence, framework field path in §8). Any HALT → report + do NOT `Write`.
 4. **VERIFY by re-parsing:** attempt to parse the transformed string with the same GFM parser MC uses (or a mental equivalent — scan for any remaining `| \d+ |` run on the same line as a header separator; scan for any `| …` line where the preceding non-empty line is a `|` line but not a separator). Any remaining issue → auto-fix again OR HALT if the fix doesn't converge in ONE additional pass.
@@ -505,22 +577,37 @@ The `tl-feature-compose` skill's execution instructions MUST include this exact 
 
 MC's Task detail view renders `implementationDetails` with `react-markdown v9 + remark-gfm v4 + mermaid v11.6`. Confirmed by reading `BuildWithAIPortal_UI/package.json` and `src/components/Chat/BaDiagnosisPhase.tsx` (mermaid intercept on `className === 'language-mermaid'`). The compose MUST emit markdown that this exact toolchain renders correctly. Non-negotiable format rules:
 
-**Tables (remark-gfm strict):**
+**§1 Build sequence — per-step H3 sections, NOT a pipe table (v2.3.26):**
+- Emit each step as its own `### Step N — <title>` heading, with three bullets: `**Files** — …`, `**Units** — …`, `**Satisfies** — …`, followed by a one-line directive.
+- Do NOT emit a `| # | Step | Files | Units | Satisfies |` table. Long `Satisfies` cells wrap, the separator row gets misread as a setext H2 underline, and the pipe-header renders larger than the section H2 — the exact bug in the user screenshot.
+- HELD steps: add `**Status:** [HELD · waiting on OQ-<id>]` under the H3 and skip the three bullets.
+
+**Other tables (§2 Impacted components, §b Sub-tasks, etc — remark-gfm strict):**
 - Every row on its OWN physical line. Newline (`\n`) between EVERY `|`-starting row.
 - Header separator (`|---|---|---|`) on its OWN line between header and body.
+- **Header pipe-count MUST equal separator pipe-count.** If they differ, remark-gfm rejects the table and the CommonMark parser reinterprets the separator as an H2 setext underline for the header row — the header shows huge and bold with visible pipes. Rule 0a #11 halts on this.
 - Blank line before AND after the table.
-- WRONG (renders as inline pipe text, unreadable — this is the exact bug in the screenshot the user shared):
+- No solo-`|` line before the header (Rule 0a #11 auto-strips these; do not emit them in the first place).
+- WRONG — pipe-run-on (renders as inline pipe text, unreadable):
   ```
-  | # | Step | Files | | 0 | Prettier | context/... | | 1 | Add validators | ... | | 2 | ... |
+  | Dimension | Impact | | Surfaces | ... | | Operations | ... |
+  ```
+- WRONG — solo-`|` before header (renders header as huge setext H2 heading):
+  ```
+  paragraph text ending here.
+
+  |
+
+  | Dimension | Impact |
+  |---|---|
   ```
 - RIGHT (renders as a proper table):
   ```
 
-  | # | Step | Files |
-  |---|---|---|
-  | 0 | Prettier | context/... |
-  | 1 | Add validators | ... |
-  | 2 | ... | ... |
+  | Dimension | Impact |
+  |---|---|
+  | Surfaces | … |
+  | Operations | … |
 
   ```
 
@@ -824,6 +911,8 @@ Same discipline in both directions: backend §4 didn't paste `new mongoose.Schem
 | Unclosed code fence | Count of ` ``` ` in file is odd | none — HALT (Rule 0a #6) | — |
 | Mermaid fence missing `mermaid` language tag | Detect ` ``` ` on its own line followed by `flowchart` / `graph` / `sequenceDiagram` / `stateDiagram` / `classDiagram` on the next line | Insert `mermaid` after the opening fence: ` ```mermaid ` | HALT (Rule 0a #9) with byte range |
 | Missing blank line before/after table, code fence, mermaid block, heading | Scan for `[^\n]\n\|` (non-blank followed by table), `[^\n]\n\`\`\`` (non-blank followed by code fence), `[^\n]\n##` (non-blank followed by heading) | Insert `\n` before the block; scan the closing side, insert `\n` after | HALT (Rule 0a #10) with byte range |
+| Solo-pipe noise line — `\|` (or whitespace+pipes) on its own line preceding a table separator | Regex `^\s*\|+\s*$` matches | Delete the line unconditionally (v2.3.26, Transform 0) | never — always auto-fixable |
+| Table column-count mismatch — header row has N pipe-cells, separator row has M pipe-cells, N ≠ M | Count pipes in header vs `\|(:?-+:?\|)+` separator | none — the LLM's intent is ambiguous | HALT (Rule 0a #11) with byte range; re-compose |
 | Heading levels beyond `##` at section boundary | Regex: `^#[^#]` (level 1) at start of a section, or `^####` (level 4+) at section boundary | none | WARN (not halt) |
 | Bullets mix `*` and `-` | Line-scan; if both markers appear in the same bullet-list block | none | WARN |
 | Table cell contains a literal `\n` or `<br/>` | Regex on cell contents | WARN — remark-gfm renders `<br/>` inline but multi-line cells are hostile; prefer restructuring | WARN |
