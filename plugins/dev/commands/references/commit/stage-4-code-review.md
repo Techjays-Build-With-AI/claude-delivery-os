@@ -79,7 +79,7 @@ severity_threshold: Major
 
 **Zero Blocker + Zero Major** → mark Stage 4 done. Minor + Nit findings persist in the findings file for PR body integration + follow-up. Advance to Stage 5.
 
-**One or more Blocker/Major** → jump to `stage-6-fix-loop.md`. After fix loop, Stage 3 (security) + Stage 4 (code review) both re-run from the top — code fixes may introduce new security concerns.
+**One or more Blocker/Major** → invoke the fix loop per `stage-6-fix-loop.md` §6a.i (v2.3.27). The fix loop is **MANDATORY and VERIFIABLE** — this stage MUST invoke `dev-stack-adaptive-implementation` in fix-mode via the Skill / Agent tool and record a `stage-4.fix_loop_invocation:` block in `commit-run.md` (fields per §6a.i). Applying the fix inline without recording the invocation trace is a spec violation and Stage 8 §8a will refuse to push. After fix loop, Stage 3 (security) + Stage 4 (code review) both re-run from the top — code fixes may introduce new security concerns.
 
 ---
 

@@ -94,7 +94,7 @@ Cross-reference with commit-time findings:
 
 **Zero Critical + Zero High** → mark Stage 3 done. Log warnings for reviewer visibility. Advance to Stage 4.
 
-**One or more Critical/High** → jump to `stage-6-fix-loop.md`. After fix loop, Stage 3 re-runs from the top (order matters — a security fix may break a test).
+**One or more Critical/High** → invoke the fix loop per `stage-6-fix-loop.md` §6a.i (v2.3.27). The fix loop is **MANDATORY and VERIFIABLE** — this stage MUST invoke `dev-stack-adaptive-implementation` in fix-mode via the Skill / Agent tool and record a `stage-3.fix_loop_invocation:` block in `commit-run.md` with `invoked_at`, `subagent_id`, `origin_findings`, `fix_attempts[]`, `broad_reruns_used`, `exit_state`. Applying the fix inline "because it's a small change" without recording the invocation trace is a spec violation and Stage 8 §8a will refuse to push. After fix loop, Stage 3 re-runs from the top (order matters — a security fix may break a test).
 
 ---
 

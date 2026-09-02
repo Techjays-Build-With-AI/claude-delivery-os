@@ -165,6 +165,37 @@ Per `/dev:build` §14 limits (3 focused / 1 broad for security):
 - MC status: `blocked`
 - Halt.
 
+### 9g.i. Non-skippable execution (v2.3.27 — closes the "critical finding surfaced but agent didn't invoke repair loop" gap)
+
+**Whenever the security scan produces one or more Critical findings, this stage MUST invoke `dev-stack-adaptive-implementation` in security-fix mode via the Skill / Agent tool. Applying the fix inline "because it's a small change" without going through the skill is NOT sufficient evidence of execution — the skill's own invocation log is the evidence. Skip = spec violation.**
+
+Same class of gap as `/dev:commit` Stages 3–5 (v2.3.27): findings surface, the agent reports them, the agent moves to Stage 10 without invoking §9g, and Stage 10 flips context units on code that still has a Critical security hole. Stage 10 (§10a preconditions, v2.3.27) refuses to advance without evidence of the repair loop for any Critical finding.
+
+Recording format (Stage 10's precondition check reads this):
+
+```yaml
+stage-9:
+  status: DONE                                    # DONE | SKIPPED | BLOCKED
+  findings:
+    critical: 0                                    # after repair; must be zero to advance
+    high:     2                                    # non-blocking at build-time; deferred to /dev:commit
+    medium:   1
+    low:      1
+  repair_loop_invocation:                          # REQUIRED whenever pre-repair findings.critical > 0
+    invoked_at: <ISO>                              # required — presence proves invocation
+    subagent_id: <id>                              # required — proves a real skill call happened
+    origin_findings: [SR-B-001]                    # what fed the loop
+    fix_attempts:
+      - finding: SR-B-001
+        attempts_used: 1
+        resolved: true
+    broad_reruns_used: 0
+    exit_state: CLEAN | ESCALATED
+    escalation_file: null | dev/escalation-<n>.md
+```
+
+Zero-Critical runs skip §9g entirely and do NOT record `repair_loop_invocation:`. Absence on a Critical-free run is fine. Gate: critical > 0 (pre-repair) IMPLIES repair_loop_invocation MUST be present.
+
 ---
 
 ### 9h. Progress log format

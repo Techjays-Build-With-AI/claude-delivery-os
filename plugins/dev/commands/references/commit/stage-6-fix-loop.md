@@ -14,6 +14,42 @@
 - The findings file (`security-findings-commit.md`, `code-review-findings.md`, `acceptance-map.md`) has been written and is readable
 - Stack + inferred patterns are still available in `dev/implementation-log.md`
 
+### 6a.i. Non-skippable execution (v2.3.27 — closes the "findings surfaced but agent didn't invoke fix loop" gap)
+
+**Whenever any of Stages 3, 4, or 5 produces one or more BLOCKING findings, the origin stage MUST invoke the fix loop in this file via the Skill / Agent tool (delegating to `dev-stack-adaptive-implementation` in fix-mode). Internal reasoning that "the finding is small, I'll just fix it inline" or "the agent will pick it up later" is NOT sufficient evidence of execution — the skill's own invocation log is the evidence. Skip = spec violation.**
+
+Same class of "spec exists but subagent doesn't execute it" bug as v2.3.21 (compose mechanical fix pass) and v2.3.25 (Stage 7 semantic merge). Findings surface, the agent reports them, and the agent moves to Stage 8 push without invoking Stage 6. Push then lands broken code because the review said "block" and nobody acted on it.
+
+Every entry into Stage 6 — even trivial ones with a single Critical finding — records an invocation trace in `commit-run.md`. Recording format (Stage 8 §8a's precondition check reads this):
+
+```yaml
+stage-3:                       # or stage-4 / stage-5 depending on origin
+  status: DONE
+  findings:
+    critical: 0                # after fix loop; must be zero to advance
+    high:     0                # after fix loop; must be zero to advance
+    medium:   1                # non-blocking
+    low:      1
+  fix_loop_invocation:         # REQUIRED whenever findings.critical or findings.high (or S4 blocker/major, or S5 regression/fail) was > 0 BEFORE the loop ran
+    invoked_at: <ISO>          # required — presence proves invocation
+    subagent_id: <id>          # required — proves a real skill call happened, not mental reasoning
+    origin_findings: [SR-C-001, SR-C-004]   # what fed the loop
+    fix_attempts:              # copy of §6c per-finding outcomes
+      - finding: SR-C-001
+        attempts_used: 1
+        resolved: true
+      - finding: SR-C-004
+        attempts_used: 2
+        resolved: true
+    broad_reruns_used: 1
+    exit_state: CLEAN | ESCALATED
+    escalation_file: null | dev/escalation-<n>.md
+```
+
+If a stage completes with BLOCKING findings resolved but no `fix_loop_invocation:` block written → Stage 8 refuses to push (see stage-8-9-push-pr.md §8a). No workaround. No "I checked and applied the fix inline" bypass.
+
+**Zero-finding runs skip Stage 6 entirely and do NOT record `fix_loop_invocation:`.** The absence of the block on a stage that had zero blocking findings is fine and Stage 8 accepts it. The gate is: findings.blocking > 0 IMPLIES fix_loop_invocation MUST be present.
+
 ---
 
 ### 6b. Bounds
