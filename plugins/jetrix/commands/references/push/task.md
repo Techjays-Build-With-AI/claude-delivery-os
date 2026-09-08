@@ -80,12 +80,48 @@ title: Fix login redirect loop     # optional — falls back to H1 line of body
 status: todo                       # optional — defaults to `todo` on create; passthrough on update
 priority: high                     # optional — M/S/C/W or low/medium/high/critical
 initiative: q3-hotfixes            # optional — grouping label
+task_type: bug                     # optional — see below; inferred from content when absent
 jetrix_task_id: 42                 # write-back after first push (task_number)
 jetrix_task_object_id: 68f2...     # write-back after first push (MC _id)
 ---
 ```
 
-Body → sent as `description` verbatim (frontmatter stripped, H1 title line stripped if present).
+**`task_type` resolution.** Never hardcoded. Declared value wins; otherwise it's inferred from the body:
+
+| Precedence | Rule | Result |
+|---|---|---|
+| 1 | `task_type:` in frontmatter | used verbatim |
+| 2 | `## Steps to Reproduce` / `## Actual Result` / `## Expected Result` present | `bug` |
+| 3 | `parent_task_id:` in frontmatter | `subtask` |
+| 4 | `## Scope` / `## Scope & Out of Scope` present | `story` |
+| 5 | `## Acceptance Criteria` present | `story` |
+| 6 | nothing matched | `task` |
+
+Valid types are MC's enum: `task`, `story`, `bug`, `subtask`, `epic`, `feature`. An unrecognised value halts the file with the accepted list — it is never silently coerced to `task`.
+
+Two deliberate limits:
+- **Inference never returns `feature`.** Features are BA-owned and belong on `/jetrix:push feature` with its folder layout. You can still declare `task_type: feature` explicitly.
+- **`subtask` halts.** Subtasks need a parent and go through MC's `/subtasks` route; `subtask_upsert_bundle` owns that (via `/dev:plan`). Declaring or inferring `subtask` here stops the file with that pointer rather than creating a parentless task.
+
+Each type keeps its **own `externalId` namespace** — a `bug` and a `feature` sharing a `feature_id` never resolve to each other on update.
+
+Body → split onto MC's task tabs by `## <Tab Name>` heading (frontmatter stripped, H1 title line stripped if present):
+
+| Heading | MC tab | Accepted aliases |
+|---|---|---|
+| `## Description` | Description | — |
+| `## Acceptance Criteria` | Acceptance Criteria | `Acceptance Criteria (AC)` |
+| `## Business Rules` | Business Rules | — |
+| `## Test Scenarios` | Test Scenarios | `Test Cases`, `Edge Cases`, `Edge Cases & Error Handling` |
+| `## NFRs` | NFRs | `Non-Functional Requirements` |
+| `## Assumptions` | Assumptions | `Assumptions / Dependencies`, `Dependencies` |
+| `## Implementation` | Implementation | `Implementation Details` |
+
+Matching is case-insensitive and tolerates a trailing colon or a `1. ` numeric prefix. Two sections mapping to the same tab are joined with a blank line.
+
+**Degrades to description-only.** Any preamble before the first heading, and any heading that isn't in the table, stay in `description` with the heading intact — content is never dropped. If **no** heading matches a tab, the whole body goes to `description` verbatim, exactly as before. So a flat task file and a fully-sectioned one both push correctly; only files that already carry per-field content get split.
+
+If `##` yields no tab match, `###` is tried once — an export that nests everything one level deeper still splits. Nested subheadings inside a matched `##` section are left alone.
 
 Files missing `feature_id` are **rejected** — report `error: "missing feature_id in frontmatter"` and skip. This is the identity anchor; auto-generating from filename creates silent duplicates.
 
@@ -161,7 +197,7 @@ rm -f "$RESPONSES"
 
 The script:
 - Patches each `<rel-path>` .md's frontmatter — sets `jetrix_task_id` + `jetrix_task_object_id` for rows whose `action` is `created` or `recreated` (regex upsert, no Read).
-- Writes per-task entries under `tasks/<rel-path>` in sync-state (file-path-keyed, not feature-id-keyed — keeps task-stage entries distinct from feature-stage entries under the same `tasks/` namespace).
+- Writes per-task entries keyed by the file's **project-relative path** (`tasks/login-bug.md`) in sync-state — file-path-keyed, not feature-id-keyed, so task-stage entries stay distinct from feature-stage entries (which key on `tasks/<feature_id>`, no `.md`). This is the same key `/jetrix:pull list` writes, so skip-unchanged and `expected_version` work across a pull → push cycle.
 - Prints per-task status to stdout.
 
 ### 8. Report

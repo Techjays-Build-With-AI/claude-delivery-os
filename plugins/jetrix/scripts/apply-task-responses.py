@@ -107,7 +107,9 @@ def apply(
             if md.exists() and _patch_frontmatter(md, task_number, task_oid):
                 patched.append(rel)
 
-        state_key = f"tasks/{rel}" if rel else f"tasks/{row.get('slug') or row.get('feature_id')}"
+        # `rel` already carries the `tasks/` folder — prefixing it again gave
+        # `tasks/tasks/foo.md`, which never matched the key pull writes.
+        state_key = rel or f"tasks/{row.get('slug') or row.get('feature_id')}.md"
         sync_state[state_key] = {
             "taskNumber":   task_number,
             "taskObjectId": task_oid,

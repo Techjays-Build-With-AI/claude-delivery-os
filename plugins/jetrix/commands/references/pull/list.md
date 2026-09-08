@@ -100,7 +100,19 @@ last_pulled: 2026-08-13T...
 {implementationDetails — omit if empty}
 ```
 
-Skip sections whose fields are empty so the file doesn't fill up with blank headings. `task_type` is preserved in frontmatter so a subsequent push can round-trip through `/jetrix:push task` without losing the type.
+Skip sections whose fields are empty so the file doesn't fill up with blank headings.
+
+**Round-trip identity.** The frontmatter carries the same keys `/jetrix:push task` reads, so a pulled file pushes straight back:
+
+| Key | Source | Why push needs it |
+|---|---|---|
+| `feature_id` | `metadata.externalId` | identity anchor — push halts without it |
+| `slug` | `metadata.externalSlug` | required by `task_upsert_bundle`; also names the file |
+| `initiative` | `metadata.externalInitiative` | MC replaces `metadata` wholesale on update, so an unread initiative is lost |
+| `task_type` | `taskType` | push forwards it, so a `bug` stays a `bug` |
+| `jetrix_task_object_id` | `task_object_id` | direct PUT instead of an `externalId` lookup |
+
+`task_number` / `task_object_id` are kept alongside as human-readable duplicates. The file is named `tasks/<externalSlug>.md` so a task pushed from `login-bug.md` returns as `login-bug.md` rather than a second `task-42.md`. Sync-state is keyed by that same relative path, matching push.
 
 ### Why two calls (feature + task)?
 

@@ -8,7 +8,10 @@ and emits ONE JSON blob Claude passes to `task_upsert_bundle`.
 Contract preserved:
   - Reject any file missing `feature_id` in frontmatter (surfaced as halt)
   - `title` fallback: frontmatter.title → body H1 → slug
-  - `description` = body verbatim (frontmatter stripped, H1 stripped if leading)
+  - `## <Tab Name>` sections map onto MC's task tabs (acceptance_criteria,
+    business_rules, test_scenarios, nfrs, assumptions, implementation_details).
+    Unrecognised headings and any preamble stay in `description`. When no
+    heading matches a tab, `description` = body verbatim (pre-2.2 behaviour).
   - Skip file when sync-state[<rel-path>].contentHash matches current hash
 
 Usage:
@@ -106,6 +109,106 @@ def strip_h1(body: str) -> tuple[str | None, str]:
     return lines[i][2:].strip(), "\n".join(lines[i + 1:]).lstrip("\n")
 
 
+_TAB_ALIASES = {
+    "description":                 "description",
+    "acceptance criteria":         "acceptance_criteria",
+    "acceptance criteria (ac)":    "acceptance_criteria",
+    "business rules":              "business_rules",
+    "test scenarios":              "test_scenarios",
+    "test cases":                  "test_scenarios",
+    "edge cases":                  "test_scenarios",
+    "edge cases & error handling": "test_scenarios",
+    "nfrs":                        "nfrs",
+    "non-functional requirements": "nfrs",
+    "assumptions":                 "assumptions",
+    "assumptions / dependencies":  "assumptions",
+    "dependencies":                "assumptions",
+    "implementation":              "implementation_details",
+    "implementation details":      "implementation_details",
+}
+
+TAB_FIELDS = tuple(sorted(set(_TAB_ALIASES.values()) - {"description"}))
+
+
+def _norm_heading(s: str) -> str:
+    s = re.sub(r"^\s*\d+[.)]\s*", "", s.strip())
+    return re.sub(r"\s+", " ", s.strip().rstrip(":").strip()).lower()
+
+
+def _split_sections(body: str, level: int) -> tuple[str, list[tuple[str, str]]]:
+    matches = list(re.finditer(r"^#{%d}\s+(.+?)\s*$" % level, body, re.MULTILINE))
+    if not matches:
+        return body, []
+    sections = []
+    for i, m in enumerate(matches):
+        end = matches[i + 1].start() if i + 1 < len(matches) else len(body)
+        sections.append((m.group(1), body[m.end():end]))
+    return body[:matches[0].start()], sections
+
+
+def body_headings(body: str) -> set[str]:
+    """Every normalized `##`/`###` heading — used for task-type inference."""
+    out = set()
+    for level in (2, 3):
+        _, sections = _split_sections(body, level)
+        out.update(_norm_heading(h) for h, _ in sections)
+    return out
+
+
+def split_tabs(body: str) -> dict[str, str]:
+    """Map heading sections onto MC task tab fields.
+
+    Tries `##` then `###`. Returns description-only when nothing matches, so a
+    plain body pushes exactly as it did before.
+    """
+    for level in (2, 3):
+        preamble, sections = _split_sections(body, level)
+        if not any(_norm_heading(h) in _TAB_ALIASES for h, _ in sections):
+            continue
+        collected: dict[str, list[str]] = {}
+        desc = [preamble]
+        for heading, content in sections:
+            key = _TAB_ALIASES.get(_norm_heading(heading))
+            if key is None:
+                desc.append("{} {}\n{}".format("#" * level, heading, content))
+            elif key == "description":
+                desc.append(content)
+            else:
+                collected.setdefault(key, []).append(content.strip())
+        out = {k: "\n\n".join(v).strip() for k, v in collected.items()}
+        out["description"] = "\n\n".join(s for s in (d.strip() for d in desc) if s)
+        return {k: v for k, v in out.items() if v}
+    return {"description": body.strip()}
+
+
+# MC's TaskType enum (jetrix-mission-control src/models/task.model.ts).
+VALID_TASK_TYPES = ("task", "story", "bug", "subtask", "epic", "feature")
+
+# Bug-only tabs in MC's config — their presence is the strongest type signal.
+_BUG_HEADINGS = ("steps to reproduce", "actual result", "expected result")
+
+
+def resolve_task_type(fm: dict, tabs: dict[str, str], headings: set[str]) -> tuple[str, str]:
+    """Decide a task's MC taskType. Returns (task_type, how).
+
+    Explicit `task_type:` in frontmatter always wins. Otherwise infer from
+    content. Inference never returns `feature` — features are BA-owned and
+    belong on `/jetrix:push feature`; declaring it explicitly is still allowed.
+    """
+    declared = str(fm.get("task_type") or "").strip().lower()
+    if declared:
+        return declared, "declared"
+    if any(h in headings for h in _BUG_HEADINGS):
+        return "bug", "inferred (bug-shaped headings)"
+    if fm.get("parent_task_id"):
+        return "subtask", "inferred (parent_task_id present)"
+    if "scope" in headings or "scope & out of scope" in headings:
+        return "story", "inferred (scope section)"
+    if tabs.get("acceptance_criteria"):
+        return "story", "inferred (acceptance criteria present)"
+    return "task", "default"
+
+
 def _collect_files(project_root: pathlib.Path, target: str) -> list[pathlib.Path]:
     tgt = project_root / target
     if tgt.is_file() and tgt.suffix == ".md":
@@ -162,7 +265,7 @@ def main() -> int:
             continue
 
         content_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()
-        prev = sync_state.get(f"tasks/{rel}", {})
+        prev = sync_state.get(rel, {})
         prev_hash = (prev.get("contentHash") or "").replace("sha256:", "")
         if prev_hash == content_hash:
             skipped.append(rel)
@@ -171,11 +274,31 @@ def main() -> int:
         h1, body_no_h1 = strip_h1(body)
         title = fm.get("title") or h1 or fm.get("slug") or ""
 
+        tabs = split_tabs(body_no_h1)
+        if not tabs:
+            halts.append({"path": rel, "reason": "body is empty — nothing to push"})
+            continue
+
+        task_type, how = resolve_task_type(fm, tabs, body_headings(body_no_h1))
+        if task_type not in VALID_TASK_TYPES:
+            halts.append({"path": rel, "reason": (
+                f"task_type '{task_type}' is not a valid MC type — "
+                f"expected one of {', '.join(VALID_TASK_TYPES)}")})
+            continue
+        if task_type == "subtask":
+            halts.append({"path": rel, "reason": (
+                "subtasks can't be pushed through `/jetrix:push task` — they "
+                "need a parent and MC's /subtasks route. Use /dev:plan, which "
+                "creates them via subtask_upsert_bundle.")})
+            continue
+
         payloads.append({
             "feature_id":   fm.get("feature_id"),
             "slug":         fm.get("slug") or "",
             "title":        title,
-            "description":  body_no_h1.strip(),
+            "task_type":    task_type,
+            "description":  tabs.get("description", ""),
+            **{f: tabs[f] for f in TAB_FIELDS if f in tabs},
             "status":       fm.get("status") or "",
             "priority":     fm.get("priority") or "",
             "initiative":   fm.get("initiative") or "",
@@ -183,6 +306,7 @@ def main() -> int:
             "expected_version": prev.get("version") if isinstance(prev, dict) else None,
             "_local_content_hash": content_hash,
             "_local_rel_path":     rel,
+            "_task_type_how":      how,
         })
 
     output = {
