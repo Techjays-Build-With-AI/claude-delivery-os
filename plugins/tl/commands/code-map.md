@@ -1,6 +1,6 @@
 ---
 description: Reverse-map an existing codebase into a committed, index-first code-context tree — read the real repository and derive its pages, endpoints (contract, validation, business logic, and every database object they touch) and database objects grouped by kind (tables, collections, views, procedures, functions, triggers) into domain-organised markdown units with semantic layer indexes. The tree is written inside the mapped repo at `<repo>/context/code-context/` and committed with the code; a workspace registry ties multiple repos together so a later /tl:plan reuses the as-built units. Read-only on the code; every unit carries a confidence and a source-file citation.
-argument-hint: "<repo=<path> | (blank = current workspace)> [layers=frontend,backend,database] [scope=<subpath>] [domains=<a,b>] [refresh=full|changed]"
+argument-hint: "<repo=<path> | (blank = current workspace)> [env=Development|Prod|...] [layers=frontend,backend,database] [scope=<subpath>] [domains=<a,b>] [refresh=full|changed]"
 ---
 
 # /tl:code-map
@@ -16,12 +16,33 @@ You onboard an **existing codebase** into Delivery OS by deriving a **code-conte
 - **`scope=`** — a subpath/module, to map a slice of a large monorepo at a time.
 - **`domains=`** — restrict the run to named business domains (`domains=billing,subscription`) once a first pass has established the domain decomposition. Useful for re-mapping one area after a change.
 - **`refresh=`** — `full` (re-derive everything; default on a first run) or `changed` (reconcile only units whose source files changed since the `mapped_from_commit` recorded in the existing tree). `changed` is the fast path for a re-run.
+- **`env=`** — the Jetrix environment whose per-app branches to align each repo to before mapping (e.g. `env=Development` → each app's `env_branches.Development` branch, typically `dev`; `env=Prod` → typically `main`). Skips the interactive env prompt in §2. Any environment name declared in `.jetrix/project.json` `environments[]` is accepted.
 
 If there's no resolvable repository, say so and ask the user to point you at one — there's nothing to map without code.
 
 **Where output goes** — state this back to the user before starting, because it writes inside their repo: the tree is created at **`<repo>/context/code-context/`** — a `context/` folder at the repo root, with `code-context/` inside it, created if the repo has none — intended to be **committed with the code**. If the repo already has a root-level `context/` used by the application, say so and confirm the location with the user before writing rather than mixing tool output into source. Running from a parent workspace over several repos still writes each repo's context into that repo. The only workspace-level file is the registry, `<workspace>/.jetrix/tl/code-map-registry.md`. Nothing else in the repository is touched, and nothing is committed — the user reviews and commits.
 
-## 2. Delegate
+## 2. Choose environment and align branches
+
+Read `.jetrix/project.json`. If it exists (typical case — the workspace was bound via `/jetrix:init`):
+
+- **Pick the environment, once for the whole run.** If `env=` was passed as an argument, use it verbatim. Otherwise present the values in `environments[]` (e.g. `Development`, `Prod`) and ask the user which one to map. Store the choice as `chosen_env`. If `chosen_env` is not in `environments[]`, refuse and list the accepted names.
+
+- **For each repo in scope, align its checked-out branch to that environment's branch.** Look the repo up in `apps[]` by `repoUrl` (or `projectSlug` if the caller passed a slug). Then:
+
+  1. **App has `env_branches[chosen_env]` defined** — call the value `expected_branch`. Read the current branch via `git -C <repo> rev-parse --abbrev-ref HEAD`.
+     - **Match** → proceed to §3 for this repo.
+     - **Mismatch** → tell the user which repo, the current branch, and the expected branch, and ask to switch. If they decline, skip this repo (record `skipped-by-user` with the branch names in the run summary) and continue with the next. If they confirm:
+       - Check `git -C <repo> status --porcelain`. **If dirty**, refuse to switch — print the changed files and ask the user to commit or stash first, then re-run. **Never auto-stash and never proceed with a dirty tree.**
+       - If clean: `git -C <repo> fetch --prune` then `git -C <repo> checkout <expected_branch>`. Re-check the branch and confirm HEAD moved before delegating.
+
+  2. **App has empty `env_branches` or `env_branches[chosen_env]` is missing** (e.g. an app that isn't wired to env-branch mappings yet in Jetrix). Ask the user which branch to analyze for this repo, showing the current branch as the default. If they accept the default, proceed. If they name a different branch, apply the same dirty-tree check → `fetch --prune` → `checkout` flow as above.
+
+- **If `.jetrix/project.json` is missing** (unbound workspace, or the caller passed an ad-hoc `repo=<path>` outside the bound set), fall through to today's behavior — map whatever is currently checked out — and note in the run summary that env-alignment was skipped.
+
+Record the outcome per repo (`env-aligned` / `switched-from-<old>-to-<new>` / `skipped-by-user` / `env-alignment-skipped-no-project-json`) so §4 can surface it.
+
+## 3. Delegate
 
 Invoke the **tl-agent** subagent. Pass it this instruction:
 
@@ -31,10 +52,11 @@ Invoke the **tl-agent** subagent. Pass it this instruction:
 
 When several repos were requested, delegate **one subagent per repo** (they can run concurrently — each writes only into its own repo). Tell each of them explicitly: **do not write the workspace registry — return your registry row and any pending cross-repo links instead.** You then write the registry yourself from the merged rows, resolve the cross-repo page→endpoint links across the now-complete set, and leave genuinely unresolvable ones in the registry's *Pending cross-repo links* table before reporting.
 
-## 3. Surface the result
+## 4. Surface the result
 
 Present the **map summary**:
 
+- **Environment mapped** — the `chosen_env` (or `unbound — env-alignment skipped`) and per-repo alignment outcome from §2: `env-aligned`, `switched-from-<old>-to-<new>`, `skipped-by-user`, or `env-alignment-skipped-no-project-json`.
 - **Where it landed** — `<repo>/context/code-context/`, committed with the code; remind the user it's uncommitted and worth reviewing in a PR like any other change.
 - **The domain decomposition** — the domains derived and their area tokens. Lead with this: it's the decision that shapes the whole tree, and the one the user is most likely to want to correct.
 - **Units** per layer and, for the database, **per kind** (tables / collections / views / procedures / functions / triggers), created vs reconciled.
