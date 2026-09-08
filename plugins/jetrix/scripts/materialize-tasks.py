@@ -96,6 +96,14 @@ def _frontmatter(task: dict, now: str) -> str:
         else:
             lines.append(f"{key}: {v}")
 
+    # Identity first, under the names `/jetrix:push task` reads — without
+    # these the file round-trips into a "missing feature_id" halt.
+    meta_in = task.get("metadata") if isinstance(task.get("metadata"), dict) else {}
+    emit("feature_id",     meta_in.get("externalId") or "")
+    emit("slug",           meta_in.get("externalSlug") or _slug(task))
+    emit("initiative",     meta_in.get("externalInitiative") or "")
+    emit("jetrix_task_id",        task.get("task_number"))
+    emit("jetrix_task_object_id", task.get("task_object_id"))
     emit("task_number",    task.get("task_number"))
     emit("task_object_id", task.get("task_object_id"))
     emit("task_type",      task.get("task_type") or "task")
@@ -134,6 +142,13 @@ def _slug(task: dict) -> str:
     slug = (task.get("slug") or "").strip()
     if slug:
         return slug
+    # task_pull_bundle carries the slug in metadata, not top-level — without
+    # this the filename falls back to task-<n> and a pushed task returns
+    # under a second name.
+    meta = task.get("metadata") if isinstance(task.get("metadata"), dict) else {}
+    ext_slug = str(meta.get("externalSlug") or "").strip()
+    if ext_slug:
+        return ext_slug
     num = task.get("task_number")
     if num is not None:
         return f"task-{num}"
