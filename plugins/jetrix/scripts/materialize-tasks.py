@@ -52,6 +52,10 @@ import sys
 
 SECTIONS = (
     ("description",           "Description"),
+    ("scope",                 "Scope & Out of Scope"),
+    ("steps_to_reproduce",    "Steps to Reproduce"),
+    ("actual_result",         "Actual Result"),
+    ("expected_result",       "Expected Result"),
     ("business_rules",        "Business Rules"),
     ("acceptance_criteria",   "Acceptance Criteria"),
     ("nfrs",                  "NFRs"),

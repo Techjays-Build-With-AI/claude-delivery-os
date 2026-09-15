@@ -125,6 +125,14 @@ If `##` yields no tab match, `###` is tried once — an export that nests everyt
 
 Files missing `feature_id` are **rejected** — report `error: "missing feature_id in frontmatter"` and skip. This is the identity anchor; auto-generating from filename creates silent duplicates.
 
+### 2a. Authoring the body
+
+Bodies are pushed **verbatim** and render through MC's markdown pipeline, so whatever is in the file is exactly what the user sees. Badly-formed markdown is why a pushed task reads poorly in the UI even when every section landed in the right tab.
+
+**Before writing or rewriting a task `.md`, read the `delivery-os-conventions` skill's [markdown-format](../../../../delivery-os-core/skills/delivery-os-conventions/references/markdown-format.md) reference** — what renders well in the md tab (tables, nested/checklists, highlighted code fences), what breaks it (table column mismatch, mixed list markers), and what to avoid. It is the single contract for every document that reaches a Task tab.
+
+Push-specific on top of that: map a section to a tab only when its heading matches the table in §2 above; anything else stays in `description`. If the user says where a section belongs ("put the happy path in the description"), that instruction wins over any heading match.
+
 ### 3. Walk + parse + assemble every task — ONE Bash+Python call
 
 **Do NOT `Read` each task file individually.** Invoke the plugin's script once — it walks the target set, extracts frontmatter + body, applies the `title` fallback chain, skips unchanged files against sync-state, and emits ONE JSON blob ready for `task_upsert_bundle`.
