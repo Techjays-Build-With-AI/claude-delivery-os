@@ -46,6 +46,8 @@ Before walking, verify `features/` exists and has at least one feature folder wi
 
 Only after all prereq checks pass do you walk the folders in step 2.
 
+**Body markdown is pushed verbatim** — whatever formatting is in the feature folder's `.md` files is exactly what the user sees in Mission Control. The `delivery-os-conventions` skill's [markdown-format](../../../../delivery-os-core/skills/delivery-os-conventions/references/markdown-format.md) reference is the contract. If a file you're about to push breaks it, fix the file first — pushing it unchanged is what makes a task read badly in the UI.
+
 ### 2. Walk + read + assemble every feature — ONE Bash+Python call
 
 **Do NOT `Read` each feature's files individually.** For 20 features that's 160 `Read` tool round-trips ≈ 5-10 minutes wall-clock. Instead, invoke the plugin's script — it walks `features/*/`, reads each folder's `.md` files, applies every transform (`strip_file_paths` + `rewrite_feat_to_task`), resolves `list_name` per feature (fallback chain), detects blocker signals, groups by `list_name`, skips folders whose hash matches sync-state, and emits ONE JSON blob ready to hand to `feature_upsert_bundle`.

@@ -113,6 +113,8 @@ _TAB_ALIASES = {
     "description":                 "description",
     "acceptance criteria":         "acceptance_criteria",
     "acceptance criteria (ac)":    "acceptance_criteria",
+    "ac":                          "acceptance_criteria",
+    "acceptance":                  "acceptance_criteria",
     "business rules":              "business_rules",
     "test scenarios":              "test_scenarios",
     "test cases":                  "test_scenarios",
@@ -125,6 +127,20 @@ _TAB_ALIASES = {
     "dependencies":                "assumptions",
     "implementation":              "implementation_details",
     "implementation details":      "implementation_details",
+    "scope":                       "scope",
+    "scope & out of scope":        "scope",
+    "scope and out of scope":      "scope",
+    "steps to reproduce":          "steps_to_reproduce",
+    "steps":                       "steps_to_reproduce",
+    "reproduction steps":          "steps_to_reproduce",
+    "actual result":               "actual_result",
+    "actual":                      "actual_result",
+    "actual behaviour":            "actual_result",
+    "actual behavior":             "actual_result",
+    "expected result":             "expected_result",
+    "expected":                    "expected_result",
+    "expected behaviour":          "expected_result",
+    "expected behavior":           "expected_result",
 }
 
 TAB_FIELDS = tuple(sorted(set(_TAB_ALIASES.values()) - {"description"}))
@@ -170,7 +186,10 @@ def split_tabs(body: str) -> dict[str, str]:
         for heading, content in sections:
             key = _TAB_ALIASES.get(_norm_heading(heading))
             if key is None:
-                desc.append("{} {}\n{}".format("#" * level, heading, content))
+                # Kept in description, but one level deeper — a top-level
+                # heading renders oversized inside a tab that is already a
+                # section.
+                desc.append("{} {}\n\n{}".format("#" * (level + 1), heading, content.strip()))
             elif key == "description":
                 desc.append(content)
             else:
