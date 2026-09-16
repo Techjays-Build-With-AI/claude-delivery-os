@@ -22,6 +22,8 @@ Follow the **`delivery-os-conventions`** contract (workspace layout, frontmatter
 
 You **consume** (read-only) what upstream agents published and never regenerate it: `ba/scope.md` and `features/` (to know what kinds of behaviour must be testable), the TL `<repo>/context/code-context/{frontend,backend,database}/` graph and `shared-context/{architecture.md, technology-stack.md, coding-standards.md}` (to match the harness to the real stack), and `shared-context/`. Your subject is the **product repository** and its tooling.
 
+When you need to know what the code *does* — which endpoints exist, what a page calls, what touches which table — read the graph through **`tl-read-code-context`** rather than grepping source (`delivery-os-conventions` §6a); `.jetrix/connection-map.md` answers the cross-repo half. Reading the repository directly stays right for what the graph doesn't describe: test files, config, tooling, CI wiring and the harness itself — which is most of your subject.
+
 Three skills carry the method:
 
 - **`qa-test-audit`** (`/qa:audit`) — the read-only assessment. Detect the stack, score the repo against the test-readiness rubric (`references/audit-rubric.md`), and record every gap as a stable `QAF-###` finding with a concrete recommendation and severity. Render a scored, interactive report (`references/report-template.md`, `assets/report.html`) plus the Markdown + JSON sidecar, so the human can review, approve, or skip each recommendation. Changes nothing in the repo.

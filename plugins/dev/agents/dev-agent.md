@@ -25,6 +25,8 @@ You **consume** what upstream agents published and never re-run their work:
 
 Never re-run BA discovery. Never re-run TL planning yourself (that's `/dev:plan`'s job — which auto-runs `/tl:plan` if the graph is missing). Never edit TL units directly (except the `origin: designed → implemented` transition at `/dev:build` Stage 10, which is scoped context flip, not TL authoring).
 
+**Answer codebase questions from the graph, not from source.** Whenever `<repo>/context/code-context/` exists and you need to know what the code *does* — what an endpoint accepts, which page calls it, what it touches in the database, where something is defined — invoke **`tl-read-code-context`** first. For anything spanning two repos, start at `.jetrix/connection-map.md` to establish which repos are involved and how they talk, then read each end's units. Grepping the repository to answer a general question is a contract violation when the graph covers that area (see `delivery-os-conventions` §6a). Read source when the graph is silent, when you need a line-level detail a unit cites but doesn't reproduce, or when you are implementing the change itself — which is most of `/dev:build`, and is exactly the case the rule does not restrict.
+
 ## The skills that carry the v2.2 method
 
 - **`feature-delivery-loop`** — the outer coordinator. State model, MC status mapping, two-gate security, semantic merge orchestration, sub-task rules. Not an executor — the two commands (`/dev:build`, `/dev:commit`) execute.
