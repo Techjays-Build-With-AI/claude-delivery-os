@@ -466,6 +466,26 @@ When a downstream agent (doc/tl/qa) runs, it should prefer `ba/scope.md` as its 
 
 ---
 
+## 6a. Navigating an existing codebase — graph first, source last
+
+Two artefacts describe a mapped system, at two different scales. **Between** repos and **inside** one:
+
+| Question | Read | Scale |
+|---|---|---|
+| Which app calls which? What transport, what auth boundary, which external services? | `.jetrix/connection-map.md` | **between repos** — solution-wide |
+| What does this endpoint do? Which page calls it? What does it touch in the database? Where is X defined? | `<repo>/context/code-context/` via the **`tl-read-code-context`** skill | **inside one repo** |
+| Line-level detail the graph doesn't carry, or code you are about to change | the source file the unit cites | last resort |
+
+**The rule: when `<repo>/context/code-context/` exists, a question about what the code does is answered from the graph, not by reading source.** Invoke `tl-read-code-context`. Grepping the repository to answer a general codebase question — "how does X work", "where is Y", "what calls Z" — is a contract violation when the graph covers that area, and it is slower and less reliable besides: the graph carries validation rules, business logic, data-access tables and cross-references that no single source file states.
+
+The two artefacts chain. A cross-repo trace starts in `connection-map.md` to establish *which* repos are involved and how they talk, then continues in each repo's `code-context/` for the units at either end. Starting in the source loses both halves.
+
+Source is read when the graph is **silent** (the area isn't mapped — say so and point at `/tl:code-map`), when you need a line-level detail the unit cites but doesn't reproduce, or when you are **implementing** a change rather than answering a question.
+
+This applies to every agent — `dev`, `tl`, `qa`, `doc`, `ba` — and to direct questions with no agent involved. The skill auto-triggers on question shape, but do not rely on that: invoke it explicitly as the first step whenever the graph exists.
+
+---
+
 ## 7. Canonical deliverable formats (Techjays D&D pack)
 
 Client-facing deliverables conform to the Techjays **Design & Discovery** templates. These are the authority for structure and style; the markdown an agent maintains is the living source that the Doc Agent renders into the branded `.docx` at freeze time. The **Scope Document** template is bundled with this core plugin at `${CLAUDE_PLUGIN_ROOT}/templates/d&d/scope-document/` (versioned via its `manifest.json` + `CHANGELOG.md`); the rest still live in the repo `docs/D&D Documentation/` and will be bundled as their agents are built.
