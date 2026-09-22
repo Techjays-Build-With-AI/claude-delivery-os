@@ -5,13 +5,19 @@ Ad-hoc task push. Unlike `feature`, which is tied to the BA 6-file folder layout
 ### 1. Parse the arguments
 
 ```
-/jetrix:push task [<path>] [--list=<name|id>] [--sprint=<id>]
+/jetrix:push task [<target>] [--list=<name|id>] [--sprint=<id>]
 ```
 
-- `<path>` (optional):
+- `<target>` (optional) — **a task number is the normal form.** Nobody should have to know where a file landed on disk:
+  - **Task number** — `11`, `TASK-11`, `Task-11` (case-insensitive, prefix optional). Resolve it to a local file by scanning `tasks/**/*.md` frontmatter for `task_number` (or `jetrix_task_id`) equal to that number. This is the form to show users and the one to accept without comment.
+    - **Exactly one match** → push that file.
+    - **No match** → the ticket isn't local yet. Run `/jetrix:pull task <ref>` first, then retry; say that rather than failing with a path error. Never invent a file.
+    - **More than one match** → list the paths and ask which. Duplicate `task_number` means a stale copy; do not guess.
   - Omitted → walk `tasks/**/*.md` under `project_root`.
   - `.md` file → push that one file.
   - Directory → walk `<dir>/**/*.md`.
+
+  Detect a task number with `^(?:task-)?\d+$` (case-insensitive) **before** treating the argument as a path — a bare number is never a valid path here.
 - `--list=<name>` OR `--list=<24-hex-oid>` (optional): target MC List. If name doesn't exist, it's created. If oid, must exist.
 - `--sprint=<24-hex-oid>` (optional): target Sprint by _id.
 - `--list` and `--sprint` are **mutually exclusive**. If neither, fall through to the interactive prompt in §1a.
@@ -205,7 +211,7 @@ rm -f "$RESPONSES"
 
 The script:
 - Patches each `<rel-path>` .md's frontmatter — sets `jetrix_task_id` + `jetrix_task_object_id` for rows whose `action` is `created` or `recreated` (regex upsert, no Read).
-- Writes per-task entries keyed by the file's **project-relative path** (`tasks/login-bug.md`) in sync-state — file-path-keyed, not feature-id-keyed, so task-stage entries stay distinct from feature-stage entries (which key on `tasks/<feature_id>`, no `.md`). This is the same key `/jetrix:pull list` writes, so skip-unchanged and `expected_version` work across a pull → push cycle.
+- Writes per-task entries keyed by the file's **project-relative path** (`tasks/login-bug.md`) in sync-state — file-path-keyed, not feature-id-keyed, so task-stage entries stay distinct from feature-stage entries (which key on `tasks/<feature_id>`, no `.md`). This is the same key `/jetrix:pull list` writes, so skip-unchanged and `expected_updated_at` work across a pull → push cycle.
 - Prints per-task status to stdout.
 
 ### 8. Report

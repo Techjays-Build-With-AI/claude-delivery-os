@@ -262,6 +262,7 @@ def _apply_features(
             "slug":         slug,
             "contentHash":  f"sha256:{local_hash}" if local_hash else sync_state.get(key, {}).get("contentHash"),
             "version":      row.get("version"),
+            "updatedAt":    row.get("updated_at"),
             "lastPushed":   now,
         }
         recorded.append(slug)
@@ -479,6 +480,7 @@ def _apply_subtasks(
                 # preserve it here so a bundle push doesn't wipe it.
                 "implementationHash": existing_impl_hash,
                 "version":            row.get("version"),
+                "updatedAt":          row.get("updated_at"),
                 "lastPushed":         now,
             }
             recorded.append(f"{parent_slug}/subtask/{subtask_repo}")

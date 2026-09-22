@@ -1,6 +1,6 @@
 ---
 description: Publish local delivery-os work up to Jetrix via the stage-specific MCP. Argument selects which stage to sync — `scope` (BA outputs → scope-mcp), `feature` (BA feature folders → task-mcp), `task` (any .md file or folder of .md files → task-mcp, with optional --list / --sprint targeting), `implementation` (TL plan → Task's implementation tab), `deliverable` (client HTMLs → deliverable-mcp). Uploads use the direct-to-GCS pattern (server brokers signed URLs, local bash + curl streams bytes from disk straight to GCS), so pushes never route file bytes through Claude's context — a 100-file push is as fast as a 1-file push.
-argument-hint: "<stage> [<path>] [--list=<name|id>] [--sprint=<id>]"
+argument-hint: "<stage> [<task-number | path>] [--list=<name|id>] [--sprint=<id>]"
 ---
 
 # /jetrix:push

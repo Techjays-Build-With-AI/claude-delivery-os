@@ -322,7 +322,7 @@ def main() -> int:
             "priority":     fm.get("priority") or "",
             "initiative":   fm.get("initiative") or "",
             "task_object_id":   fm.get("jetrix_task_object_id") or None,
-            "expected_version": prev.get("version") if isinstance(prev, dict) else None,
+            "expected_updated_at": prev.get("updatedAt") if isinstance(prev, dict) else None,
             "_local_content_hash": content_hash,
             "_local_rel_path":     rel,
             "_task_type_how":      how,

@@ -31,7 +31,7 @@ import sys
 
 
 def _iso_now() -> str:
-    return datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
+    return datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0, tzinfo=None).isoformat() + "Z"
 
 
 def _load_json(path: pathlib.Path, default):
@@ -117,6 +117,7 @@ def apply(
             "slug":         row.get("slug"),
             "contentHash":  f"sha256:{local_hash}" if local_hash else sync_state.get(state_key, {}).get("contentHash"),
             "version":      row.get("version"),
+            "updatedAt":    row.get("updated_at"),
             "lastPushed":   now,
         }
         recorded.append(rel or row.get("slug") or "")

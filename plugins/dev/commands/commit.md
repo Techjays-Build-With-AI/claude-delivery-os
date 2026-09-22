@@ -1,6 +1,6 @@
 ---
 description: Commit a built task through the full 10-stage commit loop — strict security review (Critical + High blocking, vs /dev:build's Critical-only), dynamic code review via dev-stack-adaptive-code-review (Blocker + Major blocking), final acceptance-map re-verification (regression + last-sub-task E2E), bounded fix loop, semantic-context-merge against baseline via tl-semantic-context-merge (unit-level merge, not text-level), push branch, raise PR with dev/pr-summary.md, print terminal summary. State transitions to REVIEW locally + devReview in MC on start; stays there on success (PR-merge webhook flips to DONE / done — future). Sub-task commits work in the sub-task's repo only. Refuses to run without a completed /dev:build.
-argument-hint: "<Task-N | Feature-N | Subtask-N | slug | features/<slug> | features/<slug>/subtask/<repo> | FEAT-<AREA>-NN | (blank = task that finished /dev:build most recently)> [initiative=<name>] [--resume] [--skip-security] [--force-context-merge=ours] [--force-push]"
+argument-hint: "<task-number | Task-N | slug | features/<slug> | tasks/<slug>.md | FEAT-<AREA>-NN | (blank = task that finished /dev:build most recently)> [initiative=<name>] [--resume] [--skip-security] [--force-context-merge=ours] [--force-push]"
 ---
 
 # /dev:commit
@@ -18,10 +18,11 @@ Read the **`delivery-os-conventions`** skill first if it's not in context — th
 `$ARGUMENTS` may contain:
 
 **Task target** (required, unless blank for "most recently built"):
-- MC task number: `Task-N`, `Feature-N`, `Subtask-N`
+- **Task number** — `11` (bare) or `Task-11` / `Feature-11` / `Subtask-11`. A bare integer is accepted wherever a target is, and means `Task-<n>`. This is the normal form — it is what Mission Control shows, and it needs no knowledge of where anything sits on disk.
 - Local feature slug: `supplier-onboarding`
 - Local feature folder: `features/supplier-onboarding`
 - Sub-task folder: `features/supplier-onboarding/subtask/backend`
+- **Non-feature ticket**: `tasks/<slug>.md` — run state lives at `tasks/<slug>/dev/` (`build-run.md`, `status.md`). Every stage is unchanged: same security review, same code review, same acceptance re-verify, same PR. Only the path to the run files differs.
 - Internal id: `FEAT-<AREA>-NN`
 - Blank: pick most recent task whose `status.md` has `ready_for_dev_commit: true`
 

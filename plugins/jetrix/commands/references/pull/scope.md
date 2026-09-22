@@ -172,7 +172,7 @@ Response:
 }
 ```
 
-**Fields carrying tab-shape content** — `description`, `business_rules`, `acceptance_criteria`, `nfrs`, `test_scenarios`, `assumptions`. These are already stripped of file paths / framework names / provenance by `/jetrix:push feature`. When pull writes them back to local files, it writes them **verbatim** — no re-transformation, no reshaping. Local files after pull are the tab-shape versions.
+**Fields carrying tab-shape content** — `description`, `business_rules`, `acceptance_criteria`, `nfrs`, `test_scenarios`, `assumptions`. These are already stripped of file paths / framework names / provenance at push time, per `delivery-os-conventions` §6b. When pull writes them back to local files, it writes them **verbatim** — no re-transformation, no reshaping. Local files after pull are the tab-shape versions.
 
 **Fields carrying record-only content** — `scope`, `dependencies`, `open_questions`. Preserved on the MC record for traceability but not surfaced in any tab; pull writes them back to their local files for anyone reconstructing the feature folder.
 

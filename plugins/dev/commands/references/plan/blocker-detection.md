@@ -92,6 +92,30 @@ For each ordered step in `implementation.md`, apply these questions. Any YES →
 
 ---
 
+### 5.2a Ticket-vs-code reconciliation (non-feature targets)
+
+A BA feature is a specification — it describes something that does not exist yet, so there is nothing to contradict. A bug, story, or ad-hoc task is a **claim about code that already exists**, and the claim can simply be wrong: filed against stale behaviour, already fixed, mis-attributed, or describing intended design as a defect.
+
+Silently planning against a wrong claim produces a confident fix for the wrong problem. So after reading the code-context units for the ticket's area, reconcile the ticket against what the code actually does, and mint a blocker on any mismatch:
+
+| Question | Blocker if YES |
+|---|---|
+| Do the Steps to Reproduce reference a route, screen, or handler that doesn't exist in the code-context graph? | Yes — repro path not found |
+| Does the code already implement the Expected Result on the described path? | Yes — possibly already fixed |
+| Does the described symptom contradict what the code plainly does, so the real fault is elsewhere? | Yes — symptom/root-cause mismatch |
+| Is the Expected Result a change to behaviour the code implements deliberately (explicit branch, documented rule, covering test)? | Yes — working-as-designed dispute |
+| Is the Description silent on, or contradicted by, the condition that actually triggers the fault? | Yes — description does not match code |
+
+**These are always user-confirmed, never auto-resolved.** Do not "correct" the ticket from the code, and do not implement what you believe was meant. You are reading a human's report of a real observation; the code may be right and the report stale, or the report right and your reading of the code wrong. Only the user can settle which. Mint the blocker with:
+
+- what the ticket claims, quoted from the tab it came from;
+- what the code shows, cited as `file:line` from the code-context unit;
+- options that always include **"ticket is right — my reading is wrong, plan the fix as filed"**, so the user can overrule the analysis without editing the ticket.
+
+Never mint one of these off the ticket text alone — a mismatch claim is only as good as the code reading behind it. If the relevant area has no code-context coverage, that is a *missing context* blocker, not a mismatch.
+
+---
+
 ### 5.3 Blocker minting
 
 For each detected issue that survives dedup:
@@ -114,6 +138,7 @@ For each detected issue that survives dedup:
 Write to:
 - Parent-alone: `features/<slug>/dev/plan-blockers.md`
 - Sub-task: `features/<slug>/dev/<repo>-plan-blockers.md` (repo-slug prefix — v2.3 flat dev/ convention)
+- Non-feature ticket: `tasks/<slug>/dev/plan-blockers.md` (never split, so never repo-prefixed)
 
 **Frontmatter:**
 
