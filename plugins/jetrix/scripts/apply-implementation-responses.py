@@ -80,6 +80,8 @@ def _apply_features(
             merged["taskNumber"] = row["task_number"]
         if row.get("version") is not None:
             merged["version"] = row["version"]
+        if row.get("updated_at") is not None:
+            merged["updatedAt"] = row["updated_at"]
         merged["implementation_pushed_at"] = now
 
         sync_state[state_key] = merged
@@ -157,6 +159,8 @@ def _apply_subtasks(
                 merged["taskNumber"] = row["task_number"]
             if row.get("version") is not None:
                 merged["version"] = row["version"]
+            if row.get("updated_at") is not None:
+                merged["updatedAt"] = row["updated_at"]
             merged["taskObjectId"] = subtask_oid
             merged["implementation_pushed_at"] = now
 

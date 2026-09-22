@@ -679,6 +679,25 @@ def main() -> int:
         if not parent_unchanged:
             payload = assemble_feature(feat_dir, fm, task_num_by_feat)
             payload["_local_content_hash"] = current_hash  # for the write-back step
+            # Stale-write guard. feature_upsert_bundle rejects the update when
+            # MC's updatedAt no longer matches what we recorded at last sync,
+            # so a ticket edited on the board since then is refused instead of
+            # silently overwritten.
+            payload["expected_updated_at"] = prev.get("updatedAt") if isinstance(prev, dict) else None
+
+            # feature_upsert_bundle skips the check when expected_updated_at is
+            # None, so an update with nothing recorded would overwrite
+            # unguarded. Refuse it instead of pushing blind.
+            if payload.get("task_object_id") and not payload["expected_updated_at"]:
+                halts.append({
+                    "slug": slug,
+                    "code": "needs_pull",
+                    "reason": (
+                        "linked to an MC task but sync-state has no updatedAt — pull "
+                        "once so the overwrite guard has a baseline to compare against"
+                    ),
+                })
+                continue
 
             list_name, is_fallback = _resolve_list_name(fm, args.solution_slug)
             if is_fallback:

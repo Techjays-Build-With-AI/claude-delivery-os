@@ -1,9 +1,10 @@
 """Materialize `tasks/<slug>.md` from a task_pull_bundle JSON.
 
 Invoked by `/jetrix:pull list` (see plugins/jetrix/commands/references/pull/list.md)
-for the non-FEATURE tasks in an MC List (bugs, chores, ad-hoc tasks). Feature
-tasks in the same List go through `materialize-features.py` — different on-disk
-layout (folder-of-7-files vs single-file).
+for the non-FEATURE tasks in an MC List (bugs, chores, ad-hoc tasks), and by
+`/jetrix:pull task <ref>` §7 when the ref resolves to a non-feature ticket.
+Feature tasks go through `materialize-features.py` — different on-disk layout
+(folder-of-7-files vs single-file).
 
 Each non-feature task becomes ONE file at `tasks/<slug or task-N>.md`:
 
@@ -66,7 +67,7 @@ SECTIONS = (
 
 
 def _iso_now() -> str:
-    return datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
+    return datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0, tzinfo=None).isoformat() + "Z"
 
 
 def _load_json(path: pathlib.Path, default):
@@ -102,8 +103,17 @@ def _frontmatter(task: dict, now: str) -> str:
 
     # Identity first, under the names `/jetrix:push task` reads — without
     # these the file round-trips into a "missing feature_id" halt.
+    #
+    # A ticket filed by hand in MC has no metadata.externalId, so fall back to
+    # TASK-<number>. assemble-tasks.py requires feature_id and halts without
+    # it, which made every pulled bug / story / ad-hoc task unpushable. The
+    # task number is stable and unique per solution, so it is a safe natural
+    # key; the push stamps it onto metadata.externalId, and the `task_object_id`
+    # emitted below still wins identity resolution, so this cannot create a
+    # duplicate of an already-linked ticket.
     meta_in = task.get("metadata") if isinstance(task.get("metadata"), dict) else {}
-    emit("feature_id",     meta_in.get("externalId") or "")
+    _num = task.get("task_number")
+    emit("feature_id",     meta_in.get("externalId") or (f"TASK-{_num}" if _num else ""))
     emit("slug",           meta_in.get("externalSlug") or _slug(task))
     emit("initiative",     meta_in.get("externalInitiative") or "")
     emit("jetrix_task_id",        task.get("task_number"))
@@ -201,6 +211,9 @@ def materialize(bundle_path: pathlib.Path, project_root: pathlib.Path, sync_stat
             "taskObjectId": task.get("task_object_id"),
             "slug":         slug,
             "contentHash":  f"sha256:{content_hash}",
+            # MC's updatedAt at pull time — the baseline the next push's
+            # stale-write guard compares against.
+            "updatedAt":    task.get("updated_at"),
             "lastPulled":   now,
         }
 

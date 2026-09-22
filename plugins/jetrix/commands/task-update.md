@@ -1,6 +1,6 @@
 ---
-description: Surgically update an existing MC task after discussion. Loads the task's current state (implementation.md / description.md / sub-tasks), takes user-described changes conversationally, drafts each as a targeted patch against the specific section or sub-task it belongs to, batches every change into ONE review + confirm step, applies all diffs locally, pushes to MC via task-mcp with read-back verify, and updates sync-state. NEVER rewrites a whole file to change one line. Never touches sections the user didn't ask about. Respects the v2.3.16+ 8-section frame — refuses to add retired sections (§Coverage, Assumptions heading, Business flow). Accepts a single MC task number (Task-N, Feature-N, Subtask-N), a local feature slug or folder path, or the internal FEAT-<AREA>-NN id. Runs 6 stages: identity → load current state → conversation loop → confirm → apply + push + read-back verify → report with URLs.
-argument-hint: "<Task-N | Feature-N | Subtask-N | slug | features/<slug> | FEAT-<AREA>-NN>"
+description: "Surgically update an existing MC task after discussion. Loads the task's current state (implementation.md / description.md / sub-tasks), takes user-described changes conversationally, drafts each as a targeted patch against the specific section or sub-task it belongs to, batches every change into ONE review + confirm step, applies all diffs locally, pushes to MC via task-mcp with read-back verify, and updates sync-state. NEVER rewrites a whole file to change one line. Never touches sections the user didn't ask about. Respects the v2.3.16+ 8-section frame — refuses to add retired sections (§Coverage, Assumptions heading, Business flow). Accepts a single MC task number (Task-N, Feature-N, Subtask-N), a local feature slug or folder path, or the internal FEAT-<AREA>-NN id. Runs 6 stages: identity → load current state → conversation loop → confirm → apply + push + read-back verify → report with URLs."
+argument-hint: "<task-number | Task-N | slug | features/<slug> | tasks/<slug>.md | FEAT-<AREA>-NN>"
 ---
 
 # /jetrix:task-update — surgical task-content patch after discussion
@@ -21,10 +21,11 @@ Read the **`delivery-os-conventions`** skill first if not in context — the v2.
 
 `$ARGUMENTS`:
 
-- MC task number: `Task-N`, `Feature-N`, `Subtask-N`
+- **Task number** — `11` (bare) or `Task-11` / `Feature-11` / `Subtask-11`. A bare integer is accepted wherever a target is, and means `Task-<n>`. This is the normal form — it is what Mission Control shows, and it needs no knowledge of where anything sits on disk.
 - Local feature slug: `holiday-calendar-management`
 - Local feature folder: `features/holiday-calendar-management`
 - Internal id: `FEAT-<AREA>-NN`
+- **Non-feature ticket**: `tasks/<slug>.md` — a bug / story / ad-hoc task pulled from MC (see §2f below)
 
 Blank arg → tell the user this command requires a target and stop; unlike `/dev:plan`, there's no "next-READY" pick that makes sense for an update.
 
@@ -69,6 +70,22 @@ Read from disk:
 - **Sub-task:**
   - `features/<slug>/subtask/<repo>/{description.md, implementation.md, status.md}`
   - `features/<slug>/tl-plan.md` — parent rollup as reference
+- **Non-feature ticket** (§2f):
+  - `tasks/<slug>.md` — the ticket itself; its `## Headings` ARE the MC tabs
+  - `tasks/<slug>/dev/implementation.md` and `dev/status.md` — the build's copy; the ticket's own `## Implementation` section is what reaches MC
+
+### Non-feature tickets — what differs
+
+A bug / story / ad-hoc task has no BA folder and no 8-section frame. Everything lives in one file, so the rules change in four ways:
+
+- **Patch the tab body under its `## Heading`.** Those headings are what `assemble-tasks.py` splits into tab fields. The 8-section frame does not apply and its section rules must not be enforced here.
+- **Only tabs the type owns.** Every type carries Implementation; only `epic` and `story` carry Scope. A heading the type lacks writes a field the MC UI never renders — `task_upsert_bundle` drops it and returns `dropped_tabs`.
+- **Never rewrite frontmatter.** `feature_id`, `jetrix_task_object_id`, `task_type` are the identity that makes this an update rather than a duplicate.
+- **Never edit `## Actual Result`** unless the user explicitly asks. It records what the reporter observed, not a conclusion.
+
+Tab content stays reader-facing — no file paths, no unit ids, no `PB-###` / `DEC-###`. See `delivery-os-conventions` §6b; it is the same rule for every task type, hand-filed or plugin-authored.
+
+Push via the task path (`assemble-tasks.py` → `task_upsert_bundle`), not `feature_upsert_bundle`, and carry `expected_updated_at` from sync-state so a ticket edited in MC since your last pull is refused rather than overwritten.
 
 Also read from MC (light — one call per tab that may get touched):
 
@@ -260,7 +277,21 @@ For each touched file, push the FULL updated tab body:
 
 ## 8. Stage 6 — Report with URLs (per Rule 7.0)
 
-Print the final summary — every task line MUST show its MC UI URL from the response `view_url` field (never construct locally):
+**Say that the board is already updated, and give the link.** The push happened inside this run, so the user has nothing left to do — state that in those words rather than listing edits and leaving them to wonder whether it landed. For a filed ticket the block is short:
+
+```
+✓ Task-11 updated in Mission Control
+
+  Expected Result  rewritten per your wording
+  Implementation   build sequence reordered
+  Actual Result    untouched
+
+  ↳ https://<mc>/task/6ab14494440dd357a0c78442   ✓ verified
+
+  Already live on the board — nothing further to push.
+```
+
+For a feature with sub-tasks, the same rules produce the fuller shape below. Every task line MUST show its MC UI URL from the response `view_url` field (never construct locally):
 
 ```
 ✓ /jetrix:task-update <task-ref> complete

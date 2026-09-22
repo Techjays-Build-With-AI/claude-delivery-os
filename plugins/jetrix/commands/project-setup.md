@@ -40,7 +40,7 @@ Every downstream write uses the absolute path — never `$PWD` or relative paths
 
 ## 1. Guard: MCP registration + arg parsing
 
-- Run `claude mcp list` via Bash. If any of `project-mcp`, `scope-mcp`, `task-mcp` is missing → halt with:
+- Check registration **without blocking**: `claude mcp list` health-checks every registered server over the network and can hang for minutes on a machine with many connectors, so always bound it — `timeout 20 claude mcp list 2>&1`. **On timeout, continue** rather than halting; a slow health check is not evidence of a missing registration, and the first MCP call will surface a real problem clearly. Only when the command returns and any of `project-mcp`, `scope-mcp`, `task-mcp` is genuinely absent → halt with:
   ```
   Missing MCP registration. Run /delivery-os:setup first, then re-run this command.
   ```

@@ -1,6 +1,6 @@
 ---
 description: Build a planned task through the full 11-stage loop — branch, QA harness gate (auto-bootstraps greenfield via qa-greenfield-harness), implement per implementation.md using dev-stack-adaptive-implementation (dynamic per stack, reads repo conventions, matches idiomatic patterns), write stack-adaptive tests, execute them locally, validate against parent's Acceptance Criteria + Business Rules + Test Scenarios + NFRs, run a scoped security review (feature-diff only, Critical-blocking at build-time; /dev:commit is stricter), update code-context units to origin:implemented, and produce a summary + local-runbook.md. Bounded fix loop until 100% or escalation. Refuses to run without a /dev:plan-generated plan OR with unresolved plan-blockers.md. Accepts any task identifier (MC task number, feature slug or folder, sub-task folder, FEAT-<AREA>-NN). Sub-task builds work in the sub-task's repo only, on a branch named feature/FEAT-<AREA>-NN-<slug>-<repo>. Never merges, never pushes, never raises a PR — /dev:commit does that.
-argument-hint: "<Task-N | Feature-N | Subtask-N | slug | features/<slug> | features/<slug>/subtask/<repo> | FEAT-<AREA>-NN | (blank = next PLANNED task)> [initiative=<name>] [--resume] [--no-security-review]"
+argument-hint: "<task-number | Task-N | slug | features/<slug> | tasks/<slug>.md | FEAT-<AREA>-NN | (blank = next PLANNED task)> [initiative=<name>] [--resume] [--no-security-review] [--skip-qa]"
 ---
 
 # /dev:build
@@ -20,17 +20,21 @@ Read the **`delivery-os-conventions`** skill first if it's not in context — th
 `$ARGUMENTS` may contain:
 
 **Task target** (required, unless blank for "next PLANNED"):
-- MC task number: `Task-N`, `Feature-N`, `Subtask-N`
+- **Task number** — `11` (bare) or `Task-11` / `Feature-11` / `Subtask-11`. A bare integer is accepted wherever a target is, and means `Task-<n>`. This is the normal form — it is what Mission Control shows, and it needs no knowledge of where anything sits on disk.
 - Local feature slug: `supplier-onboarding`
 - Local feature folder: `features/supplier-onboarding`
 - Sub-task folder: `features/supplier-onboarding/subtask/backend`
 - Internal id: `FEAT-<AREA>-NN`
-- Blank: pick next task at `PLANNED` from `features/tracker.md`
+- **Non-feature ticket**: `tasks/<slug>.md` (bug / story / task / epic planned via `/dev:plan` §2f). Its plan lives at `tasks/<slug>/dev/` — read `implementation.md`, `status.md`, and `plan-blockers.md` from there, not from `features/`. Never split: a non-feature builds in one repo, on `fix/<slug>` for a bug, `feature/<slug>` otherwise.
+- Blank: pick next task at `PLANNED` — scan `features/tracker.md` **and** `tasks/*/dev/status.md`. If both have candidates, list them and ask.
 
 **Flags:**
 - `initiative=<name>` — scope selection to one work-batch
 - `--resume` — continue from last completed stage per `dev/build-run.md`
 - `--no-security-review` — skip Stage 9's diff security review (dev-time convenience; `/dev:commit` always runs security)
+- `--skip-qa` — **skip Stage 4's harness bootstrap and write no tests.** For a change whose risk does not justify standing up a test framework: a CSS value, a copy fix, a config default. Stage 4 logs `qa_gate_state: skipped-by-user` and Stages 5–6 write code without tests; Stage 8 builds the acceptance-map from inspection instead of test evidence and marks every row `verified: manually`. `/dev:commit` still runs its full security and code review — this flag buys you out of *testing*, never out of *review*.
+
+**When `--skip-qa` is the right call, and when it is not.** A repo with no test framework forces a real choice: install one, or accept that this change is verified by eye. For a one-line presentational fix the harness costs more than the change and protects nothing — take the flag. For anything touching behaviour, data, auth, or money, the absence of tests is the reason to build the harness, not to skip it. `/dev:build` never decides this for you: without the flag it bootstraps, with it it does not.
 
 ## 2. Stage 0 — Identity resolution + plan verification (hard gate)
 
@@ -54,10 +58,14 @@ Rationale: `dev-stack-adaptive-implementation` Rule 13/14 and code-review Dimens
 
 **Verify QA gate contract (v2.3.16 gate — soft-when-Stack-Inferred).** Check for `qa/quality-gates.md`:
 
-- Missing → halt with `blocker: quality-gates-missing`. Point at `/dev:plan` §1e QA-check with skip prompt: user must re-run `/dev:plan` and either author gates for existing repo OR choose Skip (which writes a `Stack-Inferred` marker file with tier pools).
-- Present, `harness_status: Ready` → strict mode. Read Required tiers per capability class. Rule 7 in `dev-stack-adaptive-implementation` writes tests at every declared tier for every §1 step. Log `qa_gate_state: Ready` to `build-run.md`.
-- Present, `harness_status: Stack-Inferred` → soft mode. Tier pools were inferred from stack detection at plan time; NEW feature coverage is still 100% at every applicable tier from the inferred pool. Rule 7 writes tests at every inferred tier. Log `qa_gate_state: Stack-Inferred` + `stack_inferred_from: <source>` to `build-run.md`. Print a one-line warning: `qa/quality-gates.md is Stack-Inferred (user skipped QA setup at /dev:plan). Existing repo coverage is not audited; new feature will get 100% coverage at inferred tiers. Backfill existing coverage via /qa:audit → /qa:plan → /qa:setup when convenient.`
-- Present, `harness_status: Draft` or `Broken` → halt with `blocker: quality-gates-not-ready`. Point at `/qa:health` for Broken; `/qa:setup` for Draft.
+**This is a read, not a gate — Stage 4 owns bootstrapping.** Stage 0 halts on exactly one state. Anything Stage 4 can fix automatically it must be allowed to reach; halting here made Stage 4's auto-bootstrap unreachable and forced users to stand up a harness by hand before a one-line fix.
+
+- Present, `harness_status: Active` (or the legacy spelling `Ready`) → strict mode. Read Required tiers per capability class. Rule 7 in `dev-stack-adaptive-implementation` writes tests at every declared tier for every §1 step. Log `qa_gate_state: Active`.
+- Present, `harness_status: Stack-Inferred` → soft mode. Tier pools were inferred from stack detection at plan time; NEW feature coverage is still 100% at every applicable tier from the inferred pool. Rule 7 writes tests at every inferred tier. Log `qa_gate_state: Stack-Inferred` + `stack_inferred_from: <source>`.
+- **Missing, `harness_status: Draft`, or no `harness_status` key at all → continue.** Log `qa_gate_state: needs-bootstrap` and carry on; **Stage 4 auto-bootstraps it** after the branch exists. Never halt for these. A file with no `harness_status` key is the scaffold placeholder — the same thing as missing, and it must not read as "not Active".
+- Present, `harness_status: Broken` → **halt** with `blocker: quality-gates-broken`. This is the one state Stage 4 refuses to bootstrap over, because a broken harness means a previously-working setup regressed and silently replacing it would hide that. Route to `/qa:health`.
+
+Keep `harness_status` vocabulary aligned with Stage 4: `Active` · `Stack-Inferred` · `Draft` · `Broken`. `Ready` is the legacy spelling of `Active` and is accepted on read, never written.
 
 The Stack-Inferred path is the intentional escape hatch for teams that want to plan+build a new feature WITHOUT first backfilling test coverage on an existing codebase. The NEW feature still gets 100% coverage at every applicable tier — the inference just skips the audit-of-existing-code step. Backfill of existing coverage is deferred to a later `/qa:audit → /qa:plan → /qa:setup` run.
 
@@ -128,7 +136,10 @@ Three cheap re-checks:
 - Create branch:
   - Parent-alone → `feature/FEAT-<AREA>-NN-<slug>`
   - Sub-task → `feature/FEAT-<AREA>-NN-<slug>-<repo>`
+  - **Filed ticket** → `fix/task-<n>-<slug>` when `task_type` is `bug`, else `feature/task-<n>-<slug>`. There is no `FEAT-<AREA>-NN` for these, so the task number carries the identity.
 - Never `main` / `master` / `staging` / `production` / `develop`. Confirm base build is green in target repo. Write branch name into `status.md`.
+
+**This stage is not optional, and it runs before any file is touched.** Every change `/dev:build` makes lands on its own branch — a one-line CSS fix on a filed bug as much as a multi-repo feature. If a later gate halts the run, the branch still exists and the working tree is still clean, so nothing is stranded on `main`.
 
 ### Stage 4 — QA harness gate
 

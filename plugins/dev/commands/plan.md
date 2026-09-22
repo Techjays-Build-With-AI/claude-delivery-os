@@ -1,6 +1,6 @@
 ---
-description: Just-in-time planning for one or many tasks. Verifies the technical context graph is current (auto-runs /tl:plan if missing), decides whether each task needs sub-tasks (multi-repo → one sub-task per repo, single-repo or bug/story → parent alone), composes each sub-task's Description + Implementation and creates them in Mission Control, writes the local development plan, and (v2.2) surfaces every plan-time decision that would require build-time input as PB-### blockers in dev/plan-blockers.md — so /dev:build never has to prompt. Accepts a single MC task number (Task-N, Feature-N, Subtask-N), a local feature slug or folder path, the internal FEAT-<AREA>-NN id, or a multi-target form — an MC List name, initiative=<name>, or --all — which fans out across every matching feature in parallel. Runs 4 stages: identity resolution → code-context readiness → implementation preparation → development planning + blocker detection. With --resume: if a task has an OPEN dev/plan-blockers.md, folds every filled Resolution: field into implementation.md §1-§9 + registers deterministically per category, logs each fold as a DEC-###, and moves the task from BLOCKED_ON_PLAN to PLANNED. Two parallelism axes: across features (bounded by --concurrency, default 5) and within a feature (per-sub-task compose + per-task planning). One consolidated user checkpoint after stage 1 to confirm the split for every targeted feature. Failure of one feature never halts the batch — failed features report at the end with escalations or plan-blockers. Never merges, never runs code — leaves each task at status PLANNED for /dev:build (or BLOCKED_ON_PLAN awaiting user resolution).
-argument-hint: "<Task-N | Feature-N | Subtask-N | slug | features/<slug> | FEAT-<AREA>-NN | list=<name> | initiative=<name> | --all | (blank = next READY task)> [--split | --no-split] [--resume] [--dry-run] [--concurrency=N]"
+description: "Just-in-time planning for one or many tasks. Verifies the technical context graph is current (auto-runs /tl:plan if missing), decides whether each task needs sub-tasks (multi-repo → one sub-task per repo, single-repo or bug/story → parent alone), composes each sub-task's Description + Implementation and creates them in Mission Control, writes the local development plan, and (v2.2) surfaces every plan-time decision that would require build-time input as PB-### blockers in dev/plan-blockers.md — so /dev:build never has to prompt. Accepts a single MC task number (Task-N, Feature-N, Subtask-N), a local feature slug or folder path, the internal FEAT-<AREA>-NN id, or a multi-target form — an MC List name, initiative=<name>, or --all — which fans out across every matching feature in parallel. Runs 4 stages: identity resolution → code-context readiness → implementation preparation → development planning + blocker detection. With --resume: if a task has an OPEN dev/plan-blockers.md, folds every filled Resolution: field into implementation.md §1-§9 + registers deterministically per category, logs each fold as a DEC-###, and moves the task from BLOCKED_ON_PLAN to PLANNED. Two parallelism axes: across features (bounded by --concurrency, default 5) and within a feature (per-sub-task compose + per-task planning). One consolidated user checkpoint after stage 1 to confirm the split for every targeted feature. Failure of one feature never halts the batch — failed features report at the end with escalations or plan-blockers. Never merges, never runs code — leaves each task at status PLANNED for /dev:build (or BLOCKED_ON_PLAN awaiting user resolution)."
+argument-hint: "<task-number | Task-N | slug | features/<slug> | tasks/<slug>.md | FEAT-<AREA>-NN | list=<name> | initiative=<name> | --all | (blank = next READY task)> [--split | --no-split] [--resume] [--dry-run] [--concurrency=N]"
 ---
 
 # /dev:plan
@@ -24,8 +24,14 @@ Standard checks before any work:
 1. Walk up from `$PWD` looking for `.jetrix/project.json` (up to 3 parent levels). If missing → tell the user to run `/jetrix:init` first and stop.
 2. Read `solution_id`, `solution_slug`, and `apps[]` from `project.json`. Note the folder that CONTAINS `.jetrix/` as `workspace_root`; the container at `<workspace_root>/.jetrix/` as `project_root`.
 3. Read `.jetrix/cache/repolocation.json` — for each app in `apps[]`, resolve its absolute local path. `SKIPPED` values mean that repo is unavailable — log and continue.
-4. Confirm `task-mcp` is registered (`claude mcp list`). If missing → tell user to run `/delivery-os:setup` and stop.
-5. Confirm `features/` exists under `project_root`. If missing → tell user to run `/ba:features` or `/jetrix:pull scope` and stop.
+4. Confirm `task-mcp` is available. MCP tools may be listed directly **or deferred**, so resolve it rather than eyeballing: if `mcp__task-mcp__*` tools are already in your tool list, that's your answer; otherwise run `ToolSearch` with `select:mcp__task-mcp__get_task_by_id_or_number`. A returned schema means registered; `No matching deferred tools found` means it isn't → tell the user to run `/delivery-os:setup` and stop.
+
+   **Never run `claude mcp list` for this.** It health-checks *every* registered MCP server over the network — including unrelated claude.ai connectors — so on a machine with many of them it blocks for minutes or never returns, and `/dev:plan` appears to hang with no output before doing any work.
+
+   **Never conclude "not registered" from an empty tool list alone.** Where the harness defers MCP tools they are absent until searched, so that check alone reports a false negative and stops a run whose MCP is perfectly healthy.
+
+   The check must stay here rather than deferring to the first real call: only the `Task-N` and blank forms hit `task-mcp` during Stage 0. A local slug or `FEAT-<AREA>-NN` resolves from local files, so its first MCP call is Stage 4 — by which point the analysis subagents have already run and written `dev/analysis.md` and `dev/plan-blockers.md`.
+5. Confirm `features/` **or** `tasks/` exists under `project_root`. Both are valid sources: `features/<slug>/` holds BA-decomposed features, `tasks/<slug>.md` holds non-feature tickets (bug / story / ad-hoc task) pulled straight from MC. If neither exists → tell the user to run `/ba:features`, `/jetrix:pull scope`, or `/jetrix:pull task <ref>` and stop.
 
 ---
 
@@ -36,7 +42,7 @@ Standard checks before any work:
 **Target (required, unless blank for "next task at MC `readyForDev`"):**
 
 *Single-target forms:*
-- MC task number: `Task-N`, `Feature-N`, `Subtask-N` (case-insensitive prefix)
+- **Task number** — `11` (bare) or `Task-11` / `Feature-11` / `Subtask-11`. A bare integer is accepted wherever a target is, and means `Task-<n>`. This is the normal form — it is what Mission Control shows, and it needs no knowledge of where anything sits on disk.
 - Local slug: `supplier-onboarding`
 - Local folder path: `features/supplier-onboarding`
 - Internal id: `FEAT-<AREA>-NN`
@@ -71,10 +77,32 @@ For **single-target** forms:
 1. **MC task number** (`Task-N`, `Feature-N`, `Subtask-N`):
    - Call `task-mcp.get_task_by_id_or_number(solution_id, ref=<arg>)`.
    - If `task.taskType == subtask` → walk up to `parentTaskId`, re-fetch → parent Task.
-   - Result: `(feature_id from metadata.externalId, task_object_id, task_number)`.
-2. **Local slug or folder path** — match against `features/<slug>/`, read `feature.md` frontmatter → `(feature_id, jetrix_task_object_id, jetrix_task_number)`.
+   - Decide the track per **§2a.1** below — `taskType` alone is not sufficient.
+   - Result: `(feature_id from metadata.externalId, task_object_id, task_number, task_type, track)`.
+
+#### 2a.1 Which track — BA feature, or a ticket someone filed by hand?
+
+The two tracks read different inputs, so mis-routing is not cosmetic: send a hand-filed ticket down the feature track and §2c looks for 8 BA files that will never exist, marks it `SKIPPED_MISSING_BA`, and drops it. Decide in this order and stop at the first that answers.
+
+**1 — What is on disk wins.** It reflects what actually exists, not what a field claims.
+
+| Found locally | Track |
+|---|---|
+| `features/<slug>/feature.md` carrying this `feature_id` | feature |
+| `tasks/<slug>.md` carrying this `task_object_id` | non-feature |
+
+**2 — Nothing local yet: `taskType` *and* the id shape together.** BA-authored features always carry `taskType: feature` **and** an `externalId` matching `FEAT-<AREA>-NNN` (`FEAT-SUP-001`, per `delivery-os-conventions` §3). Both → feature track; pull it and proceed.
+
+**3 — `taskType: feature` without the BA shape → non-feature track.** A person opened MC, created a ticket and picked "feature" from the type dropdown. It is labelled like a BA feature and structurally is not one. This is decidable, not a judgement call: `/jetrix:push feature` has `REQUIRED_FILES = ("feature.md", "acceptance-criteria.md")` and **halts** without them, so every feature that reached MC through the BA path has a `FEAT-<AREA>-NNN` id *and* non-empty `acceptanceCriteria`. Missing either → it did not come from `/ba:features` → non-feature track. Note it in the run summary; do not ask.
+
+**4 — Anything else** (`bug`, `story`, `task`, `epic`) → non-feature track (§2f). The target is `tasks/<slug>.md`, auto-pulled via `/jetrix:pull task <ref>` §7 if not already on disk.
+
+Routing is deterministic at every step — no prompt. A target resolved here reads only its own track's instructions.
+
+**Do not route on `metadata.source` or `aiGenerated`.** Every plugin push stamps `source: "ai"` — `/jetrix:push feature` and `/jetrix:push task` alike — so it separates *plugin-pushed* from *typed-into-MC*, which is not the question being asked here. A bug pushed by the plugin is still a bug.
+2. **Local slug or folder path** — match against `features/<slug>/`, read `feature.md` frontmatter → `(feature_id, jetrix_task_object_id, jetrix_task_number)`. A path or slug matching `tasks/<slug>.md` instead resolves to the **non-feature track** (§2f), reading `task_type` from that file's frontmatter.
 3. **Internal `FEAT-<AREA>-NN`** — grep `features/*/feature.md` frontmatter for the id.
-4. **Blank** — call `task-mcp.feature_list_bundle(solution_id, status='readyForDev')` → pick first (or picker if many). Fallback: scan `features/*/status.md` for `current_state: PLANNED` if MC unavailable.
+4. **Blank** — call `task-mcp.feature_list_bundle(solution_id, status='readyForDev')` → pick first (or picker if many). Fallback: scan `features/*/status.md` for `current_state: PLANNED` if MC unavailable. Also offer any local `tasks/<slug>.md` not yet planned (no `tasks/<slug>/dev/status.md`) — a hand-filed ticket is a legitimate next target, and `feature_list_bundle` cannot see one because it filters to `taskType="feature"`. List both groups labelled, and ask when there is more than one candidate.
 
 For **multi-target** forms:
 
@@ -225,6 +253,8 @@ Every stage lists its skill invocations with inputs + outputs + duration. If a s
 
 ### 2c. BA-file presence check (auto-detect missing files, prompt to pull)
 
+**Feature-track targets only.** A non-feature target (§2f) has no BA folder by design — skip this entire step for it and use §2f's per-type input check instead. Running this check against a bug is the bug that made `/dev:plan` reject every non-feature ticket: all 8 files are "missing", `/jetrix:pull scope` cannot produce them, and the target is dropped as `SKIPPED_MISSING_BA`.
+
 For each targeted feature, check `features/<slug>/` for the 8 BA files: `feature.md`, `workflow.md`, `acceptance-criteria.md`, `business-rules.md`, `nfrs.md`, `test-scenarios.md`, `dependencies.md`, `open-questions.md`.
 
 **If any features are missing files**, print a consolidated summary:
@@ -250,6 +280,15 @@ For every remaining target, if `feature.md` frontmatter has `jetrix_task_object_
 
 If the user passed a `Subtask-N` (rare — usually they open the parent), we already walked up to parent in §2a step 1. Log this fact so the summary tells them we planned the parent (which touches this sub-task).
 
+### 2f. Non-feature track — bug / story / task / epic
+
+Target resolved to a non-feature by §2a.1 → **Read
+`plugins/dev/commands/references/plan/non-feature-track.md` and execute it
+verbatim.** It carries the whole track: read order, per-type input check,
+compose, write-back, and push.
+
+Then skip §2c and §3 for this target — they describe BA-feature inputs it does
+not have. Rejoin the batch at the run summary.
 ---
 
 ## 3. Route to Stage 1 (per-feature, parallel)

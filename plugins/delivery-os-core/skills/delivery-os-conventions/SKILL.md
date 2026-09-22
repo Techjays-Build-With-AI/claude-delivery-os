@@ -486,6 +486,37 @@ This applies to every agent — `dev`, `tl`, `qa`, `doc`, `ba` — and to direct
 
 ---
 
+## 6b. Mission Control tab content — reader-facing, always
+
+**Tabs have two audiences, and the rule differs by which.**
+
+| Tab | Audience | File paths, unit ids |
+|---|---|---|
+| Description, Acceptance Criteria, Business Rules, Test Scenarios, NFRs, Assumptions, Scope, Steps to Reproduce, Actual / Expected Result | designers, QA, PMs, the client &mdash; people without the repo open | **stripped** |
+| **Implementation** | the developer or agent building it | **required** &mdash; see below |
+
+**The Implementation tab is a build spec, not a summary.** `tl-feature-compose` Rule 1 requires concrete paths in §1's Files column (`Modified: src/components/Home.jsx`), in §4's fields-written source, §5's component paths, and §6's Reuse rows. Only §8 Shared contract stays path-free. A plan that says "give the sign-in page a flag" without naming the file is not a plan &mdash; the developer cannot act on it and the reviewer cannot check it. An earlier draft of this contract forbade paths everywhere; that was wrong for exactly this reason and was reverted in v2.3.11. Do not re-introduce it.
+
+For the reader-facing tabs, the rule below applies across every producer — `/ba:features`, `/jetrix:push feature`, `/jetrix:push task`, `/dev:plan`, `/jetrix:task-update` — and every task type, plugin-authored or hand-filed:
+
+| Never on a tab | Where it belongs |
+|---|---|
+| file paths, line numbers (`src/components/Home.css:1-7`) | `dev/analysis.md`, `dev/implementation.md` |
+| unit ids (`PAGE-AUTH-01`, `EP-…`, `ENT-…`) | `dev/analysis.md`, the code-context graph |
+| blocker and decision ids (`PB-###`, `DEC-###`) | `dev/plan-blockers.md`, `shared-context/decision-log.md` |
+| finding ids (`FND-##`), framework names, method names, HTTP status codes | `dev/analysis.md` |
+| feature-id headings, provenance callouts, source-reference blocks | the local author-side files |
+
+Say what a person sees and what will change. "The sign-in page's only action is the **Google** button; its background is a four-stop gradient today and becomes solid black" is a tab. "`.btn1` at `Home.css:1-7`, per DEC-109" is not.
+
+**Local files are richer than the reader-facing tabs, and that is the design.** The push performs a one-way transformation for those: author-side files keep every co-ordinate; the tab keeps the decision. The Implementation tab is the exception — it carries the co-ordinates too, because it is what the build follows. Never write a different plan for the tab.
+
+**Pull writes tabs back verbatim.** Once content is tab-shape it stays that way; `/jetrix:pull` does no re-transformation, so anything that leaks onto a tab persists into the local copy on the next pull and compounds.
+
+**An unrelated defect found while investigating is not an edit to this ticket.** Report it in the run summary so it can be filed separately. Appending it to a Description hides it from triage and confuses whoever reads the ticket.
+
+---
+
 ## 7. Canonical deliverable formats (Techjays D&D pack)
 
 Client-facing deliverables conform to the Techjays **Design & Discovery** templates. These are the authority for structure and style; the markdown an agent maintains is the living source that the Doc Agent renders into the branded `.docx` at freeze time. The **Scope Document** template is bundled with this core plugin at `${CLAUDE_PLUGIN_ROOT}/templates/d&d/scope-document/` (versioned via its `manifest.json` + `CHANGELOG.md`); the rest still live in the repo `docs/D&D Documentation/` and will be bundled as their agents are built.

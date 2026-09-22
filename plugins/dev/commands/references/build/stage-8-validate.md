@@ -17,9 +17,32 @@ If any Required gate is `FAIL` → jump to Stage 8's repair loop (§8f) BEFORE t
 
 ---
 
+### 8a0. When `/dev:build` ran with `--skip-qa`
+
+No tests were written, so there is no test evidence to map to. Build the acceptance-map anyway — every assertion still gets a row — but each row's evidence is what you inspected, not what executed:
+
+```
+| AC-1 | <assertion> | verified: manually | <what you read, and what it now says> |
+```
+
+Rules for a manual row: name the file and value you actually changed, never "looks correct". If an assertion cannot be settled by reading the code — anything about runtime behaviour, timing, or integration — mark it `verified: not-verified` and list it in the Stage 11 summary under a heading the user cannot miss. A `--skip-qa` run may finish with unverified rows; it may never finish with rows that *claim* verification it didn't do.
+
+Stage 8 does not fail a run for missing test evidence under this flag. It fails for a missing row.
+
 ### 8b. Extract every parent-owned assertion
 
-Read the parent's BA files (parent-alone → `features/<slug>/*.md`; sub-task → same, since sub-task inherits parent's validation contract):
+**Non-feature targets (bug / story / task / epic) — read `tasks/<slug>.md` instead.** These have no BA folder; their assertions come from the tabs their type owns, per MC's `TASK_TYPE_TAB_CONFIG`:
+
+- **`bug`** — the type has only Description, Steps to Reproduce, Actual Result, Expected Result. Build the map from:
+  - `Expected Result` — every distinct expected behaviour → one map row. This is the bug's acceptance criteria; a fix is done when each one holds.
+  - `Steps to Reproduce` — one `repro` row whose evidence is a test that follows those steps and now passes. This is the regression test; without it the fix has no proof it addressed *this* defect.
+  - `Actual Result` is the pre-fix observation, not an assertion — never a map row. Use it to word the regression test's failing case.
+  - An empty `Expected Result` is a halt, not an empty map — `/dev:plan` §2f should already have blocked it.
+- **`story` · `task` · `epic`** — same sources as a feature below, minus any tab the type lacks. Absent tabs contribute no rows; they are not failures.
+
+A non-feature target is never split, so the sub-task scoping rule below does not apply to it.
+
+**Feature targets** — read the parent's BA files (parent-alone → `features/<slug>/*.md`; sub-task → same, since sub-task inherits parent's validation contract):
 
 - `acceptance-criteria.md` — every `AC-N` bullet or row → one map row
 - `business-rules.md` — every `BR-N` bullet or row → one map row (only if the BR requires enforcement in code, not "informational" business context)

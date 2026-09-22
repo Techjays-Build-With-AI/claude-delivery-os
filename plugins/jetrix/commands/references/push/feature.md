@@ -90,6 +90,9 @@ Claude reads the ONE JSON blob and drives the rest of the flow from it:
 ```
 
 - **Halts** → report each with the reason and stop. Do not push any feature if `halts` is non-empty. Recovery messages are the same ones the current §1a spec prescribes (`/ba:features` or `/jetrix:pull scope`), keyed off the reason string.
+- **Exception — `code: "needs_pull"` heals itself.** This one means the guard has no baseline yet, not that anything is wrong with the feature. Run `/jetrix:pull scope` inline, re-run the assemble step **once**, and continue with whatever now assembles cleanly. Only report it as a halt if it survives that retry. Never ask the user to run the pull by hand, and never loop — one auto-pull per invocation.
+
+  Every feature pushed before the guard existed has a sync-state entry with no `updatedAt`, so the first push after upgrading would otherwise halt on every one of them. Auto-pulling turns a workspace-wide stop into a few seconds of catch-up, which is exactly the prereq pattern the other stages already follow.
 - **Skipped unchanged** → report in the final summary, no MCP calls for these.
 - **Solution-slug fallback** → interactive prompt in §3a below.
 - **Groups** → one `feature_upsert_bundle` call per group in §4 below.
@@ -207,7 +210,28 @@ mcp__task-mcp__feature_upsert_bundle(
 | `implementation_details` | Implementation | Not written here — `feature_update_implementation` writes it after `/dev:plan` produces `tl-plan.md` (which invokes the `tl-feature-compose` skill internally in Stage 2). |
 | — | (no tab) | `implementation-plan.md` and `status.md` are local-only, never pushed. |
 
-Response per feature: `{slug, feature_id, task_object_id, task_number, version, action ('created' | 'updated' | 'recreated'), ok}`. `recreated` means the cached `task_object_id` no longer existed in MC (deleted server-side) so a new task was created; the response also carries `previous_task_object_id`.
+Response per feature: `{slug, feature_id, task_object_id, task_number, version, updated_at, action ('created' | 'updated' | 'recreated'), ok}`. `recreated` means the cached `task_object_id` no longer existed in MC (deleted server-side) so a new task was created; the response also carries `previous_task_object_id`.
+
+**A re-push UPDATES a real ticket — it replaces every tab it sends.** The assemble step carries `expected_updated_at` from sync-state, so `feature_upsert_bundle` refuses an update when MC's `updatedAt` no longer matches what we recorded at last sync. That rejection is the protection against overwriting someone's board edits; treat it as a stop, never a retry:
+
+```
+{ok: false, conflict: "stale_write", expected_updated_at: "<iso>", current_updated_at: "<iso>"}
+```
+
+Report it per feature and **do not re-send without the timestamp**:
+
+```
+⚠ <slug> — TASK-<n> changed in Mission Control since your last push
+  (you have <expected>, the board is at <current>). Not overwritten.
+  Run /jetrix:pull task TASK-<n> to bring those edits down, reconcile
+  locally, then push again.
+```
+
+Never "fix" this by dropping `expected_updated_at` or re-pushing blindly — that is exactly the silent overwrite the guard exists to prevent. A feature whose local folder is unchanged is skipped before this point, so a conflict always means the board genuinely diverged.
+
+`updatedAt` moves on **any** MC write, not only tab edits — an assign, a watch, or a drag between lists bumps it too. So a conflict can fire on a ticket whose text nobody touched. That is the intended trade: the guard fails safe, and `/jetrix:pull` then re-push costs seconds. Never widen it by skipping the check.
+
+A feature linked to an MC task whose sync-state entry carries **no** `updatedAt` cannot be guarded — there is nothing to compare against, and pushing anyway is the unguarded overwrite this exists to stop. The assemble step returns it as `code: "needs_pull"`; §4 auto-pulls once and retries rather than stopping the run.
 
 ### 5. Apply responses — write-back frontmatter + sync-state (ONE Bash+Python call)
 
@@ -276,10 +300,12 @@ The script:
   folders.
 - Writes per-feature entries under `tasks/<feature_id>` in sync-state with
   `taskNumber`, `taskObjectId`, `slug`, `contentHash` (from
-  `_local_content_hash`), `version`, `lastPushed`. Merge-safe.
+  `_local_content_hash`), `version`, `updatedAt` (MC's, for the next
+  stale-write check), `lastPushed`. Merge-safe.
 - (v2.1) Writes per-sub-task entries under `subtasks/<subtask_object_id>`
   with `taskNumber`, `taskObjectId`, `parentTaskObjectId`, `featureId`,
-  `subtaskRepo`, `subtaskNumber`, `contentHash`, `version`, `lastPushed`.
+  `subtaskRepo`, `subtaskNumber`, `contentHash`, `version`, `updatedAt`,
+  `lastPushed`.
   Preserves existing `implementationHash` (written by
   `apply-implementation-responses.py`).
 - Prints per-row status to stdout — `recorded` / `patched` / `failed` — with

@@ -1,6 +1,6 @@
 ---
 name: doc-agent
-description: Documentation agent. Use to produce standardized Techjays client-facing artifacts — starting with the client deck (a polished .pptx in the Techjays house style: editorial, mostly-white, oversized headlines, a tight core deck plus a detailed appendix). Invoked by /doc:proposal and /doc:deck. Co-brands the deck with the client's logo, auto-drafts content from the BA scope when a Delivery OS workspace exists, and honors any custom rules the user passes.
+description: "Documentation agent. Use to produce standardized Techjays client-facing artifacts — starting with the client deck (a polished .pptx in the Techjays house style: editorial, mostly-white, oversized headlines, a tight core deck plus a detailed appendix). Invoked by /doc:proposal and /doc:deck. Co-brands the deck with the client's logo, auto-drafts content from the BA scope when a Delivery OS workspace exists, and honors any custom rules the user passes."
 model: sonnet
 ---
 

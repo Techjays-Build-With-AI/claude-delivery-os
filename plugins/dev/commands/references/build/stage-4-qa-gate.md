@@ -11,6 +11,21 @@
 
 ---
 
+### 4a0. `--skip-qa` short-circuit
+
+If `/dev:build` was invoked with `--skip-qa`, do **not** read the gate, bootstrap a harness, or install anything. Log to `build-run.md`:
+
+```yaml
+stage-4:
+  status: SKIPPED
+  qa_gate_state: skipped-by-user
+  reason: --skip-qa
+```
+
+Print one line so it is visible in the transcript, not buried: `Stage 4 skipped (--skip-qa) — no tests will be written; acceptance is verified by inspection.` Then go straight to Stage 5. Stages 5-6 write no tests, Stage 7 has nothing to execute, and Stage 8 marks every acceptance row `verified: manually`.
+
+Never infer this. A missing framework, a small diff, or a `bug` task type are **not** reasons to skip on your own — only the explicit flag is.
+
 ### 4a. Read `qa/quality-gates.md`
 
 Look for `qa/quality-gates.md` at workspace root. Three states:
@@ -18,7 +33,9 @@ Look for `qa/quality-gates.md` at workspace root. Three states:
 | File state | Action |
 |---|---|
 | Missing entirely | Auto-bootstrap → §4b |
-| Exists, `harness_status: Active` | Follow the gates — continue to Stage 5 |
+| Exists, **no `harness_status` key** | Auto-bootstrap → §4b. This is the scaffold placeholder — treat it exactly as missing. It must never read as "not Active" and halt. |
+| Exists, `harness_status: Active` (or legacy `Ready`) | Follow the gates — continue to Stage 5 |
+| Exists, `harness_status: Stack-Inferred` | Follow the inferred tier pools — continue to Stage 5 |
 | Exists, `harness_status: Draft` | Auto-bootstrap → §4b (Draft means never went through `/qa:setup`) |
 | Exists, `harness_status: Broken` | HALT — do NOT bootstrap. Route to `/qa:health` → §4d |
 

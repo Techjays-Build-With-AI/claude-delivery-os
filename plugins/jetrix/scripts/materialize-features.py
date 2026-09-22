@@ -128,6 +128,10 @@ def materialize(bundle_path: pathlib.Path, project_root: pathlib.Path, sync_stat
             "taskObjectId": feat.get("task_object_id"),
             "slug":         slug,
             "contentHash":  f"sha256:{folder_hash}",
+            # MC's updatedAt at pull time. The next push sends this back as
+            # expected_updated_at; without it the stale-write guard has no
+            # baseline and the push halts as needs_pull.
+            "updatedAt":    feat.get("updated_at"),
             "lastPulled":   now,
         }
         (updated if changed_any else unchanged).append(slug)

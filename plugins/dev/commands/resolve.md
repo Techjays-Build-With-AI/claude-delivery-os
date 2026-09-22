@@ -1,5 +1,5 @@
 ---
-description: Interactive plan-blocker resolution — walk every OPEN PB-### in dev/*plan-blockers.md, present the options table + recommendation, ask the user to pick per blocker, write Resolution: fields to disk, then invoke `/dev:plan --resume` to fold resolutions + compose + push. Batch-friendly single sitting flow that replaces the manual "open file, edit each PB, save, run resume" cycle. Refuses to run if no OPEN blockers exist.
+description: "Interactive plan-blocker resolution — walk every OPEN PB-### in dev/*plan-blockers.md, present the options table + recommendation, ask the user to pick per blocker, write Resolution: fields to disk, then invoke `/dev:plan --resume` to fold resolutions + compose + push. Batch-friendly single sitting flow that replaces the manual 'open file, edit each PB, save, run resume' cycle. Refuses to run if no OPEN blockers exist."
 argument-hint: "<Task-N | Feature-N | Subtask-N | slug | features/<slug> | FEAT-<AREA>-NN | (blank = pick task with OPEN blockers)> --plan"
 ---
 
@@ -18,11 +18,12 @@ Read the **`delivery-os-conventions`** skill first if not in context — the v2.
 `$ARGUMENTS` may contain:
 
 **Task target** (optional — blank picks the task with OPEN blockers):
-- MC task number: `Task-N`, `Feature-N`, `Subtask-N`
+- **Task number** — `11` (bare) or `Task-11` / `Feature-11` / `Subtask-11`. A bare integer is accepted wherever a target is, and means `Task-<n>`. This is the normal form — it is what Mission Control shows, and it needs no knowledge of where anything sits on disk.
 - Local feature slug: `holiday-calendar-management`
 - Local feature folder: `features/holiday-calendar-management`
 - Internal id: `FEAT-<AREA>-NN`
-- Blank: find the ONE feature whose `dev/*plan-blockers.md` has `status: OPEN`. If more than one → list them and ask which.
+- **Non-feature ticket**: `tasks/<slug>.md` — blockers live at `tasks/<slug>/dev/plan-blockers.md`
+- Blank: find the ONE target whose `dev/*plan-blockers.md` has `status: OPEN`, scanning **both** `features/*/dev/` and `tasks/*/dev/`. If more than one → list them and ask which.
 
 **Flags:**
 - `--plan` (default and currently only supported mode) — resolve plan-time PB-### blockers
@@ -39,7 +40,10 @@ Once resolved to `(feature_id, feature_folder)`, scan for OPEN blocker files:
 ```
 features/<slug>/dev/plan-blockers.md              # parent-alone
 features/<slug>/dev/<repo>-plan-blockers.md       # per sub-task on split
+tasks/<slug>/dev/plan-blockers.md                 # non-feature ticket (never split)
 ```
+
+A `§5.2a` ticket-vs-code blocker resolves like any other, with one rule: its options always include **"ticket is right — my reading is wrong, plan the fix as filed"**. Picking that records the user's ruling and proceeds with the ticket as written; it never edits the ticket to match the analysis.
 
 For each file found, read its frontmatter:
 - If `status: OPEN` → include in the resolution session

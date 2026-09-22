@@ -94,6 +94,15 @@ Three distinct modes drive what body content this skill produces. The caller (`/
 The **single source of truth** for the task. Used for:
 - A **parent Task's Implementation tab** when the feature was NOT split (`--no-split` or single-repo feature)
 - A **sub-task's Implementation tab** — scoped to that one sub-task's repo (its owned units only)
+- A **filed ticket's Implementation tab** — a bug, story or ad-hoc task at `tasks/<slug>.md` that never came through `/ba:features` (see `/dev:plan` `references/plan/non-feature-track.md`)
+
+**Filed tickets use the identical §1–§8 frame.** Three differences in where the inputs come from, and nothing else:
+
+- **No BA folder.** Requirements come from the ticket's own tabs, not `features/<slug>/*.md`. There is no `feature.md` to avoid restating.
+- **The `Satisfies` column cites the ticket's acceptance source.** For a `bug` that is its Expected Result (`EXP-1`, `EXP-2` … numbered per distinct expected behaviour, plus `REPRO` for the regression case from Steps to Reproduce). For a `story`, `task` or `epic` it is the Acceptance Criteria IDs, as for a feature.
+- **Never split, so `§8 Shared contract` has no siblings to inherit it.** State the invariants the change must not break, or `None.`
+
+**Size is not a reason to drop the frame.** A one-line presentational fix produces a §1 with one step and several `None.` sections — that is a complete plan, not a degenerate one. Prose in place of the frame is a refusal to state the file target, the rollback lever, and what the change satisfies; those are exactly what a reader needs when the change turns out to be wrong.
 
 Body sections (v2.3.16 — 8 sections §1–§8, stack-agnostic vocabulary; **`tl-feature-compose` writes ALL sections in ONE pass** at `/dev:plan` Stage 4. History: `§1 Business flow` and `§10 How to verify locally` removed in v2.3.10 (plan-only). v2.3.11 renamed §3/§4/§5 stack-agnostic + moved Shared contract to tail. **v2.3.16 removed `§7 Coverage`** — coverage is not a plan-time table; the plan states INTENT via §1 Satisfies column + the stack-driven tier pool (from `qa/quality-gates.md`, or from stack detection when user skipped QA setup at plan time), and EVIDENCE lives in `dev/acceptance-map.md` built at `/dev:build` Stage 8. No "Deferred" concept anywhere — every parent AC/BR/TS in this sub-task's scope is COVERED at every applicable tier for the layer):
 
@@ -108,7 +117,7 @@ Body sections (v2.3.16 — 8 sections §1–§8, stack-agnostic vocabulary; **`t
 
 **Coverage NOT in the plan** — no `§7 Coverage` table. Plan-time intent lives in §1 Satisfies column + qa/quality-gates.md tier pool (or stack-detected fallback pool when the user skipped QA setup at plan time). Build-time evidence lives in `dev/acceptance-map.md`. The plan does not restate what those two artifacts already own.
 
-**Hard precondition:** this mode REFUSES to run if the Stage 2 analysis scratchpad is missing OR blockers are still OPEN. Sections 1, 2, 7, 8 need the analysis scratchpad; running without it produces stub sections which we deliberately reject. See §"Hard rules" Rule 12 below.
+**Hard precondition:** this mode REFUSES to run if the analysis scratchpad is missing OR blockers are still OPEN. The scratchpad lives at `features/<slug>/dev/analysis.md` (parent-alone), `features/<slug>/dev/<repo>-analysis.md` (sub-task), or `tasks/<slug>/dev/analysis.md` (filed ticket). Sections 1, 2, 7, 8 need the analysis scratchpad; running without it produces stub sections which we deliberately reject. See §"Hard rules" Rule 12 below.
 
 **Input contract for §§1, 2, 7, 8 (Stage 2 analysis scratchpad):**
 
@@ -157,9 +166,9 @@ Output path:
 - Parent-alone → `features/<slug>/implementation.md`
 - Per sub-task → `features/<slug>/subtask/<repo>/implementation.md`
 
-### Mode: `description` (sub-task Description tab — v2.3.5 user-story format)
+### Mode: `description` (sub-task or filed-`story` Description tab — v2.3.5 user-story format)
 
-A **user story** describing what a user can do, plus the business context around it. This is the format a Product Owner or stakeholder reads — voiced from the USER's perspective ("As an operations coordinator, I want to add a holiday…"), not from the dev's perspective ("This sub-task delivers a holiday endpoint…"). Replaces the v2.3.4 dev-centric "what this sub-task delivers" phrasing which read as internal-facing capability description rather than a real user story.
+A **user story** describing what a user can do, plus the business context around it. Used for a sub-task's Description tab, and for a filed ticket whose `task_type` is `story` — its inputs then come from the ticket's own tabs rather than a `feature.md`. **Never used for a `bug`:** a bug report records what someone observed, and restating it as "As a user, I want…" discards the observation. See `/dev:plan` `references/plan/non-feature-track.md` for the per-type Description shapes. This is the format a Product Owner or stakeholder reads — voiced from the USER's perspective ("As an operations coordinator, I want to add a holiday…"), not from the dev's perspective ("This sub-task delivers a holiday endpoint…"). Replaces the v2.3.4 dev-centric "what this sub-task delivers" phrasing which read as internal-facing capability description rather than a real user story.
 
 Six deterministic sections, in this order:
 
