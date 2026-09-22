@@ -112,7 +112,9 @@ A section that genuinely doesn't apply is **one line — `None.`** — never a p
 
 **Then write it into the ticket under a `## Implementation` heading, for every type.** Every task type carries an Implementation tab, so a bug's plan is as visible on the board as a feature's. There is no type for which the plan stays hidden, and no separate command to publish it — the same `/dev:plan` run that composed it puts it in the ticket file.
 
-The local copy under `dev/` and the `## Implementation` section in the ticket hold the same content, but they are not the same thing: `dev/implementation.md` may carry file paths and unit ids the build needs, while the ticket's tab follows the reader-facing rule below — no paths, no unit ids, no `PB-###`. Compose the ticket version by stripping those, not by writing a different plan.
+The ticket's `## Implementation` section and `dev/implementation.md` carry **the same content, paths included**. The Implementation tab is a build spec — `conventions` §6b exempts it from the reader-facing strip, and `tl-feature-compose` Rule 1 *requires* concrete paths in §1's Files column, §4, §5 and §6. Only §8 Shared contract stays path-free.
+
+The reader-facing strip applies to Description, Steps to Reproduce, Actual Result and Expected Result — not here. A build sequence that says "give the sign-in page a flag" without naming `Modified: src/components/Home.jsx` is not buildable and not reviewable; that is the failure mode this exemption exists to prevent.
 
 **Which Description shape this ticket gets.** Implementation is one frame for every type; Description is not, and that is deliberate — a bug report and a user story are different kinds of statement, and forcing either into the other's shape destroys it. Pick by `task_type`:
 

@@ -488,7 +488,16 @@ This applies to every agent — `dev`, `tl`, `qa`, `doc`, `ba` — and to direct
 
 ## 6b. Mission Control tab content — reader-facing, always
 
-**Every tab on an MC Task is read by people who do not have the repo open.** Designers, QA, PMs, the client. That makes one rule global across every producer — `/ba:features`, `/jetrix:push feature`, `/jetrix:push task`, `/dev:plan`, `/jetrix:task-update` — and across every task type, whether the plugin authored the ticket or a person filed it by hand:
+**Tabs have two audiences, and the rule differs by which.**
+
+| Tab | Audience | File paths, unit ids |
+|---|---|---|
+| Description, Acceptance Criteria, Business Rules, Test Scenarios, NFRs, Assumptions, Scope, Steps to Reproduce, Actual / Expected Result | designers, QA, PMs, the client &mdash; people without the repo open | **stripped** |
+| **Implementation** | the developer or agent building it | **required** &mdash; see below |
+
+**The Implementation tab is a build spec, not a summary.** `tl-feature-compose` Rule 1 requires concrete paths in §1's Files column (`Modified: src/components/Home.jsx`), in §4's fields-written source, §5's component paths, and §6's Reuse rows. Only §8 Shared contract stays path-free. A plan that says "give the sign-in page a flag" without naming the file is not a plan &mdash; the developer cannot act on it and the reviewer cannot check it. An earlier draft of this contract forbade paths everywhere; that was wrong for exactly this reason and was reverted in v2.3.11. Do not re-introduce it.
+
+For the reader-facing tabs, the rule below applies across every producer — `/ba:features`, `/jetrix:push feature`, `/jetrix:push task`, `/dev:plan`, `/jetrix:task-update` — and every task type, plugin-authored or hand-filed:
 
 | Never on a tab | Where it belongs |
 |---|---|
@@ -500,7 +509,7 @@ This applies to every agent — `dev`, `tl`, `qa`, `doc`, `ba` — and to direct
 
 Say what a person sees and what will change. "The sign-in page's only action is the **Google** button; its background is a four-stop gradient today and becomes solid black" is a tab. "`.btn1` at `Home.css:1-7`, per DEC-109" is not.
 
-**Local files are richer than tabs, and that is the design.** The push performs a one-way transformation: author-side files keep every co-ordinate the build needs; the tab keeps the decision. They hold the same content at different resolutions — never write a different plan for the tab.
+**Local files are richer than the reader-facing tabs, and that is the design.** The push performs a one-way transformation for those: author-side files keep every co-ordinate; the tab keeps the decision. The Implementation tab is the exception — it carries the co-ordinates too, because it is what the build follows. Never write a different plan for the tab.
 
 **Pull writes tabs back verbatim.** Once content is tab-shape it stays that way; `/jetrix:pull` does no re-transformation, so anything that leaks onto a tab persists into the local copy on the next pull and compounds.
 
