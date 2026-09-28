@@ -86,6 +86,25 @@ Closing questions changes the picture, so recompute:
 - Recompute the **overall score** (average of features) and the **scope-readiness verdict**. A resolved Blocker **lifts the verdict cap**. `Accepted-assumption` also lifts the cap *only if* the assumption is explicit and logged — but call out the residual risk in the executive summary. `Needs-verification` and `Open` Blockers keep the cap.
 - Track progress in the executive summary: *"Round 2: 1 of 2 Blockers resolved, 1 awaiting verification; overall 3.4 → 6.2, verdict Significant gaps → Estimate with caveats."*
 
+### Every moved dimension carries its evidence
+
+A number that moves without a stated cause is the thing this loop exists to avoid — and a score that goes **down** after the author answered questions is the version of that which destroys trust fastest. So from round 2 onward, record the movement, not just the result.
+
+For every feature whose score changed, write a `changes` entry per dimension that moved: the dimension, its `from` and `to` states, and the `cause` — the `SQ-###` that closed it or the `DEC-###`/`ASM-###` it was promoted into. A dimension that moved with no cause is an error, exactly like a `score` that doesn't match its coverage map.
+
+**A dimension may only move down if a new question goes up.** If an answer made the scope *worse* — the client's reply introduced a branch, a rule, or a dependency nobody had seen — then something specific became unclear, and that something is a finding. Raise it as a new `SQ-###` and name it in the entry's `raised` field. A downward move with no new question is not a real reduction; it is the old re-judging returning in disguise, and it must not be written.
+
+```
+BILLING   8 → 6
+  business_rules   Covered → Partial
+  cause:  SQ-009's answer introduced tier-based routing
+  raised: SQ-014 — how do tiers map to routes?
+```
+
+This is also the honest case for a score falling: the scope really did get worse, the author can see exactly where, and the drop comes with the question that will close it. Report it plainly rather than softening it — an answer that reveals a gap has done its job.
+
+Put the movement **at the top of the round**, above the scorecard, not buried in the executive summary prose. A reader whose score went backwards should not have to hunt for the reason.
+
 ## 7. Output of a resolve round
 
 `/ba:resolve` writes a **new timestamped review round** — `.html` / `.md` / `.json` (render the `.html` the same UTF-8-safe way as a fresh review: write the `.json` sidecar first, then `node assets/inject.js assets/report.html <round>.json __REVIEW_DATA__ <round>.html` — never hand-assemble the HTML) — carrying every question forward with its updated status and resolution thread (response, adjudication, follow-ups, the promoted `DEC`/`ASM`/`CLR` id) **and its original screening fields `checkedIn` and `consequence` unchanged** — those record why the question was raised in the first place, so a later round must preserve them rather than re-deriving or dropping them, the recomputed scores and verdict, and the list of scope edits to apply (or applied). Then summarise in chat: how many resolved / accepted-as-assumption / awaiting-verification (with the open follow-ups) / still open, the score+verdict movement, and which registers were updated. The loop repeats — export responses from the new report, resolve again — until no open items remain.

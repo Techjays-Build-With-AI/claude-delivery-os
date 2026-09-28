@@ -104,6 +104,15 @@
   .scorenum { font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .derivation { margin: 8px 0 2px; font-size: 12px; color: var(--muted);
                 font-variant-numeric: tabular-nums; letter-spacing: .01em; }
+  .movecard { margin-bottom: 8px; }
+  .moverow { padding: 10px 0; border-top: 1px solid var(--line); }
+  .moverow:first-child { border-top: none; }
+  .movehead { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .movehead .dn { color: var(--gap); }
+  .movehead .up { color: var(--ok); }
+  .movedim { margin: 5px 0 0 14px; font-size: 13px; color: var(--muted); line-height: 1.55; }
+  .movedim .dim { color: var(--fg); font-weight: 600; }
+  .movedim .raised { color: var(--gap); }
   .statuslbl { font-size: 12px; font-weight: 700; }
   .exbadge { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 11px;
     font-weight: 800; color: #fff; white-space: nowrap; }
@@ -239,6 +248,8 @@
 
   <div id="kb-wrap"></div>
 
+  <div id="movement-wrap"></div>
+
   <div class="section-label">Feature scorecard</div>
   <div class="card"><table class="scorecard"><thead><tr>
     <th>#</th><th>Feature</th><th class="col-bar">Coverage</th><th>/10</th><th>Status</th><th>Bounded</th><th>Examples</th>
@@ -298,6 +309,7 @@
     ["integrations", "Integrations"], ["exceptions", "Exceptions & edge cases"],
     ["acceptance", "Acceptance criteria"]
   ];
+  var DIM_LABEL = COV_DIMS.reduce(function (m, p) { m[p[0]] = p[1]; return m; }, {});
   function statusOf(f) { return f.status || "Open"; }
   function statusColor(s) { return STATUS[s] || "var(--muted)"; }
 
@@ -395,6 +407,47 @@
   }
 
   // ---- Scorecard ----
+  // Score movement since the previous round. Round 1 has nothing to compare
+  // against, and a feature whose score held steady is not listed - only the
+  // moves, with the cause that produced each one.
+  (function renderMovement() {
+    var wrap = document.getElementById("movement-wrap");
+    if (!wrap || !(+data.round > 1)) return;
+    var moved = (data.features || []).filter(function (f) {
+      return f.changes && f.changes.length;
+    });
+    if (!moved.length) return;
+
+    wrap.appendChild(el("div", { class: "section-label", text: "What moved since round " + (+data.round - 1) }));
+    var card = el("div", { class: "card movecard" });
+
+    moved.forEach(function (f) {
+      var row = el("div", { class: "moverow" });
+      var prior = f.priorScore;
+      var head = el("div", { class: "movehead" });
+      head.appendChild(el("span", { text: f.name + "  " }));
+      head.appendChild(el("span", {
+        class: (prior != null && +f.score < +prior) ? "dn" : "up",
+        text: (prior != null ? prior + " → " : "") + f.score + "/10"
+      }));
+      row.appendChild(head);
+
+      f.changes.forEach(function (c) {
+        var line = el("div", { class: "movedim" });
+        line.appendChild(el("span", { class: "dim", text: DIM_LABEL[c.dimension] || c.dimension }));
+        line.appendChild(document.createTextNode("  " + (c.from || "?") + " → " + (c.to || "?")));
+        if (c.cause) line.appendChild(document.createTextNode("  · " + c.cause));
+        if (c.raised) {
+          line.appendChild(document.createTextNode("  · "));
+          line.appendChild(el("span", { class: "raised", text: "raised " + c.raised }));
+        }
+        row.appendChild(line);
+      });
+      card.appendChild(row);
+    });
+    wrap.appendChild(card);
+  })();
+
   var body = document.getElementById("scorecard-body");
   var lastGroup = null;
   (data.features || []).forEach(function (a) {
