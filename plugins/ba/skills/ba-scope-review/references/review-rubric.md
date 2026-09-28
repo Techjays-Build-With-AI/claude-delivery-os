@@ -187,17 +187,43 @@ That is one scope line → the handful of *business* decisions that make the eng
 ## D — Calibration
 
 ### Deriving the feature score from coverage
-Let coverage anchor the score, then adjust for consequence, boundedness, and example-compliance:
-- **9–10 (Excellent):** **Bounded**; all *applicable* dimensions Covered, none materially Partial, no example conflicts, no open Blockers/Majors. A team estimates tightly.
-- **7–8 (Good):** Bounded; applicable dimensions mostly Covered; a few Partial; only Minor/Nit questions; examples Pass or Partial.
-- **5–6 (Adequate):** intent clear but **several** dimensions Partial/Absent, or one Major open, or **Partially-bounded**; not safely estimable until those close.
-- **3–4 (Weak):** most dimensions Absent, or **Unbounded** (function stated, boundary undefined); a sentence or two of scope; any open Blocker on a feature usually lands here.
-- **1–2 (Stub):** a heading / one-liner ("login screen", "classify invoices").
-- **0 (Absent):** needed (it appears in an example, a register, or a stakeholder ask) but absent from the scope.
+**The formula lives in `SKILL.md` step 7 — apply it, don't restate it.** The score is computed from the coverage map and capped by boundedness, never chosen by feel. Two worked cases:
 
-**Boundedness caps (hard):** an **Unbounded** feature scores **≤ 4** and a **Partially-bounded** feature scores **≤ 6**, regardless of how clearly the function is described — a team can't bound the estimate of a feature whose categories, definitions, and exclusions are undefined.
+**Worked — the login feature from §C.** The scope says only "the system will have a login screen". Functional requirements are `Partial` (a screen is named, nothing more); the other eight dimensions are `Absent`. Boundedness is `Unbounded` — no auth methods enumerated, no in/out boundary.
 
-Sanity-check score against questions: a feature with an unresolved **Blocker** rarely scores above 4; **Major** gaps land it around 3–6; only **Minor/Nit** is a 7–8; no real gaps, Bounded, and example-Pass is 9–10. If your score and your questions disagree, reconcile before finalising.
+```
+coverageScore = 0.5 / 9 * 10          = 0.6
+cap           = 4  (Unbounded)
+score         = round(min(0.6, 4))    = 1      → Stub
+```
+
+Note the cap isn't binding here — coverage alone already puts it below 4. **Record `cap` anyway**, so a reader can see it was applied and not forgotten.
+
+**Worked — the cap binding.** A feature whose function, rules and data are well written but whose category set is never closed: five `Covered`, two `Partial`, two `Absent`, boundedness `Partially-bounded`.
+
+```
+coverageScore = 6.0 / 9 * 10          = 6.7
+cap           = 6  (Partially-bounded)
+score         = round(min(6.7, 6))    = 6      → Adequate
+```
+
+Here the cap *is* what decides it, and `boundednessNote` is what tells the author why a well-written feature didn't reach Good.
+
+**Worked — no cap at all.** A `Bounded` feature: six `Covered`, two `Partial`, one `Absent`.
+
+```
+coverageScore = 7.0 / 9 * 10          = 7.8
+cap           = none  (Bounded)
+score         = round(7.8)            = 8      → Good
+```
+
+There is nothing to take the minimum against — a `Bounded` feature is **not** capped at zero, it simply has no ceiling applied. Emit `cap: null` and round the coverage figure.
+
+**Everything else expresses itself through the map.** Example-compliance and question severity do **not** adjust the number separately — that double-counts, and a second adjustment with no rule is where drift re-enters. They land the same way boundedness does:
+- An example **Conflict** means the scope can't satisfy something the client actually handed you — so the dimension that fails it (usually `functional_reqs`, `business_rules`, or `in_out_scope`) is not `Covered`. Mark it down, and the score follows.
+- An open **Blocker** on a dimension means that dimension is `Absent` or `Partial` by definition. If you've written a Blocker against a dimension you marked `Covered`, one of the two is wrong.
+
+**Cross-check, then fix the map — not the number.** A feature carrying an unresolved Blocker that computes to 8 is not a scoring problem; it is a coverage call that is too generous. Find the dimension, correct it, and let the arithmetic move. Never edit the score to reconcile.
 
 ### Severity → RAID Open-Question mapping
 Use the controlled severities; they map onto the BA Agent's RAID Open-Question classes so terminal items promote cleanly in `/ba:resolve`:

@@ -102,6 +102,8 @@
     overflow: hidden; min-width: 90px; }
   .bar > span { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px; }
   .scorenum { font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .derivation { margin: 8px 0 2px; font-size: 12px; color: var(--muted);
+                font-variant-numeric: tabular-nums; letter-spacing: .01em; }
   .statuslbl { font-size: 12px; font-weight: 700; }
   .exbadge { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 11px;
     font-weight: 800; color: #fff; white-space: nowrap; }
@@ -466,6 +468,19 @@
       ]));
     });
     b.appendChild(grid);
+
+    // How the score was derived (omitted for reviews written before the
+    // derivation existed - those carry no coverageScore).
+    if (a.coverageScore != null) {
+      var sumTxt = "Coverage " + a.coverageScore + "/10";
+      if (a.cap != null && +a.coverageScore > +a.cap) {
+        sumTxt += " → capped at " + a.cap + " (" + (a.boundedness || "boundedness") + ")";
+      } else if (a.cap != null) {
+        sumTxt += " · cap " + a.cap + " not binding";
+      }
+      sumTxt += " → " + a.score + "/10";
+      b.appendChild(el("div", { class: "derivation", text: sumTxt }));
+    }
 
     // Example compliance
     if (a.exampleCompliance) {

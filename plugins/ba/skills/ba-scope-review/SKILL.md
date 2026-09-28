@@ -15,7 +15,7 @@ A good review is **specific and actionable**. "The login feature is underspecifi
 
 This skill produces a **Delivery OS artifact**. Read the **`delivery-os-conventions`** contract first if it isn't already in context (frontmatter standard, stable-ID rules, controlled vocabulary, the RAID-alignment rule). It also tells you what the scope document is *supposed* to contain — you review against the **Techjays D&D Scope Document Template** (module-centric, eleven sub-headings per module, including a **§3.x.3 Master Flow** and a **§3.x.4 Use Cases** layer), which is exactly what `ba-extraction` produces. Read `ba-extraction` if the expected scope structure isn't already in context; you are grading the scope's *coverage* of the nine dimensions **and** whether every branching requirement is expanded into distinct **use cases** — one per materially-different route, each with its own explanation, flow diagram, and worked example (the route-expansion check in `references/review-rubric.md` §A). A routing requirement collapsed into a couple of business-rule rows instead of separate use cases is the classic under-specification this review exists to catch.
 
-Each review is written as a **timestamped set** — `ba/reviews/scope-review-<timestamp>.html` (interactive dashboard), `scope-review-<timestamp>.md` (the Markdown artifact, frontmatter `doc_type: scope-review`, `produced_by: ba`), and `scope-review-<timestamp>.json` (the machine-readable sidecar the resolution loop reads) — so re-running a review never overwrites an earlier one and the folder keeps the full history (see step 7 for the timestamp format).
+Each review is written as a **timestamped set** — `ba/reviews/scope-review-<timestamp>.html` (interactive dashboard), `scope-review-<timestamp>.md` (the Markdown artifact, frontmatter `doc_type: scope-review`, `produced_by: ba`), and `scope-review-<timestamp>.json` (the machine-readable sidecar the resolution loop reads) — so re-running a review never overwrites an earlier one and the folder keeps the full history (see step 8 for the timestamp format).
 
 If there is no Delivery OS workspace (no `ba/` and no `intake.index.md` nearby), don't block — write the files next to the document being reviewed (e.g. `<doc-dir>/scope-review-<timestamp>.{html,md,json}`) and note in the report that a workspace wasn't found. Keep the standard frontmatter in the Markdown either way; only the file *location* changes.
 
@@ -66,7 +66,7 @@ Record each feature's **boundedness** — `Bounded` / `Partially-bounded` / `Unb
 
 **Stay at the business/scope level — this is not a technical review.** Judge whether the *business intent* is complete and unambiguous, not how it will be built. Do **not** raise gaps about system design, architecture, database/schema, field data types or constraints, indexing, API contracts/protocols, authentication mechanisms, hashing/encryption, infrastructure, CI/CD, or tech-stack choices — those are deliberately absent from a scope document and belong to the TL technical-spec review (`tl-spec-review`). A scope that omits them is **correct, not deficient**; never lower a feature's score for missing implementation detail. If a business decision genuinely needs a technical follow-up, note it once as a hand-off to the TL — don't score it as a scope gap.
 
-Consult `references/review-rubric.md` for what "Covered" looks like per dimension, the **per-feature paranoid questioning playbook** (worked examples — including the login example — that show how to drill from a one-liner down to the questions that matter), and the red flags. For each feature produce: a **score /10**, the **boundedness** verdict (Bounded/Partially-bounded/Unbounded) with its note, the **coverage** map across the nine dimensions, an **example-compliance** judgement (see step 5), a short **assessment**, the **scope questions/gaps** (each with a severity), the concrete **scope additions** that would close them, and any **strengths** worth keeping.
+Consult `references/review-rubric.md` for what "Covered" looks like per dimension, the **per-feature paranoid questioning playbook** (worked examples — including the login example — that show how to drill from a one-liner down to the questions that matter), and the red flags. For each feature produce: the **coverage** map across the nine dimensions — which is what the score is computed from (`coverageScore`, `cap`, `score` — step 7) — the **boundedness** verdict (Bounded/Partially-bounded/Unbounded) with its note, an **example-compliance** judgement (see step 5), a short **assessment**, the **scope questions/gaps** (each with a severity), the concrete **scope additions** that would close them, and any **strengths** worth keeping.
 
 ### 5. Validate each feature against the client's examples
 For every feature, check the relevant **examples (EX-###)** from the example-register and judge `exampleCompliance`:
@@ -77,19 +77,53 @@ For every feature, check the relevant **examples (EX-###)** from the example-reg
 
 A scope that looks complete but can't satisfy a real example the client handed you is *not* complete. Treat example conflicts as first-class gaps.
 
-### 6. Score consistently
-Score the **scope's treatment of each feature** — how completely and unambiguously a team could estimate and build it — not the quality of the eventual system. Use these bands for every feature so scores mean the same thing across features and reviews:
+### 6. Screen every question before it counts
+A question that the scope already answers is not a gap — it is a reading error, and it costs the author trust in every other question in the report. Screen the full list **before** scoring, because a dropped question must also clear the deduction it caused.
+
+Take each candidate question and do two things.
+
+**Search for the answer, then record where you looked.** The scope is not read top-to-bottom by the author; an obligation opened in one module is often closed in a global section. Before a question ships, re-scan the places its answer would live — the feature's own §3.x sub-headings, the global §6 out-of-scope, the assumptions and business-rule registers, and the example register. Record those locations in the question's `checkedIn` field.
+- **Answer found** → drop the question, and mark the dimension it came from `Covered` (or `Partial` if the answer is incomplete). The coverage map is what the score is computed from, so this correction has to land there, not just in the question list.
+- **Answer genuinely absent** → keep it, with `checkedIn` naming the sections you searched.
+
+**Name what changes if it stays unanswered.** Set `consequence` to exactly one of `estimate` · `scope` · `integrations` · `compliance` · `none`. This is the test the severity scale already implies — a Blocker is a Blocker *because* the answer swings one of the first four.
+- `consequence: none` → it is a `Nit` at most. If it is also stylistic, drop it.
+- A question you cannot assign a consequence to is not a finding. Drop it.
+
+Both fields are required on every question that ships. Screening is not softening: the bar is unchanged, and removing questions that were never gaps is what lets the rest carry full weight.
+
+### 7. Score consistently
+Score the **scope's treatment of each feature** — how completely and unambiguously a team could estimate and build it — not the quality of the eventual system.
+
+**Compute the score; never pick it.** A judged number drifts between runs even when the findings are identical, which makes scores incomparable across sessions and impossible to argue with. The coverage map you filled in at step 4 already holds the evidence, so derive the score from it:
+
+```
+coverageScore = (Covered = 1, Partial = 0.5, Absent = 0, summed over the nine dimensions) / 9 * 10
+cap           = 4 if Unbounded · 6 if Partially-bounded · none if Bounded
+score         = round(coverageScore)            when the feature is Bounded (no cap)
+              = round(min(coverageScore, cap))  when a cap applies
+```
+
+Round half up, clamp to 0–10. **A `Bounded` feature has no cap — it is not capped at zero**; its score is simply the rounded coverage figure. The divisor is always nine: every dimension carries a value (mark one `Covered` with an assessment note when it genuinely doesn't apply).
+
+Record `coverageScore` (one decimal, pre-cap) and `cap` alongside `score`, so the number can be audited instead of trusted.
+
+The judgement hasn't disappeared — it now sits in nine Covered / Partial / Absent calls, each defined in `references/review-rubric.md` §B. So if a score looks wrong, a dimension is marked wrong: fix the dimension and let the score follow.
+
+Emit all three. If `score` doesn't match the formula above, the map and the number disagree and the report is wrong — fix the coverage call, never the number.
+
+The **bands below are labels for the computed score**, not a menu to choose from. They give the `Status` column its wording and tell you what a number means:
 
 | Score | Band | Meaning |
 |------|------|---------|
-| 9–10 | Excellent | All nine dimensions covered and unambiguous; consistent with the examples; a team could estimate tightly with no open questions. |
-| 7–8 | Good | Solid; minor under-specified edges that won't change the estimate materially. |
-| 5–6 | Adequate | The feature's intent is clear but several dimensions are Partial/Absent; real gaps to close before estimate. |
-| 3–4 | Weak | Named with a sentence or two; most dimensions Absent; not estimable without a discovery round. |
-| 1–2 | Stub | A heading / one-liner only ("the system will have a login screen"). |
-| 0 | Absent | Referenced as needed (in an example, a register, or a stakeholder ask) but missing from the scope entirely. |
+| 9–10 | Excellent | Covered across the board, at most a dimension or two Partial; consistent with the examples; a team could estimate tightly. |
+| 7–8 | Good | Mostly Covered with a few Partial edges; solid, and nothing that moves the estimate materially. |
+| 5–6 | Adequate | Intent is clear, but several dimensions sit Partial or Absent; real gaps to close before estimate. Also the ceiling for a **Partially-bounded** feature. |
+| 3–4 | Weak | Most dimensions Absent; not estimable without a discovery round. Also the ceiling for an **Unbounded** feature, however well the rest reads. |
+| 1–2 | Stub | A heading or one-liner only ("the system will have a login screen") — a single dimension Partial at best. |
+| 0 | Absent | Every dimension Absent: referenced as needed (in an example, a register, or a stakeholder ask) but missing from the scope entirely. |
 
-The **Band** label is what goes in the scorecard's `Status` column.
+Set `band` from the computed `score` using this table — the two can never disagree. The two capped bands are reachable two ways: by genuinely thin coverage, or by a boundedness cap pulling a better-covered feature down. `boundednessNote` is what tells the author which happened.
 
 Assign each scope question/gap a **severity** (controlled values, with the RAID Open-Question mapping the BA Agent already uses):
 - `Blocker` — **must close before estimate**. The answer materially swings effort, scope, the integrations list, compliance obligations, or cost (e.g. unknown auth method, unknown integration partner, undefined volume).
@@ -108,9 +142,9 @@ Record notable **strengths** too, so the report is balanced and the author keeps
 
 The Blocker override is a hard floor: **any unresolved Blocker caps the verdict at "Significant gaps — clarify before estimate" at best**, no matter how high the average — because that one unknown makes the estimate a guess. Name the Blocker that drove the cap in the executive summary.
 
-Don't grade-inflate to be agreeable and don't crater every feature to look thorough — a calibrated 6 is more useful than a reflexive 3. If a feature is genuinely well-scoped, say so.
+Don't grade-inflate to be agreeable and don't crater every feature to look thorough — a calibrated 6 is more useful than a reflexive 3. That discipline now applies to the **coverage calls**: marking a dimension `Covered` because the topic is mentioned inflates the score just as surely as picking a generous number used to, and marking one `Absent` when the scope addresses it partially craters it. If a feature is genuinely well-scoped, the map will say so.
 
-### 7. Build the review data object, then render (timestamped — never overwrite)
+### 8. Build the review data object, then render (timestamped — never overwrite)
 Capture the whole review as one structured JSON object — the single source all three outputs render from. Its schema is in `references/report-template.md` (project/knowledge-base panel, overall score + verdict, executive summary, gating questions, strengths, the `features` array with score/band/boundedness/coverage/exampleCompliance/assessment, and the `questions` array — the scope-gap register — with stable `SQ-###` IDs + severity + the suggested scope addition). Give every question a stable `SQ-###` ID (zero-padded, append-only, per the conventions). Build this object first so the renders can't disagree.
 
 Get a **run timestamp** so repeated reviews accumulate. Read the current local time and format it `YYYY-MM-DD-HHMMSS` (no colons — Windows-safe):
@@ -131,7 +165,7 @@ Set the data object's `reviewId` to this `<timestamp>` (the resolution loop's jo
 
 The `out=` argument overrides the **prefix/location** (e.g. `out=reports/acme` → `reports/acme-<timestamp>.{html,md,json}`); the timestamp is always appended so conflicts are impossible. Default prefix is `ba/reviews/scope-review`, or `<doc-dir>/scope-review` beside the reviewed doc when there's no workspace.
 
-### 8. Summarise in chat
+### 9. Summarise in chat
 Give the user the headline: overall score, scope-readiness verdict, the feature scorecard, and the top 3–5 gating questions (Blockers first) with the scope addition each needs. Link to the files and point out that `scope-review-<timestamp>.html` is the interactive dashboard to open in a browser — and that they can **respond to each question inside it and click "Export responses"** to drive the resolution loop. Keep it tight — the detail lives in the files.
 
 ## Resolution loop (`/ba:resolve`)
