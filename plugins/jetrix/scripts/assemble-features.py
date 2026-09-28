@@ -293,6 +293,12 @@ TAB_FIELDS = ("description", "business_rules", "acceptance_criteria",
 def _folder_hash(dir_path: pathlib.Path) -> str:
     h = hashlib.sha256()
     for f in sorted(dir_path.glob("*.md")):
+        # comments.md / attachments.md are pulled from MC, never authored
+        # here — hashing them would invalidate the push cache on every new
+        # comment or file and re-push all seven tab fields for a feature
+        # nobody edited locally.
+        if f.name in ("comments.md", "attachments.md"):
+            continue
         h.update(f.read_bytes())
     return h.hexdigest()
 

@@ -10,7 +10,7 @@
 
 ---
 
-### 5.1 Detection sources (union of all five)
+### 5.1 Detection sources (union of all six)
 
 Scan each source; every hit generates a candidate blocker. Deduplicate by target-file + issue; a single unknown can be surfaced by multiple sources.
 
@@ -70,6 +70,29 @@ Missing OR listed as `TBD` → blocker.
 #### Source 5 — `implementation.md §2 Impacted components` `unknown` entries
 
 Read the impact analysis. In any of the 12 dimensions, entries marked `unknown` (not `N/A`) are blockers. `N/A` is a legitimate decision (dimension doesn't apply); `unknown` means we didn't figure it out.
+
+#### Source 6 — `comments.md` unresolved threads
+
+Read `comments.md` in the task's own folder (`features/<slug>/`,
+`features/<slug>/subtask/<repo>/`, or `tasks/<slug>/`). Pulled from Mission
+Control by `/dev:plan` §2c; absent when the task has no discussion, which is
+the normal case — skip silently.
+
+A root-level thread marked `**UNRESOLVED**` is a question a teammate asked on
+the ticket that nobody answered. Treat each as a candidate blocker: extract
+its `[C-###]` id, the author, and the thread text including its replies (a
+reply may already contain the answer without anyone having marked the thread
+resolved — judge on content, and if the thread reads as settled, record it as
+an assumption rather than a blocker).
+
+**Skip threads marked resolved** — same rule as Source 2. A resolved thread is
+a closed decision, and re-raising it would loop on every re-run.
+
+Cite the comment id in the minted blocker's Source line (`comments.md C-12`)
+so the user can find the conversation in MC. When the user resolves the `PB`,
+the answer can be posted back to the thread with
+`task-mcp.task_comment_post` and the thread closed with
+`task-mcp.task_comment_resolve` — both optional, never automatic.
 
 ---
 

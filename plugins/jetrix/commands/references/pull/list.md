@@ -54,6 +54,8 @@ Plugin recipe — TWO calls in parallel, one per task type:
 
     Both scripts do their own skip-unchanged (compare freshly-composed content vs on-disk); no separate hash step needed. Sync-state merges from both scripts land in the same file — merge-safe, no key collisions (features live under `tasks/<feature_id>`, tasks under `tasks/<slug>.md`).
 
+4.  **Comments + attachments** — read `plugins/jetrix/commands/references/pull/comments-attachments.md` and execute it verbatim for every task materialized above: `--target-dir` = `features/<slug>/` for the feature side, `tasks/<slug>/` for the task side. Tasks with no discussion produce no files, so a List of mostly-quiet tickets costs reads only.
+
 ### Non-feature task file layout (one file per task)
 
 Write to `tasks/<slug or task-N>.md`. All tab content lands in one file:

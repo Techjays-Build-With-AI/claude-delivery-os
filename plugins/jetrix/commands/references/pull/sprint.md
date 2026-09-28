@@ -35,6 +35,8 @@ Plugin recipe:
 
 4. **sync-state merges inside the script** — per-feature `tasks/<feature_id>` entries updated with fresh `contentHash` + `lastPulled`. Other stages' keys preserved.
 
+5. **Comments + attachments** — read `plugins/jetrix/commands/references/pull/comments-attachments.md` and execute it verbatim for each pulled feature, with `--target-dir` = `features/<slug>/`. Features with no discussion produce no files.
+
 Report:
 ```
 ✓ Pulled Sprint 3 (5 features)

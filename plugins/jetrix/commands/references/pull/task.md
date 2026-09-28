@@ -143,3 +143,20 @@ Report:
 
 ---
 
+### 8. Comments + attachments
+
+Runs for whichever track matched — feature (§4), its sub-tasks (§6), or the
+non-feature file (§7). Read
+`plugins/jetrix/commands/references/pull/comments-attachments.md` and execute
+it verbatim, once per materialized task, with `--target-dir` set from that
+file's table:
+
+- feature → `features/<slug>/`
+- each sub-task → `features/<slug>/subtask/<repo>/`
+- non-feature → `tasks/<slug>/` (the folder beside `tasks/<slug>.md`)
+
+Most tasks have no discussion and produce no files — that is the expected
+outcome, not a failure.
+
+---
+

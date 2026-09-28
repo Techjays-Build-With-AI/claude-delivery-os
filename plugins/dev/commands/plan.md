@@ -272,6 +272,30 @@ For each targeted feature, check `features/<slug>/` for the 8 BA files: `feature
 
 All 8 BA files present → skip this step silently.
 
+**Then refresh comments + attachments for the targeted features only.** Run
+`plugins/jetrix/commands/references/pull/comments-attachments.md` per target,
+following the same rule `/jetrix:pull task` §8 uses — **once per task, and a
+sub-task is a task**:
+
+- the parent → `--target-dir` = `features/<slug>/`
+- **every existing `features/<slug>/subtask/<repo>/` folder** → that folder,
+  using that sub-task's own `jetrix_subtask_number` + `jetrix_subtask_object_id`
+  from its `status.md` frontmatter (fall back to `subtask_list` if either is
+  absent). Pass the parent's ids for the parent only — a sub-task carries its
+  own MC task number and its own comment thread.
+
+On a first plan the feature is not split yet, so only the parent is fetched —
+sub-tasks do not exist until Stage 2 creates them. On a re-plan they do, and
+skipping them is how a clarification left on the backend sub-task gets missed
+by `/dev:build Subtask-N`, which reads `subtask/<repo>/comments.md` but never
+fetches it.
+
+`/jetrix:pull scope` deliberately does not fetch any of this — 2 calls per
+task across a whole solution — so this is where the planner picks up
+clarifications the team left on the ticket and any mockup or spreadsheet
+attached to it. Unresolved comments become `PB-###` blockers in Stage 3
+(Source 6). Non-blocking: a fetch failure logs and continues.
+
 ### 2d. Backfill `jetrix_task_number` if missing
 
 For every remaining target, if `feature.md` frontmatter has `jetrix_task_object_id` but no `jetrix_task_number`, fetch it via `get_task_by_id_or_number` and patch the file. Non-blocking.
@@ -380,12 +404,13 @@ For each Stage-2-successful task, spawn a worker that:
 1. Reads `plugins/dev/commands/references/plan/blocker-detection.md`.
 2. Executes it verbatim on THIS task.
 
-Blocker detection scans 5 sources:
+Blocker detection scans 6 sources:
 - `tl-plan.md` `[HELD]` markers
 - BA `open-questions.md` "Blocks build" rows
 - BA `integrations.md` unresolved entries
 - BA `system-landscape.md` gaps
 - `dev/<repo>-analysis.md` `unknown` / `TBD` entries
+- `comments.md` unresolved threads (team clarifications left on the ticket)
 
 **Outcomes per task:**
 

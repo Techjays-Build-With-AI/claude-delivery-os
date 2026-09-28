@@ -119,6 +119,7 @@ Next:
 - MC: `readyForDev → inProgress` via `task-mcp.update_task_status`
 - Read parent BA files (`feature.md`, `workflow.md`, `acceptance-criteria.md`, `business-rules.md`, `nfrs.md`, `test-scenarios.md`, `dependencies.md`, `open-questions.md`) — validation contract
 - Read task's Implementation content (`implementation.md` at feature root for parent-alone; `subtask/<repo>/{description,implementation}.md` for sub-task; plus parent's `tl-plan.md` rollup for split cross-sub-task dep context only)
+- Read `comments.md` and list `attachments/` in **this task's own folder** — `features/<slug>/` parent-alone, `features/<slug>/subtask/<repo>/` sub-task, `tasks/<slug>/` filed ticket (pulled from MC — team clarifications, and mockups/spreadsheets the implementation must match). Open an attachment only when a step actually needs it. Absent = the task has no discussion; not an error
 - Read `shared-context/decision-log.md`, `shared-context/coding-standards.md` (Rule 13/Dimension 8 contract)
 - Record sources consulted in `dev/implementation-log.md`
 

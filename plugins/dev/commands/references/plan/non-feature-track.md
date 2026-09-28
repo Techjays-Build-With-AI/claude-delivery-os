@@ -14,6 +14,8 @@ A ticket that never came from `/ba:features` has no `features/<slug>/` folder an
 
 **Resolve the file.** If `tasks/<slug>.md` isn't on disk, auto-run `/jetrix:pull task <ref>` (its §7 fallback handles non-features). Still nothing → mark the target `SKIPPED_NO_SOURCE` and continue with the batch.
 
+**Refresh the ticket's discussion.** Run `plugins/jetrix/commands/references/pull/comments-attachments.md` with `--target-dir` = `tasks/<slug>/`. This is the non-feature equivalent of §2c's refresh, and it matters more here than it does for a feature: a filed bug is usually under-specified on purpose, and the reproduction detail, the screenshot, and the "actually it only happens when…" correction all live in the comment thread rather than in the tabs. Unresolved threads become `PB-###` via `blocker-detection.md` Source 6; attachments land in `tasks/<slug>/attachments/`. Non-blocking — a fetch failure logs and continues, and most tickets have no discussion at all.
+
 **Read order — graph first, source last** (`delivery-os-conventions` §6a):
 
 1. `.jetrix/connection-map.md` — only when the ticket spans repos, to establish which are involved and how they talk.
