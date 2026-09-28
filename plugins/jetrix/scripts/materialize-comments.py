@@ -39,6 +39,7 @@ from __future__ import annotations
 import argparse
 import datetime
 import hashlib
+import html
 import json
 import pathlib
 import re
@@ -61,6 +62,56 @@ def _load_json(path: pathlib.Path, default):
         return json.loads(path.read_text(encoding="utf-8") or "null") or default
     except json.JSONDecodeError:
         return default
+
+
+_MENTION = re.compile(
+    r'<span[^>]*data-label="([^"]*)"[^>]*>.*?</span>', re.IGNORECASE | re.DOTALL
+)
+_BLOCK_END = re.compile(r"</(p|div|h[1-6]|tr|ul|ol|blockquote)\s*>", re.IGNORECASE)
+_LI_END = re.compile(r"</li\s*>", re.IGNORECASE)
+_BR = re.compile(r"<br\s*/?>", re.IGNORECASE)
+_LI = re.compile(r"<li[^>]*>", re.IGNORECASE)
+_TAG = re.compile(r"<[^>]+>")
+_HEADING = re.compile(r"<h([1-6])[^>]*>", re.IGNORECASE)
+_LINK = re.compile(r'<a[^>]*href="([^"]*)"[^>]*>(.*?)</a>', re.IGNORECASE | re.DOTALL)
+_QUOTE = re.compile(r"<blockquote[^>]*>", re.IGNORECASE)
+
+# Inline emphasis -> markdown. <pre> before <code> so a fenced block isn't
+# turned into inline backticks.
+_INLINE = [
+    (re.compile(r"<pre[^>]*>(.*?)</pre>", re.IGNORECASE | re.DOTALL), r"\n```\n\1\n```\n"),
+    (re.compile(r"<code[^>]*>(.*?)</code>", re.IGNORECASE | re.DOTALL), r"`\1`"),
+    (re.compile(r"<(strong|b)[^>]*>(.*?)</\1>", re.IGNORECASE | re.DOTALL), r"**\2**"),
+    (re.compile(r"<(em|i)[^>]*>(.*?)</\1>", re.IGNORECASE | re.DOTALL), r"*\2*"),
+    (re.compile(r"<(s|del|strike)[^>]*>(.*?)</\1>", re.IGNORECASE | re.DOTALL), r"~~\2~~"),
+]
+
+
+def _to_text(raw: str) -> str:
+    """MC's comment box is a rich-text editor, so `text` arrives as HTML.
+
+    Converted to markdown rather than flattened: bold, italic, links, code and
+    headings carry meaning a reviewer put there deliberately, and stripping
+    them loses it. Only structure with no markdown equivalent is dropped.
+    Plain-text comments (no tags) pass through untouched.
+    """
+    s = str(raw or "")
+    if "<" not in s:
+        return s.strip()
+    s = _MENTION.sub(r"@\1", s)
+    s = _LINK.sub(r"[\2](\1)", s)
+    for pattern, repl in _INLINE:
+        s = pattern.sub(repl, s)
+    s = _HEADING.sub(lambda m: "\n" + "#" * int(m.group(1)) + " ", s)
+    s = _QUOTE.sub("\n> ", s)
+    s = _BR.sub("\n", s)
+    s = _LI_END.sub("\n", s)
+    s = _LI.sub("- ", s)
+    s = _BLOCK_END.sub("\n\n", s)
+    s = _TAG.sub("", s)
+    s = html.unescape(s)
+    s = re.sub(r"[ \t]+\n", "\n", s)
+    return re.sub(r"\n{3,}", "\n\n", s).strip()
 
 
 def _short_ts(value) -> str:
@@ -173,7 +224,7 @@ def _render_comments(bundle: dict, comments: dict, now: str) -> str:
         if mentions:
             body.append(f"*mentions: {', '.join(mentions)}*")
         body.append("")
-        body.append((c.get("text") or "").strip())
+        body.append(_to_text(c.get("text")))
         body.append("")
 
     return "\n".join(head + body).rstrip() + "\n"
