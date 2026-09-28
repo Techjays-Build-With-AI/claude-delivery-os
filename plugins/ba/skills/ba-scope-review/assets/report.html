@@ -102,6 +102,20 @@
     overflow: hidden; min-width: 90px; }
   .bar > span { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px; }
   .scorenum { font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .derivation { margin: 8px 0 2px; font-size: 12px; color: var(--muted);
+                font-variant-numeric: tabular-nums; letter-spacing: .01em; }
+  .movecard { margin-bottom: 8px; }
+  .moverow { padding: 10px 0; border-top: 1px solid var(--line); }
+  .moverow:first-child { border-top: none; }
+  .movehead { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .movehead .dn { color: var(--gap); }
+  .movehead .up { color: var(--ok); }
+  .movedim { margin: 5px 0 0 14px; font-size: 13px; color: var(--muted); line-height: 1.55; }
+  .movedim .dim { color: var(--fg); font-weight: 600; }
+  .movedim .raised { color: var(--gap); }
+  .byline { font-size: 11px; font-weight: 700; letter-spacing: .02em; }
+  .byline.confirmed { color: var(--ok); }
+  .byline.unconfirmed { color: var(--gap); }
   .statuslbl { font-size: 12px; font-weight: 700; }
   .exbadge { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 11px;
     font-weight: 800; color: #fff; white-space: nowrap; }
@@ -237,6 +251,8 @@
 
   <div id="kb-wrap"></div>
 
+  <div id="movement-wrap"></div>
+
   <div class="section-label">Feature scorecard</div>
   <div class="card"><table class="scorecard"><thead><tr>
     <th>#</th><th>Feature</th><th class="col-bar">Coverage</th><th>/10</th><th>Status</th><th>Bounded</th><th>Examples</th>
@@ -265,6 +281,8 @@
 
   <div class="section-label">Recommended next actions</div>
   <div class="card"><ol class="actions" id="actions"></ol></div>
+
+  <div id="handoff-wrap"></div>
 
   <footer id="footer"></footer>
 </div>
@@ -296,6 +314,7 @@
     ["integrations", "Integrations"], ["exceptions", "Exceptions & edge cases"],
     ["acceptance", "Acceptance criteria"]
   ];
+  var DIM_LABEL = COV_DIMS.reduce(function (m, p) { m[p[0]] = p[1]; return m; }, {});
   function statusOf(f) { return f.status || "Open"; }
   function statusColor(s) { return STATUS[s] || "var(--muted)"; }
 
@@ -393,6 +412,47 @@
   }
 
   // ---- Scorecard ----
+  // Score movement since the previous round. Round 1 has nothing to compare
+  // against, and a feature whose score held steady is not listed - only the
+  // moves, with the cause that produced each one.
+  (function renderMovement() {
+    var wrap = document.getElementById("movement-wrap");
+    if (!wrap || !(+data.round > 1)) return;
+    var moved = (data.features || []).filter(function (f) {
+      return f.changes && f.changes.length;
+    });
+    if (!moved.length) return;
+
+    wrap.appendChild(el("div", { class: "section-label", text: "What moved since round " + (+data.round - 1) }));
+    var card = el("div", { class: "card movecard" });
+
+    moved.forEach(function (f) {
+      var row = el("div", { class: "moverow" });
+      var prior = f.priorScore;
+      var head = el("div", { class: "movehead" });
+      head.appendChild(el("span", { text: f.name + "  " }));
+      head.appendChild(el("span", {
+        class: (prior != null && +f.score < +prior) ? "dn" : "up",
+        text: (prior != null ? prior + " → " : "") + f.score + "/10"
+      }));
+      row.appendChild(head);
+
+      f.changes.forEach(function (c) {
+        var line = el("div", { class: "movedim" });
+        line.appendChild(el("span", { class: "dim", text: DIM_LABEL[c.dimension] || c.dimension }));
+        line.appendChild(document.createTextNode("  " + (c.from || "?") + " → " + (c.to || "?")));
+        if (c.cause) line.appendChild(document.createTextNode("  · " + c.cause));
+        if (c.raised) {
+          line.appendChild(document.createTextNode("  · "));
+          line.appendChild(el("span", { class: "raised", text: "raised " + c.raised }));
+        }
+        row.appendChild(line);
+      });
+      card.appendChild(row);
+    });
+    wrap.appendChild(card);
+  })();
+
   var body = document.getElementById("scorecard-body");
   var lastGroup = null;
   (data.features || []).forEach(function (a) {
@@ -467,6 +527,19 @@
     });
     b.appendChild(grid);
 
+    // How the score was derived (omitted for reviews written before the
+    // derivation existed - those carry no coverageScore).
+    if (a.coverageScore != null) {
+      var sumTxt = "Coverage " + a.coverageScore + "/10";
+      if (a.cap != null && +a.coverageScore > +a.cap) {
+        sumTxt += " → capped at " + a.cap + " (" + (a.boundedness || "boundedness") + ")";
+      } else if (a.cap != null) {
+        sumTxt += " · cap " + a.cap + " not binding";
+      }
+      sumTxt += " → " + a.score + "/10";
+      b.appendChild(el("div", { class: "derivation", text: sumTxt }));
+    }
+
     // Example compliance
     if (a.exampleCompliance) {
       var exl = el("div", { class: "exline" }, [
@@ -522,6 +595,15 @@
       [el("b", { text: "Why it matters: " }), document.createTextNode(f.whyItMatters)]));
     if (f.adjudication) fcell.appendChild(el("span", { class: "reso-line" },
       [el("b", { text: "↳ " + st + ": " }), document.createTextNode(f.adjudication)]));
+    // Who actually answered. Unconfirmed answers are the ones a sign-off
+    // conversation has to cover, so they are flagged rather than left implicit.
+    if (f.answeredBy) fcell.appendChild(el("span", { class: "reso-line" }, [
+      el("span", {
+        class: "byline" + (f.answeredBy === "client" ? " confirmed" : " unconfirmed"),
+        text: f.answeredBy === "client" ? "confirmed by client"
+            : f.answeredBy === "assumed" ? "assumed — not confirmed"
+            : "decided internally — not confirmed by client"
+      })]));
     tr.appendChild(fcell);
     tr.appendChild(el("td", { text: f.suggestedScope || "" }));
     fbody.appendChild(tr);
@@ -635,6 +717,24 @@
 
   // ---- Actions / footer ----
   var ac = document.getElementById("actions");
+  (function renderHandoffs() {
+    var hs = data.handoffs || [];
+    var wrap = document.getElementById("handoff-wrap");
+    if (!wrap || !hs.length) return;
+    wrap.appendChild(el("div", { class: "section-label", text: "For the TL — technical follow-ups (not scope gaps)" }));
+    var card = el("div", { class: "card" });
+    hs.forEach(function (h) {
+      var row = el("div", { class: "moverow" });
+      row.appendChild(el("div", { class: "movehead" }, [
+        el("span", { text: (h.id || "TL") + "  " }),
+        el("span", { class: "areatag", text: h.feature || "" })]));
+      row.appendChild(el("div", { class: "movedim", text: h.question || "" }));
+      if (h.whyNotScope) row.appendChild(el("div", { class: "movedim", text: "Why not scope: " + h.whyNotScope }));
+      card.appendChild(row);
+    });
+    wrap.appendChild(card);
+  })();
+
   (data.nextActions || []).forEach(function (t) { ac.appendChild(el("li", { text: t })); });
   if (!(data.nextActions || []).length) ac.appendChild(el("li", { class: "empty", text: "None." }));
   document.getElementById("footer").textContent =

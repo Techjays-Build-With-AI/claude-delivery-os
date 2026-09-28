@@ -65,6 +65,15 @@ For every question with a non-empty response, decide its new status. **Be fair b
 - **→ `Open` (unchanged)** when the response doesn't address the question — say why.
 - **→ `Won't-fix`** only when the author clearly declines or defers out of phase; record the residual gap (and, if it's being pushed to T&M / a later phase, say so).
 
+**Record who answered — `answeredBy` is required on every terminal status.** One of:
+- **`client`** — the client (or their named authority) actually said this. Only this value may be written into the scope as a client decision.
+- **`internal`** — the team decided it. Legitimate and common, but it is *our* call, not theirs, and it must be surfaced for sign-off.
+- **`assumed`** — nobody confirmed it; the team is proceeding on a stated assumption (pairs with `Accepted-assumption`).
+
+The distinction is not bookkeeping. A review round proposes a recommended answer for most questions, and an author who accepts one has produced an `internal` decision, not a client one. Without this field the two are indistinguishable, and the scope ends up asserting *"the client accepts…"* about something the client was never asked — the single most expensive error this loop can make, because it surfaces as a dispute after delivery.
+
+`answeredBy: client` requires a real client answer in `authorResponse` — not a recommendation the author agreed with, and never inferred from silence. When in doubt it is `internal`.
+
 Write a short **adjudication rationale** for every decision — one or two sentences on *why* this status. This is the audit trail.
 
 ## 5. Promote the answer into the scope and registers (the BA-specific step)
@@ -76,15 +85,39 @@ A scope review exists to **improve the scope**, so closing a question means putt
 - **`Needs-verification` / still `Open`** (must-close items) → ensure a `CLR-###` exists in `ba/logs/clarifications.md` (the RAID Open-Questions `Q-##` feed) carrying the follow-ups, so the open question lives in the BA's own tracking, not only in the review.
 - **`Won't-fix` / deferred** → record it as out-of-scope/phase-2 in scope §6 or the relevant §3.x.2, and log the decision (`DEC-###`) so the deferral is auditable.
 
+**Then sweep for stale references.** Promoting the answer fixes the place the gap lived; it does not fix every *other* place that mentioned the open question. Before the round is written, search the scope and registers for the closed id (`CLR-###`, `SQ-###`, `OQ-###`) and for phrases that assumed it was still open — "pending CLR-014", "to be confirmed", "not yet decided" — and update or delete each one. Also re-check any status line or build-state claim the answer invalidates.
+
+A scope that says *"pending CLR-014"* underneath a section recording CLR-014's answer reads as though nobody checked, and it undermines the parts that are correct. This is the cheapest possible defect to prevent and one of the most visible to a client.
+
 Baking the answer into `scope.md` is what actually closes the gap — a later `/ba:review` of the updated scope should then find nothing. Use the `DEC-###` / `ASM-###` / `CLR-###` id formats from `delivery-os-conventions` (append-only). If there's no workspace, skip the promotions and keep the resolution in the report only (note that the edits still need applying).
 
 ## 6. Re-score and recompute the verdict
 
 Closing questions changes the picture, so recompute:
-- Raise a **feature score** when its questions resolve (an `AUTH` feature stuck at 2/10 by a Blocker may rise once the auth method is `Resolved` and the coverage map fills in). Re-judge against `review-rubric.md` using the score↔question anchoring — don't just bump arbitrarily; update the feature's `coverage` map to reflect what the answer added.
+- Raise a **feature score** by updating its **coverage map**, never the number. An answer closes a gap, so the dimension it came from moves `Absent → Partial` or `Partial → Covered`; a resolved boundedness gap also lifts or removes the `cap`. Then re-run the derivation from `SKILL.md` step 7 and write the refreshed `coverageScore`, `cap` and `score` into the round. This is the same rule the original review used, deliberately: if a resolve round re-judged the number by hand, the two halves of the loop would drift apart and the drift this derivation removes would come straight back.
+  An `AUTH` feature sitting at 1/10 rises because four dimensions filled in, not because the Blocker "feels resolved" — and the new `coverageScore` shows exactly how far it moved.
 - Recompute the **overall score** (average of features) and the **scope-readiness verdict**. A resolved Blocker **lifts the verdict cap**. `Accepted-assumption` also lifts the cap *only if* the assumption is explicit and logged — but call out the residual risk in the executive summary. `Needs-verification` and `Open` Blockers keep the cap.
 - Track progress in the executive summary: *"Round 2: 1 of 2 Blockers resolved, 1 awaiting verification; overall 3.4 → 6.2, verdict Significant gaps → Estimate with caveats."*
 
+### Every moved dimension carries its evidence
+
+A number that moves without a stated cause is the thing this loop exists to avoid — and a score that goes **down** after the author answered questions is the version of that which destroys trust fastest. So from round 2 onward, record the movement, not just the result.
+
+For every feature whose score changed, write a `changes` entry per dimension that moved: the dimension, its `from` and `to` states, and the `cause` — the `SQ-###` that closed it or the `DEC-###`/`ASM-###` it was promoted into. A dimension that moved with no cause is an error, exactly like a `score` that doesn't match its coverage map.
+
+**A dimension may only move down if a new question goes up.** If an answer made the scope *worse* — the client's reply introduced a branch, a rule, or a dependency nobody had seen — then something specific became unclear, and that something is a finding. Raise it as a new `SQ-###` and name it in the entry's `raised` field. A downward move with no new question is not a real reduction; it is the old re-judging returning in disguise, and it must not be written.
+
+```
+BILLING   8 → 6
+  business_rules   Covered → Partial
+  cause:  SQ-009's answer introduced tier-based routing
+  raised: SQ-014 — how do tiers map to routes?
+```
+
+This is also the honest case for a score falling: the scope really did get worse, the author can see exactly where, and the drop comes with the question that will close it. Report it plainly rather than softening it — an answer that reveals a gap has done its job.
+
+Put the movement **at the top of the round**, above the scorecard, not buried in the executive summary prose. A reader whose score went backwards should not have to hunt for the reason.
+
 ## 7. Output of a resolve round
 
-`/ba:resolve` writes a **new timestamped review round** — `.html` / `.md` / `.json` (render the `.html` the same UTF-8-safe way as a fresh review: write the `.json` sidecar first, then `node assets/inject.js assets/report.html <round>.json __REVIEW_DATA__ <round>.html` — never hand-assemble the HTML) — carrying every question forward with its updated status and resolution thread (response, adjudication, follow-ups, the promoted `DEC`/`ASM`/`CLR` id), the recomputed scores and verdict, and the list of scope edits to apply (or applied). Then summarise in chat: how many resolved / accepted-as-assumption / awaiting-verification (with the open follow-ups) / still open, the score+verdict movement, and which registers were updated. The loop repeats — export responses from the new report, resolve again — until no open items remain.
+`/ba:resolve` writes a **new timestamped review round** — `.html` / `.md` / `.json` (render the `.html` the same UTF-8-safe way as a fresh review: write the `.json` sidecar first, then `node assets/inject.js assets/report.html <round>.json __REVIEW_DATA__ <round>.html` — never hand-assemble the HTML) — carrying every question forward with its updated status and resolution thread (response, adjudication, follow-ups, the promoted `DEC`/`ASM`/`CLR` id) **and its original screening fields `checkedIn` and `consequence` unchanged** — those record why the question was raised in the first place, so a later round must preserve them rather than re-deriving or dropping them, the recomputed scores and verdict, and the list of scope edits to apply (or applied). Then summarise in chat: how many resolved / accepted-as-assumption / awaiting-verification (with the open follow-ups) / still open, the score+verdict movement, and which registers were updated. The loop repeats — export responses from the new report, resolve again — until no open items remain.

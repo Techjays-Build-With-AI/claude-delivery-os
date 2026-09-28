@@ -37,7 +37,9 @@ This is the JSON injected into `assets/report.html` at the `__REVIEW_DATA__` tok
       "name": "Login & Authentication",
       "group": "Core Modules",
       "kind": "UI / auth",
-      "score": 2,
+      "coverageScore": 0.6,
+      "cap": 4,
+      "score": 1,
       "band": "Stub",
       "boundedness": "Unbounded",
       "boundednessNote": "No auth methods enumerated, no in/out boundary, no adjacent-flow (registration/reset) scope — function stated, boundary undefined.",
@@ -54,7 +56,8 @@ This is the JSON injected into `assets/report.html` at the `__REVIEW_DATA__` tok
       },
       "exampleCompliance": "Conflict",
       "exampleNote": "EX-004 shows a user signing in with Google, but the scope mentions only email/password — the scope can't satisfy the example.",
-      "assessment": "Unbounded: the scope says only 'the system will have a login screen'. The auth methods aren't enumerated, the in/out boundary and adjacent flows (registration, reset) are unstated, and it conflicts with EX-004 — so it's capped at Weak.",
+      "assessment": "Unbounded: the scope says only 'the system will have a login screen'. The auth methods aren't enumerated, the in/out boundary and adjacent flows (registration, reset) are unstated, and it conflicts with EX-004. Eight of nine dimensions are Absent, so coverage alone puts it at 0.6/10 — below the Unbounded cap of 4, which therefore isn't the binding constraint here.",
+      "changes": [],
       "questionIds": ["SQ-001", "SQ-002", "SQ-003", "SQ-004"],
       "suggestions": "Enumerate the supported auth methods and mark each In/Out of scope; state whether registration, password reset, and profile are in scope; add the account-access policies (verification, lockout, MFA).",
       "strengths": ""
@@ -68,13 +71,24 @@ This is the JSON injected into `assets/report.html` at the `__REVIEW_DATA__` tok
       "dimension": "functional_reqs",
       "question": "Which authentication methods are in scope — email/password, social (Google/Apple/Microsoft), OTP/passwordless, magic link, or enterprise SSO (SAML/OIDC)?",
       "whyItMatters": "The auth method is a business decision that swings the estimate and the integrations list. Unspecified, the price is a guess — and it conflicts with EX-004 (Google sign-in).",
+      "consequence": "estimate",
+      "checkedIn": ["§3.1.1–3.1.9", "§6 Global out-of-scope", "ba/registers/assumptions.md", "ba/registers/examples.md"],
       "suggestedScope": "In §3.1.3 list the supported methods with Resp./Pri.; if email/password, add verification + password policy + lockout; reconcile with EX-004.",
       "status": "Open",
+      "answeredBy": null,
       "authorResponse": null,
       "adjudication": null,
       "followUps": [],
       "resolvedOn": null,
       "decisionId": null
+    }
+  ],
+  "handoffs": [
+    {
+      "id": "TL-001",
+      "feature": "AUTH",
+      "question": "Concurrent assign on the same normalised tag — must uniqueness be enforced at the point of write rather than by a prior read?",
+      "whyNotScope": "The business rule (one open record per tag) is stated in §3.1.7; how it is guaranteed under concurrency is an engineering choice."
     }
   ],
   "nextActions": ["Pin the auth method (SQ-004) and the CRM partner (SQ-011) — both block the estimate."]
@@ -84,17 +98,29 @@ This is the JSON injected into `assets/report.html` at the `__REVIEW_DATA__` tok
 Field rules:
 - `reviewDate` is the human-readable run time (date + time so two same-day runs are distinguishable); it shows in the header/footer and should match the `<timestamp>` in the filename.
 - `reviewId` is the filename `<timestamp>` (`YYYY-MM-DD-HHMMSS`) — the join key the resolution loop uses to match a responses file back to its review. The HTML "Export responses" button reads it to name the download. `round` starts at 1; `/ba:resolve` increments it. `priorReview` is the `reviewId` of the report this round resolves (null for round 1).
+- `answeredBy` records **who** answered — `"client"` / `"internal"` / `"assumed"`, null while `Open`. Required on every terminal status. Only `client` may be written into the scope as a client decision; `internal` and `assumed` on estimate-driving questions cap the verdict (see `SKILL.md` step 7 and `resolution-loop.md` §4).
 - The per-question **resolution fields** (`status`, `authorResponse`, `adjudication`, `followUps`, `resolvedOn`, `decisionId`) start at `Open`/null in round 1 and are filled by `/ba:resolve`. `status` uses the controlled values in `resolution-loop.md`; `followUps` is a list of verification questions when `status` is `Needs-verification`.
-- `score` is a **number 0–10** (the HTML draws a bar and a band). Keep all features in the `features` array so the scorecard is complete.
-- `band` is the band label (`Excellent`/`Good`/`Adequate`/`Weak`/`Stub`/`Absent`).
+- `score` is a **number 0–10** (the HTML draws a bar and a band). It is **derived, never chosen** — by the formula in `SKILL.md` step 7 (note a `Bounded` feature has no cap, so its score is simply `round(coverageScore)`). Keep all features in the `features` array so the scorecard is complete.
+- `coverageScore` is the pre-cap arithmetic from the coverage map — `(Covered 1 / Partial 0.5 / Absent 0, summed over the nine) / 9 * 10`, to one decimal. It is what makes the score auditable; emit it on every feature.
+- `cap` is the boundedness ceiling — `4` when `Unbounded`, `6` when `Partially-bounded`, `null` when `Bounded`. Record it **even when it isn't binding** (i.e. when `coverageScore` is already below it), so a reader can see the cap was considered rather than forgotten.
+- These three must agree. If `score` doesn't match the step-7 formula, the map and the number disagree and the report is wrong — fix the coverage call, never the number.
+- `band` is the band label (`Excellent`/`Good`/`Adequate`/`Weak`/`Stub`/`Absent`), set **from the computed `score`** using the table in `SKILL.md` step 7 — never assigned independently.
+- `changes` explains a score that moved between rounds. Empty `[]` on round 1 and on any feature whose score didn't change; otherwise one entry per dimension that moved:
+  `{ "dimension": "business_rules", "from": "Covered", "to": "Partial", "cause": "SQ-009", "raised": "SQ-014" }`
+  `priorScore` sits next to it — the feature's score in the previous round, so the panel can show `8 → 6` and colour a fall differently from a rise. Omit both on round 1.
+  `dimension` is one of the nine coverage keys. `cause` is the `SQ-###` / `DEC-###` / `ASM-###` that moved it — an entry with no cause is an error, like a `score` that doesn't match its map. `raised` is **required when `to` is worse than `from`** (the `SQ-###` capturing what became unclear) and omitted otherwise; see `resolution-loop.md` §6. A score that changed with an empty `changes` array means the map moved without explanation and the round is wrong.
 - `boundedness` is one of `"Bounded"` / `"Partially-bounded"` / `"Unbounded"`; `boundednessNote` (one line) says what's undefined. **These cap the score** — `Unbounded` ≤ 4, `Partially-bounded` ≤ 6 (see `review-rubric.md` §A). The HTML shows a boundedness badge on the feature. For a **branching** feature, the note must state whether every materially-different route is expanded into its own §3.x.4 use case (with a flow and worked example) — an un-expanded fork is a boundedness failure, not just a missing dimension, and the flattening is raised as a question tagged `in_out_scope` or `business_rules` (see `review-rubric.md` §A item 6).
 - `coverage` has exactly the nine keys above, each valued `"Covered"` / `"Partial"` / `"Absent"` (the HTML renders the matrix and colours each cell). Use `"Covered"` with an assessment note when a dimension is genuinely not-needed for that feature. **Route/use-case expansion is scored through `boundedness`** (plus the `business_rules`/`in_out_scope`/`exceptions` cells it pulls down), not as a tenth coverage key — so the existing nine-column matrix is unchanged.
 - `exampleCompliance` is one of `"Pass"` / `"Partial"` / `"Conflict"` / `"No-examples"`; `exampleNote` explains it (cite the EX id for Partial/Conflict).
 - `group` drives the section dividers in the scorecard — use your own module-group names (e.g. `Core Modules`, `Supporting Modules`, `Cross-cutting`). Keep features in order so each group's rows are contiguous.
 - `kind` (optional) is the feature kind (UI/auth, integration, data/reporting, AI/automation, admin, workflow) — shown as a tag.
+- `handoffs` carries the technical follow-ups the review deliberately did **not** score — the things that belong to `tl-spec-review`. `id` is `TL-###` (zero-padded, append-only), `feature` links it to a feature `code`, `question` is what the TL must settle, `whyNotScope` says which business decision is already made and which engineering choice remains. Empty `[]` when there are none. These are not gaps and never affect a score; the array exists so refusing to score something doesn't mean losing it.
 - `gatingQuestions` lists the IDs (Blockers + the most important Majors) surfaced at the top; each must exist in `questions`.
 - `questionIds` on a feature links it to its rows in `questions`; the HTML makes them clickable.
 - `dimension` on a question is one of the nine coverage keys (or omit) — used to tag which sub-heading the gap sits in.
+- `checkedIn` is a **required** list of the places searched for the answer before the question shipped — the feature's own §3.x sub-headings, the global §6, and whichever registers were consulted (see `SKILL.md` step 6). A question whose answer is found during that search is dropped, not recorded; so an empty list means the search wasn't done.
+- `consequence` is **required** and controlled: `"estimate"` · `"scope"` · `"integrations"` · `"compliance"` · `"none"` — what changes if the question stays unanswered. It is the evidence behind `severity`: a `Blocker` or `Major` cannot carry `"none"`, and a `"none"` question is a `Nit` at most. `whyItMatters` stays the prose explanation; `consequence` is the machine-checkable claim underneath it.
+- **Backward compatibility** — reviews written before these fields exist will lack `coverageScore`, `cap`, `checkedIn` and `consequence`. Readers (the HTML, `/ba:resolve`) must treat them as absent rather than erroring, and must not back-fill them by guessing: an old review's score was judged, not derived, and inventing a `coverageScore` for it would assert a derivation that never happened.
 
 ## 2. Injecting into the HTML
 
