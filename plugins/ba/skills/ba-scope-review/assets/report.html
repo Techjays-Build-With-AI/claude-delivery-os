@@ -113,6 +113,9 @@
   .movedim { margin: 5px 0 0 14px; font-size: 13px; color: var(--muted); line-height: 1.55; }
   .movedim .dim { color: var(--fg); font-weight: 600; }
   .movedim .raised { color: var(--gap); }
+  .byline { font-size: 11px; font-weight: 700; letter-spacing: .02em; }
+  .byline.confirmed { color: var(--ok); }
+  .byline.unconfirmed { color: var(--gap); }
   .statuslbl { font-size: 12px; font-weight: 700; }
   .exbadge { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 11px;
     font-weight: 800; color: #fff; white-space: nowrap; }
@@ -278,6 +281,8 @@
 
   <div class="section-label">Recommended next actions</div>
   <div class="card"><ol class="actions" id="actions"></ol></div>
+
+  <div id="handoff-wrap"></div>
 
   <footer id="footer"></footer>
 </div>
@@ -590,6 +595,15 @@
       [el("b", { text: "Why it matters: " }), document.createTextNode(f.whyItMatters)]));
     if (f.adjudication) fcell.appendChild(el("span", { class: "reso-line" },
       [el("b", { text: "↳ " + st + ": " }), document.createTextNode(f.adjudication)]));
+    // Who actually answered. Unconfirmed answers are the ones a sign-off
+    // conversation has to cover, so they are flagged rather than left implicit.
+    if (f.answeredBy) fcell.appendChild(el("span", { class: "reso-line" }, [
+      el("span", {
+        class: "byline" + (f.answeredBy === "client" ? " confirmed" : " unconfirmed"),
+        text: f.answeredBy === "client" ? "confirmed by client"
+            : f.answeredBy === "assumed" ? "assumed — not confirmed"
+            : "decided internally — not confirmed by client"
+      })]));
     tr.appendChild(fcell);
     tr.appendChild(el("td", { text: f.suggestedScope || "" }));
     fbody.appendChild(tr);
@@ -703,6 +717,24 @@
 
   // ---- Actions / footer ----
   var ac = document.getElementById("actions");
+  (function renderHandoffs() {
+    var hs = data.handoffs || [];
+    var wrap = document.getElementById("handoff-wrap");
+    if (!wrap || !hs.length) return;
+    wrap.appendChild(el("div", { class: "section-label", text: "For the TL — technical follow-ups (not scope gaps)" }));
+    var card = el("div", { class: "card" });
+    hs.forEach(function (h) {
+      var row = el("div", { class: "moverow" });
+      row.appendChild(el("div", { class: "movehead" }, [
+        el("span", { text: (h.id || "TL") + "  " }),
+        el("span", { class: "areatag", text: h.feature || "" })]));
+      row.appendChild(el("div", { class: "movedim", text: h.question || "" }));
+      if (h.whyNotScope) row.appendChild(el("div", { class: "movedim", text: "Why not scope: " + h.whyNotScope }));
+      card.appendChild(row);
+    });
+    wrap.appendChild(card);
+  })();
+
   (data.nextActions || []).forEach(function (t) { ac.appendChild(el("li", { text: t })); });
   if (!(data.nextActions || []).length) ac.appendChild(el("li", { class: "empty", text: "None." }));
   document.getElementById("footer").textContent =

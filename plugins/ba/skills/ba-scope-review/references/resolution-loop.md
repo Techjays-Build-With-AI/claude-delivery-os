@@ -65,6 +65,15 @@ For every question with a non-empty response, decide its new status. **Be fair b
 - **→ `Open` (unchanged)** when the response doesn't address the question — say why.
 - **→ `Won't-fix`** only when the author clearly declines or defers out of phase; record the residual gap (and, if it's being pushed to T&M / a later phase, say so).
 
+**Record who answered — `answeredBy` is required on every terminal status.** One of:
+- **`client`** — the client (or their named authority) actually said this. Only this value may be written into the scope as a client decision.
+- **`internal`** — the team decided it. Legitimate and common, but it is *our* call, not theirs, and it must be surfaced for sign-off.
+- **`assumed`** — nobody confirmed it; the team is proceeding on a stated assumption (pairs with `Accepted-assumption`).
+
+The distinction is not bookkeeping. A review round proposes a recommended answer for most questions, and an author who accepts one has produced an `internal` decision, not a client one. Without this field the two are indistinguishable, and the scope ends up asserting *"the client accepts…"* about something the client was never asked — the single most expensive error this loop can make, because it surfaces as a dispute after delivery.
+
+`answeredBy: client` requires a real client answer in `authorResponse` — not a recommendation the author agreed with, and never inferred from silence. When in doubt it is `internal`.
+
 Write a short **adjudication rationale** for every decision — one or two sentences on *why* this status. This is the audit trail.
 
 ## 5. Promote the answer into the scope and registers (the BA-specific step)
@@ -75,6 +84,10 @@ A scope review exists to **improve the scope**, so closing a question means putt
 - **`Accepted-assumption`** → add an `ASM-###` row to `ba/registers/assumptions.md` (assumption, reason, risk, validation needed) — this is the RAID Assumptions `A-##` feed — and reference it from scope §7. Note the edit to the relevant §3.x.
 - **`Needs-verification` / still `Open`** (must-close items) → ensure a `CLR-###` exists in `ba/logs/clarifications.md` (the RAID Open-Questions `Q-##` feed) carrying the follow-ups, so the open question lives in the BA's own tracking, not only in the review.
 - **`Won't-fix` / deferred** → record it as out-of-scope/phase-2 in scope §6 or the relevant §3.x.2, and log the decision (`DEC-###`) so the deferral is auditable.
+
+**Then sweep for stale references.** Promoting the answer fixes the place the gap lived; it does not fix every *other* place that mentioned the open question. Before the round is written, search the scope and registers for the closed id (`CLR-###`, `SQ-###`, `OQ-###`) and for phrases that assumed it was still open — "pending CLR-014", "to be confirmed", "not yet decided" — and update or delete each one. Also re-check any status line or build-state claim the answer invalidates.
+
+A scope that says *"pending CLR-014"* underneath a section recording CLR-014's answer reads as though nobody checked, and it undermines the parts that are correct. This is the cheapest possible defect to prevent and one of the most visible to a client.
 
 Baking the answer into `scope.md` is what actually closes the gap — a later `/ba:review` of the updated scope should then find nothing. Use the `DEC-###` / `ASM-###` / `CLR-###` id formats from `delivery-os-conventions` (append-only). If there's no workspace, skip the promotions and keep the resolution in the report only (note that the edits still need applying).
 

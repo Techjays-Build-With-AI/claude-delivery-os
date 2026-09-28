@@ -75,11 +75,20 @@ This is the JSON injected into `assets/report.html` at the `__REVIEW_DATA__` tok
       "checkedIn": ["§3.1.1–3.1.9", "§6 Global out-of-scope", "ba/registers/assumptions.md", "ba/registers/examples.md"],
       "suggestedScope": "In §3.1.3 list the supported methods with Resp./Pri.; if email/password, add verification + password policy + lockout; reconcile with EX-004.",
       "status": "Open",
+      "answeredBy": null,
       "authorResponse": null,
       "adjudication": null,
       "followUps": [],
       "resolvedOn": null,
       "decisionId": null
+    }
+  ],
+  "handoffs": [
+    {
+      "id": "TL-001",
+      "feature": "AUTH",
+      "question": "Concurrent assign on the same normalised tag — must uniqueness be enforced at the point of write rather than by a prior read?",
+      "whyNotScope": "The business rule (one open record per tag) is stated in §3.1.7; how it is guaranteed under concurrency is an engineering choice."
     }
   ],
   "nextActions": ["Pin the auth method (SQ-004) and the CRM partner (SQ-011) — both block the estimate."]
@@ -89,6 +98,7 @@ This is the JSON injected into `assets/report.html` at the `__REVIEW_DATA__` tok
 Field rules:
 - `reviewDate` is the human-readable run time (date + time so two same-day runs are distinguishable); it shows in the header/footer and should match the `<timestamp>` in the filename.
 - `reviewId` is the filename `<timestamp>` (`YYYY-MM-DD-HHMMSS`) — the join key the resolution loop uses to match a responses file back to its review. The HTML "Export responses" button reads it to name the download. `round` starts at 1; `/ba:resolve` increments it. `priorReview` is the `reviewId` of the report this round resolves (null for round 1).
+- `answeredBy` records **who** answered — `"client"` / `"internal"` / `"assumed"`, null while `Open`. Required on every terminal status. Only `client` may be written into the scope as a client decision; `internal` and `assumed` on estimate-driving questions cap the verdict (see `SKILL.md` step 7 and `resolution-loop.md` §4).
 - The per-question **resolution fields** (`status`, `authorResponse`, `adjudication`, `followUps`, `resolvedOn`, `decisionId`) start at `Open`/null in round 1 and are filled by `/ba:resolve`. `status` uses the controlled values in `resolution-loop.md`; `followUps` is a list of verification questions when `status` is `Needs-verification`.
 - `score` is a **number 0–10** (the HTML draws a bar and a band). It is **derived, never chosen** — by the formula in `SKILL.md` step 7 (note a `Bounded` feature has no cap, so its score is simply `round(coverageScore)`). Keep all features in the `features` array so the scorecard is complete.
 - `coverageScore` is the pre-cap arithmetic from the coverage map — `(Covered 1 / Partial 0.5 / Absent 0, summed over the nine) / 9 * 10`, to one decimal. It is what makes the score auditable; emit it on every feature.
@@ -104,6 +114,7 @@ Field rules:
 - `exampleCompliance` is one of `"Pass"` / `"Partial"` / `"Conflict"` / `"No-examples"`; `exampleNote` explains it (cite the EX id for Partial/Conflict).
 - `group` drives the section dividers in the scorecard — use your own module-group names (e.g. `Core Modules`, `Supporting Modules`, `Cross-cutting`). Keep features in order so each group's rows are contiguous.
 - `kind` (optional) is the feature kind (UI/auth, integration, data/reporting, AI/automation, admin, workflow) — shown as a tag.
+- `handoffs` carries the technical follow-ups the review deliberately did **not** score — the things that belong to `tl-spec-review`. `id` is `TL-###` (zero-padded, append-only), `feature` links it to a feature `code`, `question` is what the TL must settle, `whyNotScope` says which business decision is already made and which engineering choice remains. Empty `[]` when there are none. These are not gaps and never affect a score; the array exists so refusing to score something doesn't mean losing it.
 - `gatingQuestions` lists the IDs (Blockers + the most important Majors) surfaced at the top; each must exist in `questions`.
 - `questionIds` on a feature links it to its rows in `questions`; the HTML makes them clickable.
 - `dimension` on a question is one of the nine coverage keys (or omit) — used to tag which sub-heading the gap sits in.
