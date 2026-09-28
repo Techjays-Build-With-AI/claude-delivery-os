@@ -33,6 +33,8 @@ This is the single source of truth that makes Delivery OS documents **shareable 
 >
 > **2.3.17.1 (MC rendering contract + pipe-run-on auto-fix).** Confirmed MC UI's markdown toolchain by reading `BuildWithAIPortal_UI/package.json`: `react-markdown v9 + remark-gfm v4 + mermaid v11.6`. `tl-feature-compose` Rule 0d now embeds the exact rendering contract for this toolchain — tables must have each row on its own physical line + header separator on its own line + blank line surrounds; mermaid must be fenced with exactly `\`\`\`mermaid` (the intercept in `BaDiagnosisPhase.tsx` checks `className === 'language-mermaid'`); node labels with numbers/spaces MUST be quoted (`S1["1. Step"]`). Rule 0a mechanical halt triggers expanded from 8 to 10, adding: mermaid-fence-missing-language-tag (auto-fix inserts `mermaid`), missing-blank-line-around-block (auto-fix inserts `\n`). Rule 11.5's pipe-run-on scan now runs an explicit auto-fix regex: detects `| \d+ |` cell-boundary runs on one physical line, splits at row boundaries, inserts newlines + header separator, re-parses. Closes the exact bug in the user's screenshot where a Build sequence table rendered as inline pipe text unrenderable in MC.
 >
+> **2.3.18 (task comments + attachments — additive, pull-only).** A task's MC comment thread and its attachments now materialize **next to the task they belong to**: `comments.md`, `attachments.md` and `attachments/` in `features/<slug>/`, in `features/<slug>/subtask/<repo>/`, and in `tasks/<slug>/`. No wrapper folder — one layout, three mount points, so a single materializer (`materialize-comments.py`) serves all three. **Both files are written only when the task actually has comments / attachments**, so a quiet task leaves no trace. Both carry `readonly: true` in frontmatter, which is the marker `/jetrix:push` uses to refuse them — `assemble-tasks.py` skips any `readonly` file (its folder target is a recursive `*.md` sweep) and `assemble-features.py` excludes `comments.md` from the push cache hash (otherwise a new comment would re-push seven untouched tab fields). New `doc_type`s: `task-comments`, `task-attachments`. Pulled by `/jetrix:pull task|list|sprint` (NOT by `pull scope` — 2 calls per task across a whole solution) and by `/dev:plan` §2c for the features being planned; consumed by `/dev:build` Stage 1 and by blocker detection **Source 6** (unresolved threads → `PB-###`, resolved ones skipped, same rule as Source 2). Additive: a workspace with no task discussion is byte-identical to before.
+>
 > **2.3.17 (compose halt-and-rewrite loop killed; read-back verify made explicit).** `tl-feature-compose` was accumulating ~30 halt-triggering rules across v2.3.5–v2.3.16 (per-section budgets, density scan starters, self-consistency checks, feature-shape adapters, content-quality principles, adversarial-read pass, mechanical MD scan). Cumulative effect: compose runs took hours because each rule halted and triggered a top-to-bottom rewrite. Rule 0 in tl-feature-compose SKILL.md now caps behavior at ONE compose pass + ONE lint pass + ONE optional auto-fix (for pure string removals only). Only 8 mechanical triggers HALT (payload > 60 000 chars, `## 7. Coverage` heading, `Deferred` status, `**Assumptions.**` heading, pipe-row-on-one-line, unclosed code fence, framework field path in §8, `# FEAT-` heading). Everything else — Rules 10a/10b/11.5/11.9/11.10/11.12/11.13 — is a WARN reported in a `## Compose lint findings` block. The user decides whether to fix and re-run, or accept. No autonomous multi-iteration rewrite. Rule 10 warn line reverted from 40k back to 55k chars (60k halts). Per-section budget maximums are GUIDES, not walls. `/dev:plan` Stage 4 §4f.i now REQUIRES read-back verification after every push: SHA-256 of local sent vs server-returned, mismatch prints a big warning and does NOT record hash in sync-state. Silent divergence between `ok: true` and stored payload is no longer a silent bug. Additive to on-disk `.jetrix/` layout.
 >
 > **2.3.16 (implementation.md — kill §7 Coverage; plan states intent only, evidence lives in acceptance-map.md; QA-check with skip prompt at `/dev:plan` §1e).** Removed the `§7 Coverage` table from `implementation.md` — the 30+ row table at plan time was theatre that duplicated (a) parent BA-file AC/BR/TS IDs and (b) the build-time `dev/acceptance-map.md` evidence artifact. Plan-time coverage now lives in **§1 Build sequence `Satisfies` column** (canonical: every parent AC/BR/TS ID appears in at least one step's Satisfies list) plus `qa/quality-gates.md` tier pool (declares which tiers are Required per capability class). Build-time evidence lives in `dev/acceptance-map.md`. Frame slimmed from 9 sections to 8 (§1 Build sequence · §2 Impacted components · §3 Operations · §4 Stored data · §5 User-facing surfaces · §6 Touch points · §7 Risks and rollback · §8 Shared contract). Removed the "Deferred to E2E" status entirely — for a NEW feature at plan/build time, coverage is 100% at every applicable tier for the layer; E2E is a covered TIER (owned by whichever sub-task authors the `tests/e2e/…` file), never a deferral status. Added `/dev:plan` Stage 1 §1e QA-check with skip prompt: when `qa/quality-gates.md` is missing at plan time, the user is asked whether to audit+set-up gates for the EXISTING codebase (Yes → `/qa:audit → /qa:plan → /qa:setup` inline) OR skip that and just plan the new feature (Skip → writes a `harness_status: Stack-Inferred` marker file with tier pools derived from stack detection). The NEW feature still gets 100% coverage at every applicable tier regardless of Yes/Skip; the Skip path only defers the existing-code audit. Rule 7 in `dev-stack-adaptive-implementation` sharpened to require every applicable tier per step. `/dev:build` Stage 0 QA gate has soft mode when `Stack-Inferred` (proceeds with a warning about un-audited existing coverage). Cascading rename in downstream files: `§8 Risks and rollback` → `§7 Risks and rollback`, `§9 Shared contract` → `§8 Shared contract`. Additive to on-disk `.jetrix/` layout — file names + folder structure unchanged.
@@ -121,6 +123,10 @@ Every Delivery OS workspace is bound to **one** Jetrix Solution. Everything live
     │       ├── dependencies.md           # BA — Dependencies tab
     │       ├── open-questions.md         # BA — folds into dependencies at push
     │       ├── implementation-plan.md    # BA scratchpad, local-only
+    │       ├── comments.md               # PULL-ONLY — MC comment thread; never pushed
+    │       ├── attachments.md            # PULL-ONLY — attachment manifest; never pushed
+    │       ├── attachments/              # PULL-ONLY — the files themselves
+    │       │   └── <n>-<name>            # only present when the task has attachments
     │       ├── evals/                    # TL — applied-AI features only (EVAL-<AREA>-NN)
     │       │   ├── eval-index.md
     │       │   └── <eval-slug>.md
@@ -185,7 +191,10 @@ Every Delivery OS workspace is bound to **one** Jetrix Solution. Everything live
     │               │                     # matches key in .jetrix/cache/repolocation.json
     │               ├── description.md    # sub-task Description tab (business flow narrative)
     │               ├── implementation.md # sub-task Implementation tab (10-section source of truth)
-    │               └── status.md         # sub-task status (MC-mirrored + local loop state)
+    │               ├── status.md         # sub-task status (MC-mirrored + local loop state)
+    │               ├── comments.md       # PULL-ONLY — this sub-task's MC comment thread
+    │               ├── attachments.md    # PULL-ONLY — attachment manifest
+    │               └── attachments/      # PULL-ONLY — the files themselves
     │                                     # NO nested dev/ folder here either — audit lives flat at
     │                                     # features/<slug>/dev/<repo>-<filename>.md
     │
@@ -220,7 +229,12 @@ Every Delivery OS workspace is bound to **one** Jetrix Solution. Everything live
     │       └── board-<topic>-<ts>.html
     │
     ├── tasks/                            # non-feature MC tasks (ad-hoc)
-    │   └── <slug>.md
+    │   ├── <slug>.md                     # the ticket itself (round-trips to MC)
+    │   └── <slug>/                       # sibling folder — local + pull-only artifacts
+    │       ├── comments.md               # PULL-ONLY
+    │       ├── attachments.md            # PULL-ONLY
+    │       ├── attachments/              # PULL-ONLY
+    │       └── dev/                      # /dev:plan + /dev:build outputs for this ticket
     │
     └── dev/                              # cross-feature dev artifacts
         └── batch-runs/                   # /dev:plan batch run summaries (multi-target)
@@ -275,7 +289,7 @@ It is **agent-maintained** (the user can still hand-edit it) and folds together 
 
 ```yaml
 ---
-doc_type: scope            # scope | requirement-register | use-case-register | glossary | run-summary | source-summary | intake-index | description | implementation | status | plan-run | analysis-scratchpad | task-decision | plan-blockers | traceability | acceptance-map | build-run | commit-run | implementation-log | security-findings | code-review-findings | context-merge-log | merge-conflicts | escalation | ...
+doc_type: scope            # scope | requirement-register | use-case-register | glossary | run-summary | source-summary | intake-index | description | implementation | status | plan-run | analysis-scratchpad | task-decision | plan-blockers | traceability | acceptance-map | build-run | commit-run | implementation-log | security-findings | code-review-findings | context-merge-log | merge-conflicts | escalation | task-comments | task-attachments | ...
 schema_version: 1.3        # the contract version this file conforms to
 produced_by: ba            # ba | doc | tl | qa | delivery-os
 last_intake_run: run-003   # the run that last touched this file (omit if N/A)

@@ -228,12 +228,26 @@ def resolve_task_type(fm: dict, tabs: dict[str, str], headings: set[str]) -> tup
     return "task", "default"
 
 
+def _is_readonly(path: pathlib.Path) -> bool:
+    """True for pull-only files (comments.md etc.) that MC owns.
+
+    Frontmatter, not filename — the marker travels with the file wherever a
+    materializer puts it. Without this a folder target would sweep a pulled
+    comment thread and push it back as a brand-new task.
+    """
+    try:
+        fm, _ = split_frontmatter(path.read_text(encoding="utf-8"))
+    except OSError:
+        return False
+    return bool(fm.get("readonly"))
+
+
 def _collect_files(project_root: pathlib.Path, target: str) -> list[pathlib.Path]:
     tgt = project_root / target
     if tgt.is_file() and tgt.suffix == ".md":
-        return [tgt]
+        return [] if _is_readonly(tgt) else [tgt]
     if tgt.is_dir():
-        return sorted(tgt.rglob("*.md"))
+        return sorted(p for p in tgt.rglob("*.md") if not _is_readonly(p))
     # Missing target — return empty; caller decides how to report.
     return []
 
