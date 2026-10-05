@@ -20,7 +20,7 @@ qa/
   escalation-<n>.md       # structured note when a strategy decision or blocker stops you
 ```
 
-Create `qa/` if absent. If there's no workspace, write these beside the repo and note it.
+Create `qa/` if absent. **These paths are relative to the workspace root, the `.jetrix/` folder** — `qa/…` means `.jetrix/qa/…`. A workspace exists when `.jetrix/project.json` is present at or above the current directory; test for that file rather than judging it. Only when it exists nowhere may you write beside the repo, and then name the absolute path you used in the summary.
 
 ## `/qa:plan` — approved recommendations → plan
 

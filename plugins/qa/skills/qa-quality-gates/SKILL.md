@@ -9,7 +9,7 @@ You own the one file that turns "we have some tests" into "here is exactly what 
 
 ## Operating contract
 
-Read **`delivery-os-conventions`** if it isn't in context. Your input is the proven harness (the commands and thresholds `qa-test-setup` verified green) and the repo's tooling. Your output is `qa/quality-gates.md` (`doc_type: quality-gates`, `produced_by: qa`), created if absent. Follow the exact schema in **`references/quality-gate-contract.md`** so consumers can parse it. If there's no workspace, write it beside the repo and note it.
+Read **`delivery-os-conventions`** if it isn't in context. Your input is the proven harness (the commands and thresholds `qa-test-setup` verified green) and the repo's tooling. Your output is `qa/quality-gates.md` (`doc_type: quality-gates`, `produced_by: qa`), created if absent. Follow the exact schema in **`references/quality-gate-contract.md`** so consumers can parse it. **`qa/…` is relative to the workspace root, the `.jetrix/` folder.** A workspace exists when `.jetrix/project.json` is present at or above the current directory — test for that file rather than judging it. Only when it exists nowhere may you write beside the repo, and then name the absolute path you used. This file is the contract `/dev:build` and `/qa:health` read by a fixed path; a second copy outside `.jetrix/` means they read one while the last run wrote the other.
 
 ## What you do
 
