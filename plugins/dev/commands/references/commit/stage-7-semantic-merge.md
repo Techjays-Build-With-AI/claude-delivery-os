@@ -29,7 +29,10 @@ stage-7:
   status: DONE
   tl_semantic_context_merge_invocation:
     invoked_at: <ISO>                              # required — presence proves invocation
-    subagent_id: <id from Skill tool response>     # required — proves a real skill call happened, not a mental reasoning
+    invocation: <subagent id | "inline">           # required — the Skill tool returns an id only when the
+                                                   # skill runs as a subagent. This skill forbids subagents
+                                                   # (its Rule 9), so `inline` is the correct, expected value.
+                                                   # Never leave it blank, and never invent an id to fill it
     base_ref: <remote>/<base>@<sha>                # required — must match stage-2.base_remote_sha
     input_units_scanned: <count>                    # this branch's units the merge considered
     baseline_units_scanned: <count>                 # base branch's units the merge considered

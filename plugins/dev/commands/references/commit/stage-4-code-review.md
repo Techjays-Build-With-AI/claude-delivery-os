@@ -20,7 +20,7 @@
 
 Invoke `dev-stack-adaptive-code-review` inline (no subagent per the skill's Rule 9). Pass:
 
-- The feature diff — `git diff <base>...HEAD`
+- The feature diff — `git diff <base>...HEAD`. **Under `tests_only`** this is the test files this commit adds or modifies, plus any product file the branch diff still contains; the product-code dimensions with no diff to read are skipped rather than reported empty (`commit.md` §2). If the review skill refuses to run, follow `commit.md` → *When a required tool cannot run*
 - The target repo path
 - `dev/implementation-log.md` — for the detected stack + inferred patterns (avoid re-detecting)
 - Parent's `business-rules.md` — for BR enforcement checks

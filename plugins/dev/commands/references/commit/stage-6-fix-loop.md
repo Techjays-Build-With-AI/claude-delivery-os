@@ -32,7 +32,9 @@ stage-3:                       # or stage-4 / stage-5 depending on origin
     low:      1
   fix_loop_invocation:         # REQUIRED whenever findings.critical or findings.high (or S4 blocker/major, or S5 regression/fail) was > 0 BEFORE the loop ran
     invoked_at: <ISO>          # required — presence proves invocation
-    subagent_id: <id>          # required — proves a real skill call happened, not mental reasoning
+    invocation: <subagent id | "inline">   # required — an id when the skill ran as a subagent,
+                                           # the literal "inline" when the Skill tool returned none.
+                                           # Never blank, never invented
     origin_findings: [SR-C-001, SR-C-004]   # what fed the loop
     fix_attempts:              # copy of §6c per-finding outcomes
       - finding: SR-C-001
