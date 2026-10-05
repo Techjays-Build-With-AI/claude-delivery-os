@@ -44,6 +44,27 @@ Same 4-way resolution as `/dev:plan` Stage 0 / `/dev:build` Stage 0 — see `plu
 
 Any missing → halt with "run /dev:build first" message.
 
+**Read the build verdict** from `dev/build-run.md`. `IN_PROGRESS` alone does not distinguish a clean build from one that advanced carrying a red Required gate:
+
+| `stage-8.status` | Action |
+|---|---|
+| `COMPLETE` · `PARTIAL_DEFERRED` | proceed |
+| `PARTIAL_HARNESS` | a Required gate is red for a **harness** reason, not a defect. Proceed only after `AskUserQuestion` confirms, and carry the `harness_config_remedy` and flaky rows into Stage 5 (§5b.i) and the PR body. Never report this run as green |
+| `PARTIAL_FAILURES` | **halt** — an unfixed defect. Name the red rows; `/dev:build` should not have advanced |
+
+**Read `tests_only`** from the same file. When `true`, build Stages 9–11 were skipped by design: expect no `context/code-context/**` changes and no `dev/local-runbook.md`, and never treat their absence as a missed stage.
+
+**`tests_only: true` scopes the review to what actually changed.** A run that may not edit product code has produced no product-code diff, so reviewing the whole branch at feature grade costs a long run and reports findings this commit did not introduce. Scope each stage to **the files this commit adds or modifies**:
+
+| Stage | Under `tests_only` |
+|---|---|
+| 3 security | Scan the committed files for secrets — **always**, a test fixture is a common place to leak one. Skip the product-code review *only where no product file is in the diff*; where the branch does carry product changes, review those at the normal threshold |
+| 4 code review | Review the test files — assertion strength, tier honesty, no disabled or loosened tests. Skip the product-code dimensions that have no diff to read |
+| 5 acceptance | Unchanged — re-verify every row. This is the stage that catches code edited between build and commit |
+| 7 context merge | Unchanged — it is cheap, and a zero-change result is the expected outcome |
+
+**Check the diff, do not assume it.** `tests_only` says the *build* wrote no product code; it does not promise the branch carries none — earlier harness commits often do. Read `git diff <base>...HEAD`, and where product files appear, review them normally and say so. Report pre-existing findings as pre-existing, never as introduced by this commit.
+
 **Verify branch is checked out** in the target repo: `git rev-parse --abbrev-ref HEAD` matches the branch recorded in `status.md`. Mismatch → halt with "checkout the feature branch first: `git checkout <branch>`".
 
 **Verify no uncommitted changes** (`git status --porcelain` empty) UNLESS `--resume` and we're in Stage 7 halt state — in which case pending manual edits are allowed on `dev/context-merge-conflicts.md` and touched context files.
@@ -112,6 +133,26 @@ stage-2:
 
 Read each stage's reference file and execute verbatim. Fix loop is inline routing between Stages 3-5 (see Stage 6 file for the loop mechanics).
 
+### When a required tool cannot run
+
+A stage's tool may **refuse to start** rather than return findings — `security-review` needs a git repository and halts when the session's working directory is the folder *above* the repo; a skill may be unavailable in this environment. This is not a finding, so the fix loop has nothing to act on, and it is not a defect, so halting the run strands finished work over an environment condition.
+
+Do **not** halt, and do **not** silently skip. For each stage whose tool refuses:
+
+1. **Record the refusal verbatim** in `commit-run.md` under that stage — the exact error text, not a paraphrase:
+   ```yaml
+   stage-3:
+     tool: security-review
+     tool_status: not-invocable
+     tool_error: "<the tool's exact message>"
+     method: manual            # the stage's own criteria, applied by hand
+   ```
+2. **Do the check by hand** against that stage's own criteria and threshold, and record the result in the stage's normal fields. A manual pass is a real pass — it is the *evidence trail* that differs, not the bar.
+3. **Say so in the PR body.** A reviewer must be able to see which checks were tool-run and which were manual without opening `commit-run.md`.
+4. **Never record a tool run that did not happen.** `tool_status: not-invocable` with `method: manual` is honest; omitting the field and filling in the findings as though the tool produced them is a spec violation and worse than halting.
+
+Where the refusal is fixable, name the fix in the summary rather than only reporting it — for `security-review`, that is running `/dev:commit` from inside the repository rather than from a parent folder.
+
 ### Stage 3 — Strict security review
 
 **Read** `plugins/dev/commands/references/commit/stage-3-security.md` and execute verbatim. Invokes Claude Code's `security-review` skill at Critical+High threshold. Any finding routes to Stage 6 fix loop.
@@ -139,7 +180,7 @@ stage-7:
   status: DONE
   tl_semantic_context_merge_invocation:
     invoked_at: <ISO>
-    subagent_id: <agent id from Skill tool response>
+    invocation: <subagent id | "inline">          # "inline" when the Skill tool returns no id
     base_ref: <remote>/<base>@<sha>              # must match stage-2.base_remote_sha
     input_units_scanned: <count of context/code-context files touched by this run>
     baseline_units_scanned: <count from base branch>

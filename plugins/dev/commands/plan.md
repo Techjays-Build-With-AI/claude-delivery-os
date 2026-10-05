@@ -468,10 +468,18 @@ When Stage 3.5 detects blockers and halts, print (per task):
   PB-001  <short title>              [Blocks <AC/BR/dev-plan step>]
   PB-002  <short title>              [Blocks <...>]
 
+Blockers file: <task-folder>/dev/<repo>-plan-blockers.md   (parent-alone: dev/plan-blockers.md)
+               — the full question, options and recommendation for each PB-###
+
 Resolve them:
-  1. Open: <task-folder>/dev/<repo>-plan-blockers.md (parent-alone: dev/plan-blockers.md)
-  2. Fill in the "Resolution:" field under each PB-###
-  3. Re-run: /dev:plan --resume <task-ref>
+  /dev:resolve --plan <task-ref>     walks each PB-### with options + a recommendation,
+                                     writes the Resolutions, then resumes the plan for you
+
+  or by hand:
+  1. Fill in the "Resolution:" field under each PB-### in the file above
+  2. Re-run: /dev:plan --resume <task-ref>
+
+Then: /dev:build <task-ref>
 
 Status: BLOCKED_ON_PLAN (MC: blocked)
 ```
@@ -512,6 +520,8 @@ MC status:    readyForDev
 Read-back verification: 3/3 pushes byte-identical (v2.3.17 §4f.i)
 
 Next: /dev:build <task-ref>
+      /dev:build <task-ref> --skip-qa    # no test harness for this change
+                                         # (a CSS value, a copy fix, a config default)
 ```
 
 **Same Rule 7.0 checklist applies:** every task_object_id has a URL, every push shows the read-back token, table format is forbidden without a URL column. `--resume` success is not "complete" until every pushed task has both a URL AND a read-back result rendered.
@@ -610,6 +620,7 @@ Next:
   · Resolve Feature-7's blockers:            /dev:resolve --plan Feature-7
   · Start building unblocked tasks:          /dev:build Subtask-7   (Feature-4's backend)
                                              /dev:build Feature-12  (parent-alone)
+    (add --skip-qa only for a change that does not justify a test harness)
 ```
 
 **Non-negotiable elements in the summary (fail-loud checklist BEFORE printing):**

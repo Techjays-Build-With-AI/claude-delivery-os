@@ -23,4 +23,18 @@ Invoke the **ba-agent** subagent with the scope reference and output path. Pass 
 
 ## 3. Surface the result
 
-When the agent returns, present its **executive summary and feature scorecard**: the overall score, the scope-readiness verdict, the scorecard table, and the top 3–5 gating questions (Blockers/Majors first) with the scope addition each needs. Link to the report files and point the user to `scope-review-<timestamp>.html` as the interactive dashboard to open in a browser — and note they can respond to each question inside it and click "Export responses" to drive `/ba:resolve`. Keep it tight — the per-feature detail lives in the report.
+When the agent returns, present its **executive summary and feature scorecard**: the overall score, the scope-readiness verdict, the scorecard table, and the top 3–5 gating questions (Blockers/Majors first) with the scope addition each needs. Keep it tight — the per-feature detail lives in the report.
+
+Close every run with this block, filled in — the report path and the next command must be copy-pasteable, never described in prose:
+
+```
+Scope readiness: <score> / 10 — <verdict>
+Blockers: <n>   Major: <n>   Minor: <n>   Nit: <n>
+Report → ba/reviews/scope-review-<ts>.html
+
+Next:
+  1. Open the report, answer each question inline, click "Export responses"
+  2. /ba:resolve ba/reviews/scope-review-<ts>-responses.md
+```
+
+The HTML is where the questions get answered — say so as a step, not as a footnote. A reader who is only told the file exists will read it and answer nowhere.

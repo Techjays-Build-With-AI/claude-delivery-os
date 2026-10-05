@@ -6,44 +6,54 @@
 <title>Project Maturity Audit</title>
 <style>
   :root {
-    --bg:#0f1420; --panel:#161c2b; --panel2:#1d2436; --line:#2a3350;
-    --ink:#e8ecf6; --mut:#96a0b8; --acc:#5b8cff; --ok:#39d98a; --warn:#f5a623;
-    --blk:#ff5c6c; --maj:#f5a623; --min:#5b8cff; --nit:#96a0b8;
+    --bg:#f6f8fa; --panel:#ffffff; --panel2:#f6f8fa; --line:#d0d7de;
+    --ink:#1f2328; --mut:#636c76; --acc:#0969da; --ok:#1a7f37; --warn:#bf8700;
+    --blk:#cf222e; --maj:#e16f24; --min:#bf8700; --nit:#6e7781;
+    --shadow:0 1px 3px rgba(31,35,40,.08), 0 1px 2px rgba(31,35,40,.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:#0d1117; --panel:#161b22; --panel2:#21262d; --line:#30363d;
+      --ink:#e6edf3; --mut:#8b949e; --acc:#4493f8; --ok:#3fb950; --warn:#d29922;
+      --blk:#f85149; --maj:#db6d28; --min:#d29922; --nit:#8b949e;
+      --shadow:none;
+    }
   }
   * { box-sizing:border-box; }
   body { margin:0; background:var(--bg); color:var(--ink);
-    font:15px/1.5 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; }
+    font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased; }
   .wrap { max-width:1000px; margin:0 auto; padding:32px 20px 80px; }
-  h1 { font-size:22px; margin:0 0 4px; }
-  .sub { color:var(--mut); margin:0 0 24px; font-size:13px; }
-  .hero { display:flex; gap:26px; align-items:center; flex-wrap:wrap; background:var(--panel);
+  h1 { font-size:26px; margin:0 0 4px; }
+  .sub { color:var(--mut); margin:0 0 24px; font-size:14px; }
+  .hero { box-shadow:var(--shadow); display:flex; gap:26px; align-items:center; flex-wrap:wrap; background:var(--panel);
     border:1px solid var(--line); border-radius:14px; padding:20px 24px; margin-bottom:18px; }
-  .score { font-size:44px; font-weight:700; line-height:1; }
-  .score small { font-size:16px; color:var(--mut); font-weight:400; }
-  .tier { font-size:15px; font-weight:600; padding:4px 12px; border-radius:999px;
+  .score { font-size:52px; font-weight:700; line-height:1; }
+  .score small { font-size:17px; color:var(--mut); font-weight:400; }
+  .tier { font-size:16px; font-weight:600; padding:4px 12px; border-radius:999px;
     background:var(--panel2); border:1px solid var(--line); display:inline-block; }
-  .conf { font-size:26px; font-weight:700; line-height:1; }
-  .conf small { font-size:13px; color:var(--mut); font-weight:400; display:block; text-transform:uppercase; letter-spacing:.05em; margin-bottom:4px; }
-  .split { color:var(--mut); font-size:12px; margin-top:6px; }
-  .stack { color:var(--mut); font-size:13px; margin-top:6px; }
+  .conf { font-size:30px; font-weight:700; line-height:1; }
+  .conf small { font-size:14px; color:var(--mut); font-weight:400; display:block; text-transform:uppercase; letter-spacing:.05em; margin-bottom:4px; }
+  .split { color:var(--mut); font-size:13px; margin-top:6px; }
+  .stack { color:var(--mut); font-size:14px; margin-top:6px; }
   .divider { width:1px; align-self:stretch; background:var(--line); }
-  h2 { font-size:14px; text-transform:uppercase; letter-spacing:.06em; color:var(--mut);
+  h2 { font-size:15px; text-transform:uppercase; letter-spacing:.06em; color:var(--mut);
     margin:28px 0 12px; }
-  .banner { border-radius:12px; padding:14px 18px; margin-bottom:18px; font-size:14px; }
+  .banner { border-radius:12px; padding:14px 18px; margin-bottom:18px; font-size:15px; }
   .banner.unmet { background:rgba(245,166,35,.12); border:1px solid var(--warn); color:var(--ink); }
   .banner.met { background:rgba(57,217,138,.10); border:1px solid var(--ok); color:var(--ink); }
   .banner code { background:var(--panel2); padding:1px 6px; border-radius:5px; }
   table { width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--line);
     border-radius:12px; overflow:hidden; }
-  th,td { text-align:left; padding:10px 14px; border-bottom:1px solid var(--line); font-size:14px; }
-  th { color:var(--mut); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:.04em; }
+  th,td { text-align:left; padding:10px 14px; border-bottom:1px solid var(--line); font-size:15px; }
+  th { color:var(--mut); font-weight:600; font-size:13px; text-transform:uppercase; letter-spacing:.04em; }
   tr:last-child td { border-bottom:none; }
   .bar { height:7px; border-radius:4px; background:var(--panel2); overflow:hidden; width:140px; display:inline-block; vertical-align:middle; margin-right:8px; }
   .bar > i { display:block; height:100%; background:var(--acc); }
   .na { color:var(--mut); font-style:italic; }
   .filter { display:flex; gap:8px; align-items:center; margin:0 0 12px; flex-wrap:wrap; }
   .filter .chip { cursor:pointer; padding:4px 12px; border-radius:999px; border:1px solid var(--line);
-    background:var(--panel2); color:var(--ink); font-size:12px; }
+    background:var(--panel2); color:var(--ink); font-size:13px; }
   .filter .chip.off { opacity:.4; }
   .find { background:var(--panel); border:1px solid var(--line); border-radius:12px;
     padding:16px 18px; margin-bottom:14px; }
@@ -52,24 +62,24 @@
   .find.minor { border-left:4px solid var(--min); }
   .find.nit { border-left:4px solid var(--nit); }
   .fhead { display:flex; align-items:center; gap:10px; margin-bottom:8px; flex-wrap:wrap; }
-  .fid { font-family:ui-monospace,Menlo,monospace; font-size:12px; color:var(--mut); }
-  .sev { font-size:11px; font-weight:700; text-transform:uppercase; padding:2px 8px; border-radius:6px; }
+  .fid { font-family:ui-monospace,Menlo,monospace; font-size:13px; color:var(--mut); }
+  .sev { font-size:12px; font-weight:700; text-transform:uppercase; padding:2px 8px; border-radius:6px; }
   .sev.blocker { background:rgba(255,92,108,.16); color:var(--blk); }
   .sev.major { background:rgba(245,166,35,.16); color:var(--maj); }
   .sev.minor { background:rgba(91,140,255,.16); color:var(--min); }
   .sev.nit { background:rgba(150,160,184,.16); color:var(--nit); }
-  .badge { font-size:11px; font-weight:600; padding:2px 8px; border-radius:6px; border:1px solid var(--line); color:var(--mut); }
+  .badge { font-size:12px; font-weight:600; padding:2px 8px; border-radius:6px; border:1px solid var(--line); color:var(--mut); }
   .badge.evidenced { color:var(--ok); border-color:rgba(57,217,138,.4); }
   .badge.attested { color:var(--warn); border-color:rgba(245,166,35,.4); }
   .badge.rung { color:var(--acc); border-color:rgba(91,140,255,.4); }
   .badge.qa { color:var(--min); border-color:rgba(91,140,255,.4); }
   .farea { font-weight:600; }
-  .frow { margin:4px 0; font-size:14px; }
+  .frow { margin:4px 0; font-size:15px; }
   .frow b { color:var(--mut); font-weight:600; }
-  .rec { background:var(--panel2); border-radius:8px; padding:10px 12px; margin-top:8px; font-size:14px; }
-  .ev { font-family:ui-monospace,Menlo,monospace; font-size:12px; color:var(--mut); }
+  .rec { background:var(--panel2); border-radius:8px; padding:10px 12px; margin-top:8px; font-size:15px; }
+  .ev { font-family:ui-monospace,Menlo,monospace; font-size:13px; color:var(--mut); }
   .list { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:6px 0; }
-  .list .li { padding:9px 16px; border-bottom:1px solid var(--line); font-size:14px; }
+  .list .li { padding:9px 16px; border-bottom:1px solid var(--line); font-size:15px; }
   .list .li:last-child { border-bottom:none; }
   .li .t { color:var(--mut); }
   .empty { color:var(--mut); font-style:italic; padding:12px 2px; }

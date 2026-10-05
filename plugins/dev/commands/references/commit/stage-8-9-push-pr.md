@@ -18,7 +18,7 @@ Two closely-coupled stages. Combined in one reference file because their state t
 - **Stage 4 fix loop invoked if it had blocking findings (v2.3.27)** — read `commit-run.md` `stage-4.findings`. If (Blocker > 0 OR Major > 0) but no `stage-4.fix_loop_invocation.invoked_at` → HALT with `blocker: stage-4-fix-loop-not-invoked`.
 - **Stage 5 fix loop invoked if it had blocking findings (v2.3.27)** — read `commit-run.md` `stage-5.rows_regressed` and `stage-5.rows_failed`. If either > 0 but no `stage-5.fix_loop_invocation.invoked_at` → HALT with `blocker: stage-5-fix-loop-not-invoked`.
 - **Stage 3/4/5 final findings ARE clean** — after any fix loop, current counts must be zero for their blocking severities (Stage 3: Critical + High; Stage 4: Blocker + Major; Stage 5: regression + fail). Non-zero → HALT with `blocker: stage-<n>-fix-loop-did-not-clear-findings` (means the fix loop ran but ended in ESCALATED state; check `dev/escalation-<n>.md`; user must resolve manually and re-run).
-- **Stage 7 semantic-merge INVOKED** — check `commit-run.md` `stage-7.tl_semantic_context_merge_invocation.invoked_at` is set with a real subagent_id; MISSING or NULL → HALT with `blocker: stage-7-not-executed` (this is the user-reported gap: agent skipped Stage 7 by "reasoning it was a no-op"; the skill invocation is the ONLY evidence of execution)
+- **Stage 7 semantic-merge INVOKED** — check `commit-run.md` `stage-7.tl_semantic_context_merge_invocation.invoked_at` is set and `invocation` is non-empty (a subagent id, or `inline` where the Skill tool returned none); `invoked_at` MISSING or NULL → HALT with `blocker: stage-7-not-executed` (this is the user-reported gap: agent skipped Stage 7 by "reasoning it was a no-op"; the skill invocation is the ONLY evidence of execution)
 - **Stage 7 merged base matches Stage 2 base** — check `stage-7.tl_semantic_context_merge_invocation.base_ref` sha matches `stage-2.base_remote_sha`; mismatch → HALT with `blocker: stage-7-merged-against-wrong-base` (means Stage 7 pulled its own base separately from Stage 2's; not allowed)
 - **Stage 7.5 commits landed** — check `stage-7-5.commits_made` list is non-empty (or `stage-7-5.status: SKIPPED` with reason `working tree has no source/test/context uncommitted changes`)
 - **Working tree clean** — `git status --porcelain` shows only allowed `dev-local` / `workspace-local` files (see Stage 7.5 §7.5b categorization)
@@ -115,6 +115,15 @@ Structure:
 - Integration: 11 written, 11 passing
 - E2E: 3 skeleton (deferred; last sub-task lands them)
 - Coverage: 72.4% lines (≥60% required)
+
+## Quality gate status
+
+Omit this section entirely when the build verdict was `COMPLETE` or `PARTIAL_DEFERRED`. When it was `PARTIAL_HARNESS`, it is **required** — a reviewer must see the red gate without opening anything else:
+
+- the Required gate that is red, and its verdict (`flaky` or `harness-config`)
+- the `harness_config_remedy` block verbatim, with its `requires: human DEC-###`
+- every `flaky` row with both run results
+- one line stating why it was not repaired in-loop
 
 ## Acceptance criteria
 

@@ -147,7 +147,7 @@ A test that mocks the HTTP call, mocks the database, or mocks the auth middlewar
 
 **If ANY column marked YES for the claimed tier is actually mocked → the test does NOT satisfy that tier.** It becomes a Unit test only. If Integration was the only claimed tier for an AC/BR/TS and the test is actually mocked, the AC/BR/TS is UNCOVERED. Acceptance-map.md row must be flagged.
 
-**Rule 7.ii — Every test file MUST declare its `# tier:` at the top OR carry an obvious tier signature the compose can detect.** For test files under this build sequence's write:
+**Rule 7.ii — Every test file MUST declare its `# tier:` at the top OR carry an obvious tier signature the compose can detect.** For every test file written by this skill — under a build sequence or under `--tests-only`:
 
 ```javascript
 // tier: integration
@@ -213,6 +213,7 @@ This is DIFFERENT from the retired "Deferred to E2E" plan-time concept. Here it'
 | Refusal-code path (400/403/404/409/500 variants) | Unit (branch) + Integration (roundtrip) + Component or E2E (user-visible outcome for consumer sub-tasks) |
 | Cross-layer flow (spans two or more sub-tasks) | E2E (owned by the sub-task authoring `tests/e2e/…`) |
 | Idempotency / retry (background job / consumer / async producer) | Unit + Idempotency + Retry-behaviour |
+| Lifecycle (entity carrying a status / state field that moves between values) | Unit + State-transition + Integration |
 | Accessibility (interactive surface with a11y NFR) | Component + Accessibility |
 | Performance (NFR-declared latency or throughput target) | Load |
 
@@ -225,6 +226,27 @@ This is DIFFERENT from the retired "Deferred to E2E" plan-time concept. Here it'
 3. From `qa/quality-gates.md` tier pool for this sub-task's capability class, list the Required tiers.
 4. Intersect: {concern-class tiers} ∩ {Required tiers for capability class}. Write a test at every tier in the intersection.
 5. Log each test file + test name + tier in `dev/implementation-log.md` per step.
+
+**A slow test under instrumentation is a harness finding, not a test to patch.**
+
+When a generated test needs longer than the runner's default timeout **because of coverage instrumentation or parallelism** — rather than because the behaviour under test is genuinely slow — do **not** paper over it in the test file. Specifically: never add a per-test `setTimeout` / `test.setTimeout()` bump, never mark it `skip` or `only`, and never split it purely to get under the limit.
+
+Report it as a `harness-config` finding naming the config file and the change (`testTimeout`, pool size, the coverage provider). The remedy belongs in the harness as one reviewed decision, not scattered across every test that happens to cross the line — which is how a suite ends up with a dozen inconsistent timeouts and no record of why.
+
+A test that is slow because the *behaviour* is slow is a different thing: that is either a legitimate longer timeout for that test, or a performance finding worth raising.
+
+**Empty intersection — report it, never write zero tests.**
+
+A concern class can match while the tier pool has nothing to intersect with — the gate row is absent, or it is `Required*` and still `Not-configured` though its condition holds. The old outcome was silence: no test, no complaint, and a green build over an untested concern. That is how async failure modes (duplicate delivery, retry exhaustion, concurrent write) went uncovered while every gate read green.
+
+When the intersection is empty:
+
+1. Write the tests you *can* at any tier that IS available — never skip the step entirely
+2. Log `tier-unavailable: <concern class> needs <tier>, not declared in qa/quality-gates.md` in `dev/implementation-log.md`
+3. Surface it in the Stage 11 summary under a heading the user cannot miss, and carry it into `dev/acceptance-map.md` as `not-verified` with that blocker — never `✅ pass`
+4. Name the fix: the tier is added by `/qa:audit` → `/qa:plan` → `/qa:setup`
+
+A missing tier is a **contract gap to report**, not a licence to proceed quietly.
 
 **Halt cases:**
 - Step's Satisfies IDs have zero tests at any applicable tier → this step is INCOMPLETE. Do not mark complete; escalate as `dev/escalation-<n>.md` if the tier can't be reached without harness support.

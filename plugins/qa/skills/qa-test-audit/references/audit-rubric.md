@@ -54,7 +54,19 @@ For services exposing or consuming APIs: are request/response contracts asserted
 ## 12. Test conventions & documentation
 Is there a short, written testing convention (where tests live, how to name them, what each level covers, how to run them) so the dev agent writes feature tests consistently into the harness? An undocumented harness gets used inconsistently.
 
+## 13. Async failure-mode testing — idempotency & retry
+*Applicable when the repo has a consumer, job, webhook, scheduler or async producer.* Can the same input applied twice be shown to leave one effect, and can a retry path be driven to **exhaustion** rather than only its happy first retry? These are the failure modes an event-driven system is actually made of — a duplicate delivery, a timeout mid-operation, a retry budget spent — and none of them appear in a happy-path suite. Without a way to test them, `QG-014` / `QG-015` stay `Not-configured` and the dev loop reports `tier-unavailable` instead of writing tests. At least **Major** where the surface exists; `N/A` for a repo with no async surface.
+
+## 14. Concurrency testing
+*Applicable when shared mutable state or a transaction boundary exists.* Can two operations be run against the same record concurrently, and the invariant asserted — no lost update, no double-spend, no duplicate row past a uniqueness rule? Requires a real backend roundtrip; a mocked test cannot establish it. Feeds `QG-013`. `N/A` for a stateless service with no shared writes.
+
+**Detecting applicability for 13 and 14** — structural, not semantic. Look for a message-broker or queue client in the manifest, a job/scheduler library, a webhook route in the router config, transaction or locking usage, or a uniqueness constraint in the schema. Where the TL code-context graph is present, its endpoint units already record which operations write shared state. Do not read business logic to decide this.
+
 ---
+
+## 15. State-transition testing
+
+*Applicable when any entity carries a status or lifecycle field.* Can the transition matrix be driven — every legal move asserted, and **every illegal one shown to be rejected**? A suite that only walks the happy path (`draft → submitted → approved`) proves nothing about the moves that must not happen (`paid → draft`, `cancelled → approved`), which is where the defects live. Enumerate states from the schema or the enum, not from the tests. Feeds `QG-018`. At least **Major** where a lifecycle exists; `N/A` for a repo with no stateful entity.
 
 ## Optional areas — score only where the project requires them
 - **Accessibility testing** (a11y assertions in e2e).

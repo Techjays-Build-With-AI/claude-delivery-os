@@ -243,7 +243,11 @@ pnpm typecheck           # tsc --noEmit
 pnpm format:check        # Prettier
 ```
 
+Use the repo's real commands and package manager, not this example. **Give each runner its own line and its own test count** — a unit runner and a browser runner are separate commands with separate totals, and a reader handed one combined figure will run one command, see a smaller number, and assume the run was broken.
+
 Expected: all gates pass. `dev/acceptance-map.md` was built assuming these all pass.
+
+**CI:** name the workflow that already runs these gates (`.github/workflows/*.yml` or equivalent) and which of them it covers, so nobody re-wires what exists. Build never watches CI — so tell the reader to confirm the run is green on the PR rather than claiming it here. Where no workflow runs them, say so: local is then the only place they have ever passed.
 
 ## 9. Known follow-ups
 

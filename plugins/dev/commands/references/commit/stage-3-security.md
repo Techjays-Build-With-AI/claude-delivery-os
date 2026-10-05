@@ -20,7 +20,8 @@
 
 Invoke Claude Code's built-in `security-review` skill with:
 
-- **Scope:** `git diff <base>...HEAD` in the target repo
+- **Scope:** `git diff <base>...HEAD` in the target repo — **except under `tests_only`**, where it is the files this commit adds or modifies, plus any product file the branch diff still contains (`commit.md` §2). The secrets scan always covers every committed file.
+- **If the skill refuses to run** (it requires a git repository, and halts when the session's working directory is the folder above the repo): do not halt this stage. Follow `commit.md` → *When a required tool cannot run* — record the refusal verbatim, apply the criteria below by hand at the same threshold, and carry that into the PR body.
 - **Severity threshold at commit-time:** `Critical + High` block; `Medium` warns; `Low + Info` logged only
 - **Full focus areas (not the build-time subset):**
   - Injection (SQL, command, path, LDAP, XPath, NoSQL, prompt injection)

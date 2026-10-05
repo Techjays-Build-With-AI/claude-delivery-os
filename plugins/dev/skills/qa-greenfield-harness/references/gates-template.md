@@ -53,6 +53,18 @@ last_updated: <ISO>
 ## Notes
 
 - Coverage floor is 60% (greenfield default). Raise via `/qa:setup`.
+
+**Brownfield exception — measure before you set the floor.** 60% assumes a codebase that grows into it. Applied to existing untested source it is unreachable on the first run, and the build then fails on lines the change never touched. Before writing `QG-002`:
+
+| Repo shape | Floor to write |
+|---|---|
+| No source yet, or a scaffold | `60` — the greenfield default |
+| **Source exists with no or few tests** | **run the coverage command once and write the measured figure** (rounded down), logging `assumption: brownfield baseline <n>%; raise deliberately via /qa:setup` in `dev/test-decision.md` |
+
+A baseline is a starting line, not a target. It stops the gate failing for reasons unrelated to the work; `/qa:setup` is where a human ratchets it.
+
+**Emit the conditional tiers too.** Write `QG-012`…`QG-018` (Component · Concurrency · Idempotency · Retry-behaviour · Accessibility · Load · State-transition) as `Not-configured` with their `Required*` conditions, so a bootstrapped contract has the same shape as one `/qa:setup` produces. Dev can report `tier-unavailable` against a declared-but-unconfigured row; it can say nothing about a row that does not exist.
+
 - Security scanning (SAST, dependency vuln, secret detection) is NOT enabled here. Enable via `/qa:setup`.
 - Contract testing (Pact / OpenAPI schema) is NOT enabled here. Enable via `/qa:setup` for multi-service repos.
 - E2E is only listed as Required for frontend layer. Backend gets integration/contract as its equivalent.
@@ -211,19 +223,47 @@ import '@testing-library/jest-dom/vitest';
 ```typescript
 import { defineConfig, devices } from '@playwright/test';
 
+const PORT = 5183;                        // dedicated e2e port — see "Pin the e2e port" below
+const BASE_URL = `http://localhost:${PORT}`;
+
 export default defineConfig({
   testDir:  './tests/e2e',
   fullyParallel: true,
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {
-    baseURL: process.env.E2E_BASE_URL ?? 'http://localhost:3000',
+    baseURL: BASE_URL,
     trace:   'on-first-retry',
+  },
+  // Without this, e2e runs against whatever happens to be on the port — or nothing.
+  webServer: {
+    command: `<PINNED_DEV_COMMAND>`,       // must pin PORT, not inherit the framework default
+    url:     BASE_URL,
+    reuseExistingServer: !process.env.CI,
+    timeout: 120_000,
   },
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
   ],
 });
 ```
+
+#### Pin the e2e port — do not read it
+
+**Do not resolve the port from the repo's config, and never assume `3000`.** The `PORT` / `BASE_URL` constants at the top of the config above are that pin — the dev server is told which port to bind, so the config cannot drift from what it actually serves. Pick a port that is deliberately **not** the framework default.
+
+Two reasons this beats reading `vite.config.*` or `angular.json`: a developer running `npm run dev` on the default port does not collide with an e2e run, and a later edit to the app config cannot silently point e2e at a port nothing serves.
+
+Pin it with the framework's own flag, and use strict-port semantics where they exist so the server **fails** rather than quietly picking the next free port:
+
+| Framework | `<PINNED_DEV_COMMAND>` |
+|---|---|
+| Vite (React / Vue / Svelte) · SvelteKit | `npx vite --port ${PORT} --strictPort` |
+| Next.js | `npx next dev -p ${PORT}` |
+| Nuxt | `npx nuxt dev --port ${PORT}` |
+| Create React App | `cross-env PORT=${PORT} npm start` |
+| Angular | `npx ng serve --port ${PORT}` |
+
+Write the literal values into the config — a placeholder left in a written file is a harness failure, not a Draft.
 
 ### `pytest.ini` (Python backend)
 

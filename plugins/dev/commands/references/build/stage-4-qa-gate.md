@@ -26,6 +26,18 @@ Print one line so it is visible in the transcript, not buried: `Stage 4 skipped 
 
 Never infer this. A missing framework, a small diff, or a `bug` task type are **not** reasons to skip on your own — only the explicit flag is.
 
+### 4a-1. `--tests-only` — the gate is mandatory
+
+`--tests-only` writes tests against code already on disk, so a harness is the whole point: there is no implementation half to fall back on. Treat a missing or `Draft` harness as a **halt**, never a bootstrap — bootstrapping would pick the framework silently, and every test written afterwards would be locked to that choice.
+
+```
+No usable test harness (qa/quality-gates.md <missing | Draft>).
+
+  /qa:audit → /qa:plan → /qa:setup     stand one up, choosing the framework and floor
+```
+
+`--skip-qa` is not an escape here: it means "write no tests", which is the opposite of this flag. Reject the combination at §1.
+
 ### 4a. Read `qa/quality-gates.md`
 
 Look for `qa/quality-gates.md` at workspace root. Three states:
@@ -36,8 +48,9 @@ Look for `qa/quality-gates.md` at workspace root. Three states:
 | Exists, **no `harness_status` key** | Auto-bootstrap → §4b. This is the scaffold placeholder — treat it exactly as missing. It must never read as "not Active" and halt. |
 | Exists, `harness_status: Active` (or legacy `Ready`) | Follow the gates — continue to Stage 5 |
 | Exists, `harness_status: Stack-Inferred` | Follow the inferred tier pools — continue to Stage 5 |
-| Exists, `harness_status: Draft` | Auto-bootstrap → §4b (Draft means never went through `/qa:setup`) |
+| Exists, `harness_status: Draft` | **HALT — do NOT bootstrap.** A Draft was written by `/qa:plan`: it carries the framework and coverage floor a human just chose, and bootstrapping over it discards both silently. Print: *"Gates are drafted but not built. Run `/qa:setup` to finish standing up the harness, or `/dev:build --skip-qa` to proceed without tests for this task."* |
 | Exists, `harness_status: Broken` | HALT — do NOT bootstrap. Route to `/qa:health` → §4d |
+| Exists, `harness_status: Blocked` | HALT — do NOT bootstrap. A Required gate **could not run** (missing service, env var or tool), so nothing was measured. The stamp names the missing prerequisite: fix that, then `/qa:health`. Bootstrapping would replace a harness that is fine with one that is merely different. |
 
 Log the state to `dev/build-run.md` under `stage-4:`.
 

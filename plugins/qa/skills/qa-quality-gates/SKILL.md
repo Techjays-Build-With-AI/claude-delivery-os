@@ -9,7 +9,7 @@ You own the one file that turns "we have some tests" into "here is exactly what 
 
 ## Operating contract
 
-Read **`delivery-os-conventions`** if it isn't in context. Your input is the proven harness (the commands and thresholds `qa-test-setup` verified green) and the repo's tooling. Your output is `qa/quality-gates.md` (`doc_type: quality-gates`, `produced_by: qa`), created if absent. Follow the exact schema in **`references/quality-gate-contract.md`** so consumers can parse it. If there's no workspace, write it beside the repo and note it.
+Read **`delivery-os-conventions`** if it isn't in context. Your input is the proven harness (the commands and thresholds `qa-test-setup` verified green) and the repo's tooling. Your output is `qa/quality-gates.md` (`doc_type: quality-gates`, `produced_by: qa`), created if absent. Follow the exact schema in **`references/quality-gate-contract.md`** so consumers can parse it. **`qa/…` is relative to the workspace root, the `.jetrix/` folder.** A workspace exists when `.jetrix/project.json` is present at or above the current directory — test for that file rather than judging it. Only when it exists nowhere may you write beside the repo, and then name the absolute path you used. This file is the contract `/dev:build` and `/qa:health` read by a fixed path; a second copy outside `.jetrix/` means they read one while the last run wrote the other.
 
 ## What you do
 
@@ -17,6 +17,20 @@ Read **`delivery-os-conventions`** if it isn't in context. Your input is the pro
 2. **State the bar precisely.** "Required" gates are the ones `dev-validation` must run and pass for a feature to advance; "Optional" gates apply where the feature or project calls for them. Name the coverage floor and any rule for when e2e/contract tests are mandatory, so the dev agent isn't guessing what "done" means.
 3. **Keep it honest and current.** Never record a gate as `Passing` you haven't proven, and never quietly lower a threshold to make the repo look compliant — a threshold change is a `DEC-###` decision with a rationale. When a check is added or changed, update the contract and bump its `generated_at`.
 4. **Health re-check (`/qa:health`).** Re-run the required gates' commands against the current repo and report drift: a gate that flipped to `Failing`, a `Not-configured` that regressed, a threshold no longer met. Surface deltas and recommend fixes; don't silently "repair" by weakening a gate.
+
+   **Three red states, not one.** Collapsing them loses the one thing the reader needs — whether the code is wrong, the test is unreliable, or the check never ran:
+
+   | What happened | `harness_status` | Stamp must say |
+   |---|---|---|
+   | Required gate ran and failed **consistently** | `Broken` | the failing gate and its output |
+   | Required gate failed **intermittently** — a different test each run, or passing in isolation | `Broken` | `flaky`, with **both** run results. A passing retry never erases the failure |
+   | Gate **could not run** — service down, env var absent, tool not installed | **`Blocked`** | which prerequisite was missing |
+
+   `Blocked` is not `Broken`: nothing was measured, so nothing failed. Never record `Active` for a gate that did not run.
+
+   **Carry a build's `harness_config_remedy` through.** When the failing gate has one recorded in `dev/implementation-log.md` (Stage 8), reproduce it in the health report instead of restating the symptom — the reader needs the named file and change, not a second description of the red gate.
+
+   **State the working tree.** If it is dirty, say so and scope the results to the tree measured, never to committed state.
 
 ## Boundaries
 
