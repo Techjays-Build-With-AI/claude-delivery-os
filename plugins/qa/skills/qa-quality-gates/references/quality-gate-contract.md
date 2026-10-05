@@ -13,9 +13,9 @@ Keep the frontmatter and the gate table stable; consumers key off them.
 ```yaml
 ---
 doc_type: quality-gates
-schema_version: 1.2
+schema_version: 1.4
 produced_by: qa
-harness_status: Active        # Active (proven green) | Draft (planned, not yet proven) | Broken
+harness_status: Active        # Active (proven green) | Stack-Inferred (tiers inferred from stack detection, not confirmed by audit) | Draft (planned, not yet proven) | Broken (a Required gate ran and failed) | Blocked (a Required gate could not run — missing service, env var or tool)
 baseline_status: Met          # Met | Unmet — every mandatory BL-## in baseline-profile.md is present AND enforced
 baseline_unmet: []            # list of unmet mandatory BL-## ids when baseline_status is Unmet, e.g. [BL-08, BL-09]
 coverage_floor: 70            # percent; the enforced minimum, or null if not enforced
@@ -61,18 +61,36 @@ One row per gate. `Required` gates are what `dev-validation` must run and pass f
 | QG-006 | Build | Required | `<build cmd>` | succeeds | Passing |
 | QG-007 | Integration | Required* | `<integration cmd>` | all pass | Passing |
 | QG-008 | E2E | Optional | `<e2e cmd>` | required for user-journey criteria | Passing |
-| QG-009 | Contract/API | Optional | `<contract cmd>` | required when EP-* contract changes | Not-configured |
+| QG-009 | Contract | Optional | `<contract cmd>` | API/contract surface — required when an `EP-<AREA>-NN` contract changes | Not-configured |
 | QG-010 | Security scan | Optional | `<security cmd>` | no high/critical | Not-configured |
 | QG-011 | AI evals | Optional | `<eval-runner cmd>` | required for applied-AI features — runs the TL's `EVAL-<AREA>-NN` verifiers | Not-configured |
+| QG-012 | Component | Required* | `<component cmd>` | required once a rendered UI surface exists | Not-configured |
+| QG-013 | Concurrency | Required* | `<concurrency cmd>` | required once shared mutable state or a transaction boundary exists | Not-configured |
+| QG-014 | Idempotency | Required* | `<idempotency cmd>` | required once a consumer, job, webhook or async producer exists — same input applied twice leaves one effect | Not-configured |
+| QG-015 | Retry-behaviour | Required* | `<retry cmd>` | required once any retry/backoff path exists — covers exhaustion, not just the happy retry | Not-configured |
+| QG-016 | Accessibility | Optional | `<a11y cmd>` | required when an a11y NFR is declared | Not-configured |
+| QG-017 | Load | Optional | `<load cmd>` | required when a latency/throughput NFR is declared | Not-configured |
+| QG-018 | State-transition | Required* | `<state cmd>` | required once an entity carries a status/lifecycle field — every legal move asserted **and every illegal one rejected** | Not-configured |
 
 - **Status** values: `Passing` · `Failing` · `Not-configured`. Never record `Passing` unproven.
 - **`Required*`** = required only if the applicable surface exists (e.g. integration required once there's a DB/service; contract required once an API surface exists). State the condition in the rule column.
 - **When e2e/contract is mandatory** — spell out the rule (e.g. "any acceptance criterion tagged `user-journey` requires an e2e; any change to an `EP-<AREA>-NN` contract requires a contract test") so the dev agent knows when an Optional gate becomes obligatory for a given feature.
 - **AI evals (applied-AI features).** When a feature is AI-bearing (`delivery-os-conventions` §5), its verification includes the TL-designed `EVAL-<AREA>-NN` evals (core `eval-engineering` skill). QA owns only the **harness** they run on — the eval *design* is the TL's and the *run + inspection* is the dev loop's. Expose an eval-runner command here (QG-011) if the project standardizes one; otherwise the dev loop runs them directly. Non-AI features have no eval gate.
 
+## Tier pool — how dev reads this table
+
+**The gate table IS the tier pool.** `dev-stack-adaptive-implementation` intersects a build step's *concern class* with the Required tiers declared here; a gate's **Check** name is the tier name it declares. `Unit`, `Integration`, `Contract`, `E2E`, `Component`, `Concurrency`, `Idempotency`, `Retry-behaviour`, `State-transition`, `Accessibility` and `Load` are all tier names dev matches on — there is no separate structure to author.
+
+A tier is available to the intersection when its row is `Required`, or `Required*` **and its condition holds for this repo**. A row left `Not-configured` while its condition holds is a gap, not an opt-out:
+
+> If a build step's concern class matches but the intersection comes out **empty**, dev reports `tier-unavailable` rather than writing zero tests. That report names the tier this contract is missing — treat it as a QA finding on the next `/qa:audit`.
+
+This is the mechanism that keeps an untestable concern visible. An async consumer with no `QG-014` row does not quietly get no tests; it gets a named gap.
+
 ## Change rules
 
 - Adding, tightening, or **loosening** a gate or threshold is a `DEC-###` decision in `shared-context/decision-log.md` with a rationale — never a silent edit. Lowering `coverage_floor` especially must be justified and human-approved.
+- A `Required*` gate whose **condition holds** but whose command is `Not-configured` is a **reportable gap**, never a silent pass. `/qa:audit` raises it as a `QAF-###`; `/qa:health` reports it; dev reports it as `tier-unavailable`. Deciding not to configure one is a `DEC-###` with a rationale, not an omission.
 - On any change, bump `generated_at`; if a required gate goes red, set `harness_status: Broken` and surface it (that's a dev readiness blocker until fixed).
 - `/qa:health` re-runs the Required gates and updates `Status` + `harness_status` from real results.
 

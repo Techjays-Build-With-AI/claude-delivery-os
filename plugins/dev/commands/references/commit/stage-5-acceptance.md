@@ -6,7 +6,7 @@ Also: if this task is the LAST sub-task to land under the parent (all sibling su
 
 **Runs after Stage 4 (code review passed).** State: `REVIEW` (unchanged); MC: `devReview` (unchanged). On any regression, fix loop kicks in.
 
-**On completion:** every row in `acceptance-map.md` is `✅ pass` OR `⏸ deferred-to-e2e` (with clear reason).
+**On completion:** every row in `acceptance-map.md` is `✅ pass` OR `⏸ deferred-to-e2e` (with clear reason) — or, where the build handed over as `PARTIAL_HARNESS`, a carried `flaky` / `harness-config` row per §5b.i.
 
 ---
 
@@ -28,6 +28,22 @@ For every row in `acceptance-map.md`:
 4. Set the `Commit-time verification` column to `✅ pass`, `❌ fail`, `⏸ deferred-to-e2e`, or `⚠ regression`
 
 If step 2 fails to execute (test framework changed, spec renamed) → treat as `❌ fail` with `unrunnable: true` metadata.
+
+---
+
+### 5b.i. Rows carried from a `PARTIAL_HARNESS` build
+
+`/dev:build` Stage 8 may hand over rows whose failure it classified `flaky` or `harness-config` rather than `defect`. They are red, but the code is not wrong and the remedy is a human `DEC-###` against the harness — which this stage may not apply.
+
+Re-run such a row once, exactly as §5b does, then:
+
+| Re-run result | Column | Route |
+|---|---|---|
+| passes | `✅ pass` | normal — the flake did not reproduce |
+| fails for the **same** carried reason | keep the carried `⚠ flaky` / `⚠ harness-config` verdict | **do not enter the fix loop** — carry the remedy to the PR body |
+| fails for a **different** reason | `⚠ regression` | normal fix loop |
+
+Routing a harness-config failure into the fix loop makes it attempt a code change for a config problem it is forbidden to fix — it burns its bounds and halts on a misleading escalation.
 
 ---
 

@@ -83,7 +83,44 @@ Prints a portal handoff block — link each app's GitHub repo + set env branches
 
 Use if the tree got corrupted or you passed `--skip-scaffold` earlier.
 
-### 1d. Greenfield vs Brownfield paths after bind
+### 1d. Draw the connection map (Jetrix portal — do this once per Solution)
+
+**This is the only place cross-repo links are declared, and it is a manual UI step.** Nothing in Delivery OS infers how your apps talk to each other — `/tl:code-map` maps each repo *in isolation*, so on a multi-repo Solution the connection map is what tells every downstream agent that the Android app calls the backend rather than the admin panel.
+
+In the Jetrix portal: **Project Explorer → your Solution → Connections tab**.
+
+| Step | What you do |
+|---|---|
+| 1 | The left rail lists every app on the Solution under **APPS** (web · backend · mobile). Drag each one onto the canvas |
+| 2 | Wire them — drag from any **edge dot** on a node to another node |
+| 3 | Click an arrow and **label what it carries** — e.g. `REST /api/v1`, `WebSocket events`, `S3 uploads`. The label is the useful part; an unlabelled edge says two apps talk but not how |
+| 4 | Third-party services (Stripe, Twilio, a partner API) go under **EXTERNAL → Add external +** |
+| 5 | **Save**, then **Build map** |
+
+Select a node or edge and press `Del` to remove it. The header shows live `N nodes · N edges`; an untouched canvas reads `EMPTY CANVAS`.
+
+**Build map** generates the Solution's `connection-map.md` — the architecture doc naming each app and its role, the wiring edges, the auth boundary, external integrations, and data-flow notes.
+
+Pull it into the workspace:
+
+```
+/jetrix:pull connection-map                      # targeted — just this doc
+/jetrix:pull scope                               # already includes it
+```
+
+It lands at `.jetrix/connection-map.md` and is read by:
+
+| Consumer | Uses it to |
+|---|---|
+| `/dev:plan` | establish which repos a feature spans, **before** reading feature frontmatter |
+| `/dev:plan` non-feature track | decide which repos a bug touches |
+| `/tl:code-map`, `tl-read-code-context` | start a cross-repo trace — which repos are involved and how they talk — then continue into each repo's `code-context/` for the units at either end |
+
+Skipping it is not a hard stop — agents degrade to "no connection-map; cross-repo trace is graph-only" — but on a multi-repo Solution that means every cross-repo relationship has to be re-inferred from code each time, and some can't be inferred at all. **Draw it before `/tl:code-map` on a brownfield Solution**, so the reverse-map has the topology while it works.
+
+Re-open the Connections tab and **Build map** again whenever apps or integrations change, then re-pull.
+
+### 1e. Greenfield vs Brownfield paths after bind
 
 | Scenario | Next step |
 |---|---|
@@ -160,6 +197,8 @@ Each feature folder contains: `feature.md`, `implementation-plan.md`, `workflow.
 ```
 
 Writes `<repo>/context/code-context/` — units per page/endpoint/entity — grouped by domain, with semantic layer indexes. Auto-authors `shared-context/coding-standards.md` from detected stack.
+
+> **Multi-repo Solution: draw the connection map first (§1d).** `/tl:code-map` maps each repo *in isolation* — it never sees the other repos while it works. Without `.jetrix/connection-map.md` the mobile and admin API calls have no declared backend counterpart, so cross-repo links come out as unresolved rather than wired. Mapping repos in parallel makes this worse, not better.
 
 ### 3b. Greenfield: scaffold the initial application repository
 

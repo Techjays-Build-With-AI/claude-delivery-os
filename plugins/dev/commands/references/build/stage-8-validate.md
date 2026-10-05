@@ -152,9 +152,63 @@ Body table:
 
 **Status field:**
 
-- `COMPLETE` — every applicable row is `✅ pass` or `⏸ deferred-to-e2e`
-- `PARTIAL_FAILURES` — one or more rows are `❌ fail` (post-repair) → task can't advance
+- `COMPLETE` — every applicable row is `✅ pass` or `⏸ deferred-to-e2e`, **and the test-suite gate was green on both runs** (§7f). A `PASS_FLAKY` gate is never `COMPLETE`: it is `PARTIAL_HARNESS`, carrying both run results
+- `PARTIAL_FAILURES` — one or more rows are `❌ fail` from a **`defect`** verdict, post-repair → task can't advance
+- `PARTIAL_HARNESS` — rows are red, but **none is a defect**: every failure is `flaky` or `harness-config` → **task advances**, carrying the remedies and flaky rows forward
 - `PARTIAL_DEFERRED` — no failures, but some deferred rows exist (normal for non-last sub-tasks)
+
+**Why the split.** A `defect` means the code is wrong — advancing would commit a known-broken state. A `flaky` or `harness-config` failure means the tests are right and the runner is not, and the remedy is a separate human change to the harness; blocking there strands good tests over a config default.
+
+Advancing is not the same as passing. A `PARTIAL_HARNESS` run must carry into the summary, the acceptance-map and the PR body:
+
+- every `flaky` row with **both** run results
+- every `harness_config_remedy` block, verbatim, with its `requires: human DEC-###`
+- a one-line statement that a Required gate is red and why it was not repaired
+
+A reviewer must be able to see the red gate without opening anything else.
+
+---
+
+### 8.5. Terminal stage for `--tests-only` runs
+
+A `--tests-only` run ends here, not at Stage 11. Stages 9–11 assume a product diff that does not exist: nothing to security-review, no unit to flip `designed → implemented`, no runbook for code that already shipped. Skipping them is correct — **ending without a state transition is not.**
+
+Do all four, in order:
+
+1. **Write the run summary.** Tests added per tier · before/after coverage with **branch and line reported separately** · every `not-verified` row with its blocker · every `tier-unavailable` · everything deliberately left untested. A behaviour pinned by a characterisation test is *recorded*, not *endorsed* — say so where the pinned behaviour looks like a defect.
+   **Name every command, with its own count.** A repo usually has more than one runner, and a reader who is given a total they cannot reproduce will run the wrong one. List each separately — the command, what it runs, and how many tests it accounts for:
+
+   | Runner | Command | Tests |
+   |---|---|---|
+   | Vitest (unit + component) | `npm test` | 264 |
+   | Playwright (browser) | `npm run e2e` | 4 |
+   | coverage gate | `npm run test:coverage` | — |
+   | new-code floor | `npm run test:diff-coverage` (after coverage) | — |
+
+   Never report one combined figure. `npm run e2e` returning 4 when the summary claims 264 reads as a broken run; it is two runners.
+
+   **State the CI position.** Check the repo for a workflow (`.github/workflows/*.yml` or equivalent) and say which of these gates it already runs, so nobody re-wires what exists — then tell the reader to confirm the run is green on the PR rather than asserting it here. Build never watches CI. Where no workflow runs these gates, say that plainly: it means local is the only place they have ever passed.
+
+2. **Record `tests_only: true`** in `dev/build-run.md`, so `/dev:commit` can tell "skipped by design" from "never ran" — it reads this at its Stage 0.
+3. **Set local state — gated on §8e's status**, not unconditional:
+
+   | Status | State | Why |
+   |---|---|---|
+   | `COMPLETE` · `PARTIAL_DEFERRED` | `IN_PROGRESS` | clean run, advance |
+   | **`PARTIAL_HARNESS`** | `IN_PROGRESS` | tests are correct; the harness is misconfigured. Advance **carrying the remedy and flaky rows** into the summary and the PR body |
+   | **`PARTIAL_FAILURES`** | **leave as-is — do NOT advance** | an unfixed `defect` means the suite is red for a real reason. Halt, name the failing rows, and stop |
+
+   `/dev:commit` refuses to start on anything but `IN_PROGRESS`, so this step is what makes the work committable.
+
+4. **Report the next step:**
+
+   | Status | Next |
+   |---|---|
+   | `COMPLETE` · `PARTIAL_DEFERRED` | `/qa:health` — it writes the real gate results back to `quality-gates.md`, which **no build stage does** — then `/dev:commit` |
+   | `PARTIAL_HARNESS` | the remedy first, as a `DEC-###`, then `/qa:health`, then `/dev:commit`. Say plainly that a Required gate is red |
+   | `PARTIAL_FAILURES` | the failing rows and what to fix. Do not mention commit |
+
+`/dev:commit` reads `tests_only` and `stage-8.status` at its Stage 0 and routes accordingly. Its semantic context merge still runs: with no context-unit changes it records a zero-change result, which that stage defines as legitimate, not a skip.
 
 ---
 
@@ -164,7 +218,43 @@ Per `/dev:build` §14 bounded limits:
 - 3 focused repair attempts per failing row
 - 2 broad validation cycles (whole Stage 7 + Stage 8 re-run)
 
-**Focused repair:**
+**Route by verdict first — only `defect` gets a repair attempt.**
+
+Read `verdict:` from the gate's `dev/implementation-log.md` block (set at Stage 7 §7f.i). Do not re-derive it.
+
+| Verdict | Action | Repair budget |
+|---|---|---|
+| `defect` | focused repair, below | **consumes an attempt** |
+| `flaky` | no repair. Record both run results and carry the row as `flaky` | **none** |
+| `harness-config` | no repair. Emit the remedy block below | **none** |
+| `env-missing` | already halted at Stage 7 | — |
+
+This is the rule that stops a moving target eating the budget. A failure whose cause is instrumentation or a default limit cannot be fixed by editing the test, so spending three attempts on it produces three wasted edits and a still-red gate.
+
+**Remedy block for `harness-config`** — write to `dev/implementation-log.md` and surface in the Stage 11 summary:
+
+```yaml
+harness_config_remedy:
+  gate: QG-005
+  symptom: 3 tests exceed 5000ms under v8 coverage instrumentation; pass under `npm test`
+  diagnosis: harness-config
+  file: vite.config.js
+  change: "add `testTimeout: 30000` to the `test` block"
+  rationale: instrumentation adds per-test overhead; the limit is the tool default, never chosen
+  requires: human DEC-### — this modifies the harness, not a test
+  measured_when_applied: lines 90.02% / branches 91.17% — floors met
+```
+
+**Never apply it.** A gate or threshold change is a human `DEC-###`; this is a recommendation carrying its own evidence. Running the variant once to populate `measured_when_applied` is legitimate — label it a measurement, never a gate result.
+
+**Acceptance-map statuses for these two verdicts:**
+
+- A row backed by a `flaky` test is **`flaky`**, never `✅ pass` — record both results. A passing retry does not erase the failure.
+- A row blocked by `harness-config` is **`blocked`**, naming the remedy.
+
+Neither may read `pass`. When a run's only red rows are `flaky` or `harness-config`, the status is **`PARTIAL_HARNESS`** — the gate is genuinely red, the fix is a human decision rather than another repair cycle, and the task still advances carrying both forward. A single `defect` row anywhere in the run makes it `PARTIAL_FAILURES` instead, and it stops.
+
+**Focused repair** (`defect` only):
 
 1. Identify the failing test's file + line
 2. Delegate back to `dev-stack-adaptive-implementation` in "fix mode" — give it the failure output + the test file

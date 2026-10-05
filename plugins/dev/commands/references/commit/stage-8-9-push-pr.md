@@ -116,6 +116,15 @@ Structure:
 - E2E: 3 skeleton (deferred; last sub-task lands them)
 - Coverage: 72.4% lines (≥60% required)
 
+## Quality gate status
+
+Omit this section entirely when the build verdict was `COMPLETE` or `PARTIAL_DEFERRED`. When it was `PARTIAL_HARNESS`, it is **required** — a reviewer must see the red gate without opening anything else:
+
+- the Required gate that is red, and its verdict (`flaky` or `harness-config`)
+- the `harness_config_remedy` block verbatim, with its `requires: human DEC-###`
+- every `flaky` row with both run results
+- one line stating why it was not repaired in-loop
+
 ## Acceptance criteria
 
 | AC | Description | Verified by | Result |

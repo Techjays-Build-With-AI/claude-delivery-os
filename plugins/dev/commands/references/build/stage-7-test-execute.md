@@ -30,7 +30,16 @@ Parse the `Required gates` table from `qa/quality-gates.md`. For each row, captu
 
 ### 7b.i. Pre-start required external services (v2.3.23 — REQUIRED for integration/contract/concurrency/e2e tiers)
 
-For every test file the `dev-stack-adaptive-implementation` skill wrote in Stages 5-6, read its `# tier:` and `# requires:` header (Rule 7.ii in the dev-implementation SKILL). If the test file's tier is `integration` / `contract` / `concurrency` / `e2e`, the required external services MUST be started BEFORE the test runs.
+For every test file in this run's scope — the ones Stages 5-6 wrote **and** any pre-existing test the run will execute — read its `# tier:` and `# requires:` header (Rule 7.ii in the dev-implementation SKILL). If the tier is `integration` / `contract` / `concurrency` / `e2e`, the required **external** services MUST be started BEFORE the test runs.
+
+**Not every `requires:` names an external service.** A header may declare an in-process dependency — `mongodb-memory-server (in-process)`, Testcontainers started by the suite itself, an embedded broker, Supertest driving the exported app without a listening port. These start themselves; there is nothing for this step to launch. Classify each entry first:
+
+| `requires:` entry | Action |
+|---|---|
+| names `in-process`, `in-memory`, a Testcontainers fixture, or Supertest against the exported app | **nothing to start** — record it and move on |
+| names a process this run must reach over a port (`backend-running`, `frontend-running`, `real-db`, `real-auth`) | start it per the steps below |
+
+Treating an in-process dependency as external halts a suite that would have passed — the opposite failure to the one this step exists to prevent.
 
 **Steps per required service:**
 
@@ -38,6 +47,7 @@ For every test file the `dev-stack-adaptive-implementation` skill wrote in Stage
    - Backend (Node): `package.json` `scripts.dev` or `scripts.start`
    - Backend (Python): `manage.py runserver` or `uvicorn app:app --reload`
    - Backend (Go): `go run ./cmd/server` per the repo's convention
+   - **Frontend (dev server)**: an `e2e` test drives a browser against this — without it Playwright/Cypress hits a dead port, which fails as a connection error, not as the behaviour under test. **If the e2e runner's own config declares a `webServer` block, let it own the frontend and do not start one here** — it pins the port, and a second server would either collide or serve a different one. Start it here only when that block is absent, using the pinned command from `qa-greenfield-harness/references/gates-template.md`. Never assume `3000`
    - Database: check for `docker-compose.yml`, `podman-compose.yml`, or platform-specific test-container config; else use ambient (already-running) service
 2. **Read the required env vars** from the service's `.env.example` — every var listed must be present in the runtime env. If ANY is missing → **HALT Stage 7 with `blocker: required-env-vars-missing`**, listing which vars for which service. Do NOT run tests with partial env — that's how the "Bearer null / mocked-integration passes" bug propagates.
 3. **Start the service** with a health-check probe (max 30s wait). Health check per service type:
@@ -189,6 +199,52 @@ Any Required gate returning `result: FAIL` → jump to Stage 8's repair loop for
 Rationale: if the unit tests fail, running coverage after is wasted time (coverage would also fail, and the fix might change coverage anyway). Fix, re-run affected gates, then continue downstream.
 
 **Exception — flakiness detection:** if a gate fails on first run, immediately re-run it once (single retry, in-process). If second run passes → mark `result: PASS_FLAKY_ONE_RETRY` and note it. Flaky gates are legit failures at Stage 8 but the pattern is worth surfacing.
+
+**A green first run is not enough either.** The rule above re-runs a gate that *fails*; a gate that *passes* is never checked again, so a suite that is green by luck is reported as green by proof. Before the test-suite gate is recorded `PASS`, **run it a second time** and compare:
+
+| Two runs | Record |
+|---|---|
+| both green, same count | `PASS` — the only result that may be called green |
+| green then red (or red then green) | `PASS_FLAKY` — **classify the red run per §7f.i first**: a timeout at the tool default under instrumentation is `harness-config`, not `flaky`. Keep **both** results, naming the tests that differed |
+| both red | `FAIL` — classify per §7f.i as normal |
+
+The second run costs one suite execution and is the only thing separating "the tests pass" from "the tests passed that time". A single-run green has been enough to report `COMPLETE` on a suite that fails every other run.
+
+Where the two runs disagree, say so in the summary with the next step — **the test is unreliable, not the feature**: name the differing tests, give the command to reproduce (`<test cmd> <path>` for that file alone), and say whether they pass in isolation. A test that passes alone and fails in the suite is ordering or shared state; one that fails alone is a real defect the first run happened to miss.
+
+### 7f.i. Classify the failure BEFORE Stage 8 spends a repair attempt on it
+
+A failing gate is not automatically a code defect, and treating it as one burns the repair budget on a test that is correct. Decide the **verdict** here; Stage 8 routes on it.
+
+Run the diagnosis in this order, stopping at the first verdict that fits:
+
+| Verdict | Evidence required |
+|---|---|
+| `env-missing` | an external service or env var is absent — already halted at §7b.i, never reaches here |
+| `harness-config` | the test **passes under the plain run command** (`npm test`, `pytest`) and fails only under the gate's variant (coverage instrumentation, parallelism, a CI-only flag) — **OR** the failure is a timeout and the configured limit is the tool's default, never explicitly chosen |
+| `flaky` | the single retry above produced a **different set of failing tests**, **OR** the failing test passes when run in isolation while the suite still fails |
+| `defect` | fails consistently, and fails in isolation. The default when nothing above fits |
+
+**Isolated re-run is bounded: one attempt per failing test** (`pnpm test <path>` / `pytest <path>::<name>`), its result recorded. This is diagnosis, not retry-until-green — **the original failure stays in the evidence whatever the isolated run does.**
+
+**Why `harness-config` is checked before `flaky`:** instrumentation overhead presents *as* flakiness — a different few tests cross the limit each run. Calling it flaky stops at "unreliable test"; calling it harness-config names the fix. A timeout at exactly the tool default is the strongest signal, because no one chose that number.
+
+**Record the verdict** in `dev/implementation-log.md` beside the exit code:
+
+```yaml
+- gate: QG-005
+  command: npm run test:coverage
+  result: FAIL
+  verdict: harness-config
+  evidence:
+    plain_run: PASS            # npm test — same tests, no instrumentation
+    gate_run_1: [EmployeesContent.test.jsx > renders list]
+    gate_run_2: [EmpolyeeForm.test.jsx > submits]   # different set → not a defect
+    failure_mode: timeout 5000ms
+    configured_limit: default   # never explicitly set
+```
+
+Stage 8 reads `verdict:` and routes. It does not re-derive the diagnosis.
 
 ---
 

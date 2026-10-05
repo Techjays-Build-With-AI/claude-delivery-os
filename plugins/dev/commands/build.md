@@ -1,6 +1,6 @@
 ---
 description: Build a planned task through the full 11-stage loop — branch, QA harness gate (auto-bootstraps greenfield via qa-greenfield-harness), implement per implementation.md using dev-stack-adaptive-implementation (dynamic per stack, reads repo conventions, matches idiomatic patterns), write stack-adaptive tests, execute them locally, validate against parent's Acceptance Criteria + Business Rules + Test Scenarios + NFRs, run a scoped security review (feature-diff only, Critical-blocking at build-time; /dev:commit is stricter), update code-context units to origin:implemented, and produce a summary + local-runbook.md. Bounded fix loop until 100% or escalation. Refuses to run without a /dev:plan-generated plan OR with unresolved plan-blockers.md. Accepts any task identifier (MC task number, feature slug or folder, sub-task folder, FEAT-<AREA>-NN). Sub-task builds work in the sub-task's repo only, on a branch named feature/FEAT-<AREA>-NN-<slug>-<repo>. Never merges, never pushes, never raises a PR — /dev:commit does that.
-argument-hint: "<task-number | Task-N | slug | features/<slug> | tasks/<slug>.md | FEAT-<AREA>-NN | (blank = next PLANNED task)> [initiative=<name>] [--resume] [--no-security-review] [--skip-qa]"
+argument-hint: "<task-number | Task-N | slug | features/<slug> | tasks/<slug>.md | FEAT-<AREA>-NN | (blank = next PLANNED task)> [initiative=<name>] [--resume] [--no-security-review] [--skip-qa] [--tests-only]"
 ---
 
 # /dev:build
@@ -34,8 +34,38 @@ Read the **`delivery-os-conventions`** skill first if it's not in context — th
 - `--no-security-review` — skip Stage 9's diff security review (dev-time convenience; `/dev:commit` always runs security)
 - `--skip-qa` — **skip Stage 4's harness bootstrap and write no tests.** For a change whose risk does not justify standing up a test framework: a CSS value, a copy fix, a config default. Stage 4 logs `qa_gate_state: skipped-by-user` and Stages 5–6 write code without tests; Stage 8 builds the acceptance-map from inspection instead of test evidence and marks every row `verified: manually`. `/dev:commit` still runs its full security and code review — this flag buys you out of *testing*, never out of *review*.
 
+- `--tests-only` — **write tests against code already on disk; write no production code.** Runs Stage 4 → the test half of Stages 5–6 → 7 → 8, and ends at Stage 8.5. See §1a.
+
 **When `--skip-qa` is the right call, and when it is not.** A repo with no test framework forces a real choice: install one, or accept that this change is verified by eye. For a one-line presentational fix the harness costs more than the change and protects nothing — take the flag. For anything touching behaviour, data, auth, or money, the absence of tests is the reason to build the harness, not to skip it. `/dev:build` never decides this for you: without the flag it bootstraps, with it it does not.
 
+**`--skip-qa` and `--tests-only` are opposites.** One writes code without tests; the other writes tests without code. Passing both is a contradiction — reject it with *"--tests-only writes tests; --skip-qa writes none. Pick one."*
+
+## 1a. `--tests-only` — test code that already exists
+
+For a repo whose implementation is already written — a brownfield module, a hand-fixed bug, anything built outside the loop. The rest of `/dev:build` assumes it writes the code; this runs the **test half against code on disk** instead.
+
+```
+/dev:build --tests-only                      # whole repo, risk-ranked
+/dev:build --tests-only <path|module>        # scope it
+/dev:build --tests-only <task-ref>           # scope to a ticket's AC / Expected Result
+```
+
+| | |
+|---|---|
+| **Reads** | source on disk · `qa/quality-gates.md` tier pool · the ticket's Acceptance Criteria or Expected Result when a ref is given |
+| **Runs** | Stage 4 (harness gate) → Stage 5–6 **test half only** → Stage 7 execute → Stage 8 acceptance-map → the bounded fix loop |
+| **Skips** | the implementation half of Stage 5–6 entirely. It writes no production code |
+| **Never** | edits product logic to make a test pass · deletes, disables or loosens an existing test · marks `✅ pass` without a test behind it |
+| **Ranks** | uncovered business logic and branches first; getters and generated code last |
+| **Reports** | branch-coverage delta, what remains uncovered, and every exclusion with its reason |
+
+**No `/dev:plan` plan is required** — that gate exists because the normal path builds from `implementation.md`, and here there is nothing to build. Where a task ref *is* given, its assertions become the acceptance-map rows; without one, the map is built from the code's own observable behaviour and every row that cannot be settled reads `not-verified`.
+
+A concern whose tier is missing from the gate table is reported as `tier-unavailable`, not silently skipped — see `dev-stack-adaptive-implementation`.
+
+**Where it ends — Stage 8.5.** Stages 9–11 do not run: there is no product diff to security-review, no context unit to flip `designed → implemented`, and no runbook to write for code that already shipped. Stage 8.5 is the terminal stage instead — it writes the run summary, records `tests_only: true`, and sets the local state `/dev:commit` requires. Execute `references/build/stage-8-validate.md` §8.5 verbatim.
+
+`/dev:commit` then reads `tests_only` and the build verdict at its Stage 0, and runs its normal stages from there.
 ## 2. Stage 0 — Identity resolution + plan verification (hard gate)
 
 Same 4-way resolution as `/dev:plan` Stage 0 — see `plugins/dev/commands/plan.md` §2a. Determine `task_kind` (parent-alone or sub-task) and canonical `(feature_id, task_object_id, task_number, task_folder)`.
@@ -138,6 +168,7 @@ Three cheap re-checks:
   - Parent-alone → `feature/FEAT-<AREA>-NN-<slug>`
   - Sub-task → `feature/FEAT-<AREA>-NN-<slug>-<repo>`
   - **Filed ticket** → `fix/task-<n>-<slug>` when `task_type` is `bug`, else `feature/task-<n>-<slug>`. There is no `FEAT-<AREA>-NN` for these, so the task number carries the identity.
+  - **`--tests-only`** → `test/<scope-slug>`.
 - Never `main` / `master` / `staging` / `production` / `develop`. Confirm base build is green in target repo. Write branch name into `status.md`.
 
 **This stage is not optional, and it runs before any file is touched.** Every change `/dev:build` makes lands on its own branch — a one-line CSS fix on a filed bug as much as a multi-repo feature. If a later gate halts the run, the branch still exists and the working tree is still clean, so nothing is stranded on `main`.

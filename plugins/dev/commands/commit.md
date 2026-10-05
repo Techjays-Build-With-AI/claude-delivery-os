@@ -44,6 +44,16 @@ Same 4-way resolution as `/dev:plan` Stage 0 / `/dev:build` Stage 0 — see `plu
 
 Any missing → halt with "run /dev:build first" message.
 
+**Read the build verdict** from `dev/build-run.md`. `IN_PROGRESS` alone does not distinguish a clean build from one that advanced carrying a red Required gate:
+
+| `stage-8.status` | Action |
+|---|---|
+| `COMPLETE` · `PARTIAL_DEFERRED` | proceed |
+| `PARTIAL_HARNESS` | a Required gate is red for a **harness** reason, not a defect. Proceed only after `AskUserQuestion` confirms, and carry the `harness_config_remedy` and flaky rows into Stage 5 (§5b.i) and the PR body. Never report this run as green |
+| `PARTIAL_FAILURES` | **halt** — an unfixed defect. Name the red rows; `/dev:build` should not have advanced |
+
+**Read `tests_only`** from the same file. When `true`, build Stages 9–11 were skipped by design: expect no `context/code-context/**` changes and no `dev/local-runbook.md`, and never treat their absence as a missed stage.
+
 **Verify branch is checked out** in the target repo: `git rev-parse --abbrev-ref HEAD` matches the branch recorded in `status.md`. Mismatch → halt with "checkout the feature branch first: `git checkout <branch>`".
 
 **Verify no uncommitted changes** (`git status --porcelain` empty) UNLESS `--resume` and we're in Stage 7 halt state — in which case pending manual edits are allowed on `dev/context-merge-conflicts.md` and touched context files.

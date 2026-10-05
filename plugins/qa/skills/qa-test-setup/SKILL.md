@@ -35,7 +35,9 @@ Create `qa/` if absent. If there's no workspace, write these beside the repo and
 2. **Implement the plan step by step** (`references/setup-guide.md`): install and configure each framework, add its config, wire it into package scripts and CI, add fixtures/factories and mocking utilities, set (and enforce) coverage thresholds, scaffold the e2e harness (base config + a page-object/fixtures skeleton), and write the short testing-conventions doc. Add **example/smoke** tests only — enough to prove each layer runs. **Do not** write tests for any specific feature's business logic.
 3. **Verify (implement→verify loop).** After each meaningful piece, run its command and confirm it passes; at the end run the full smoke suite (install → lint → format-check → type-check → unit → coverage-threshold → build → e2e-smoke where applicable) and confirm it is **green**. Record every attempt in `qa/setup-log.md`. Honour the limits below.
 4. **Finalize the gates.** Hand off to `qa-quality-gates` to promote `qa/quality-gates.md` from `Draft` to `Active`, filling in the exact commands and thresholds now proven to run. Log setup decisions as `DEC-###`.
-5. **Hand off.** Do not merge or deploy. Return what was stood up, the green smoke result, the `DEC-###` logged, and that the dev loop can now verify against `qa/quality-gates.md`. Move to human review.
+5. **Publish.** Commit the harness on the setup branch, push it, and raise a PR — same four-step ladder `/dev:commit` uses (`gh pr create` → `git credential fill` against the REST API → `gh auth login --with-token` → print a `compare/<base>...<branch>` URL with title and body pre-filled). A harness that never leaves the machine is not a harness: a teammate's clone has no gates, so `/dev:build` Stage 4 bootstraps a *different* one and the two diverge silently.
+
+6. **Hand off.** **Never merge** — the coverage floor starts gating everyone's PRs the moment it lands, so that stays a human call. Return what was stood up, the green smoke result, the `DEC-###` logged, the PR URL, and that the dev loop can now verify against `qa/quality-gates.md`.
 
 ## Retry limits and guardrails
 

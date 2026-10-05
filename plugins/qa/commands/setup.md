@@ -21,4 +21,22 @@ Invoke the **qa-agent** subagent. Pass it this instruction:
 
 ## 3. Surface the result
 
-Present what was **stood up** (frameworks, CI, coverage floor, e2e harness, conventions), the **green-smoke result**, the `DEC-###` decisions logged, and the finalized `qa/quality-gates.md`. Tell the user the dev delivery loop can now verify features against these gates — the readiness gate will see the harness and `dev-validation` will run the Required gates. If setup hit a blocker, lead with the decision needed (the escalation note) instead of a partial success. Note it stops at human review and never merges.
+Present what was **stood up** (frameworks, CI, coverage floor, e2e harness, conventions), the **green-smoke result**, the `DEC-###` decisions logged, and the finalized `qa/quality-gates.md`. If setup hit a blocker, lead with the decision needed (the escalation note) instead of a partial success.
+
+Close with this block, filled in:
+
+```
+✓ Harness Active. Green smoke passed.
+  Stood up:  <frameworks · CI · coverage floor · e2e · conventions>
+  Gates:     <n> Required, <n> Required* pending a surface, <n> Optional
+  DEC-###:   <decisions logged>
+  PR:        <url>
+
+Next:
+  1. Review and merge the PR
+  2. /dev:build <task>           — tests written as part of the build
+     /dev:build --tests-only     — backfill tests for code already written
+  3. /qa:health                  — re-check the gates any time
+```
+
+Name any **`Required*` gate whose condition holds but whose command is still `Not-configured`** — those are the tiers the dev loop will report as `tier-unavailable`, and they are gaps rather than opt-outs. It stops at the PR and **never merges**.

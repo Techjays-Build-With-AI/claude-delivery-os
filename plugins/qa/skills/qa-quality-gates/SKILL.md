@@ -18,6 +18,20 @@ Read **`delivery-os-conventions`** if it isn't in context. Your input is the pro
 3. **Keep it honest and current.** Never record a gate as `Passing` you haven't proven, and never quietly lower a threshold to make the repo look compliant — a threshold change is a `DEC-###` decision with a rationale. When a check is added or changed, update the contract and bump its `generated_at`.
 4. **Health re-check (`/qa:health`).** Re-run the required gates' commands against the current repo and report drift: a gate that flipped to `Failing`, a `Not-configured` that regressed, a threshold no longer met. Surface deltas and recommend fixes; don't silently "repair" by weakening a gate.
 
+   **Three red states, not one.** Collapsing them loses the one thing the reader needs — whether the code is wrong, the test is unreliable, or the check never ran:
+
+   | What happened | `harness_status` | Stamp must say |
+   |---|---|---|
+   | Required gate ran and failed **consistently** | `Broken` | the failing gate and its output |
+   | Required gate failed **intermittently** — a different test each run, or passing in isolation | `Broken` | `flaky`, with **both** run results. A passing retry never erases the failure |
+   | Gate **could not run** — service down, env var absent, tool not installed | **`Blocked`** | which prerequisite was missing |
+
+   `Blocked` is not `Broken`: nothing was measured, so nothing failed. Never record `Active` for a gate that did not run.
+
+   **Carry a build's `harness_config_remedy` through.** When the failing gate has one recorded in `dev/implementation-log.md` (Stage 8), reproduce it in the health report instead of restating the symptom — the reader needs the named file and change, not a second description of the red gate.
+
+   **State the working tree.** If it is dirty, say so and scope the results to the tree measured, never to committed state.
+
 ## Boundaries
 
 You define and verify the *bar*, you don't do the per-feature work: you don't write feature tests, you don't run a feature's full suite to judge that feature (that's `dev-validation`), and you don't merge or deploy. A threshold or gate change that makes the repo easier to pass is a human decision logged as `DEC-###`, never a silent edit. If a required gate can't be met, escalate with the trade-off — don't drop the gate to go green.

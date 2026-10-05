@@ -8,6 +8,51 @@
 
 ---
 
+### 5-6a0. `--tests-only` — run the test half against existing code
+
+Under `--tests-only` the implementation half does not run. There is no `implementation.md` build sequence to follow because the code is already written; the source on disk is the input instead.
+
+**What replaces the build sequence.** Enumerate the units in scope — the path/module given, the ticket's touched files, or the whole repo ranked by risk. For each, derive its concern class the same way a build step would, against **the full table in `dev-stack-adaptive-implementation`** — all of it, not a remembered subset. A route or handler is an operation contract; a consumer, job or webhook is idempotency/retry; an entity with a status field that moves between values is lifecycle; a refusal path (400/403/404/409/500) is its own class and is the one most often missed when reading code rather than a plan. Then intersect with the Required tiers exactly as normal and write a test at every tier in the intersection.
+
+**Ranking.** Business logic and branch-heavy code first; boundaries and error paths before happy paths; getters, DTOs and generated code last. A file already at full branch coverage is skipped and reported as such.
+
+**Re-run safety — a second pass must converge, not duplicate.** Full branch coverage is the only skip condition, which is not enough on its own: a partially-covered unit would be enumerated again and re-authored, so running tests-only twice on the same repo produces overlapping tests.
+
+*Stamp what you write.* Every file generated here carries a header naming the run and the unit it covers:
+
+```
+// generated-by: dev:build --tests-only
+// run-id: TO-2026-10-01-1432
+// covers: src/services/payment.js
+// tier: integration
+// requires: backend-running, real-db
+```
+
+**Rule 7.ii applies here in full.** Stage 7b.i starts external services by reading each test's `# tier:` and `# requires:` header — a file written without them gets no backend, no database and no dev server, and then runs green against nothing. Writing them is not optional for an `integration`, `contract`, `concurrency` or `e2e` test.
+
+*Read the stamps before enumerating.* Then per unit:
+
+| Unit state | Action |
+|---|---|
+| Full branch coverage | skip; report as already covered |
+| Covered by a **stamped** test from an earlier run | **extend only the uncovered branches** — never re-author the file |
+| Covered by a **hand-written** test | leave it alone; add only at tiers it does not cover |
+| Uncovered | write as normal |
+
+*Record the manifest.* List every generated file in `dev/build-run.md` under `tests_only_generated:` with its run id, so the next run reads a manifest rather than inferring intent from filenames.
+
+The hand-written case matters most: a developer's test is never re-authored or replaced, only supplemented at tiers it does not reach.
+
+**Hard limits — these are what make the flag safe:**
+
+- **Never edit a source file.** Not to add a seam, not to make something injectable, not to fix a bug the test exposes. A failing test over real behaviour is a *finding*: record it and keep the test. Changing product code here would silently turn a test-writing run into an unreviewed refactor.
+- **Never delete, disable, skip or loosen an existing test** — including one that was already failing. Report it; leave it.
+- Where a unit cannot be tested without a seam that does not exist, write the highest tier that *is* reachable, and record `not-verified` with the reason rather than forcing it.
+
+**Then continue unchanged** into Stage 7 (execute) and Stage 8 (acceptance-map). Where a task ref was given, its Acceptance Criteria or Expected Result supply the map's rows; without one, rows come from the observable behaviour asserted, and anything that cannot be settled reads `not-verified`.
+
+---
+
 ### 5-6a. Preconditions
 
 - `dev/build-run.md` `stage-4.status: DONE`

@@ -21,4 +21,21 @@ Invoke the **qa-agent** subagent. Pass it this instruction:
 
 ## 3. Surface the result
 
-Present the **test-readiness score and verdict**, the scorecard, and the top `QAF-###` gaps with their recommendations. Link to `qa/audits/test-audit-<timestamp>.html` (interactive) and `.md`. Tell the user to open the report, set **Adopt / Skip / Defer** per finding, **Export approvals**, and run `/qa:plan` with the exported approvals file. Lead with the biggest blocker if the repo isn't testable.
+Present the **test-readiness score and verdict**, the scorecard, and the top `QAF-###` gaps with their recommendations. Lead with the biggest blocker if the repo isn't testable.
+
+Close every run with this block, filled in — the report path and the next command must be copy-pasteable, never described in prose:
+
+```
+Test readiness: <score> / 10 — <verdict>
+Stack: <detected stack · package manager · runner or "none">
+Blockers: <n>   Major: <n>   Minor: <n>
+Current coverage: <measured %, or "not instrumented">
+
+Report → qa/audits/test-audit-<ts>.html
+
+Next:
+  1. Open the report, set Adopt / Skip / Defer per finding, Export approvals
+  2. /qa:plan qa/audits/test-audit-<ts>-approvals.md
+```
+
+**Report `Current coverage` as a measured number** whenever coverage tooling exists — run it and read the result; never estimate. This is the figure the human needs to set a reachable floor at `/qa:plan`: on an existing repo the floor is baselined to what the code passes **today** and ratcheted afterwards, not set to a greenfield default it cannot meet. Where no coverage tool is configured, say `not instrumented` rather than implying zero.
