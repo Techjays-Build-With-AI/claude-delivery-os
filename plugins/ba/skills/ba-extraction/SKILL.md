@@ -117,9 +117,18 @@ Each register is a Markdown file with frontmatter + a table. Suggested columns:
 
 **`ba/logs/clarifications.md` is the round-trip ledger.** The `Status` values are `Open` · `Answered` · `Closed` (or `Superseded`), and `Answer` holds the client's response once it arrives. `client-questions.md` (below) is generated *from* the `Open` rows; when an answer is folded in, set `Status`/`Answer` here and the question drops off the client deliverable.
 
+## Raising clarifications
+
+Every `CLR` — and so every question in `client-questions.md` — passes these four rules before it is raised.
+
+1. **Screen out-of-scope topics first.** Before raising a `CLR`, check the module's §3.x.2 Out of Scope, §6 Global Out-of-Scope, and closed `CLR` / `DEC` rows. A topic already excluded gets no question. Ask only when the exclusion itself is ambiguous — and then ask about the boundary, not the excluded feature.
+2. **Probe every step of a multi-step flow.** For each step in a workflow (WF) or use case, ask what information the step needs, which fields are mandatory vs optional, where each piece of data comes from (user input, another system, an earlier step), and how this step's outcome changes the next step (what it unlocks, blocks, or routes).
+3. **Probe the existing setup when the work extends a live platform.** When sources show the scope builds on something already in use, ask what happens to current projects and records, how updated documents get uploaded or replace existing ones, and how existing users, roles, permissions, and features are affected — including what must keep working unchanged.
+4. **Cover the corner cases per module.** Before closing a module's questions, check each of these and ask about any the sources leave silent: duplicates · partial completion or abandonment · cancellation and reversal · missing or late data · concurrent changes by two people · volume peaks · permission edges (who can't, and what they see).
+
 ## Client-facing questions deliverable (`ba/client-questions.md`)
 
-A clean, **handover-ready** document generated every run from the **open** clarifications — the thing the team literally takes to the client. It is *not* the raw `ba/logs/clarifications.md`; it's grouped, prioritized, and has space for answers. Frontmatter `doc_type: client-questions`, `produced_by: ba`, plus `generated_at` and a count of open questions.
+A clean, **handover-ready** document generated every run from the **open** clarifications — the thing the team literally takes to the client. It is *not* the raw `ba/logs/clarifications.md`; it's grouped, prioritized, and has space for answers. Every question in it has passed "Raising clarifications" above. Frontmatter `doc_type: client-questions`, `produced_by: ba`, plus `generated_at` and a count of open questions.
 
 Structure:
 - A one-line intro telling the reader to fill in answers and return the file (or share meeting notes), then run `/ba:scope add "answers in <path>"` to fold them back in.

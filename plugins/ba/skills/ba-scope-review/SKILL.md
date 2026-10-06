@@ -86,8 +86,9 @@ A question that the scope already answers is not a gap — it is a reading error
 
 Take each candidate question and do two things.
 
-**Search for the answer, then record where you looked.** The scope is not read top-to-bottom by the author; an obligation opened in one module is often closed in a global section. Before a question ships, re-scan the places its answer would live — the feature's own §3.x sub-headings, the global §6 out-of-scope, the assumptions and business-rule registers, and the example register. Record those locations in the question's `checkedIn` field.
+**Search for the answer, then record where you looked.** The scope is not read top-to-bottom by the author; an obligation opened in one module is often closed in a global section. Before a question ships, re-scan the places its answer would live — the feature's own §3.x sub-headings (including §3.x.2 Out of Scope), the global §6 out-of-scope, closed decisions in `decision-log.md` and closed clarifications, the assumptions and business-rule registers, and the example register. Record those locations in the question's `checkedIn` field.
 - **Answer found** → drop the question, and mark the dimension it came from `Covered` (or `Partial` if the answer is incomplete). The coverage map is what the score is computed from, so this correction has to land there, not just in the question list.
+- **Topic already excluded** → drop the question. An out-of-scope line is an answer. Keep a question only when the exclusion itself is ambiguous, and then ask about the boundary, not the excluded feature.
 - **Answer genuinely absent** → keep it, with `checkedIn` naming the sections you searched.
 
 **Name what changes if it stays unanswered.** Set `consequence` to exactly one of `estimate` · `scope` · `integrations` · `compliance` · `none`. This is the test the severity scale already implies — a Blocker is a Blocker *because* the answer swings one of the first four.

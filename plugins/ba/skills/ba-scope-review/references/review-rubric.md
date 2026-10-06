@@ -173,6 +173,22 @@ The verb *optimise* (or *assign*, *prioritise*, *allocate*, *match*, *route*, *s
 
 That is one scope line → the handful of *business* decisions that make the engine estimable — without ever specifying the optimization algorithm, the solver, or the data model, all of which are the TL's.
 
+### Worked example — "Requests go through submission, manager review, and finance approval" (multi-step flow)
+Naming the steps is not scope — each step is a small feature of its own. Walk the flow step by step and ask, **for each step**:
+- **Information needed.** What does the person at this step need in front of them to act? Which fields are captured here, and which are **mandatory vs optional**?
+- **Where the data comes from.** Typed by the user, carried from an earlier step, or pulled from another named system? Data assumed to "already be there" is a Dependency until someone confirms it.
+- **What this step decides, and how it affects the next.** What outcomes exist (approve / reject / send back / partial)? Does each outcome route differently, change what the next step sees, or skip a step?
+- **Hand-off & ownership.** Who owns the item between steps, and what happens if it sits at a step too long?
+- **Going back.** Can an item return to an earlier step, and what is kept or reset when it does?
+
+### Worked example — "Add version tracking to the existing document portal" (extension of a live platform)
+New work on a platform already in use carries obligations a greenfield scope never has. Ask about the **existing setup**:
+- **Current data (Blocker when silent).** What happens to existing projects, records, and documents — do they adopt the new behaviour, stay as they are, or need a one-time conversion?
+- **Updated documents.** How does a revised document get in — uploaded again as a new version, replacing the old one, or alongside it? What happens to links and references pointing at the old one?
+- **Existing users & roles.** Who gets the new capability, does any current permission change, and what do users see on day one?
+- **Existing features.** Which current features must keep working unchanged, and which ones does this change alter?
+- **Cut-over.** Is there a switch-over moment or a period where old and new run side by side, and who communicates it?
+
 ### Questioning heuristics (apply to any feature)
 - **For every verb in the feature line, ask "what does the business mean by that, exactly?"** — "manage", "process", "handle", "sync", "notify", "approve" each hide a business decision.
 - **For every noun, ask "which, and what information matters?"** — "users", "requests", "documents", "payments" — at the business level, not the schema level.
@@ -180,6 +196,9 @@ That is one scope line → the handful of *business* decisions that make the eng
 - **Always probe the business unhappy path** — what happens when the normal flow doesn't apply, and who deals with it.
 - **Always probe roles & permissions** — "who can do this, and who can't?"
 - **Cross-check the examples** — does each EX-### the client shared actually work under this scope?
+- **Walk every multi-step flow step by step** — per step: information needed, mandatory fields, data source, and effect on the next step (see the multi-step worked example).
+- **If the work extends a live platform, probe the existing setup** — current data, updated documents, existing users and features (see the extension worked example).
+- **Run the corner-case checklist** — duplicates · partial completion · cancellation and reversal · missing or late data · concurrent changes · volume peaks · permission edges. Raise only the ones the scope leaves silent.
 - **Stop at the business line.** If a question is really about *how it's built* (schema, protocol, framework, infrastructure), it's the TL's — don't raise it as a scope gap.
 
 ---
