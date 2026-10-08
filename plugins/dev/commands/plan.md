@@ -1,5 +1,5 @@
 ---
-description: "Just-in-time planning for one or many tasks. Verifies the technical context graph is current (auto-runs /tl:plan if missing), decides whether each task needs sub-tasks (multi-repo → one sub-task per repo, single-repo or bug/story → parent alone), composes each sub-task's Description + Implementation and creates them in Mission Control, writes the local development plan, and (v2.2) surfaces every plan-time decision that would require build-time input as PB-### blockers in dev/plan-blockers.md — so /dev:build never has to prompt. Accepts a single MC task number (Task-N, Feature-N, Subtask-N), a local feature slug or folder path, the internal FEAT-<AREA>-NN id, or a multi-target form — an MC List name, initiative=<name>, or --all — which fans out across every matching feature in parallel. Runs 4 stages: identity resolution → code-context readiness → implementation preparation → development planning + blocker detection. With --resume: if a task has an OPEN dev/plan-blockers.md, folds every filled Resolution: field into implementation.md §1-§9 + registers deterministically per category, logs each fold as a DEC-###, and moves the task from BLOCKED_ON_PLAN to PLANNED. Two parallelism axes: across features (bounded by --concurrency, default 5) and within a feature (per-sub-task compose + per-task planning). One consolidated user checkpoint after stage 1 to confirm the split for every targeted feature. Failure of one feature never halts the batch — failed features report at the end with escalations or plan-blockers. Never merges, never runs code — leaves each task at status PLANNED for /dev:build (or BLOCKED_ON_PLAN awaiting user resolution)."
+description: "Just-in-time planning for one or many tasks. Verifies the technical context graph is current (auto-runs /tl:plan if missing), decides whether each task needs sub-tasks (multi-repo → one sub-task per repo, single-repo or bug/story → parent alone), composes each sub-task's Description + Implementation and creates them in Mission Control, writes the local development plan, and (v2.2) surfaces every plan-time decision that would require build-time input as PB-### blockers in dev/plan-blockers.md — so /dev:build never has to prompt. Accepts a single MC task number (Task-N, Feature-N, Subtask-N), a local feature slug or folder path, the internal FEAT-<AREA>-NN id, or a multi-target form — an MC List name, initiative=<name>, or --all — which fans out across every matching feature in parallel. Runs 4 stages: identity resolution → code-context readiness → implementation preparation → development planning + blocker detection. With --resume: if a task has an OPEN dev/plan-blockers.md, folds every filled Resolution: field into implementation.md §1-§9 + registers deterministically per category, logs each fold as a DEC-###, and moves the task from BLOCKED_ON_PLAN to PLANNED. Two parallelism axes: across features (bounded by --concurrency, default 5) and within a feature (per-sub-task compose + per-task planning). One consolidated user checkpoint after stage 1 to confirm the split for every targeted feature. Failure of one feature never halts the batch — failed features report at the end with escalations or plan-blockers. Never merges, never runs code — leaves each task at status PLANNED for /dev:build. Blockers are asked in the conversation as they arise — answered ones fold and the task plans on; only deferred ones land at BLOCKED_ON_PLAN for /dev:resolve later."
 argument-hint: "<task-number | Task-N | slug | features/<slug> | tasks/<slug>.md | <any-task.md> | FEAT-<AREA>-NN | list=<name> | initiative=<name> | --all | (blank = next READY task)> [--split | --no-split] [--resume] [--dry-run] [--concurrency=N]"
 ---
 
@@ -622,8 +622,8 @@ Succeeded (4):
     ↳ Subtask-12 (backend)  PLANNED   https://mission-control.techjays.com/task/6b72a6...   ✓ verified (2,301 + 30,105 chars)
     ↳ Subtask-13 (frontend) PLANNED   https://mission-control.techjays.com/task/6b72a7...   ✓ verified (2,388 + 37,220 chars)
 
-Blocked on plan (1):
-  ✗ Feature-7  Supplier Approval                     → BLOCKED_ON_PLAN (2 open blockers)
+Blocked on plan (1):                          ← deferred only; answered blockers are already folded
+  ✗ Feature-7  Supplier Approval                     → BLOCKED_ON_PLAN (2 deferred)
     ↳ Parent:               https://mission-control.techjays.com/task/6a950230...
     ↳ Blockers:             features/supplier-approval/dev/backend-plan-blockers.md
     Resolve:                /dev:resolve --plan Feature-7
@@ -639,7 +639,7 @@ Compose lint findings (WARN, non-blocking):
 Read-back verification: 11/11 pushes byte-identical (v2.3.17 §4f.i)
 
 Next:
-  · Resolve Feature-7's blockers:            /dev:resolve --plan Feature-7
+  · Pick up Feature-7's deferred blockers:    /dev:resolve --plan Feature-7
   · Start building unblocked tasks:          /dev:build Subtask-7   (Feature-4's backend)
                                              /dev:build Feature-12  (parent-alone)
     (add --skip-qa only for a change that does not justify a test harness)

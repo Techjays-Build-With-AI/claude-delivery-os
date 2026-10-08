@@ -102,11 +102,11 @@ Node labels MUST be quoted (`["1. <phase>"]`, not `[1. <phase>]`) — unquoted l
 
 ## 2. Impacted components
 
-12-dimension impact matrix, stack-agnostic dimension names. Every row is either a real impact statement or `N/A — <specific reason>` (Rule 11.12; bare `N/A` halts).
+Impact matrix over the 12 stack-agnostic dimensions — **list only the dimensions this task actually affects.** A dimension the task does not touch is left out of the table entirely; do not write an `N/A` row for it (Rule 11.12). A row that is present must carry a real impact statement.
 
 | Dimension | Impact |
 |---|---|
-| Surfaces | <impact statement or `N/A — <specific reason>`> |
+| Surfaces | <impact statement — omit this row if unaffected> |
 | Operations | … |
 | Stored data | … |
 | Authz | … |
@@ -318,7 +318,7 @@ Rules 1–15 in `SKILL.md` govern the shape. Highlights that apply to this templ
 - Rule 11.11 (v2.3.16) — Plan-time coverage owner is §1 Satisfies column; build-time evidence in `dev/acceptance-map.md`; NO §7 Coverage table; NO "Deferred" concept.
 - **Rule 0 (v2.3.17) — ONE compose, ONE lint, ONE optional auto-fix. NEVER a halt-and-rewrite loop.** 10 mechanical triggers halt (payload > 60 000 chars, `## 7. Coverage` heading, `Deferred` status, `**Assumptions.**` heading, pipe-row-on-one-line, unclosed code fence, framework field path in §8, `# FEAT-` heading, mermaid fence missing `mermaid` language tag, missing blank line before/after tables/fences/mermaid/headings). Most auto-fix in-place (string transforms — remove heading, insert newline, insert `mermaid` tag). Everything else — Rules 10a/10b/11.5/11.9/11.10/11.12/11.13 — becomes a WARN reported in a `## Compose lint findings` block. The user decides whether to fix and re-run, or accept.
 - **Rule 0d (v2.3.17) — MC rendering contract for `react-markdown v9 + remark-gfm v4 + mermaid v11`.** Tables: every row on its own physical line, header separator (`|---|---|`) on its own line, blank line before/after. Mermaid: fenced with exactly `\`\`\`mermaid`, node labels with numbers/spaces MUST be quoted (`S1["1. Step"]`). Code fences: balanced. Headings: `##` for numbered sections, `###` for sub-sections, never `#`. Blank lines before/after every table/fence/mermaid/heading — remark-gfm silently DROPS blocks without blank-line surrounds.
-- Rule 11.12 — every §2 row substantive; bare N/A halts.
+- Rule 11.12 — §2 lists only affected dimensions; an unaffected one is omitted, not written as N/A.
 - Rule 11.13 — content-quality principles (exhaustiveness, refusal consumers, named dependencies, branching stated, boring decisions recorded, noun cross-check, adversarial read).
 - Rule 11.14 — two-tier rollback in §7.
 - Rule 11.15 — `capabilities:` frontmatter controls cross-sub-task check.
