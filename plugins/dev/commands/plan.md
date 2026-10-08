@@ -1,6 +1,6 @@
 ---
 description: "Just-in-time planning for one or many tasks. Verifies the technical context graph is current (auto-runs /tl:plan if missing), decides whether each task needs sub-tasks (multi-repo → one sub-task per repo, single-repo or bug/story → parent alone), composes each sub-task's Description + Implementation and creates them in Mission Control, writes the local development plan, and (v2.2) surfaces every plan-time decision that would require build-time input as PB-### blockers in dev/plan-blockers.md — so /dev:build never has to prompt. Accepts a single MC task number (Task-N, Feature-N, Subtask-N), a local feature slug or folder path, the internal FEAT-<AREA>-NN id, or a multi-target form — an MC List name, initiative=<name>, or --all — which fans out across every matching feature in parallel. Runs 4 stages: identity resolution → code-context readiness → implementation preparation → development planning + blocker detection. With --resume: if a task has an OPEN dev/plan-blockers.md, folds every filled Resolution: field into implementation.md §1-§9 + registers deterministically per category, logs each fold as a DEC-###, and moves the task from BLOCKED_ON_PLAN to PLANNED. Two parallelism axes: across features (bounded by --concurrency, default 5) and within a feature (per-sub-task compose + per-task planning). One consolidated user checkpoint after stage 1 to confirm the split for every targeted feature. Failure of one feature never halts the batch — failed features report at the end with escalations or plan-blockers. Never merges, never runs code — leaves each task at status PLANNED for /dev:build. Blockers are asked in the conversation as they arise — answered ones fold and the task plans on; only deferred ones land at BLOCKED_ON_PLAN for /dev:resolve later."
-argument-hint: "<task-number | Task-N | slug | features/<slug> | tasks/<slug>.md | <any-task.md> | FEAT-<AREA>-NN | list=<name> | initiative=<name> | --all | (blank = next READY task)> [--split | --no-split] [--resume] [--dry-run] [--concurrency=N]"
+argument-hint: "<task-number | Task-N | slug | features/<slug> | tasks/<slug>.md | <any-task.md> | "<plain description>" | FEAT-<AREA>-NN | list=<name> | initiative=<name> | --all | (blank = next READY task)> [--split | --no-split] [--resume] [--dry-run] [--concurrency=N]"
 ---
 
 # /dev:plan
@@ -120,7 +120,43 @@ For **multi-target** forms:
 6. **`initiative=<name>`** — grep `features/*/feature.md` frontmatter for `initiative: <arg>` → N targets. Cross-check with MC via `feature_list_bundle` to catch features not yet local (feeds §2c).
 7. **`--all`** — call `task-mcp.feature_list_bundle(solution_id, status='readyForDev')`; combined with `initiative=<name>`, take every feature in that initiative regardless of status.
 
-Any unresolvable input → halt with the 5 nearest slugs / task numbers.
+**Free text — take it as the task.** An argument that matches nothing above and reads as prose rather than an identifier — it contains spaces, has no `/` or `.md`, and is not a `Task-N` / `FEAT-` form — is someone describing what they want. `/dev:plan "login page design, we want it animated"` is the most natural thing to type and must not be answered with a list of unrelated slugs.
+
+Treat it exactly as §2a treats an adopted file, with one addition: **confirm before writing.** A path is something the user already made; a description is not, so say what you are about to create and let them correct it in one line — the slug you derived, the `task_type` you inferred, and the path you will write:
+
+```
+Creating tasks/login-page-animation.md  ·  task_type: task
+  "login page design, we want it animated"
+Planning from there — say the word if the slug or type is wrong.
+```
+
+Then continue on the non-feature track (§2f). A one-line description is thin by design: the inputs it lacks become `PB-###` and are asked in this same conversation, so typing a sentence and answering a few questions is a complete path from idea to plan.
+
+Any input that is neither of these and still resolves to nothing → halt with the 5 nearest slugs / task numbers.
+
+### 2a.1. Locate the work before planning it (unit-less targets)
+
+A target created from a description or an adopted file carries **no `related_pages` / `related_apis` / `related_entities`**, so Stage 1's detection — which reads those from `feature.md` — has nothing to resolve and is skipped. Planning then runs on the sentence alone, and a plan that cannot name the file it changes is a guess.
+
+Resolve the surfaces from the graph first — that is what it is for, and one index read beats searching every file:
+
+1. **`context/code-context/` layer indexes**, where the repo has been mapped. A semantic index exists so the right unit is found without opening every file; one read gives you `PAGE-AUTH-01` and the files it cites. This is the fast path and should almost always hit.
+2. **`.jetrix/connection-map.md`**, to pick the right repo first on a multi-repo solution before searching inside it.
+3. **No code-context for the area → a blocker, not a grep.** Mint a *missing context* `PB-###` pointing at `/tl:code-map` (`blocker-detection.md` §5.2a) and ask it in this conversation like any other. Never auto-run the map: it writes a committed tree into the product repo, which is not a side effect one sentence should cause.
+
+   This matches the non-feature track's existing rule and its reason — searching the source before the graph has said which unit owns the behaviour is how you fix the first plausible match instead of the actual cause.
+
+   **One exception:** a task that *creates* a surface which does not exist yet has no unit to find, and that is not a missing-context blocker. Say which surface is new and plan it as new.
+
+**Verify the hit, do not trust it.** A code-context unit is as-built at the commit it was generated from. Open one file it cites and confirm the thing is still there — where the repo has moved on, say the index is stale and raise it rather than planning against a unit that no longer matches the code.
+
+**Record what you resolved**, so the plan is auditable rather than assumed:
+
+```
+Resolved from code-context (index): PAGE-AUTH-01 — src/components/Home.jsx, src/components/Home.css
+```
+
+**Record it either way.** "Resolved `PAGE-AUTH-01` from the index" and "no unit owns a login page in either mapped repo — is this new, or is the map behind?" are both useful. A confident plan against a file nobody confirmed exists is not.
 
 ### 2b. Write the resolved target set
 
