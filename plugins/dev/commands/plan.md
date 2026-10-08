@@ -1,6 +1,6 @@
 ---
-description: "Just-in-time planning for one or many tasks. Verifies the technical context graph is current (auto-runs /tl:plan if missing), decides whether each task needs sub-tasks (multi-repo → one sub-task per repo, single-repo or bug/story → parent alone), composes each sub-task's Description + Implementation and creates them in Mission Control, writes the local development plan, and (v2.2) surfaces every plan-time decision that would require build-time input as PB-### blockers in dev/plan-blockers.md — so /dev:build never has to prompt. Accepts a single MC task number (Task-N, Feature-N, Subtask-N), a local feature slug or folder path, the internal FEAT-<AREA>-NN id, or a multi-target form — an MC List name, initiative=<name>, or --all — which fans out across every matching feature in parallel. Runs 4 stages: identity resolution → code-context readiness → implementation preparation → development planning + blocker detection. With --resume: if a task has an OPEN dev/plan-blockers.md, folds every filled Resolution: field into implementation.md §1-§9 + registers deterministically per category, logs each fold as a DEC-###, and moves the task from BLOCKED_ON_PLAN to PLANNED. Two parallelism axes: across features (bounded by --concurrency, default 5) and within a feature (per-sub-task compose + per-task planning). One consolidated user checkpoint after stage 1 to confirm the split for every targeted feature. Failure of one feature never halts the batch — failed features report at the end with escalations or plan-blockers. Never merges, never runs code — leaves each task at status PLANNED for /dev:build (or BLOCKED_ON_PLAN awaiting user resolution)."
-argument-hint: "<task-number | Task-N | slug | features/<slug> | tasks/<slug>.md | FEAT-<AREA>-NN | list=<name> | initiative=<name> | --all | (blank = next READY task)> [--split | --no-split] [--resume] [--dry-run] [--concurrency=N]"
+description: "Just-in-time planning for one or many tasks. Verifies the technical context graph is current (auto-runs /tl:plan if missing), decides whether each task needs sub-tasks (multi-repo → one sub-task per repo, single-repo or bug/story → parent alone), composes each sub-task's Description + Implementation and creates them in Mission Control, writes the local development plan, and (v2.2) surfaces every plan-time decision that would require build-time input as PB-### blockers in dev/plan-blockers.md — so /dev:build never has to prompt. Accepts a single MC task number (Task-N, Feature-N, Subtask-N), a local feature slug or folder path, the internal FEAT-<AREA>-NN id, or a multi-target form — an MC List name, initiative=<name>, or --all — which fans out across every matching feature in parallel. Runs 4 stages: identity resolution → code-context readiness → implementation preparation → development planning + blocker detection. With --resume: if a task has an OPEN dev/plan-blockers.md, folds every filled Resolution: field into implementation.md §1-§9 + registers deterministically per category, logs each fold as a DEC-###, and moves the task from BLOCKED_ON_PLAN to PLANNED. Two parallelism axes: across features (bounded by --concurrency, default 5) and within a feature (per-sub-task compose + per-task planning). One consolidated user checkpoint after stage 1 to confirm the split for every targeted feature. Failure of one feature never halts the batch — failed features report at the end with escalations or plan-blockers. Never merges, never runs code — leaves each task at status PLANNED for /dev:build. Blockers are asked in the conversation as they arise — answered ones fold and the task plans on; only deferred ones land at BLOCKED_ON_PLAN for /dev:resolve later."
+argument-hint: "<task-number | Task-N | slug | features/<slug> | tasks/<slug>.md | <any-task.md> | "<plain description>" | FEAT-<AREA>-NN | list=<name> | initiative=<name> | --all | (blank = next READY task)> [--split | --no-split] [--resume] [--dry-run] [--concurrency=N]"
 ---
 
 # /dev:plan
@@ -101,6 +101,16 @@ Routing is deterministic at every step — no prompt. A target resolved here rea
 
 **Do not route on `metadata.source` or `aiGenerated`.** Every plugin push stamps `source: "ai"` — `/jetrix:push feature` and `/jetrix:push task` alike — so it separates *plugin-pushed* from *typed-into-MC*, which is not the question being asked here. A bug pushed by the plugin is still a bug.
 2. **Local slug or folder path** — match against `features/<slug>/`, read `feature.md` frontmatter → `(feature_id, jetrix_task_object_id, jetrix_task_number)`. A path or slug matching `tasks/<slug>.md` instead resolves to the **non-feature track** (§2f), reading `task_type` from that file's frontmatter.
+2a. **Any other `.md` path — adopt it.** A markdown file outside `features/` and `tasks/` is a task someone wrote by hand. Do not refuse it and do not make them learn the convention first:
+
+   - Derive the slug from the filename, or from the H1 where the filename is generic (`notes.md`, `task.md`, `untitled.md`).
+   - Infer `task_type` from the content — steps-to-reproduce reads `bug`, "as a … I want" reads `story`, otherwise `task`. **State the inferred type in one line** so it can be corrected.
+   - **Copy** it to `tasks/<slug>.md` with the frontmatter the non-feature track needs, and **leave the original where it is.** It is the author's input, not ours to relocate — moving it breaks their open editor tab and loses the thing they typed.
+   - Write **no** `jetrix_task_object_id` or `task_object_id`. The adopted task is local until `/jetrix:push task <slug>` is run deliberately; minting an id here would create a duplicate ticket on the first push.
+   - `tasks/<slug>.md` already exists → **stop and ask.** Never overwrite someone else's task.
+
+   Then continue on the non-feature track (§2f) exactly as a pulled ticket would. Thin content is fine — a missing required input becomes a `PB-###` and `/dev:resolve` walks it.
+
 3. **Internal `FEAT-<AREA>-NN`** — grep `features/*/feature.md` frontmatter for the id.
 4. **Blank** — call `task-mcp.feature_list_bundle(solution_id, status='readyForDev')` → pick first (or picker if many). Fallback: scan `features/*/status.md` for `current_state: PLANNED` if MC unavailable. Also offer any local `tasks/<slug>.md` not yet planned (no `tasks/<slug>/dev/status.md`) — a hand-filed ticket is a legitimate next target, and `feature_list_bundle` cannot see one because it filters to `taskType="feature"`. List both groups labelled, and ask when there is more than one candidate.
 
@@ -110,7 +120,43 @@ For **multi-target** forms:
 6. **`initiative=<name>`** — grep `features/*/feature.md` frontmatter for `initiative: <arg>` → N targets. Cross-check with MC via `feature_list_bundle` to catch features not yet local (feeds §2c).
 7. **`--all`** — call `task-mcp.feature_list_bundle(solution_id, status='readyForDev')`; combined with `initiative=<name>`, take every feature in that initiative regardless of status.
 
-Any unresolvable input → halt with the 5 nearest slugs / task numbers.
+**Free text — take it as the task.** An argument that matches nothing above and reads as prose rather than an identifier — it contains spaces, has no `/` or `.md`, and is not a `Task-N` / `FEAT-` form — is someone describing what they want. `/dev:plan "login page design, we want it animated"` is the most natural thing to type and must not be answered with a list of unrelated slugs.
+
+Treat it exactly as §2a treats an adopted file, with one addition: **confirm before writing.** A path is something the user already made; a description is not, so say what you are about to create and let them correct it in one line — the slug you derived, the `task_type` you inferred, and the path you will write:
+
+```
+Creating tasks/login-page-animation.md  ·  task_type: task
+  "login page design, we want it animated"
+Planning from there — say the word if the slug or type is wrong.
+```
+
+Then continue on the non-feature track (§2f). A one-line description is thin by design: the inputs it lacks become `PB-###` and are asked in this same conversation, so typing a sentence and answering a few questions is a complete path from idea to plan.
+
+Any input that is neither of these and still resolves to nothing → halt with the 5 nearest slugs / task numbers.
+
+### 2a.1. Locate the work before planning it (unit-less targets)
+
+A target created from a description or an adopted file carries **no `related_pages` / `related_apis` / `related_entities`**, so Stage 1's detection — which reads those from `feature.md` — has nothing to resolve and is skipped. Planning then runs on the sentence alone, and a plan that cannot name the file it changes is a guess.
+
+Resolve the surfaces from the graph first — that is what it is for, and one index read beats searching every file:
+
+1. **`context/code-context/` layer indexes**, where the repo has been mapped. A semantic index exists so the right unit is found without opening every file; one read gives you `PAGE-AUTH-01` and the files it cites. This is the fast path and should almost always hit.
+2. **`.jetrix/connection-map.md`**, to pick the right repo first on a multi-repo solution before searching inside it.
+3. **No code-context for the area → a blocker, not a grep.** Mint a *missing context* `PB-###` pointing at `/tl:code-map` (`blocker-detection.md` §5.2a) and ask it in this conversation like any other. Never auto-run the map: it writes a committed tree into the product repo, which is not a side effect one sentence should cause.
+
+   This matches the non-feature track's existing rule and its reason — searching the source before the graph has said which unit owns the behaviour is how you fix the first plausible match instead of the actual cause.
+
+   **One exception:** a task that *creates* a surface which does not exist yet has no unit to find, and that is not a missing-context blocker. Say which surface is new and plan it as new.
+
+**Verify the hit, do not trust it.** A code-context unit is as-built at the commit it was generated from. Open one file it cites and confirm the thing is still there — where the repo has moved on, say the index is stale and raise it rather than planning against a unit that no longer matches the code.
+
+**Record what you resolved**, so the plan is auditable rather than assumed:
+
+```
+Resolved from code-context (index): PAGE-AUTH-01 — src/components/Home.jsx, src/components/Home.css
+```
+
+**Record it either way.** "Resolved `PAGE-AUTH-01` from the index" and "no unit owns a login page in either mapped repo — is this new, or is the map behind?" are both useful. A confident plan against a file nobody confirmed exists is not.
 
 ### 2b. Write the resolved target set
 
@@ -415,7 +461,16 @@ Blocker detection scans 6 sources:
 **Outcomes per task:**
 
 - **No blockers detected** → task proceeds to Stage 4 (compose + push).
-- **Blockers detected** → task writes `dev/<repo>-plan-blockers.md` (`status: OPEN`), sets state to `BLOCKED_ON_PLAN`, MC status `blocked`. HALT THIS task at Stage 3. Do NOT proceed to Stage 4 for this task; siblings continue independently.
+- **Blockers detected** → task writes `dev/<repo>-plan-blockers.md` (`status: OPEN`) and holds at Stage 3. Siblings continue independently.
+
+  **Then ask, rather than halting.** The file is the record, not the mechanism. Once every target in the batch has finished Stage 3, run the `/dev:resolve` loop **inline, in this conversation** — do not make the user leave and type a second command for a question you are already holding:
+
+  - Present each open `PB-###` one at a time with its options and your recommendation, grouped by target so a 7-feature batch is one pass of questions rather than seven `--resume` runs.
+  - Fold each answer as it arrives, log the `DEC-###`, and carry that target straight on to Stage 4.
+  - Re-screen the remaining blockers after every answer and **drop any the answer just settled**, saying which. One decision often closes three.
+  - A target whose blockers are all answered never enters `BLOCKED_ON_PLAN` at all — that state is for work genuinely left open, not for a question asked and answered in the same sitting.
+
+  **Deferring is one word.** Any blocker the user defers, and any target still carrying one when they stop, sets `BLOCKED_ON_PLAN` + MC `blocked` as before, with the file holding the unanswered questions. `/dev:resolve` then works exactly as it does today for the walk-away case — it stays the right command for coming back tomorrow, and stops being the price of answering now.
 
 **Batch behaviour:**
 
@@ -463,7 +518,7 @@ For each Stage-3-clean task, spawn a worker that:
 When Stage 3.5 detects blockers and halts, print (per task):
 
 ```
-✗ /dev:plan halted for <task-ref> — <N> plan-time decisions require resolution:
+✗ /dev:plan paused for <task-ref> — <N> decisions left unanswered:
 
   PB-001  <short title>              [Blocks <AC/BR/dev-plan step>]
   PB-002  <short title>              [Blocks <...>]
@@ -471,9 +526,12 @@ When Stage 3.5 detects blockers and halts, print (per task):
 Blockers file: <task-folder>/dev/<repo>-plan-blockers.md   (parent-alone: dev/plan-blockers.md)
                — the full question, options and recommendation for each PB-###
 
-Resolve them:
-  /dev:resolve --plan <task-ref>     walks each PB-### with options + a recommendation,
-                                     writes the Resolutions, then resumes the plan for you
+This block prints only for blockers you deferred, or when the run could not reach
+you. Anything answered in the conversation is already folded and planned.
+
+Pick them up later with:
+  /dev:resolve --plan <task-ref>     walks each remaining PB-### with options + a
+                                     recommendation, then resumes the plan for you
 
   or by hand:
   1. Fill in the "Resolution:" field under each PB-### in the file above
@@ -600,8 +658,8 @@ Succeeded (4):
     ↳ Subtask-12 (backend)  PLANNED   https://mission-control.techjays.com/task/6b72a6...   ✓ verified (2,301 + 30,105 chars)
     ↳ Subtask-13 (frontend) PLANNED   https://mission-control.techjays.com/task/6b72a7...   ✓ verified (2,388 + 37,220 chars)
 
-Blocked on plan (1):
-  ✗ Feature-7  Supplier Approval                     → BLOCKED_ON_PLAN (2 open blockers)
+Blocked on plan (1):                          ← deferred only; answered blockers are already folded
+  ✗ Feature-7  Supplier Approval                     → BLOCKED_ON_PLAN (2 deferred)
     ↳ Parent:               https://mission-control.techjays.com/task/6a950230...
     ↳ Blockers:             features/supplier-approval/dev/backend-plan-blockers.md
     Resolve:                /dev:resolve --plan Feature-7
@@ -617,7 +675,7 @@ Compose lint findings (WARN, non-blocking):
 Read-back verification: 11/11 pushes byte-identical (v2.3.17 §4f.i)
 
 Next:
-  · Resolve Feature-7's blockers:            /dev:resolve --plan Feature-7
+  · Pick up Feature-7's deferred blockers:    /dev:resolve --plan Feature-7
   · Start building unblocked tasks:          /dev:build Subtask-7   (Feature-4's backend)
                                              /dev:build Feature-12  (parent-alone)
     (add --skip-qa only for a change that does not justify a test harness)

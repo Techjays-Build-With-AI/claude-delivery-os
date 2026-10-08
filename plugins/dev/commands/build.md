@@ -25,7 +25,7 @@ Read the **`delivery-os-conventions`** skill first if it's not in context — th
 - Local feature folder: `features/supplier-onboarding`
 - Sub-task folder: `features/supplier-onboarding/subtask/backend`
 - Internal id: `FEAT-<AREA>-NN`
-- **Non-feature ticket**: `tasks/<slug>.md` (bug / story / task / epic planned via `/dev:plan` §2f). Its plan lives at `tasks/<slug>/dev/` — read `implementation.md`, `status.md`, and `plan-blockers.md` from there, not from `features/`. Never split: a non-feature builds in one repo, on `fix/<slug>` for a bug, `feature/<slug>` otherwise.
+- **Non-feature ticket**: `tasks/<slug>.md` (bug / story / task / epic planned via `/dev:plan` §2f). A markdown path **outside** `tasks/`, or a free-text description, has not been planned yet — say so and point at `/dev:plan <that path or description>`, which adopts it; never adopt either here, because build needs a plan. Its plan lives at `tasks/<slug>/dev/` — read `implementation.md`, `status.md`, and `plan-blockers.md` from there, not from `features/`. Never split: a non-feature builds in one repo, on `fix/<slug>` for a bug, `feature/<slug>` otherwise.
 - Blank: pick next task at `PLANNED` — scan `features/tracker.md` **and** `tasks/*/dev/status.md`. If both have candidates, list them and ask.
 
 **Flags:**

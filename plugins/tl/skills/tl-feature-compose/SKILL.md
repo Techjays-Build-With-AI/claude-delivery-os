@@ -710,7 +710,7 @@ What IS allowed: `Jest`, `Mongoose`, `Express`, `React`, `Playwright` etc. named
 - Future-consideration narratives (`revisit if that changes`, `deferred to v2`, `future decision`). Parent's Dependencies tab handles v2 levers.
 
 **§2 Impacted components — banned in row cells (compose halts):**
-- Business rationale in the impact cell. Each cell states the CONCRETE impact (files changed, artefact added, `N/A — <specific reason>`) — never the WHY of that impact.
+- Business rationale in the impact cell. Each cell states the CONCRETE impact (files changed, artefact added) — never the WHY of that impact.
 
 **§4 Stored data changes — banned:**
 - Business-rule enforcement narrative: `"is_removed=false enforces BR-1 by making removed rows invisible to the uniqueness check"`. The BR link belongs in §1 Build sequence Satisfies column (the canonical coverage owner per v2.3.16). §4 states the shape (`partial unique index on (date) where is_removed=false`) without the WHY.
@@ -749,7 +749,7 @@ What IS allowed: `Jest`, `Mongoose`, `Express`, `React`, `Playwright` etc. named
 | Section | Target | Max | Density mandate |
 |---|---|---|---|
 | §1 Build sequence | 1 400 | 2 200 | Intro para 3 lines max + step table (rows 1 line each, no cell wrapping) + mermaid step-graph. No commentary between step and mermaid. |
-| §2 Impacted components | 1 000 | 1 800 | ONE row per dimension. Each row is ONE sentence naming the concrete impact + the file/module. `N/A — <specific reason>` per Rule 11.12; bare N/A halts. No sub-bullets under matrix rows. |
+| §2 Impacted components | 1 000 | 1 800 | ONE row per AFFECTED dimension — unaffected dimensions are omitted, not written as N/A (Rule 11.12). Each row is ONE sentence naming the concrete impact + the file/module. No sub-bullets under matrix rows. |
 | §3 Operations exposed and consumed | 4 500 | 9 000 | Per operation: inputs table + payload JSON + order-of-checks table + refusals table + one-line invariants. NO narrative paragraphs describing what tables already say. Consumer §3 uses the SAME tables byte-for-byte (Rule 11.6); it does not paraphrase. If §3 grows past max, sub-task owns too many operations — split. |
 | §4 Stored data changes | 900 | 1 800 | Fields-written table + one-line "Never touched" + one-line index declaration + one-line declaration hazards. Migration block per Rule 11.10a only when store has live rows. `None.` closes §4 at ~10 chars for sub-tasks without persistence. |
 | §5 User-facing surfaces | 3 500 | 6 000 | Where-it-lives 3 lines + hierarchy tree + operation-wiring table + per-surface heading × (props table / state table / effects one line / rendered-states one line / control table / on-success one line / on-refusal one line / refusal-placement table) + service-layer one paragraph max 6 lines. NO paragraphs describing what tables already list. `None.` closes §5 for backend/job-only sub-tasks. |
@@ -1005,11 +1005,12 @@ Earlier drafts had a `§7 Coverage` table restating every parent AC/BR/TS with t
 
 **What §7 Risks and rollback mitigations reference now (v2.3.16):** ID + tier, never a specific test file. Example: `Covered by AC-1 + BR-3 at Unit + Integration tiers (per qa/quality-gates.md backend pool)`. The actual test file and test name live in `dev/acceptance-map.md` at build time.
 
-**Rule 11.12 — Every `§2` row is substantive; bare `N/A` is a compose halt (v2.3.9 format fix).** "N/A" without a 1-line reason is unfalsifiable — the reader can't tell "N/A because carefully considered and doesn't apply" from "N/A because forgot to think about it". Every row now requires one of these shapes:
+**Rule 11.12 — `§2` lists only the dimensions the task affects.** A plan whose impact matrix is mostly `N/A` buries the four rows that matter among nine that say nothing. Omit the dimension instead.
 
-- **`N/A — <specific reason this dimension does not apply>`** — 1-line justification. Reasons must be specific: "N/A — no data objects in this repo", not bare "N/A". "N/A — no queue system exists in this repo" not "N/A — no jobs". "N/A — no monitoring framework to extend" not "N/A — none".
-- **`<real impact statement>`** — a described impact, per Rule 11.10's shape adapters (Migration Plan block for altered collections; Message Contract block for queues; etc.)
-- **Either always beats a bare N/A.** Compose halts on any row where the impact cell is exactly `N/A` (no dash, no reason).
+- **Affected → one row, a real impact statement** naming the concrete change and the file/module, per Rule 11.10's shape adapters (Migration Plan block for altered collections; Message Contract block for queues; etc.).
+- **Unaffected → no row at all.** Do not write `N/A`, with or without a reason.
+- **Consider every dimension; write only the ones that landed.** Walking all twelve is still the job — the table records the outcome, not the walk.
+- **One exception, and state it in the row:** where a dimension would normally be affected by work of this shape and deliberately is not — an auth change that leaves authz untouched by decision, a schema change with no migration — keep the row and say why. Its absence would read as an oversight.
 
 Two rows that both look like "N/A" but say very different things:
 
@@ -1158,7 +1159,7 @@ Detected shapes + mandatory sub-sections:
 
 - `§2` Monitoring row must not be a 1-line "log the error" — must state the observation contract (event name / correlation id / retention / where it lands / who alerts on it).
 
-**The general principle behind these adapters:** an "N/A" row in `§2` is a CLAIM (this dimension does not apply) that must be defended by the same rigor as a non-N/A row. Silent N/A → the plan is unmoored to the reader. Every N/A row in `§2` must include a 1-line justification for why the dimension doesn't apply to THIS sub-task specifically ("N/A — no data objects in this repo", NOT bare "N/A"). Compose halts if any `§2` cell is bare N/A.
+**The general principle behind these adapters:** a `§2` row is a CLAIM about a concrete change, and must be defended with the file, module or artefact it names. A dimension with nothing to claim is left out of the table rather than asserted as `N/A` — the adapters below say what a row must contain when it IS present.
 
 **Rule 11.8 — Cross-sub-task interconnection is VERIFIED before write (v2.3.6).**
 
