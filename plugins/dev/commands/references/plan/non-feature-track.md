@@ -199,6 +199,16 @@ The push is a full-field update: `task_upsert_bundle` replaces each tab it sends
 - `--dry-run` → compose and write locally, touch nothing in Mission Control.
 - The push is refused as a stale write (someone edited the ticket in MC since your last pull) → leave the local work in place, report the conflict, and tell the user to `/jetrix:pull task <n>`, reconcile, and re-push. Never force it.
 
-**Never split a non-feature into sub-tasks.** `bug`, `story`, and `subtask` are in MC's `PLANNING_NOT_REQUIRED_TYPES`; a bug is a point fix. Plan the parent alone and skip the split confirmation checkpoint for these targets — there is nothing to confirm.
+**Split only where the type allows it and the work spans repos.** `bug`, `story` and `subtask` are in MC's `PLANNING_NOT_REQUIRED_TYPES` — a bug is a point fix, so plan the parent alone whatever it touches, and skip the split confirmation checkpoint. `task` and `epic` are **not** in that list, and `implementation-preparation.md`'s split table already sanctions splitting them at `repos ≥ 2`; follow it here too.
+
+| `task_type` | Repos touched | Result |
+|---|---|---|
+| `bug` · `story` · `subtask` | any | parent alone — a point fix by definition |
+| `task` · `epic` | 1 | parent alone — nothing to split across |
+| `task` · `epic` | ≥ 2 | **split, one sub-task per repo** — same shape a feature gets |
+
+**Where the repo set comes from.** A non-feature owns no context units, so the feature track's derivation (union of owned units' `Source Reference` paths) has nothing to read. Use the surfaces `/dev:plan` §2a.1 resolved instead: those are file paths, and file paths resolve against `.jetrix/cache/repolocation.json` to a set of repo slugs. Unresolved surfaces → no repo set → plan the parent alone and say the split was not assessable.
+
+A small change that happens to touch two repos is common, and it was previously forced into one.
 
 **Push only the tabs the type owns.** From `TASK_TYPE_TAB_CONFIG`: every type carries Description and Implementation; `bug` adds Steps to Reproduce, Actual Result and Expected Result; only `epic` and `story` carry Scope. Sending a key the type does not own writes content the MC UI never renders, so the work looks saved and is unreachable. `task_upsert_bundle` drops out-of-type tabs server-side and returns `dropped_tabs` + a `warning` — treat either as a compose bug on our side, not as a normal outcome, and report it in the run summary.

@@ -25,9 +25,13 @@ Every `SQ-###` carries a `status` (controlled values):
 
 - **Round 1** is the initial `/ba:review`: all questions `Open`.
 - Each `/ba:resolve` is the **next round**: a new timestamped report whose `priorReview` points back to the report being resolved. Questions carry forward **by their stable `SQ-###` ID** (append-only), so SQ-004 in round 2 is the same item as SQ-004 in round 1 — only its status and resolution thread change.
-- The `<timestamp>` (the `reviewId`) is the **join key**: a responses file names the review it came from, and `/ba:resolve` matches it to that review's `.json`. New questions discovered during resolution get fresh IDs continuing the sequence.
+- The `<timestamp>` (the `reviewId`) is the **join key**: a responses file names the review it came from, and `/ba:resolve` matches it to that review's `.json`. New questions discovered during resolution get fresh IDs continuing the sequence. **When the loop is being run conversationally, ask them in that same sitting** rather than carrying them to the next round — the user is present and holding the context that raised them. Only a deferral carries a question forward.
 
 ## 3. The responses file (input to `/ba:resolve`)
+
+**Where the responses come from.** Two sources, same file. The HTML export is one. The other is `/ba:resolve` run with no argument, which asks the open questions in the conversation and writes the file itself.
+
+**If you are asking rather than reading, the prompt must stand alone.** Resolve every id to the thing it names — *the use case "Remove an employee from a project"*, never `UC-07`; keep ids in the record, out of the prompt. Give a concrete example with real names and numbers. Say in words what was already checked and that it did not answer. Offer the realistic options where there is a small known set. A prompt that needs the scope document open beside it is a reference, not a question.
 
 The HTML report's **"Export responses"** button generates this Markdown and downloads it pre-named `scope-review-<reviewId>-responses.md`. The author can also hand-write or edit it. Format:
 

@@ -39,7 +39,7 @@ Structure (do not reorder, do not drop headings):
 1. **Cover block** — Project, Client, Version, Date, Status (Draft / In Review / Approved).
 2. **§1 Scope Statement** — one or two sentences defining the delivery boundary.
 3. **§2 Module Breakdown** — `| Module | One-line purpose | Specified in §3? |`. Decompose the business into modules (typical set: Intake, Processing, Validation, Approval, System Updates, Exception Handling, Reporting, Admin, Integrations).
-4. **§3 Module Requirements** — one `### 3.x Module: <Name>` sub-section **per module**, each with all eleven sub-headings, even if "None":
+4. **§3 Module Requirements** — one `### 3.x Module: <Name>` sub-section **per module**, carrying the sub-headings that apply to that module. **Omit one that does not** — do not write `3.x.6 AI / Automation — None` on a module with no model in it, or `3.x.9 Integrations — none` on one that calls nothing. An empty heading is not evidence it was considered; it is a line the reader has to skip, and on a module with four real dimensions the other seven bury them. Walk all eleven, write the ones that landed. Where a dimension would normally apply to work of this shape and deliberately does not — a module touching auth that leaves authz alone by decision — keep it and say why, because there its absence would read as an oversight.
    - 3.x.1 Current → Future State (current = actors/triggers/systems/manual steps/pain points; future = AI/deterministic/human split) — cite sources.
    - 3.x.2 In Scope / Out of Scope.
    - 3.x.3 **Module Master Flow** — a one/two-line narrative + a Mermaid `flowchart` of the whole journey and its **branch points**; each branch names the use case (§3.x.4) it leads to, so the master flow and the use cases stay 1:1.
