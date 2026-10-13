@@ -74,6 +74,10 @@ This is the JSON injected into `assets/report.html` at the `__REVIEW_DATA__` tok
       "consequence": "estimate",
       "checkedIn": ["§3.1.1–3.1.9", "§6 Global out-of-scope", "ba/registers/assumptions.md", "ba/registers/examples.md"],
       "suggestedScope": "In §3.1.3 list the supported methods with Resp./Pri.; if email/password, add verification + password policy + lockout; reconcile with EX-004.",
+      "instances": [
+        { "at": "AUTH-UC-01", "section": "§3.1.4", "form": "first-time sign-in" },
+        { "at": "AUTH-UC-03", "section": "§3.1.4", "form": "re-authentication after session expiry" }
+      ],
       "status": "Open",
       "answeredBy": null,
       "authorResponse": null,
@@ -120,7 +124,8 @@ Field rules:
 - `dimension` on a question is one of the nine coverage keys (or omit) — used to tag which sub-heading the gap sits in.
 - `checkedIn` is a **required** list of the places searched for the answer before the question shipped — the feature's own §3.x sub-headings, the global §6, and whichever registers were consulted (see `SKILL.md` step 6). A question whose answer is found during that search is dropped, not recorded; so an empty list means the search wasn't done.
 - `consequence` is **required** and controlled: `"estimate"` · `"scope"` · `"integrations"` · `"compliance"` · `"none"` — what changes if the question stays unanswered. It is the evidence behind `severity`: a `Blocker` or `Major` cannot carry `"none"`, and a `"none"` question is a `Nit` at most. `whyItMatters` stays the prose explanation; `consequence` is the machine-checkable claim underneath it.
-- **Backward compatibility** — reviews written before these fields exist will lack `coverageScore`, `cap`, `checkedIn` and `consequence`. Readers (the HTML, `/ba:resolve`) must treat them as absent rather than erroring, and must not back-fill them by guessing: an old review's score was judged, not derived, and inventing a `coverageScore` for it would assert a derivation that never happened.
+- `instances` is **optional** and lists every *other* place the same gap bites when questions were merged during the gate's dedup step — each with `at` (the use-case or module id), `section` (the §3.x it sits in) and `form` (the one-line shape it takes there). It exists so three things can happen that a silent merge makes impossible: `/ba:resolve` can **show** the answerer that one answer settles several places, it can offer to **split** a merge that was wrong, and the resolution can **edit every listed section** rather than only the one the question was filed under. Absent or `[]` means the question was found in one place. A merged question keeps the surviving id; the swallowed ids are never reused.
+- **Backward compatibility** — reviews written before these fields exist will lack `coverageScore`, `cap`, `checkedIn`, `consequence` and `instances`. Readers (the HTML, `/ba:resolve`) must treat them as absent rather than erroring, and must not back-fill them by guessing: an old review's score was judged, not derived, and inventing a `coverageScore` for it would assert a derivation that never happened.
 
 ## 2. Injecting into the HTML
 

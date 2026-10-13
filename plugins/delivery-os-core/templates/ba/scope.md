@@ -39,6 +39,24 @@ conforms_to: "Techjays D&D — 02 Scope Document Template"
 
 ---
 
+## 0. What We Understand This To Be
+
+> ✎ Half a page, in plain language, before any structure. Written first and read first — this is the cheapest place in the engagement for the client to say "no, that is not it".
+> ✎ Cover: the business problem in the client's own framing · who it is for · what changes when it ships · the three or four facts everything else rests on · what we are still unsure of, in words rather than ids.
+
+[The problem, as they describe it.]
+
+**This is for:** [who]
+**When it ships:** [what is different]
+
+**Everything below rests on these:**
+1. [foundational fact]
+2. [foundational fact]
+
+**We are not yet sure of:** [plain-language uncertainties — the detailed questions live in §7 / the clarification log]
+
+---
+
 ## 1. Scope Statement
 
 > ✎ One or two clear sentences defining the boundary of what is being delivered.
@@ -180,6 +198,25 @@ flowchart TD
 > ▸ Ask the client: Where are you comfortable letting AI act automatically, and where must a person sign off?
 
 [e.g. AI extracts and classifies; deterministic logic enforces business rules and posts to systems of record; humans approve anything below the confidence threshold or above a value threshold.]
+
+---
+
+## 4b. Global Non-Functional Requirements & Constraints
+
+> ✎ Cross-cutting statements that belong to no single module — and are otherwise dropped on the floor. One row each, as stated.
+> ▸ Ask the client: anything here left blank that matters to them.
+
+| Area | Statement (as given) | Source | Confirmed / Assumed |
+|---|---|---|---|
+| Device & browser reach | [e.g. "must work on mobile"] | [SRC-### › …] | |
+| Language & locale | [languages, date / decimal format] | | |
+| Data residency & retention | [where data lives, how long] | | |
+| Volume & concurrency | [records, peak users] | | |
+| Availability | [hours, maintenance windows] | | |
+| Accessibility | [standard, if any] | | |
+| Regulatory | [constraints that bind the build] | | |
+
+> ✎ Delete a row the sources genuinely carry nothing for; keep one that matters and is unanswered, and raise it as a question.
 
 ---
 

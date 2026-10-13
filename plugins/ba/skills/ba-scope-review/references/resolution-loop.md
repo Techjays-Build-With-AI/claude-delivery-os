@@ -82,18 +82,33 @@ Write a short **adjudication rationale** for every decision — one or two sente
 
 ## 5. Promote the answer into the scope and registers (the BA-specific step)
 
-A scope review exists to **improve the scope**, so closing a question means putting the answer where it belongs — not just marking it done in the report. For each terminal question, give the **concrete scope edit** and promote it (only when a Delivery OS workspace exists):
+A scope review exists to **improve the scope**, so closing a question means putting the answer where it belongs — not just marking it done in the report.
 
-- **`Resolved` (confirmed fact)** → state the exact edit to `ba/scope.md` (which §3.x sub-heading, what text), and append a `DEC-###` row to `shared-context/decision-log.md`. Set the question's `decisionId`.
-- **`Accepted-assumption`** → add an `ASM-###` row to `ba/registers/assumptions.md` (assumption, reason, risk, validation needed) — this is the RAID Assumptions `A-##` feed — and reference it from scope §7. Note the edit to the relevant §3.x.
-- **`Needs-verification` / still `Open`** (must-close items) → ensure a `CLR-###` exists in `ba/logs/clarifications.md` (the RAID Open-Questions `Q-##` feed) carrying the follow-ups, so the open question lives in the BA's own tracking, not only in the review.
-- **`Won't-fix` / deferred** → record it as out-of-scope/phase-2 in scope §6 or the relevant §3.x.2, and log the decision (`DEC-###`) so the deferral is auditable.
+**Apply the edit. Do not recommend it.** Where a workspace exists, `/ba:resolve` **writes to `ba/scope.md`** — it opens the §3.x sub-heading the answer belongs in and edits the text there, the same way it appends to the registers. A round that produces a tidy list of edits nobody makes leaves the scope exactly as wrong as it was, and the next `/ba:review` re-raises every question that was already answered. The report records what was changed; it is not a substitute for changing it.
+
+For each terminal question (only when a Delivery OS workspace exists):
+
+- **`Resolved` (confirmed fact)** → **edit `ba/scope.md`** at the owning §3.x sub-heading so it states the confirmed fact, and append a `DEC-###` row to `shared-context/decision-log.md`. Set the question's `decisionId`. Where the answer adds a rule, a field or a route, it lands in the register that owns it too — `business-rules.md`, `data.md`, `use-cases.md` — not in §3.x alone.
+- **`Accepted-assumption`** → add an `ASM-###` row to `ba/registers/assumptions.md` (assumption, reason, risk, validation needed) — this is the RAID Assumptions `A-##` feed — reference it from scope §7, and **write the assumed behaviour into the relevant §3.x marked as assumed**, so the build has something to build against and the reader can see what it rests on.
+- **`Needs-verification` / still `Open`** (must-close items) → ensure a `CLR-###` exists in `ba/logs/clarifications.md` (the RAID Open-Questions `Q-##` feed) carrying the follow-ups, so the open question lives in the BA's own tracking, not only in the review. The scope is **not** edited for these — an unverified answer is not a fact.
+- **`Won't-fix` / deferred** → **write it** into scope §6 or the relevant §3.x.2 as out-of-scope / phase-2, and log the decision (`DEC-###`) so the deferral is auditable.
+
+**A question with instances is edited at every instance.** One answer, three sections — `TIME-UC-04`, `TIME-UC-07` and `PAY-UC-02` all get written, not just the one the question was filed under. Editing one and closing all three is how a scope ends up contradicting itself while reporting that everything was resolved.
+
+**Report every file you touched**, with the section edited, in the round summary, and name each instance closed:
+
+```
+SQ-012 answered — closed 3 instances.
+Scope edited: §3.2 TIME-UC-04 · §3.2 TIME-UC-07 · §3.5 PAY-UC-02
+```
+
+A promotion claimed and not made is worse than one not attempted.
 
 **Then sweep for stale references.** Promoting the answer fixes the place the gap lived; it does not fix every *other* place that mentioned the open question. Before the round is written, search the scope and registers for the closed id (`CLR-###`, `SQ-###`, `OQ-###`) and for phrases that assumed it was still open — "pending CLR-014", "to be confirmed", "not yet decided" — and update or delete each one. Also re-check any status line or build-state claim the answer invalidates.
 
 A scope that says *"pending CLR-014"* underneath a section recording CLR-014's answer reads as though nobody checked, and it undermines the parts that are correct. This is the cheapest possible defect to prevent and one of the most visible to a client.
 
-Baking the answer into `scope.md` is what actually closes the gap — a later `/ba:review` of the updated scope should then find nothing. Use the `DEC-###` / `ASM-###` / `CLR-###` id formats from `delivery-os-conventions` (append-only). If there's no workspace, skip the promotions and keep the resolution in the report only (note that the edits still need applying).
+Baking the answer into `scope.md` is what actually closes the gap — a later `/ba:review` of the updated scope should then find nothing. Use the `DEC-###` / `ASM-###` / `CLR-###` id formats from `delivery-os-conventions` (append-only). **Only when there is no workspace** do the edits stay in the report as a list for someone else to apply — say so explicitly in the summary, so a reader never mistakes a pending list for an applied one.
 
 ## 6. Re-score and recompute the verdict
 

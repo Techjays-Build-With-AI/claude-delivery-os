@@ -2,7 +2,7 @@
   "template_id": "scope-document",
   "display_name": "Techjays D&D — Scope Document",
   "doc_type": "scope",
-  "template_version": "1.0.0",
+  "template_version": "2.0.0",
   "schema_version": "1.1",
   "file": "scope-document-template.docx",
   "format": "docx",
@@ -13,14 +13,16 @@
   "rendered_by": "doc-agent (planned)",
   "conforms_section_order": [
     "Cover block",
+    "0. What We Understand This To Be",
     "1. Scope Statement",
     "2. Module Breakdown",
     "3. Module Requirements",
     "4. AI vs. Deterministic Responsibility Split",
+    "4b. Global Non-Functional Requirements & Constraints",
     "5. User Roles & Permissions",
     "6. Global Out-of-Scope",
     "7. Assumptions & Dependencies",
     "8. Approval & Scope Freeze"
   ],
-  "last_updated": "2026-06-18"
+  "last_updated": "2026-10-12"
 }

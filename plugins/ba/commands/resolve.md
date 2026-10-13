@@ -21,7 +21,28 @@ You are running a **resolution round** on a scope review: the author has answere
 
 ### 1a. Asking the questions (no-argument path)
 
-Everything needed to pose a question is already in the review `.json`: `id`, `severity`, `feature`, `dimension`, `question`, `whyItMatters`, `consequence`, `checkedIn`, `suggestedScope`, `status`.
+Everything needed to pose a question is already in the review `.json`: `id`, `severity`, `feature`, `dimension`, `question`, `whyItMatters`, `consequence`, `checkedIn`, `suggestedScope`, `instances`, `status`.
+
+**Show the instances when a question carries them.** A question merged from several occurrences lists where it bites, so the answerer can see that one answer settles three places rather than treating it as an isolated detail:
+
+```
+SQ-012  ·  Blocker  ·  Timesheet — allocations
+
+When someone is removed from a project after logging hours against it,
+what happens to those hours and that row — including in weeks already
+submitted?
+
+Same scenario in 3 places — one answer settles all three:
+  · TIME-UC-04   removed mid-week, week not yet submitted
+  · TIME-UC-07   removed after submission, before approval
+  · PAY-UC-02    removed after payroll has pulled the week
+
+  1 · Hours stay, row locks        2 · Hours move to unallocated
+  3 · type your own                 d · defer
+  s · these are not the same — split them
+```
+
+**Offer `s` on every question that has instances.** A merge made during extraction is a judgement, and the person answering is the one who can tell it was wrong. On `s`, split the instances back into separate ids, ask them one at a time, and say which. Without it a bad merge is permanent and invisible — the swallowed question does not exist anywhere to be found again.
 
 **Also take the open `CLR`s** marked `answerable: here` from `ba/logs/clarifications.md`, and interleave them with the `SQ-###` by severity — to the person answering they are one list, not two passes. `/ba:scope` deliberately wrote them without asking; this is where they get asked.
 
@@ -106,10 +127,10 @@ Already checked: the scope's allocation section and that use case, the
 
 Invoke the **ba-agent** subagent with the responses-file path — the one given as an argument, or the one §1a just wrote from the conversation. By this point the two paths are identical: the subagent only adjudicates a completed file. Pass it this instruction:
 
-> Run a scope-review resolution round using the `ba-scope-review` skill — follow `references/resolution-loop.md`. Read the responses file at `<path>`, take its `source_review` reviewId, and load the matching `scope-review-<reviewId>.json` (the prior review state) from the same folder. For each question that received an answer, **adjudicate** it: set status to `Resolved`, `Accepted-assumption`, `Needs-verification` (with 1–3 specific follow-up questions), `Won't-fix`, or leave it `Open` — with a one-line rationale each. Be skeptical: require specifics, don't close on vague assurances. For every terminal question, give the **exact scope edit** (which §3.x sub-heading, what text) and, when a workspace exists, promote it: confirmed facts → `shared-context/decision-log.md` (`DEC-###`) and the scope; accepted assumptions → `ba/registers/assumptions.md` (`ASM-###`, RAID A-##); still-open must-close items → `ba/logs/clarifications.md` (`CLR-###`, RAID Q-##). Carry all questions forward by their stable `SQ-###` IDs, update each feature's coverage map, and recompute the feature scores and the scope-readiness verdict (a resolved Blocker lifts the cap; note residual risk for accepted assumptions). Then write a **new review round** — fresh timestamped `.html` / `.md` / `.json`, with `round` incremented and `priorReview` set to the resolved reviewId — and return a summary of the movement.
+> Run a scope-review resolution round using the `ba-scope-review` skill — follow `references/resolution-loop.md`. Read the responses file at `<path>`, take its `source_review` reviewId, and load the matching `scope-review-<reviewId>.json` (the prior review state) from the same folder. For each question that received an answer, **adjudicate** it: set status to `Resolved`, `Accepted-assumption`, `Needs-verification` (with 1–3 specific follow-up questions), `Won't-fix`, or leave it `Open` — with a one-line rationale each. Be skeptical: require specifics, don't close on vague assurances. For every terminal question, **apply the scope edit** — edit `ba/scope.md` at the owning §3.x sub-heading, do not merely describe the edit — and, when a workspace exists, promote it: confirmed facts → `shared-context/decision-log.md` (`DEC-###`) and the scope; accepted assumptions → `ba/registers/assumptions.md` (`ASM-###`, RAID A-##); still-open must-close items → `ba/logs/clarifications.md` (`CLR-###`, RAID Q-##). Carry all questions forward by their stable `SQ-###` IDs, update each feature's coverage map, and recompute the feature scores and the scope-readiness verdict (a resolved Blocker lifts the cap; note residual risk for accepted assumptions). Then write a **new review round** — fresh timestamped `.html` / `.md` / `.json`, with `round` incremented and `priorReview` set to the resolved reviewId — and return a summary of the movement.
 >
 > Responses file: `<path>`
 
 ## 3. Surface the result
 
-When the agent returns, present the **round summary**: how many questions were Resolved / Accepted-as-assumption / Needs-verification (list the follow-ups the author still needs to answer) / still Open, the score and verdict movement (e.g. "3.4 → 6.2, Significant gaps → Estimate with caveats"), which scope edits were applied, and any `DEC`/`ASM`/`CLR` rows logged. Link to the new round's `.html` (interactive) and `.md`. If items still need verification, tell the user to answer the follow-ups in the new report and export again.
+When the agent returns, present the **round summary**: how many questions were Resolved / Accepted-as-assumption / Needs-verification (list the follow-ups the author still needs to answer) / still Open, the score and verdict movement (e.g. "3.4 → 6.2, Significant gaps → Estimate with caveats"), which scope edits were **applied** (naming each file and section actually written — and, if there is no workspace, saying plainly that the edits are pending, not applied), and any `DEC`/`ASM`/`CLR` rows logged. Link to the new round's `.html` (interactive) and `.md`. If items still need verification, tell the user to answer the follow-ups in the new report and export again.

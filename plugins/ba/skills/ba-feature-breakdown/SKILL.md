@@ -5,6 +5,9 @@ description: Convert a scope document and its supporting discovery artifacts int
 
 # BA Feature Breakdown (scope → implementation-ready features)
 
+**The gate is shared.** `ba-extraction`'s **question gate** is the single bar for every question type — `CLR`, `SQ` and `OQ` alike. Apply it here too: search and record `checkedIn`, name the `consequence`, drop anything a different answer would not change, and reuse an existing id where the gap is already open. A gap found twice is one question, not two.
+
+
 You are turning an approved (or emerging) **scope** into the **implementation context** a build team needs before it writes a line of code. The scope answers *what the business wants*; the feature breakdown answers *what gets built, why, for whom, how the journey works, and what's still unknown* — decomposed into features a developer, tech lead, QA engineer, or coding agent can pick up **one folder at a time** and understand without re-reading the whole scope.
 
 The defining behaviour of this skill is **implementation-readiness without invention**. You break the scope into features, and for each you write down the pages, APIs, workflows, integrations, jobs, events, and data entities it implies — but only as far as the source material supports. Where the scope is silent, you do **not** guess a business rule, an API contract, a schema, or a UI behaviour; you record it as an **open question** with an owner and an impact. A feature breakdown that quietly fills gaps with plausible-sounding requirements is worse than one that leaves them visible, because the invented requirement gets built.

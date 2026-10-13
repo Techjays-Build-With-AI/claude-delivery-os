@@ -15,7 +15,7 @@ A good review is **specific and actionable**. "The login feature is underspecifi
 
 This skill produces a **Delivery OS artifact**. Read the **`delivery-os-conventions`** contract first if it isn't already in context (frontmatter standard, stable-ID rules, controlled vocabulary, the RAID-alignment rule). It also tells you what the scope document is *supposed* to contain — you review against the **Techjays D&D Scope Document Template** (module-centric, eleven sub-headings per module, including a **§3.x.3 Master Flow** and a **§3.x.4 Use Cases** layer), which is exactly what `ba-extraction` produces. Read `ba-extraction` if the expected scope structure isn't already in context; you are grading the scope's *coverage* of the nine dimensions **and** whether every branching requirement is expanded into distinct **use cases** — one per materially-different route, each with its own explanation, flow diagram, and worked example (the route-expansion check in `references/review-rubric.md` §A). A routing requirement collapsed into a couple of business-rule rows instead of separate use cases is the classic under-specification this review exists to catch.
 
-Each review writes `scope-review-<timestamp>.md` and `.json` **always**, and `scope-review-<timestamp>.html` **when it has a reader** — when open questions are client-bound and the file is the packet you send, or when the user asks for it. The score lives in the `.json` (`overallScore`, `verdict`), so a run can report readiness without a dashboard, and `/ba:resolve` can ask its questions straight from the sidecar. The timestamped set is — `ba/reviews/scope-review-<timestamp>.html` (interactive dashboard, conditional), `scope-review-<timestamp>.md` (the Markdown artifact, frontmatter `doc_type: scope-review`, `produced_by: ba`), and `scope-review-<timestamp>.json` (the machine-readable sidecar the resolution loop reads) — so re-running a review never overwrites an earlier one and the folder keeps the full history (see step 8 for the timestamp format).
+Each review writes all three — `scope-review-<timestamp>.md`, `.json` and `.html` — **every run**. The dashboard is how a team reads the questions without being handed a markdown file, and how someone who was not in the resolution conversation catches up afterwards. The score does not depend on it — `overallScore` and `verdict` live in the `.json`, so a run reports readiness in chat either way and `/ba:resolve` asks its questions straight from the sidecar — but the questions are easier to read in the dashboard than anywhere else, so it is not conditional. The timestamped set is — `ba/reviews/scope-review-<timestamp>.html` (interactive dashboard), `scope-review-<timestamp>.md` (the Markdown artifact, frontmatter `doc_type: scope-review`, `produced_by: ba`), and `scope-review-<timestamp>.json` (the machine-readable sidecar the resolution loop reads) — so re-running a review never overwrites an earlier one and the folder keeps the full history (see step 8 for the timestamp format).
 
 If there is no Delivery OS workspace (no `ba/` and no `intake.index.md` nearby), don't block — write the files next to the document being reviewed (e.g. `<doc-dir>/scope-review-<timestamp>.{html,md,json}`) and note in the report that a workspace wasn't found. Keep the standard frontmatter in the Markdown either way; only the file *location* changes.
 
@@ -82,19 +82,12 @@ For every feature, check the relevant **examples (EX-###)** from the example-reg
 A scope that looks complete but can't satisfy a real example the client handed you is *not* complete. Treat example conflicts as first-class gaps.
 
 ### 6. Screen every question before it counts
-A question that the scope already answers is not a gap — it is a reading error, and it costs the author trust in every other question in the report. Screen the full list **before** scoring, because a dropped question must also clear the deduction it caused.
+Run every candidate question through `ba-extraction`'s **question gate** — search and record `checkedIn`, set `consequence`, drop what a different answer would not change, and reuse an existing id for a gap already open. Screen the full list **before** scoring.
 
-Take each candidate question and do two things.
+Two things the gate leaves to this skill:
 
-**Search for the answer, then record where you looked.** The scope is not read top-to-bottom by the author; an obligation opened in one module is often closed in a global section. Before a question ships, re-scan the places its answer would live — the feature's own §3.x sub-headings, the global §6 out-of-scope, the assumptions and business-rule registers, and the example register. Record those locations in the question's `checkedIn` field.
-- **Answer found** → drop the question, and mark the dimension it came from `Covered` (or `Partial` if the answer is incomplete). The coverage map is what the score is computed from, so this correction has to land there, not just in the question list.
-- **Answer genuinely absent** → keep it, with `checkedIn` naming the sections you searched.
-
-**Name what changes if it stays unanswered.** Set `consequence` to exactly one of `estimate` · `scope` · `integrations` · `compliance` · `none`. This is the test the severity scale already implies — a Blocker is a Blocker *because* the answer swings one of the first four.
-- `consequence: none` → it is a `Nit` at most. If it is also stylistic, drop it.
-- A question you cannot assign a consequence to is not a finding. Drop it.
-
-Both fields are required on every question that ships. Screening is not softening: the bar is unchanged, and removing questions that were never gaps is what lets the rest carry full weight.
+- **A dropped question must also clear the deduction it caused.** When the search finds the answer, mark the dimension it came from `Covered` (or `Partial` if the answer is incomplete). The score is computed from the coverage map, so the correction has to land there, not only in the question list.
+- **`consequence` is what the severity scale already implies.** A Blocker is a Blocker *because* the answer swings `estimate`, `scope`, `integrations` or `compliance`. `none` is a `Nit` at most, and if it is also stylistic, drop it.
 
 ### 7. Score consistently
 Score the **scope's treatment of each feature** — how completely and unambiguously a team could estimate and build it — not the quality of the eventual system.
