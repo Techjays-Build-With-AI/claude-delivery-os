@@ -498,6 +498,18 @@ YYYY-MM-DD
 
 The feature's business-rule slice, curated per feature — not a copy of the workspace-wide `ba/registers/business-rules.md`. Feature-scoped IDs (`BR-1..N`) in visible content; global register IDs mapped in frontmatter.
 
+**Two groups, and the order matters.** Where the feature was split out of a module that produced several features, the module's §3.x.7 cross-cutting rules come **first, inherited verbatim** — byte-for-byte identical in every sibling, same global `BR-###` — then the feature's own route-specific rules below. A developer pulls one ticket and must see every rule that governs their work without opening a sibling or the scope document.
+
+```md
+| ID | Rule |
+|---|---|
+| BR-1 | *(inherited · §3.2 Invoice Processing)* An invoice is never posted twice for the same period. |
+| BR-2 | *(inherited · §3.2 Invoice Processing)* Any posting above AED 5,000 requires finance-lead approval. |
+| BR-3 | A credit memo reverses the original posting line, never a new debit. |
+```
+
+Add `inherited_br_ids` to frontmatter listing the global ids of the inherited group, so a later scope change can find every feature carrying that rule and update them together. Siblings share the same `mapped_scope`, which is how the set is found.
+
 ```md
 ---
 doc_type: feature-business-rules
@@ -505,6 +517,7 @@ schema_version: 1.2
 produced_by: ba
 feature_id: FEAT-SUP-001
 mapped_br_ids: [BR-034, BR-035, BR-036]
+inherited_br_ids: [BR-034, BR-035]   # module-level, verbatim in every sibling feature
 generated_at: YYYY-MM-DD
 ---
 

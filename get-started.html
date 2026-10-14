@@ -253,7 +253,6 @@
       <span class="cmd-pill">/jetrix:pull</span>
       <span class="cmd-pill">/jetrix:push</span>
       <span class="cmd-pill">/ba:scope</span>
-      <span class="cmd-pill">/ba:review</span>
       <span class="cmd-pill">/ba:resolve</span>
       <span class="cmd-pill">/ba:features</span>
       <span class="cmd-pill">/dev:bootstrap</span>
@@ -306,7 +305,7 @@
       <div class="mini"><h4>Documentation <span style="color:var(--muted)">/doc</span></h4><p>Runs alongside — produces client-facing artifacts (proposal, workflow walkthrough, magic board) from the BA scope, mainly during discovery/sales.</p></div>
     </div>
 
-    <div class="note"><b>The golden rule:</b> an agent only reads another agent's <b>published</b> output, never its working notes. The BA writes <code>ba-output/</code> and <code>context/features/</code>; the TL writes the <code>context/frontend|backend|database</code> graph; QA writes <code>qa-output/quality-gates.md</code>; Dev writes each feature's <code>dev/</code> folder and the PR summary. Because it's all in the workspace (and the repo), any agent — or teammate — can pick up where the last left off.</div>
+    <div class="note"><b>The golden rule:</b> an agent only reads another agent's <b>published</b> output, never its working notes. The BA writes <code>ba/</code> and <code>features/</code>; the TL writes the <code>context/frontend|backend|database</code> graph; QA writes <code>qa-output/quality-gates.md</code>; Dev writes each feature's <code>dev/</code> folder and the PR summary. Because it's all in the workspace (and the repo), any agent — or teammate — can pick up where the last left off.</div>
 
     <div class="note tip"><b>Centralizing to Jetrix?</b> The same relay runs, but the workspace becomes a <b>working copy</b> of a central Jetrix project that is the source of truth. Bind once with <code>/jetrix:init</code>, run <code>/jetrix:pull</code> before you work, and <code>/jetrix:push</code> to publish each agent's output back as structured records. See the <b>Jetrix</b> tab.</div>
 
@@ -316,8 +315,8 @@
 
     <ol class="flow">
       <li><b>Set up the workspace (once).</b> Anyone runs <code>/delivery-os:init my-project</code> — this creates the single container folder every agent reads and writes within.</li>
-      <li><b>BA scopes the work.</b> The Business Analyst runs <code>/ba:scope add "…PRDs, FRDs, meeting notes…"</code> to build the living <code>scope.md</code>, then tightens it with the <code>/ba:review</code> → <code>/ba:resolve</code> loop. <i>(The Doc agent can draft the client proposal from this scope in parallel.)</i></li>
-      <li><b>BA breaks scope into features.</b> <code>/ba:features initiative=&lt;name&gt;</code> decomposes the scope into one folder per feature under <code>context/features/</code>, each with acceptance criteria, dependencies, and open questions — and stamps them all with the initiative name. <b>This is the handoff to the build team.</b></li>
+      <li><b>BA scopes the work.</b> The Business Analyst runs <code>/ba:scope add "…PRDs, FRDs, meeting notes…"</code> to build the living <code>scope.md</code> — which reviews and scores itself in the same run — then tightens it with <code>/ba:resolve</code>, which asks the open questions in conversation and writes each answer back into the scope. <i>(The Doc agent can draft the client proposal from this scope in parallel.)</i></li>
+      <li><b>BA breaks scope into features.</b> <code>/ba:features initiative=&lt;name&gt;</code> decomposes the scope into one folder per feature under <code>features/</code>, each with acceptance criteria, dependencies, and open questions — and stamps them all with the initiative name. <b>This is the handoff to the build team.</b></li>
       <li><b>TL stands up the repo.</b> Because there's no codebase and the stack is an architecture decision, the Technical Lead runs <code>/tl:scaffold</code> (or the Dev agent routes there automatically via <code>/dev:bootstrap</code>). It asks for any undecided stack choice with a recommendation, then produces a real repo with a <b>green base build</b>.</li>
       <li><b>QA makes it testable.</b> On the fresh repo, QA runs <code>/qa:audit</code> → <code>/qa:plan</code> → <code>/qa:setup</code> to stand up the test harness (frameworks, CI, coverage, e2e) and publish <code>qa-output/quality-gates.md</code> — the contract that defines what "verified" means here.</li>
       <li><b>TL plans the features.</b> <code>/tl:plan initiative=&lt;name&gt;</code> maps each feature to its pages, endpoints, and entities in the technical context graph. <i>(You can skip running this yourself — the Dev loop auto-plans a feature via the TL if it isn't planned.)</i></li>
@@ -329,8 +328,8 @@
 
   init   /delivery-os:init                       →  workspace created
    │
-  BA     /ba:scope → /ba:review → /ba:resolve     →  ba-output/scope.md   ──▶ (Doc: /doc:proposal)
-  BA     /ba:features initiative=payments-v2      →  context/features/*
+  BA     /ba:scope → /ba:resolve                  →  ba/scope.md          ──▶ (Doc: /doc:proposal)
+  BA     /ba:features initiative=payments-v2      →  features/*
    │
   TL     /tl:scaffold   (or /dev:bootstrap)       →  real repo + green base build
   QA     /qa:audit → /qa:plan → /qa:setup         →  qa-output/quality-gates.md
@@ -348,7 +347,7 @@
 
     <ol class="flow">
       <li><b>BA scopes only the increment.</b> Run <code>/ba:scope add "…just the new material…"</code> to update the living scope, or point <code>/ba:features</code> straight at an existing scope document. Keeping the scope to the new work is the cleanest way to avoid regenerating features you've already shipped.</li>
-      <li><b>BA breaks it down under a new initiative.</b> <code>/ba:features initiative=&lt;new-batch&gt;</code> creates folders for just the new features and tags them. If your scope covers the whole system, mark already-shipped features <code>Released</code> in the index so only the new ones flow downstream. Each developer uses their own initiative name, so the shared <code>context/features/</code> stays sortable.</li>
+      <li><b>BA breaks it down under a new initiative.</b> <code>/ba:features initiative=&lt;new-batch&gt;</code> creates folders for just the new features and tags them. If your scope covers the whole system, mark already-shipped features <code>Released</code> in the index so only the new ones flow downstream. Each developer uses their own initiative name, so the shared <code>features/</code> stays sortable.</li>
       <li><b>TL maps the existing code into a committed code-context tree.</b> Run <code>/tl:code-map repo=&lt;path&gt;</code> once to reverse-engineer the repo — deriving every page, endpoint and database object already there, grouped by business domain, into <code>&lt;repo&gt;/context/code-context/</code>. This is the brownfield equivalent of greenfield's scaffold step: it gives the build team (and their agents) the technical context the code already embodies, so planning the new increment reuses it.</li>
       <li><b>QA checks the existing setup.</b> <code>/qa:audit</code> on the real repo shows what testing already exists and where the gaps are; <code>/qa:setup</code> fills only what's missing and updates the quality-gate contract. (No need to start from scratch if a harness is already there.)</li>
       <li><b>TL plans just the new batch.</b> <code>/tl:plan initiative=&lt;new-batch&gt;</code> plans only that developer's features, ignoring everyone else's in-flight work.</li>
@@ -358,7 +357,7 @@
 
     <div class="code"><button class="copy">Copy</button><pre><code>BROWNFIELD — what changes
 
-  BA     /ba:scope add "just the new increment"        →  updates ba-output/scope.md
+  BA     /ba:scope add "just the new increment"        →  updates ba/scope.md
   BA     /ba:features initiative=reporting-v2          →  new feature folders only
          (mark already-shipped features Released)
   TL     /tl:code-map repo=<path>                      →  as-built code context, committed in the repo
@@ -367,7 +366,7 @@
   DEV    /dev:build initiative=reporting-v2 repo=<path> →  builds into the existing repo
          (no /tl:scaffold — the repo already exists; /tl:code-map replaces it)</code></pre></div>
 
-    <div class="note warn"><b>Multiple developers, one repo.</b> Because <code>context/features/</code> lives in the repo, everyone's in-flight features share it. The <b>initiative</b> is what keeps a developer focused on their own batch: <code>/ba:features</code> stamps it, and <code>/tl:plan</code> and <code>/dev:build</code> filter by it, so Dev B never trips over Dev A's four unfinished features. Pair it with per-initiative branches for clean merges.</div>
+    <div class="note warn"><b>Multiple developers, one repo.</b> Because <code>features/</code> lives in the repo, everyone's in-flight features share it. The <b>initiative</b> is what keeps a developer focused on their own batch: <code>/ba:features</code> stamps it, and <code>/tl:plan</code> and <code>/dev:build</code> filter by it, so Dev B never trips over Dev A's four unfinished features. Pair it with per-initiative branches for clean merges.</div>
 
     <!-- HANDOFFS -->
     <h4 class="sub">How the baton passes — every handoff</h4>
@@ -375,8 +374,8 @@
     <table class="tbl">
       <thead><tr><th>From → To</th><th>Handoff surface (in the workspace)</th></tr></thead>
       <tbody>
-        <tr><td>BA → TL, QA, Dev</td><td><code>context/features/</code> — one folder per feature (feature, acceptance criteria, dependencies, open questions) + the feature-index</td></tr>
-        <tr><td>BA → Doc</td><td><code>ba-output/scope.md</code> — the living scope the proposal/workflow docs draft from</td></tr>
+        <tr><td>BA → TL, QA, Dev</td><td><code>features/</code> — one folder per feature (feature, acceptance criteria, dependencies, open questions) + the feature-index</td></tr>
+        <tr><td>BA → Doc</td><td><code>ba/scope.md</code> — the living scope the proposal/workflow docs draft from</td></tr>
         <tr><td>TL → Dev</td><td><code>context/frontend|backend|database</code> — the pages/endpoints/entities graph the feature maps to</td></tr>
         <tr><td>TL → Dev (greenfield)</td><td>The scaffolded repo + <code>context/project/{architecture, technology-stack, coding-standards}.md</code></td></tr>
         <tr><td>Code → code context (brownfield)</td><td><code>/tl:code-map</code> reads the existing repo → a committed <code>&lt;repo&gt;/context/code-context/</code> tree of as-built units that <code>/tl:plan</code> then reuses via <code>context/code-map-registry.md</code></td></tr>
@@ -461,7 +460,7 @@
 ├── intake.index.md      <span class="cmt"># living source registry (maintained by /ba:scope)</span>
 ├── artifacts/           <span class="cmt"># generated source summaries (categories created on demand)</span>
 ├── shared-context/      <span class="cmt"># project profile, glossary, stakeholders, systems, decisions</span>
-├── ba-output/           <span class="cmt"># BA deliverables: scope.md, registers, scope-reviews/</span>
+├── ba/           <span class="cmt"># BA deliverables: scope.md, registers, scope-reviews/</span>
 │   └── intake-runs/
 └── final/               <span class="cmt"># approved, client-facing deliverables</span></code></pre></div>
 
@@ -527,13 +526,12 @@
     <h4 class="sub">Commands</h4>
     <div class="cmds">
       <span class="cmd-pill">/ba:scope</span>
-      <span class="cmd-pill">/ba:review</span>
       <span class="cmd-pill">/ba:resolve</span>
       <span class="cmd-pill">/ba:features</span>
     </div>
 
     <h3 class="step" style="margin-top:26px">Build the living scope — <code>/ba:scope</code></h3>
-    <p>Point it at your client material — folders or Google Drive. It <b>references originals in place</b> (never copies or moves them), maps everything into summaries under <code>artifacts/</code>, and writes the module-centric scope document (<code>ba-output/scope.md</code>) in the Techjays template. Run it again whenever new material arrives — it updates the same living document.</p>
+    <p>Point it at your client material — folders or Google Drive. It <b>references originals in place</b> (never copies or moves them), maps everything into summaries under <code>artifacts/</code>, and writes the module-centric scope document (<code>ba/scope.md</code>) in the Techjays template. Run it again whenever new material arrives — it updates the same living document.</p>
     <div class="code"><button class="copy">Copy</button><pre><code><span class="cmt"># build the scope from the first batch of material</span>
 /ba:scope add "transcripts in D:\acme\meetings, requirements at &lt;drive-link&gt;, invoice archive in D:\acme\invoices for reference only"
 
@@ -543,18 +541,14 @@
     <p><b>Modes:</b> <code>auto</code> (default) · <code>incremental</code> (only new/changed) · <code>full-refresh</code> · <code>dry-run</code> (report, write nothing) · <code>index-only</code> · <code>classify-only</code>.</p>
 
     <div class="grid">
-      <div class="mini"><h4>Raises the open questions</h4><p>Every run regenerates <code>ba-output/client-questions.md</code> — a clean, prioritized list you hand straight to the client, with space for answers.</p></div>
+      <div class="mini"><h4>Raises the open questions</h4><p>Every run regenerates <code>ba/client-questions.md</code> — a clean, prioritized list you hand straight to the client, with space for answers.</p></div>
       <div class="mini"><h4>Folds answers back in</h4><p>Point <code>/ba:scope</code> at the filled-in answers (or new meeting notes); it matches each to its question, closes it, and updates the scope.</p></div>
     </div>
     <div class="note tip"><b>The living-scope loop:</b> <code>/ba:scope</code> to build → hand <code>client-questions.md</code> to the client → <code>/ba:scope add "answers…"</code> to fold responses in and close questions → repeat. One scope document that keeps getting sharper.</div>
 
-    <h3 class="step">Scope review — <code>/ba:review</code></h3>
-    <p>Reviews the scope like a paranoid BA before it goes out for estimate. Defaults to <code>ba-output/scope.md</code>; you can also point it at any scope file.</p>
-    <div class="code"><button class="copy">Copy</button><pre><code><span class="cmt"># review the living scope in the workspace</span>
-/ba:review
-
-<span class="cmt"># or review a specific document</span>
-/ba:review docs/acme-scope.docx</code></pre></div>
+    <h3 class="step">The review is already done</h3>
+    <p><b>Review is not a separate command you run.</b> It happens inside every <code>/ba:scope</code> &mdash; a second agent reads the finished document fresh and scores it, so the critic is not the author. There is no useful state where you have built a scope and not reviewed it: you would have no score, no verdict and no questions.</p>
+    <div class="note tip"><b><code>/ba:review</code> still exists</b> for a deliberate re-score without a scope pass &mdash; after hand-editing <code>ba/scope.md</code>, or to grade a scope document this pipeline never wrote: <code>/ba:review docs/acme-scope.docx</code></div>
 
     <h4 class="sub">What the review does</h4>
     <div class="grid">
@@ -564,18 +558,15 @@
       <div class="mini"><h4>Business, not technical</h4><p>Judges what the business wants; leaves schema, APIs, and system design to the TL review.</p></div>
     </div>
     <div class="note"><b>Boundedness caps the score:</b> a feature whose function is clear but whose boundary is undefined ("classify the invoice" with no defined types) is capped at Weak until the buckets, classification logic, and exclusions are pinned down. Each feature is tagged <b>Bounded / Partially-bounded / Unbounded</b>.</div>
-    <p>Output lands in <code>ba-output/scope-reviews/scope-review-&lt;timestamp&gt;.{html, md, json}</code> — open the <b>.html</b> as an interactive dashboard.</p>
+    <p>Output lands in <code>ba/reviews/scope-review-&lt;timestamp&gt;.{html, md, json}</code> — open the <b>.html</b> as an interactive dashboard. All three are written every run.</p>
 
-    <h3 class="step">Respond &amp; close — <code>/ba:resolve</code></h3>
-    <p>The review raises scope questions; this loop closes them and folds the answers back into the scope.</p>
-    <ol class="flow">
-      <li>Open <code>scope-review-&lt;timestamp&gt;.html</code> in a browser and go to <b>Open questions</b>.</li>
-      <li>Type an answer under each and pick an intent (<code>resolve</code> / <code>accept-assumption</code> / <code>need-info</code> / <code>wont-fix</code>).</li>
-      <li>Click <b>Export responses</b> → save the downloaded <code>scope-review-&lt;timestamp&gt;-responses.md</code> into <code>ba-output/scope-reviews/</code>.</li>
-      <li>Run resolve on it:</li>
-    </ol>
-    <div class="code"><button class="copy">Copy</button><pre><code>/ba:resolve ba-output/scope-reviews/scope-review-&lt;timestamp&gt;-responses.md</code></pre></div>
-    <p>The agent adjudicates each answer, gives the exact scope edit, promotes confirmed answers into the scope and registers (decisions, assumptions, clarifications), recomputes the feature scores and verdict, and writes a new round. Repeat until no questions remain.</p>
+    <h3 class="step">Answer the questions — <code>/ba:resolve</code></h3>
+    <p>Run it with <b>no argument</b> and it asks the open questions one at a time, in the conversation. No file to export and return.</p>
+    <div class="code"><button class="copy">Copy</button><pre><code>/ba:resolve</code></pre></div>
+    <p>Each question arrives with what it is, why it matters, where the answer was already looked for, and realistic options &mdash; plus every place the same gap bites, so one answer can settle several at once. Answer what you know, defer the rest, and run it again later: <b>it only ever asks what is still open</b>, so an answered question never comes back and a deferred one always does.</p>
+    <p>From round 2 it opens with <b>what your previous answers became</b> &mdash; accepted and written into the scope, recorded as an assumption still needing confirmation, or <i>read but not sufficient</i> with a specific follow-up. That last one matters: a vague answer is shown as read-and-insufficient rather than sitting in the open list looking like you never answered.</p>
+    <p>Each terminal answer is <b>applied to <code>ba/scope.md</code></b> at the owning section &mdash; not merely recommended &mdash; along with the decision, assumption or clarification it implies. Then the scores and verdict are recomputed and a new round written.</p>
+    <div class="note tip"><b>The file path still works:</b> <code>/ba:resolve ba/reviews/scope-review-&lt;ts&gt;-responses.md</code>. That is the right flow when the answerer is a client who is not in the room &mdash; hand them <code>ba/client-questions.md</code> or the HTML report, and resolve the file they return.</div>
 
     <div class="note tip"><b>Verdicts:</b> Scope-ready → Estimate with caveats → Significant gaps (clarify before estimate) → Not scope-ready. Any unresolved <b>Blocker</b> caps the verdict — resolving it lifts the cap.</div>
 
@@ -587,12 +578,12 @@
 <span class="cmt"># or point at a specific scope document</span>
 /ba:features docs/acme-scope.md initiative=reporting-v2</code></pre></div>
     <div class="grid">
-      <div class="mini"><h4>Seven files per feature</h4><p>Each <code>context/features/&lt;slug&gt;/</code> holds <code>feature.md</code>, <code>implementation-plan.md</code>, <code>workflow.md</code>, <code>acceptance-criteria.md</code>, <code>dependencies.md</code>, <code>open-questions.md</code>, and <code>status.md</code>.</p></div>
+      <div class="mini"><h4>Seven files per feature</h4><p>Each <code>features/&lt;slug&gt;/</code> holds <code>feature.md</code>, <code>implementation-plan.md</code>, <code>workflow.md</code>, <code>acceptance-criteria.md</code>, <code>dependencies.md</code>, <code>open-questions.md</code>, and <code>status.md</code>.</p></div>
       <div class="mini"><h4>Stable ids + a feature-index</h4><p>Every feature gets a <code>FEAT-&lt;AREA&gt;-NN</code> id and a row in <code>feature-index.md</code>, stamped with its initiative so parallel batches stay sortable.</p></div>
       <div class="mini"><h4>Carries the use-case flows</h4><p>Pulls the pages, APIs, workflows, data, and integrations the scope implies into each feature, wiring cross-feature dependencies.</p></div>
       <div class="mini"><h4>Never guesses</h4><p>Marks uncertainties as open questions rather than inventing product behaviour, schemas, or API contracts — those stay the TL's job.</p></div>
     </div>
-    <div class="note tip"><b>Where it sits:</b> run it after the scope is solid (<code>/ba:scope</code> → <code>/ba:review</code> → <code>/ba:resolve</code>), and before <code>/tl:plan</code> and <code>/dev:build</code>. The <b>initiative</b> name you give here is the same one TL and Dev filter by, so each developer's batch stays isolated in the shared <code>context/features/</code>.</div>
+    <div class="note tip"><b>Where it sits:</b> run it after the scope is solid (<code>/ba:scope</code> → <code>/ba:resolve</code>), and before <code>/tl:plan</code> and <code>/dev:build</code>. The <b>initiative</b> name you give here is the same one TL and Dev filter by, so each developer's batch stays isolated in the shared <code>features/</code>.</div>
   </section>
 
   <!-- ============ DEV AGENT ============ -->
@@ -660,7 +651,7 @@
     <h3 class="step">Validate only — <code>/dev:validate</code></h3>
     <p>Run the checks (lint, type, unit, integration, API-contract, build, migration, security, e2e) and map each result to the feature's acceptance criteria — no code changes. When QA's quality-gate contract is present, it runs the Required gates that contract defines.</p>
     <div class="code"><button class="copy">Copy</button><pre><code>/dev:validate FEAT-SUP-001</code></pre></div>
-    <p>Reports the acceptance pass/fail table and flags each failure as <b>actionable</b> (fix via <code>/dev:build</code>) or <b>blocking</b> (escalate). Output lands in <code>context/features/&lt;slug&gt;/dev/acceptance-map.md</code>.</p>
+    <p>Reports the acceptance pass/fail table and flags each failure as <b>actionable</b> (fix via <code>/dev:build</code>) or <b>blocking</b> (escalate). Output lands in <code>features/&lt;slug&gt;/dev/acceptance-map.md</code>.</p>
 
     <h3 class="step">Fold in review feedback — <code>/dev:fix-review</code></h3>
     <p>Re-enters the loop at the review-fixes step with the reviewer's comments as the failure set, addresses actionable ones within the retry limits, re-validates, and refreshes the PR summary. Comments needing a product/architecture/security decision are escalated.</p>
@@ -802,7 +793,7 @@ sudo apt install nodejs               <span class="cmt"># or nvm / the tarball f
     <h3 class="step" style="margin-top:26px">Plan features into the context graph — <code>/tl:plan</code></h3>
     <p>The TL's <b>authoring</b> job — and the handoff the Dev agent builds from. It turns the BA feature breakdown into a <b>technical context graph</b>: each feature is mapped to the <b>frontend pages</b>, <b>backend endpoints</b>, and <b>database entities</b> it needs, and every unit is wired to its neighbours in <b>both directions</b> so a coding agent can land on any node and traverse the whole design. Its defining rule is <b>reuse, not duplication</b> — it checks the per-layer indexes before creating anything, so a shared endpoint or table is one file with many back-links, never a copy per feature.</p>
     <div class="code"><button class="copy">Copy</button><pre><code><span class="cmt"># plan one feature</span>
-/tl:plan context/features/invoice-ingestion
+/tl:plan features/invoice-ingestion
 
 <span class="cmt"># or plan a whole initiative (batch) at once</span>
 /tl:plan initiative=payments-v2</code></pre></div>
@@ -844,7 +835,7 @@ sudo apt install nodejs               <span class="cmt"># or nvm / the tarball f
     <div class="code"><button class="copy">Copy</button><pre><code>/tl:resolve tl-output/spec-review-&lt;timestamp&gt;-responses.md</code></pre></div>
     <p>The agent adjudicates each response (Resolved / Accepted-risk / Needs-verification / Won't-fix), recomputes the score and verdict, logs decisions, and writes a new round. A resolved Blocker lifts the verdict cap.</p>
 
-    <div class="note tip"><b>Standalone or workspace:</b> with a Delivery OS workspace it also reads <code>ba-output/scope.md</code> and <code>shared-context/</code> for grounding; without one it writes the report beside the reviewed document.</div>
+    <div class="note tip"><b>Standalone or workspace:</b> with a Delivery OS workspace it also reads <code>ba/scope.md</code> and <code>shared-context/</code> for grounding; without one it writes the report beside the reviewed document.</div>
 
     <h3 class="step">Scaffold the project — <code>/tl:scaffold</code></h3>
     <p>On a greenfield project there's no codebase yet — and the dev agent won't scaffold on a guessed stack, because the stack is an architecture decision. <code>/tl:scaffold</code> is where that decision is made and executed. It reads the tech spec / architecture, and for any required stack choice the architecture doesn't pin down it <b>asks you with a recommendation</b> — then stands up the initial repo.</p>
@@ -895,7 +886,7 @@ sudo apt install nodejs               <span class="cmt"># or nvm / the tarball f
     <div class="cmds"><span class="cmd-pill">/doc:proposal</span><span class="cmd-pill">/doc:magic-board</span><span class="cmd-pill">/doc:workflow</span><span class="cmd-pill">/doc:walkthrough</span></div>
 
     <h3 class="step" style="margin-top:26px">Generate a proposal — <code>/doc:proposal</code></h3>
-    <p>Pass the client name and their domain. The agent pulls the client's logo from the domain, samples their brand accent, and (when a Delivery OS workspace exists) auto-drafts the problem, solution, and value from <code>ba-output/scope.md</code> using the client's real numbers.</p>
+    <p>Pass the client name and their domain. The agent pulls the client's logo from the domain, samples their brand accent, and (when a Delivery OS workspace exists) auto-drafts the problem, solution, and value from <code>ba/scope.md</code> using the client's real numbers.</p>
     <div class="code"><button class="copy">Copy</button><pre><code><span class="cmt"># minimal — logo + accent from the domain, content from the scope if present</span>
 /doc:proposal client="Harry Grodsky &amp; Co." domain=grodsky.com
 
@@ -945,7 +936,7 @@ sudo apt install nodejs               <span class="cmt"># or nvm / the tarball f
       <div class="mini"><h4>Phased swimlane, hover detail</h4><p>Vertical swimlane of the scope; hover any step for its bullets, hover a KPI for the math.</p></div>
       <div class="mini"><h4>Before / after + efficiency</h4><p>Per-phase value panel: current pain → AI solution, with the hours saved called out.</p></div>
     </div>
-    <div class="note tip"><b>Viewing:</b> open <code>doc-output/[CLIENT]-[TOPIC]-[date].html</code>; the sidebar jumps to each phase. Drafted from <code>ba-output/scope.md</code> + <code>workflow-register.md</code> when a workspace exists; real numbers only, unknowns flagged as placeholders.</div>
+    <div class="note tip"><b>Viewing:</b> open <code>doc-output/[CLIENT]-[TOPIC]-[date].html</code>; the sidebar jumps to each phase. Drafted from <code>ba/scope.md</code> + <code>workflow-register.md</code> when a workspace exists; real numbers only, unknowns flagged as placeholders.</div>
 
     <h3 class="step">Turn a spec into a walkthrough — <code>/doc:walkthrough</code></h3>
     <p>Renders a specification (or scope) as an <b>interactive, example-driven walkthrough</b>: a top <b>state-overview diagram</b> with hover and click-to-trace, then one <b>drill-down section per module</b> with its own diagram and a worked example using the spec's real IDs and values. The best way to make a dense spec navigable for a client or a build team.</p>
@@ -1047,7 +1038,7 @@ sudo apt install nodejs               <span class="cmt"># or nvm / the tarball f
       outputs: [
         "A named project folder with a README manifest.",
         "A living intake.index.md source registry.",
-        "Empty shared-context and ba-output starter folders."
+        "Empty shared-context and ba starter folders."
       ],
       covers: [
         "Creates a clean, single-folder home for all Delivery OS work.",
@@ -1145,7 +1136,7 @@ sudo apt install nodejs               <span class="cmt"># or nvm / the tarball f
       covers: [
         "Distinct routes become first-class use cases (credit memo vs net settlement vs full-month invoice).",
         "Raises every open question, assumption, and contradiction.",
-        "Does not: score how estimate-ready the scope is — that is /ba:review."
+        "Also scores how estimate-ready the scope is — review runs inside this command, as a second agent reading the finished document fresh."
       ],
       when: "Run after /delivery-os:init; re-run whenever new material or client answers arrive.",
       example: "Pointing it at Acme meeting transcripts and an invoice archive builds an Invoicing module with a master flow and three use cases — each with a diagram and a worked example like a $4,200 credit-memo invoice — and raises 14 grouped client questions."
@@ -1191,9 +1182,9 @@ sudo apt install nodejs               <span class="cmt"># or nvm / the tarball f
       covers: [
         "Skeptically closes questions, demanding specifics not vague assurances.",
         "Lifts the Blocker cap when a blocking question is resolved.",
-        "Does not: run the original review — it consumes /ba:review output."
+        "Does not re-run the review from scratch — it resolves the questions the latest round raised, then writes the next round."
       ],
-      when: "Run after answering questions in a /ba:review report and exporting responses.",
+      when: "Run with no argument and it asks the open questions one at a time. Point it at an exported responses file instead when a client answered them.",
       example: "Feeding back answers on the dispute-handling question resolves the Blocker, moving Invoicing from 4 to 7 and the verdict from \"Significant gaps\" to \"Estimate with caveats.\" Two answers accepted as assumptions are logged with residual risk."
     },
     "ba:features": {

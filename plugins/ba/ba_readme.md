@@ -1,8 +1,16 @@
 # BA Agent — Discovery & Scope Review
 
-The **Business Analyst Agent** has two jobs. During discovery it is the project's **author and memory** — `/ba:scope` processes client artifacts into a living scope document and registers. Once a scope exists, it becomes its **paranoid critic** — `/ba:review` breaks the scope down feature by feature, interrogates every under-specified line, validates it against the client's own examples, and scores how estimate-ready it is, then `/ba:resolve` closes the open questions and folds the answers back into the scope.
+The **Business Analyst Agent** has two jobs, and **`/ba:scope` does both in one command.** It is the project's **author and memory** — processing client artifacts into a living scope document and registers — and then its **paranoid critic**, breaking that scope down feature by feature, interrogating every under-specified line, validating it against the client's own examples, and scoring how estimate-ready it is. You get the scope, the questions, a score and a verdict from one run. `/ba:resolve` then answers the questions in conversation and folds the answers back into the scope.
 
-This guide covers both: **building the living scope** (`/ba:scope`, below) and the **scope review** (`/ba:review` · `/ba:resolve`).
+**Review is not a step you run.** It happens inside every `/ba:scope`, because there is no useful state where you have built a scope and not reviewed it — you would have no score, no verdict and no questions. `/ba:review` still exists for a deliberate re-score without a scope pass, or to grade a scope document this pipeline never wrote.
+
+So the whole loop is three commands:
+
+```text
+/ba:scope add "..."     build (and review) the scope
+/ba:resolve             answer the open questions, in conversation
+/ba:features            break the approved scope into features
+```
 
 ## Building the living scope — `/ba:scope`
 
@@ -22,15 +30,62 @@ Two things happen on every run:
 - **It raises every open item.** All ambiguities, open questions, and assumptions become clarifications / assumptions, and it (re)generates **`ba/client-questions.md`** — a clean, handover-ready list grouped by module and prioritized (*Must close before estimate → Future phase*), with a blank space for each answer. Hand it to the client as-is.
 - **It folds client answers back in (the answer round-trip).** Point it at a filled-in `client-questions.md`, a client-answers document, or fresh meeting notes, and it matches each answer to its open question by `CLR` id, closes it, applies the resulting edit to the scope, logs the decision or assumption, and drops the question off `client-questions.md`.
 
-So the loop is: **`/ba:scope` to build → hand `client-questions.md` to the client → `/ba:scope add "answers…"` to fold responses in and close questions → repeat.** One living scope document that keeps getting sharper. Modes: `auto` (default) · `incremental` · `full-refresh` · `dry-run` · `index-only` · `classify-only`. When you want a scored critique of how estimate-ready the scope is, run `/ba:review` (below).
+So the loop is: **`/ba:scope` to build → `/ba:resolve` to answer what you can → hand `client-questions.md` to the client for the rest → `/ba:scope add "answers…"` to fold their responses in → repeat.** One living scope document that keeps getting sharper. Modes: `auto` (default) · `incremental` · `full-refresh` · `dry-run` · `index-only` · `classify-only`.
+
+Every run closes with the score, so you never have to go looking for it:
+
+```text
+Scope readiness: 8.7 / 10 — Significant gaps, clarify before estimate
+Blockers: 1   Major: 5   Minor: 3
+Thin on: Acceptance Criteria (3 modules) · Exception Handling (2)
+```
 
 | | |
 |---|---|
 | **Namespace** | `/ba:` |
-| **Commands** | `/ba:scope …` · `/ba:review [<scope-doc>] [out=<prefix>]` · `/ba:resolve <responses-file>` |
+| **Commands** | `/ba:scope …` (builds **and** reviews) · `/ba:resolve` (no argument needed — it asks) · `/ba:features` · `/ba:review [<scope-doc>]` for a deliberate re-score |
 | **Review input** | A scope document (`.md`, `.docx`, `.pdf`) — defaults to `ba/scope.md` — plus the scope knowledge base (registers, examples, shared-context/) when a workspace exists |
 | **Review output** | `ba/reviews/scope-review-<timestamp>.{html, md, json}` — interactive dashboard + Markdown artifact + data sidecar |
 | **Skills** | `ba-classification` · `ba-extraction` (scope build) · `ba-scope-review` (review) |
+
+---
+
+### It asks what kind of work this is — once, up front
+
+Not every requirement needs a full BA pass, so the first thing `/ba:scope` does is read your input and propose one of three paths, with its reason. You confirm or override:
+
+```text
+This is a written client requirement from Novacore Solutions, with an
+external client who answers the questions. I would take the first.
+
+  1 · Client requirement       full scope, registers, client packet, review
+  2 · Task needs a BA plan     internal, code-first; questions go to open-questions.md
+  3 · Straight to /dev:plan    one repo, understood well enough to build
+```
+
+| | For | Reads the code? | Produces |
+|---|---|---|---|
+| **Client requirement** | work a client signs off and someone estimates | no | scope · registers · `client-questions.md` · review |
+| **Task needs a BA plan** | a module-sized internal piece: too big for one flat plan, no client to question | **yes** — reads `context/code-context/` for the area the requirement touches | scope document + feature split, questions to `ba/open-questions.md` |
+| **Straight to `/dev:plan`** | one repo, understood well enough to build | at plan time | nothing — hands off and stops |
+
+**Two checkable rules disqualify the third option:** surfaces spanning more than one repo, or more than ~3 features. Either one and it needs a BA plan at least, whatever it looks like.
+
+The middle path exists because a module-sized internal change had nowhere to go — too large for one flat `/dev:plan`, too internal for a full client pass. It starts from the code, so the scope is written against what actually exists rather than guessed at and corrected two commands later.
+
+### One requirement at a time
+
+If a scope already exists, `/ba:scope` asks before touching it:
+
+```text
+A scope already exists here:
+  Shift-based timesheet · v0.4 · Reviewed · 6 modules · last run 2026-10-04
+
+  1 · New material — more transcripts, answers, or changes to the same requirement
+  2 · A different requirement — clear the current work and start fresh
+```
+
+A workspace holds **one requirement's working state**. Two requirements in one `ba/` tree is not two scopes — it is one scope describing two unrelated things, with modules interleaved and a readiness score computed over the pair. Choosing the second clears `ba/` and `features/` and keeps `shared-context/` (glossary, stakeholders, decisions — project-level truth that outlives any one requirement). The scope and registers already pushed to Jetrix can be pulled back; the run tells you what is local-only before it goes.
 
 ---
 
@@ -123,19 +178,19 @@ So: run the full discovery flow if you want the review grounded in the client's 
 - **`<scope-doc>`** — optional. Defaults to `ba/scope.md` inside a workspace. Accepts `.md`, `.docx`, `.pdf`, or a link.
 - **`out=<prefix>`** — optional. Overrides where the report is written. A run timestamp is **always** appended, so repeated reviews never overwrite each other.
 
-Each run is timestamped (`scope-review-2026-06-30-143012.html`), so `ba/reviews/` accumulates a full review history — re-review after the scope is revised and compare.
+Each run is timestamped (`scope-review-2026-06-30-143012.html`), so `ba/reviews/` accumulates a full review history. Every `/ba:scope` and every `/ba:resolve` adds a round, so the history builds itself — and from round 2 each report opens with a **Since the last round** section saying what your previous answers became. `/ba:review` on its own re-scores without a scope pass, which is what you want after hand-editing `ba/scope.md` or to grade a scope document this pipeline never wrote.
 
 ---
 
 ## Worked example
 
-You've run discovery for an **Acme Customer Portal** and produced a first scope. Before sending it for estimate, you sanity-check it:
+You've run discovery for an **Acme Customer Portal**:
 
 ```text
-/ba:review
+/ba:scope add "transcripts in D:\acme\meetings, requirements at <drive-link>"
 ```
 
-The agent reads `ba/scope.md`, loads the example-register and the other registers, decomposes the scope into features, and writes the report. The headline it returns:
+It confirms the track (client requirement), builds the scope and registers, then reviews what it just wrote — a second agent reading the document fresh, so the critic is not the author. The headline it returns:
 
 > **Overall score: 3.4/10 — Significant gaps — clarify before estimate.**
 > Clean module breakdown, but the Login feature is a one-liner and conflicts with a client example, and the CRM integration names no system. Two Blockers gate the estimate.
@@ -179,23 +234,73 @@ The Markdown twin (`scope-review-<timestamp>.md`) is the same content as a clean
 
 ## Closing questions — the resolution loop (`/ba:resolve`)
 
-A review *raises* scope questions; the loop *closes* them — and, uniquely for the BA, **folds each answer back into the scope** so the gap is fixed at the source.
+A review *raises* scope questions; the loop *closes* them — and, uniquely for the BA, **applies each answer to the scope** so the gap is fixed at the source rather than described in a report.
 
-**The flow:**
+### Run it with no arguments — it asks
 
-1. **Respond in the report.** Open `scope-review-<timestamp>.html`, scroll to **Open questions**, and under each one type your answer and pick an intent (`resolve` / `accept-assumption` / `need-info` / `wont-fix`).
-2. **Export.** Click **Export responses**. The page downloads `scope-review-<timestamp>-responses.md` — named with the **same timestamp** as the review, which ties the answers back to it. (Browsers can't write to disk, so it lands in Downloads — move it into `ba/reviews/`.)
-3. **Resolve.** Run `/ba:resolve ba/reviews/scope-review-<timestamp>-responses.md`. The agent matches the timestamp to the review's `.json`, then **adjudicates each answer**:
-   - **Resolved** — answers the question with specifics a team could estimate against; records the exact scope edit and a `DEC-###` decision.
-   - **Accepted-assumption** — the client can't confirm now, so the team proceeds on an explicit, logged assumption (`ASM-###` / RAID A-##), with the residual risk noted.
-   - **Needs-verification** — plausible but thin; it asks 1–3 targeted follow-ups and keeps the item open.
-   - **Won't-fix / still Open** — declined/deferred or unaddressed, with a note on the residual gap.
-4. **Promote & re-score.** Confirmed answers are folded into `scope.md` (the agent gives the exact §3.x edit) and the relevant register; each feature's coverage map is updated; the feature scores and overall verdict are **recomputed** — a resolved Blocker lifts the cap. A fresh timestamped round is written (`round` 2, `priorReview` linking back) with questions carried forward by their `SQ-###` IDs.
-5. **Repeat** until no open questions remain.
+```text
+/ba:resolve
+```
 
-**Worked example (continuing Acme):** you answer SQ-004 with *"Email/password + Google SSO, corporate domains only, email verified, MFA optional in phase 1; registration and reset in scope, profile is phase 2"* and export. `/ba:resolve` judges this specific and consistent with EX-004 → marks **SQ-004 Resolved**, gives the §3.1.3 edit, logs **DEC-007**, refills the Login coverage map, and — with that Blocker cleared — lifts the verdict from *Significant gaps* toward *Estimate with caveats*. A vaguer *"we'll support standard login"* comes back as **Needs-verification** with pointed follow-ups.
+It reads the open questions from the latest review and asks them **one at a time**, in the conversation. No file to export, no round-trip. Each question arrives with what it is, why it matters, where the answer was already looked for, and realistic options:
 
-> Why a separate step rather than editing in place? Timestamped rounds keep the **full history** — what was open at review time, what the author said, and how each question was closed.
+```text
+CLR-021  ·  Blocker  ·  Timesheet — allocations
+
+When someone is removed from a project after logging hours against it,
+what happens to those hours and that row — including in weeks already
+submitted?
+
+Same scenario in 3 places — one answer settles all three:
+  · TIME-UC-04   removed mid-week, week not yet submitted
+  · TIME-UC-07   removed after submission, before approval
+  · PAY-UC-02    removed after payroll has pulled the week
+
+  1 · Hours stay, row locks        2 · Hours move to unallocated
+  3 · type your own                 d · defer
+  s · these are not the same — split them
+```
+
+**Run it as often as you like.** It only ever asks what is still open, so an answered question never comes back and a deferred one always does. Answer what you know, defer the rest, come back later.
+
+### From round 2, it opens with what moved
+
+```text
+Round 3 — since you last answered
+
+  Accepted (4)                   in the scope, closed
+     · week closes Sunday 23:59 Gulf time         → §3.2, DEC-012
+  Assumption (1)                 building on it, the client still to confirm
+     · 12-hour cap is per calendar day            → ASM-007
+  Answered — not enough yet (1)
+     · multi-site split
+       You said: "split it evenly"
+       Not enough because: evenly by hours, or by the rate at each site?
+       Need: which basis, and what happens when the rates differ.
+  Still open (1)                 waiting on the client
+  New (1)                        raised by your own answers
+```
+
+That block is the answer to *"did my last answers actually land?"* — and **"Answered — not enough yet"** is the one that matters: a vague answer is shown as read-but-insufficient with a specific follow-up, rather than quietly sitting in the open list looking like you never answered it.
+
+### What it does with each answer
+
+- **Resolved** — specific enough to estimate against. **Edits `ba/scope.md`** at the owning §3.x, logs a `DEC-###`. Where the question covered several places, it edits **every** one.
+- **Accepted-assumption** — the client can't confirm now, so the team proceeds on an explicit assumption (`ASM-###` / RAID A-##), written into the scope marked as assumed, with the residual risk noted.
+- **Needs-verification** — plausible but thin; 1–3 targeted follow-ups, asked **in the same sitting** while you still hold the context.
+- **Won't-fix / still Open** — declined or deferred, with the remaining gap recorded.
+
+Then it re-scores: coverage maps updated, feature scores and the verdict recomputed — a resolved Blocker lifts the cap — and a fresh timestamped round written with questions carried forward.
+
+### The file path still works
+
+```text
+/ba:resolve ba/reviews/scope-review-<timestamp>-responses.md
+```
+
+Point it at an exported responses file and it behaves as it always has. **That is still the right flow when the answerer is a client who is not in the room**: hand them `ba/client-questions.md`, or the HTML report where they can answer inline and click *Export responses*.
+
+> Timestamped rounds keep the **full history** — what was open at review time, what was said, and how each question was closed.
 
 ---
 

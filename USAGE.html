@@ -827,28 +827,30 @@
       </div>
     </div>
 
-    <h2>Review &amp; resolve</h2>
+    <h2>Answer the questions</h2>
 
     <div class="cmd-grid">
       <div class="cmd">
-        <h3>/ba:review</h3>
-        <p class="cmd-summary">Score every feature from a paranoid BA perspective. Renders an interactive HTML dashboard under <code>ba/reviews/</code> that surfaces gaps, weak assumptions, and open questions for the client.</p>
-        <div class="code-wrap">
-          <pre class="cmd-code"><span class="accent">/ba:review</span></pre>
-          <button class="copy-btn" data-copy="/ba:review">Copy</button>
-        </div>
-        <div class="code-wrap">
-          <pre class="cmd-code"><span class="accent">/ba:review</span> <span class="arg">ba/scope.md</span></pre>
-          <button class="copy-btn" data-copy="/ba:review ba/scope.md">Copy</button>
-        </div>
-      </div>
-
-      <div class="cmd">
         <h3>/ba:resolve</h3>
-        <p class="cmd-summary">Fold client answers back into the scope. Point at the <code>*-responses.md</code> file exported from the review HTML; the agent judges each answer and closes the questions.</p>
+        <p class="cmd-summary">Answer the open scope questions. Run it with <strong>no argument</strong> and it asks them one at a time in the conversation &mdash; no file to export and return. Each terminal answer is <strong>written into <code>ba/scope.md</code></strong>, not just recommended, and the readiness score is recomputed.</p>
+        <div class="code-wrap">
+          <pre class="cmd-code"><span class="accent">/ba:resolve</span></pre>
+          <button class="copy-btn" data-copy="/ba:resolve">Copy</button>
+        </div>
+        <p class="note">Run it as often as you like &mdash; it only ever asks what is still open, so an answered question never comes back and a deferred one always does. From round 2 it opens with what your previous answers became: accepted and in the scope, recorded as an assumption, or <em>read but not sufficient</em> with a specific follow-up.</p>
         <div class="code-wrap">
           <pre class="cmd-code"><span class="accent">/ba:resolve</span> <span class="arg">ba/reviews/scope-review-&lt;ts&gt;-responses.md</span></pre>
           <button class="copy-btn" data-copy="/ba:resolve ba/reviews/scope-review-<ts>-responses.md">Copy</button>
+        </div>
+        <p class="note">The file path still works, and is the right flow when the answerer is a client who is not in the room &mdash; hand them <code>ba/client-questions.md</code> or the HTML report, and resolve the file they return.</p>
+      </div>
+
+      <div class="cmd">
+        <h3>/ba:review</h3>
+        <p class="cmd-summary"><strong>Not a step in the normal flow.</strong> Review already runs inside every <code>/ba:scope</code>, as a second agent reading the finished document fresh. Use this only for a deliberate re-score &mdash; after hand-editing <code>ba/scope.md</code>, or to grade a scope document this pipeline never wrote.</p>
+        <div class="code-wrap">
+          <pre class="cmd-code"><span class="accent">/ba:review</span> <span class="arg">&lt;path-to-scope&gt;</span></pre>
+          <button class="copy-btn" data-copy="/ba:review <path-to-scope>">Copy</button>
         </div>
       </div>
     </div>

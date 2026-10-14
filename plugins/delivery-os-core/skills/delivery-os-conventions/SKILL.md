@@ -382,7 +382,9 @@ IDs are the threads that let one agent cite what another produced. They are **ap
 | Integration       | `INT`  | INT-001  | ba/registers/integrations.md |
 | Example/scenario  | `EX`   | EX-001   | ba/registers/examples.md     |
 | Assumption        | `ASM`  | ASM-001  | ba/registers/assumptions.md  |
-| Clarification     | `CLR`  | CLR-001  | ba/logs/clarifications.md    |
+| Clarification     | `CLR`  | CLR-001  | ba/logs/clarifications.md — **the gap itself**; `SQ`/`OQ` are views of it |
+| Scope question    | `SQ`   | SQ-001   | ba/reviews/scope-review-*.json — the review's handle on a `CLR` |
+| Open question     | `OQ-<AREA>` | OQ-SUP-001 | features/<slug>/open-questions.md — per-feature, frontmatter `open_questions[]`, merged into the MC Dependencies tab |
 | Contradiction     | `CON`  | CON-001  | ba/logs/contradictions.md    |
 | Decision          | `DEC`  | DEC-001  | shared-context/decision-log.md       |
 | Artifact source   | `SRC`  | SRC-001  | ba/intake.index.md (registry) |
@@ -395,6 +397,37 @@ IDs are the threads that let one agent cite what another produced. They are **ap
 | Quality gate      | `QG`   | QG-001   | qa/quality-gates.md (qa)           |
 | Initiative        | *(human slug)* | payments-v2 | feature frontmatter + features/feature-index.md (ba) |
 | Plan blocker      | `PB` (or `PB-<N>` for sub-task N) | PB-001 · PB-1-002 | dev/plan-blockers.md (dev) — v2.2 |
+
+### One gap, one id — `CLR` owns it
+
+A question raised during extraction, raised again by the review, and written into
+the internal deliverable is **one gap**. It gets **one `CLR`**, minted once and
+append-only, and `SQ` and `OQ` are views of that gap rather than separate
+families:
+
+| Family | Role | Lifetime |
+|---|---|---|
+| **`CLR`** | the gap itself | the engagement |
+| **`SQ`** | the review's handle on it — carries severity, dimension and the score linkage, and is the key that carries a question across rounds | while it is being scored |
+| **`OQ-<AREA>`** | a **different thing** — a per-feature open question in `features/<slug>/open-questions.md`, carrying its own owner and impact and pushed to the MC Dependencies tab. Not a view of a `CLR`. | while the feature is open |
+
+**A question shown to a person displays its `CLR`.** It is the only id stable
+across files and across rounds, so it is what appears in `client-questions.md`,
+the internal track's questions file, the `/ba:resolve` prompt and the round
+ledger — including on the internal track, which has no client but still has an
+owner who answers. `SQ` stays
+internal, in the `.json` and in `priorReview` matching, where it is the join key
+doing real work.
+
+**Every question carries its `CLR`.** A review question matching an existing gap
+reuses that id; one that matches nothing **mints a new `CLR`**, so no question
+exists without a gap id. The question gate's dedupe already matches by topic
+rather than by wording, which is the machinery that finds the match.
+
+**Never renumber, and never merge the families.** `SQ-###` is append-only because
+`priorReview` plus a stable `SQ` is what makes round 3 comparable to round 2;
+collapsing the families to tidy the numbering would invalidate every round
+already written.
 
 ### Initiative — grouping features by work batch (multi-developer)
 

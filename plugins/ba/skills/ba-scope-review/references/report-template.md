@@ -67,6 +67,7 @@ This is the JSON injected into `assets/report.html` at the `__REVIEW_DATA__` tok
     {
       "id": "SQ-004",
       "severity": "Blocker",
+      "clrId": "CLR-021",
       "feature": "AUTH",
       "dimension": "functional_reqs",
       "question": "Which authentication methods are in scope — email/password, social (Google/Apple/Microsoft), OTP/passwordless, magic link, or enterprise SSO (SAML/OIDC)?",
@@ -125,7 +126,9 @@ Field rules:
 - `checkedIn` is a **required** list of the places searched for the answer before the question shipped — the feature's own §3.x sub-headings, the global §6, and whichever registers were consulted (see `SKILL.md` step 6). A question whose answer is found during that search is dropped, not recorded; so an empty list means the search wasn't done.
 - `consequence` is **required** and controlled: `"estimate"` · `"scope"` · `"integrations"` · `"compliance"` · `"none"` — what changes if the question stays unanswered. It is the evidence behind `severity`: a `Blocker` or `Major` cannot carry `"none"`, and a `"none"` question is a `Nit` at most. `whyItMatters` stays the prose explanation; `consequence` is the machine-checkable claim underneath it.
 - `instances` is **optional** and lists every *other* place the same gap bites when questions were merged during the gate's dedup step — each with `at` (the use-case or module id), `section` (the §3.x it sits in) and `form` (the one-line shape it takes there). It exists so three things can happen that a silent merge makes impossible: `/ba:resolve` can **show** the answerer that one answer settles several places, it can offer to **split** a merge that was wrong, and the resolution can **edit every listed section** rather than only the one the question was filed under. Absent or `[]` means the question was found in one place. A merged question keeps the surviving id; the swallowed ids are never reused.
-- **Backward compatibility** — reviews written before these fields exist will lack `coverageScore`, `cap`, `checkedIn`, `consequence` and `instances`. Readers (the HTML, `/ba:resolve`) must treat them as absent rather than erroring, and must not back-fill them by guessing: an old review's score was judged, not derived, and inventing a `coverageScore` for it would assert a derivation that never happened.
+- `clrId` is **required on every question a review writes from now on**, and is the **`CLR` this question is a view of** — the gap id, which is what a person is shown. `SQ-###` stays the internal join key that carries the question across rounds; `CLR-###` is the one stable across files and rounds, so it appears in `client-questions.md`, `open-questions.md`, the `/ba:resolve` prompt and the round ledger. A question matching an existing gap reuses that id; one matching nothing **mints a new `CLR`**, so no question exists without one. See `delivery-os-conventions` → *One gap, one id*.
+  **Required when writing, tolerated when reading.** A review written against this contract that ships a question without `clrId` is wrong — the link between the review and the gap register is the whole point of the field, and a question missing it reintroduces the two-numbers-for-one-gap problem it exists to stop. Absence is tolerated only when *reading* a review written before the field existed; treat it as absent and fall back to the `SQ`, never back-fill a `CLR` by guessing which gap an old question meant.
+- **Backward compatibility** — reviews written before these fields exist will lack `coverageScore`, `cap`, `checkedIn`, `consequence`, `instances` and `clrId`. Readers (the HTML, `/ba:resolve`) must treat them as absent rather than erroring, and must not back-fill them by guessing: an old review's score was judged, not derived, and inventing a `coverageScore` for it would assert a derivation that never happened.
 
 ## 2. Injecting into the HTML
 
@@ -180,6 +183,39 @@ round: 1
 - `SQ-011` (<Blocker/Major>) — <one line> → <…>
 
 **Notable strengths:** <1–2 things the scope does well and should keep>.
+
+## Since the last round
+
+*Round 2 onward only — omit this section entirely on round 1.* Derived from each
+question's `status` and from `priorReview`; see `references/resolution-loop.md`
+§6b for the bucket mapping and the four honesty rules. It sits here, ahead of
+the scorecard, because a reader who answered last round needs to know what their
+answers achieved before being shown a new score.
+
+**Accepted (<n>)** — in the scope, closed
+- <the question, in words> — §<3.x> · `DEC-###`
+
+**Assumption (<n>)** — building on it, <owner> still to confirm
+- <the question> — `ASM-###`
+
+**Answered — not enough yet (<n>)**
+- <the question>
+  - **You said:** <authorResponse>
+  - **Not enough because:** <adjudication>
+  - **Need:** <followUps>
+
+**Declined (<n>)** — recorded as a remaining gap
+- <the question> — `DEC-###`
+
+**Still open (<n>)** — <deferred by you | waiting on <name>>
+- <the question>
+
+**New this round (<n>)** — raised by the answers above
+- <the question>
+
+> Full detail only for **Answered — not enough yet** and **Still open**; those
+> are the two that need action. The rest are one line each, and a long bucket
+> gives its count plus the first few rather than every row.
 
 ## Feature scorecard
 

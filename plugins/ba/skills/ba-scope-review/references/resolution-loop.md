@@ -137,6 +137,104 @@ This is also the honest case for a score falling: the scope really did get worse
 
 Put the movement **at the top of the round**, above the scorecard, not buried in the executive summary prose. A reader whose score went backwards should not have to hunt for the reason.
 
+## 6b. The round ledger — show what moved before asking for more
+
+A round that opens with a score and a list of ids tells the reader nothing about
+the answers they gave last time. They cannot tell an accepted answer from a
+rejected one, or a new question from an old one renumbered — so round 3 reads as
+round 2 with different numbers, and a sitting that produced real movement looks
+like no movement at all.
+
+**From round 2 onward, every round opens with the ledger.** Round 1 has no prior
+round and shows none.
+
+### Five buckets, derived — not a new field
+
+Map §1's statuses onto what a reader needs to know. `Responded` is transient and
+never survives a run, so five remain:
+
+| Status | Bucket | What the reader is being told |
+|---|---|---|
+| `Resolved` | **Accepted** | your answer was taken, it is in the scope, closed |
+| `Accepted-assumption` | **Assumption** | recorded and being built on, the owner still has to confirm |
+| `Needs-verification` | **Answered — not enough yet** | your answer was read and was not sufficient; here is what is missing |
+| `Won't-fix` | **Declined** | you chose not to address it; the gap is recorded as remaining |
+| `Open` | **Still open** | nobody has answered, and here is who it waits on |
+
+Derive the ledger at render time from `status` plus `priorReview`. **Add no field
+for it** — a review written before this exists then renders without a ledger
+rather than erroring, and there is nothing to migrate.
+
+### `Needs-verification` is the bucket this exists for
+
+Today a question that was answered but judged incomplete looks identical, to the
+reader, to one nobody answered — both sit in a list of open items. That is
+exactly what "my answers are not reflected" feels like from outside.
+
+So this bucket always shows three things together: **what they said**, **why it
+was not enough**, and **the specific follow-up**. All three are already stored in
+`authorResponse`, `adjudication` and `followUps`; they are simply never shown
+next to each other.
+
+### Four rules that keep it honest
+
+- **An accepted item names where it landed.** List a question as Accepted only
+  when the scope edit was applied, and cite the §3.x it now lives in. §5 applies
+  edits rather than recommending them, so that evidence exists — without this
+  rule the ledger becomes a second place to claim work that did not happen.
+- **An assumption is not an acceptance.** Its own bucket, naming the owner, and
+  it stays visible until they confirm.
+- **"Still open" always says why** — deferred by the user, or waiting on someone
+  named. An open question with no reason attached is what makes a round feel like
+  a repeat.
+- **"New" is separated from carried-forward.** One answer closing three items and
+  raising one is useful information; a flat list of four hides it.
+
+### Keep it readable when a round is large
+
+Full detail only for **Answered — not enough yet** and **Still open** — the two
+that need action. The other three are one line each. Where a bucket runs long,
+give the count and the first few and leave the rest to the report; a ledger that
+pushes the new questions off screen has replaced one problem with another.
+
+### Shape
+
+```
+Round 3 — since you last answered
+
+  Accepted (4)                      in the scope, closed
+     · week closes Sunday 23:59 Gulf time            → §3.2, DEC-012
+     · supervisors can edit until close              → §3.2, DEC-013
+     · payroll pulls the Monday after                → §3.5, DEC-014
+     · a removed member's hours stay on the week     → §3.2, DEC-015
+
+  Assumption (1)                    building on it, Novacore still to confirm
+     · 12-hour cap is per calendar day               → ASM-007
+
+  Answered — not enough yet (1)
+     · multi-site split
+       You said: "split it evenly"
+       Not enough because: evenly by hours, or by the rate at each site? The
+       two give different pay for the same day.
+       Need: which basis, and what happens when the rates differ.
+
+  Declined (1)                      recorded as a remaining gap
+     · retention period for submitted weeks          → DEC-016
+
+  Still open (1)                    waiting on Novacore
+     · how a manual correction reaches the portal
+
+  New (1)                           raised by your own answers
+
+Now: 2 to answer — the follow-up above, and 1 new.
+```
+
+**Two placements, because they answer different questions.** The round report
+carries it as a `Since the last round` section straight after the executive
+summary and before the scorecard — that is the artifact a reader opens. And
+`/ba:resolve` prints it in chat before asking anything new, so the person
+answering sees what their last sitting achieved before being asked for more.
+
 ## 7. Output of a resolve round
 
-`/ba:resolve` writes a **new timestamped review round** — `.html` / `.md` / `.json` (render the `.html` the same UTF-8-safe way as a fresh review: write the `.json` sidecar first, then `node assets/inject.js assets/report.html <round>.json __REVIEW_DATA__ <round>.html` — never hand-assemble the HTML) — carrying every question forward with its updated status and resolution thread (response, adjudication, follow-ups, the promoted `DEC`/`ASM`/`CLR` id) **and its original screening fields `checkedIn` and `consequence` unchanged** — those record why the question was raised in the first place, so a later round must preserve them rather than re-deriving or dropping them, the recomputed scores and verdict, and the list of scope edits to apply (or applied). Then summarise in chat: how many resolved / accepted-as-assumption / awaiting-verification (with the open follow-ups) / still open, the score+verdict movement, and which registers were updated. The loop repeats — export responses from the new report, resolve again — until no open items remain.
+`/ba:resolve` writes a **new timestamped review round** — `.html` / `.md` / `.json` (render the `.html` the same UTF-8-safe way as a fresh review: write the `.json` sidecar first, then `node assets/inject.js assets/report.html <round>.json __REVIEW_DATA__ <round>.html` — never hand-assemble the HTML) — carrying every question forward with its updated status and resolution thread (response, adjudication, follow-ups, the promoted `DEC`/`ASM`/`CLR` id) **and its original screening fields `checkedIn` and `consequence` unchanged** — those record why the question was raised in the first place, so a later round must preserve them rather than re-deriving or dropping them, the recomputed scores and verdict, and the list of scope edits to apply (or applied). Then summarise in chat, **opening with the round ledger of §6b** — the five buckets with `Needs-verification` carrying its response, its adjudication and its follow-up — followed by the score+verdict movement and which registers were updated. From round 2 onward the ledger comes first, before any new question: a reader who cannot see what their last answers achieved has no reason to believe this round differs from the last. The loop repeats — export responses from the new report, resolve again — until no open items remain.

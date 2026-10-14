@@ -294,7 +294,7 @@ claude</code></pre>
       </li>
       <li>
         <h3>Init creates</h3>
-        <p><code>project.json</code>, empty <code>context/</code>, <code>ba-output/</code>, <code>shared-context/</code>, <code>dev-output/</code>. Nothing else on disk.</p>
+        <p><code>project.json</code>, empty <code>context/</code>, <code>ba/</code>, <code>shared-context/</code>, <code>dev-output/</code>. Nothing else on disk.</p>
       </li>
     </ol>
   </div>
@@ -330,7 +330,7 @@ claude</code></pre>
   <div class="section-head">
     <div class="kick">Stage 02 · Business Analyst</div>
     <h2>Scope &amp; feature breakdown</h2>
-    <p class="subtitle">Turn discovery inputs into a scored, feature-broken scope. Output: <code>context/features/&lt;slug&gt;/</code> folders plus BA registers under <code>ba-output/</code>.</p>
+    <p class="subtitle">Turn discovery inputs into a scored, feature-broken scope. Output: <code>features/&lt;slug&gt;/</code> folders plus BA registers under <code>ba/</code>.</p>
   </div>
 
   <div class="subtabs">
@@ -341,7 +341,6 @@ claude</code></pre>
   <div class="subpanel active" id="ba-g">
     <div class="flow">
       <span class="flow-step">/ba:scope</span><span class="flow-arrow">→</span>
-      <span class="flow-step">/ba:review</span><span class="flow-arrow">→</span>
       <span class="flow-step">/ba:resolve</span><span class="flow-arrow">→</span>
       <span class="flow-step">/ba:features</span><span class="flow-arrow">→</span>
       <span class="flow-step">/jetrix:push scope</span><span class="flow-arrow">→</span>
@@ -349,30 +348,28 @@ claude</code></pre>
     </div>
     <ol class="steps">
       <li>
-        <h3>Discover scope from client artifacts</h3>
-        <p>Drop discovery inputs (notes, docs, transcripts, mockups) into the workspace.</p>
-<pre><code>/ba:scope</code></pre>
+        <h3>Build the scope — and review it</h3>
+        <p>Drop discovery inputs (notes, docs, transcripts, mockups) into the workspace. One command builds the scope <em>and</em> reviews it: a second agent reads the finished document fresh and scores it, so the critic is not the author.</p>
+<pre><code>/ba:scope add "transcripts in &lt;path&gt;, requirements at &lt;link&gt;"</code></pre>
         <table class="args"><tr><th>Arg</th><th>Kind</th><th>Notes</th></tr>
-        <tr><td>—</td><td><span class="opt">none</span></td><td>Reads all discovery artifacts placed in the workspace root.</td></tr>
+        <tr><td>add "…"</td><td><span class="opt">optional</span></td><td>Where the material is. Originals are referenced in place, never copied or moved.</td></tr>
+        <tr><td>mode=</td><td><span class="opt">optional</span></td><td><code>auto</code> (default) · <code>incremental</code> · <code>full-refresh</code> · <code>dry-run</code></td></tr>
         </table>
-        <p>Produces <code>ba-output/scope.md</code>, registers, glossary.</p>
+        <p>It first asks what kind of work this is — <strong>client requirement</strong>, <strong>task needs a BA plan</strong> (internal, reads the code first), or <strong>straight to <code>/dev:plan</code></strong> — and proposes one with its reason.</p>
+        <p>Produces <code>ba/scope.md</code>, the registers, <code>ba/client-questions.md</code>, and a scored review in <code>ba/reviews/</code>. Closes with the readiness score and verdict.</p>
       </li>
 
       <li>
-        <h3>Paranoid review</h3>
-<pre><code>/ba:review</code></pre>
-        <table class="args"><tr><th>Arg</th><th>Kind</th><th>Notes</th></tr>
-        <tr><td>—</td><td><span class="opt">none</span></td><td>Scores every feature on coverage depth; flags gaps.</td></tr>
-        </table>
-      </li>
-
-      <li>
-        <h3>Resolve blocking open questions</h3>
+        <h3>Answer the open questions</h3>
+        <p>Run with no argument and it asks them one at a time, in the conversation — no file to export and return. Answer what you know, defer the rest, run it again later; it only ever asks what is still open.</p>
 <pre><code>/ba:resolve</code></pre>
         <table class="args"><tr><th>Arg</th><th>Kind</th><th>Notes</th></tr>
-        <tr><td>—</td><td><span class="opt">none</span></td><td>Iterates on OQs. Feed new info back until blockers clear.</td></tr>
+        <tr><td>—</td><td><span class="opt">none</span></td><td>Asks the open questions conversationally. From round 2 it opens with what your previous answers became — accepted, recorded as an assumption, or read but not sufficient.</td></tr>
+        <tr><td>&lt;responses-file&gt;</td><td><span class="opt">optional</span></td><td>An exported responses file. Still the right path when the answerer is a client who is not in the room.</td></tr>
         </table>
+        <p>Each terminal answer is <strong>applied to <code>ba/scope.md</code></strong>, not just recommended, and the score is recomputed.</p>
       </li>
+
 
       <li>
         <h3>Break scope into features</h3>
@@ -382,14 +379,14 @@ claude</code></pre>
           <tr><td><code>slug</code></td><td><span class="opt">optional</span></td><td>Break down one feature only. Omit for all.</td></tr>
           <tr><td><code>initiative</code></td><td><span class="opt">optional</span></td><td>Stamp all created features with this initiative name.</td></tr>
         </table>
-        <p>Produces <code>context/features/&lt;slug&gt;/</code> with 8 files per feature.</p>
+        <p>Produces <code>features/&lt;slug&gt;/</code> with 8 files per feature.</p>
       </li>
 
       <li>
         <h3>Push scope to Jetrix</h3>
 <pre><code>/jetrix:push scope</code></pre>
         <table class="args"><tr><th>Arg</th><th>Kind</th><th>Notes</th></tr>
-        <tr><td>—</td><td><span class="opt">none</span></td><td>Pushes <code>ba-output/*</code>, registers, <code>shared-context/</code>.</td></tr>
+        <tr><td>—</td><td><span class="opt">none</span></td><td>Pushes <code>ba/*</code>, registers, <code>shared-context/</code>.</td></tr>
         </table>
       </li>
 
@@ -419,8 +416,7 @@ claude</code></pre>
     <ol class="steps">
       <li>
         <h3>Run BA discovery for NEW work only</h3>
-<pre><code>/ba:scope
-/ba:review
+<pre><code>/ba:scope add "&lt;where the material is&gt;"
 /ba:resolve</code></pre>
         <p>Same args as greenfield. Registers get additive rows.</p>
       </li>
@@ -463,7 +459,7 @@ claude</code></pre>
 <pre><code>/tl:plan &lt;target&gt; [initiative=&lt;name&gt;] [layers=frontend,backend,database]</code></pre>
         <table class="args">
           <tr><th>Arg</th><th>Kind</th><th>Notes</th></tr>
-          <tr><td><code>target</code></td><td><span class="req">required</span></td><td>Feature folder, slug, <code>FEAT-id</code>, or <code>context/features/</code> for all.</td></tr>
+          <tr><td><code>target</code></td><td><span class="req">required</span></td><td>Feature folder, slug, <code>FEAT-id</code>, or <code>features/</code> for all.</td></tr>
           <tr><td><code>initiative</code></td><td><span class="opt">optional</span></td><td>Restrict planning to features stamped with this initiative.</td></tr>
           <tr><td><code>layers</code></td><td><span class="opt">optional</span></td><td>Comma list. Default: all three layers.</td></tr>
         </table>
@@ -479,7 +475,7 @@ claude</code></pre>
           <tr><td><code>initiative</code></td><td><span class="opt">optional</span></td><td>Restrict to features stamped with this initiative.</td></tr>
           <tr><td><code>--force</code></td><td><span class="opt">optional flag</span></td><td>Recompose even if graph inputs haven't changed since last compose.</td></tr>
         </table>
-        <p>Writes <code>context/features/&lt;slug&gt;/tl-plan.md</code>. Role names only — no file paths in the doc.</p>
+        <p>Writes <code>features/&lt;slug&gt;/tl-plan.md</code>. Role names only — no file paths in the doc.</p>
       </li>
 
       <li>

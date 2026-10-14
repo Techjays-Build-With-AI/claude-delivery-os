@@ -21,12 +21,14 @@ You are running a **resolution round** on a scope review: the author has answere
 
 ### 1a. Asking the questions (no-argument path)
 
-Everything needed to pose a question is already in the review `.json`: `id`, `severity`, `feature`, `dimension`, `question`, `whyItMatters`, `consequence`, `checkedIn`, `suggestedScope`, `instances`, `status`.
+Everything needed to pose a question is already in the review `.json`: `id`, `clrId`, `severity`, `feature`, `dimension`, `question`, `whyItMatters`, `consequence`, `checkedIn`, `suggestedScope`, `instances`, `status`.
+
+**Show the `clrId`, not the `SQ`.** `CLR-###` is the gap id — the same number in `clarifications.md`, in `client-questions.md` and in every round — so it is the one a person can carry between files and recognise again. `SQ-###` is the internal round key and belongs in the `.json`, not in a prompt. Where a question predates `clrId`, fall back to its `SQ` rather than inventing one.
 
 **Show the instances when a question carries them.** A question merged from several occurrences lists where it bites, so the answerer can see that one answer settles three places rather than treating it as an isolated detail:
 
 ```
-SQ-012  ·  Blocker  ·  Timesheet — allocations
+CLR-021  ·  Blocker  ·  Timesheet — allocations
 
 When someone is removed from a project after logging hours against it,
 what happens to those hours and that row — including in weeks already
@@ -43,6 +45,10 @@ Same scenario in 3 places — one answer settles all three:
 ```
 
 **Offer `s` on every question that has instances.** A merge made during extraction is a judgement, and the person answering is the one who can tell it was wrong. On `s`, split the instances back into separate ids, ask them one at a time, and say which. Without it a bad merge is permanent and invisible — the swallowed question does not exist anywhere to be found again.
+
+**From round 2 onward, open with the ledger — before asking anything.** Print the five buckets from `resolution-loop.md` §6b: Accepted (naming the §3.x each landed in), Assumption (naming the owner), **Answered — not enough yet** (with what they said, why it fell short, and the follow-up), Declined, and Still open (with who it waits on). Then the count of new questions.
+
+The person in front of you answered questions last time. Asking for more without first saying what those answers achieved is what makes a third round feel like the second one renumbered — and it is the reason a later round gets read as having added nothing. Round 1 has no prior round and opens straight into the questions.
 
 **Also take the open `CLR`s** marked `answerable: here` from `ba/logs/clarifications.md`, and interleave them with the `SQ-###` by severity — to the person answering they are one list, not two passes. `/ba:scope` deliberately wrote them without asking; this is where they get asked.
 
@@ -68,7 +74,7 @@ Run /ba:resolve when you have those — it will ask only these two.
 Label the ones that belong to the requirement's owner, and let the user choose:
 
 ```
-SQ-003  ·  Blocker  ·  waiting on: Novacore
+CLR-009  ·  Blocker  ·  waiting on: Novacore
 How strictly is a submitted week locked?
 
   1 · <option>      2 · <option>      3 · type your own
@@ -82,7 +88,7 @@ How strictly is a submitted week locked?
 Ask **one at a time**, highest severity first (Blocker → Major → Minor → Nit):
 
 ```
-SQ-012  ·  Blocker  ·  Timesheet — allocations
+CLR-021  ·  Blocker  ·  Timesheet — allocations
 
 When someone is removed from a project after logging hours against it,
 what happens to those hours and that row — including in weeks already
@@ -127,7 +133,7 @@ Already checked: the scope's allocation section and that use case, the
 
 Invoke the **ba-agent** subagent with the responses-file path — the one given as an argument, or the one §1a just wrote from the conversation. By this point the two paths are identical: the subagent only adjudicates a completed file. Pass it this instruction:
 
-> Run a scope-review resolution round using the `ba-scope-review` skill — follow `references/resolution-loop.md`. Read the responses file at `<path>`, take its `source_review` reviewId, and load the matching `scope-review-<reviewId>.json` (the prior review state) from the same folder. For each question that received an answer, **adjudicate** it: set status to `Resolved`, `Accepted-assumption`, `Needs-verification` (with 1–3 specific follow-up questions), `Won't-fix`, or leave it `Open` — with a one-line rationale each. Be skeptical: require specifics, don't close on vague assurances. For every terminal question, **apply the scope edit** — edit `ba/scope.md` at the owning §3.x sub-heading, do not merely describe the edit — and, when a workspace exists, promote it: confirmed facts → `shared-context/decision-log.md` (`DEC-###`) and the scope; accepted assumptions → `ba/registers/assumptions.md` (`ASM-###`, RAID A-##); still-open must-close items → `ba/logs/clarifications.md` (`CLR-###`, RAID Q-##). Carry all questions forward by their stable `SQ-###` IDs, update each feature's coverage map, and recompute the feature scores and the scope-readiness verdict (a resolved Blocker lifts the cap; note residual risk for accepted assumptions). Then write a **new review round** — fresh timestamped `.html` / `.md` / `.json`, with `round` incremented and `priorReview` set to the resolved reviewId — and return a summary of the movement.
+> Run a scope-review resolution round using the `ba-scope-review` skill — follow `references/resolution-loop.md`. Read the responses file at `<path>`, take its `source_review` reviewId, and load the matching `scope-review-<reviewId>.json` (the prior review state) from the same folder. For each question that received an answer, **adjudicate** it: set status to `Resolved`, `Accepted-assumption`, `Needs-verification` (with 1–3 specific follow-up questions), `Won't-fix`, or leave it `Open` — with a one-line rationale each. Be skeptical: require specifics, don't close on vague assurances. For every terminal question, **apply the scope edit** — edit `ba/scope.md` at the owning §3.x sub-heading, do not merely describe the edit — and, when a workspace exists, promote it: confirmed facts → `shared-context/decision-log.md` (`DEC-###`) and the scope; accepted assumptions → `ba/registers/assumptions.md` (`ASM-###`, RAID A-##); still-open must-close items → `ba/logs/clarifications.md` (`CLR-###`, RAID Q-##). **From round 2 onward, open the round with the ledger** — the five buckets from `resolution-loop.md` §6b (Accepted, naming the §3.x each landed in · Assumption, naming the owner · **Answered — not enough yet**, with what they said, why it fell short and the follow-up · Declined · Still open, with who it waits on), then the new questions. Write it into the round's `.md` and `.html` as a `Since the last round` section before the scorecard, and print it in chat before asking anything. **Set `clrId` on every question** so a person is shown the gap id rather than the internal round key. Carry all questions forward by their stable `SQ-###` IDs, update each feature's coverage map, and recompute the feature scores and the scope-readiness verdict (a resolved Blocker lifts the cap; note residual risk for accepted assumptions). Then write a **new review round** — fresh timestamped `.html` / `.md` / `.json`, with `round` incremented and `priorReview` set to the resolved reviewId — and return a summary of the movement.
 >
 > Responses file: `<path>`
 

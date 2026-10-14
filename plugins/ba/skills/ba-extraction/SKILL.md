@@ -171,6 +171,8 @@ instances:
   - PAY-UC-02   removed after payroll has pulled the week
 ```
 
+**Every question carries a `CLR`, and that is the id people see.** The `CLR` is the gap; `SQ` is the review's handle on it and `OQ` is the internal deliverable's view. A question matching an existing gap reuses its `CLR`; one matching nothing mints a new one. Minting a second family for a gap that already has a `CLR` is how one question ends up with three numbers and a reader cannot tell it is one question. See `delivery-os-conventions` → *One gap, one id*.
+
 **The test for one question rather than several:** would a single answer settle all of them? If yes, it is one question with instances. If any instance would still be open after the answer, it is a separate question — do not merge it to shorten the list. Shortening the list is not the goal; one answer per real decision is.
 
 Both `checkedIn` and `consequence` are required on every question that ships. **The gate is not softening** — the bar for a real gap is unchanged. Removing questions that were never gaps is what lets the rest carry full weight.
@@ -231,7 +233,31 @@ Structure:
   - **Answer:** _(blank for the client to fill)_.
 - Order groups/questions so the **Must-close-before-estimate** items come first.
 
+**`ba/open-questions.md` uses this same heading format.** Two question files with one shape, so a reader who has seen one can read the other.
+
 Only `Open` clarifications appear. When the answer round-trip closes a `CLR`, it disappears from the next regeneration (optionally list recently-closed ones in a short "Recently answered" section for continuity). Keep it self-contained and jargon-light — a client, not just the delivery team, may read it.
+
+## Owner questions deliverable (`ba/open-questions.md`)
+
+**The internal track's counterpart to `client-questions.md`.** Same job, different answerer: there is no client, but someone gave you the requirement and they own the answers. Generated every run on the `task-ba-plan` track from the open clarifications, and **not written at all on a client-requirement run** — two question files in one workspace is two places to look and one of them will go stale.
+
+**Do not confuse it with `features/<slug>/open-questions.md`**, which is a different file with the same base name: that one is per-feature, carries `OQ-<AREA>-###` ids with their own owner and impact in `open_questions[]` frontmatter, and is pushed to the Mission Control Dependencies tab. This file is workspace-level, carries `CLR` ids, and is read by a person rather than pushed anywhere.
+
+Frontmatter `doc_type: owner-questions`, `produced_by: ba`, plus `generated_at` and a count of open questions.
+
+Structure — deliberately the same shape as `client-questions.md`, so a reader who has seen one can read the other:
+
+- A one-line intro naming **who is expected to answer** and what to do: fill in the answers and return the file, or answer them in `/ba:resolve`, which asks the same questions one at a time.
+- **Grouped by module / topic.** Under each group, one entry per open `CLR`:
+  - `### CLR-### — <the question>  ·  Priority: <RAID class>` — **the same heading format as `client-questions.md`**, the RAID class one of *Must close before estimate · Proceed with assumption · Minor implementation detail · Future phase*.
+  - **Why it matters:** one line on the scope or estimate impact.
+  - **Already checked:** where the answer was looked for and not found — the `checkedIn` value. On this track that usually includes code-context units, so the reader can say "it is in that file, you missed it" rather than answering something already settled.
+  - **Answer:** _(blank)_.
+- **Must-close-before-estimate first.**
+
+**Mark the ones answerable here.** A question the person running the loop can settle themselves is labelled as such, because `/ba:resolve` will ask those directly and they should not be sent away to someone else. The rest name who they wait on.
+
+Only `Open` clarifications appear. When an answer closes a `CLR`, it drops out of the next regeneration.
 
 ## Shared-context files (`shared-context/`)
 
