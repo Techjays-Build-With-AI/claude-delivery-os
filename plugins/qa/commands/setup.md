@@ -34,9 +34,11 @@ Close with this block, filled in:
 
 Next:
   1. Review and merge the PR
-  2. /dev:build <task>           — tests written as part of the build
-     /dev:build --tests-only     — backfill tests for code already written
+  2. /dev:plan <task>            — plan it, then /dev:build <task>
+     /dev:build <task> --tests-only   — backfill tests for code already written
   3. /qa:health                  — re-check the gates any time
 ```
+
+**`/dev:build` is never the step after setup.** It halts without a `/dev:plan` plan (`build.md` §2, "run /dev:plan first"), so printing it here sends the user into a refusal. `--tests-only` is the one exception — it writes no production code, so it needs no plan.
 
 Name any **`Required*` gate whose condition holds but whose command is still `Not-configured`** — those are the tiers the dev loop will report as `tier-unavailable`, and they are gaps rather than opt-outs. It stops at the PR and **never merges**.

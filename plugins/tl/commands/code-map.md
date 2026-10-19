@@ -20,6 +20,15 @@ You onboard an **existing codebase** into Delivery OS by deriving a **code-conte
 
 If there's no resolvable repository, say so and ask the user to point you at one — there's nothing to map without code.
 
+A repo with no local path is the commonest cause, and the fix is one command — print it rather than a generic error:
+
+```
+<repo> has no local path on this machine.
+
+  /jetrix:init refresh        re-asks for it, and re-fetches anything else
+                              the project has gained since the bind
+```
+
 **Where output goes** — state this back to the user before starting, because it writes inside their repo: the tree is created at **`<repo>/context/code-context/`** — a `context/` folder at the repo root, with `code-context/` inside it, created if the repo has none — intended to be **committed with the code**. If the repo already has a root-level `context/` used by the application, say so and confirm the location with the user before writing rather than mixing tool output into source. Running from a parent workspace over several repos still writes each repo's context into that repo. The only workspace-level file is the registry, `<workspace>/.jetrix/tl/code-map-registry.md`. Nothing else in the repository is touched, and nothing is committed — the user reviews and commits.
 
 ## 2. Choose environment and align branches

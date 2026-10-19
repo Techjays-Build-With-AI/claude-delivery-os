@@ -270,6 +270,88 @@ The workspace `.jetrix/tl/code-map-registry.md` is the one workspace-level TL fi
 
 Jetrix is the **single source of truth** for all project context (glossary, scope, registers, feature breakdown). The local `.jetrix/` folder is a disposable **working copy** — the ENTIRE folder is gitignored, including `project.json`, the cache, and every role subfolder. Binding a workspace and syncing it are owned by the separate **`jetrix`** plugin — read its **`jetrix-sync`** skill for the full contract: `.jetrix/project.json` (regenerable identity + app/environment→branch wiring — no secrets), the cache, and the pull/push model. Commands: `/jetrix:init` (bind + run the v1→v2 migration on old workspaces), `/jetrix:pull` (refresh the cache from Jetrix, incremental), `/jetrix:push` (publish local work back as structured records — upsert by stable id, transactional, pull-before-push). The canonical form in Jetrix is **structured records** (the IDs in §3); `scope.md` and the branded `.docx` are projections rendered from them.
 
+#### The tracker block — which tool holds the tasks
+
+`project.json` carries a `tracker` block. **Every consumer branches on its `capabilities`, never on `provider`.** Jetrix is the default; any tool whose MCP the user has registered works the same way.
+
+```yaml
+tracker:
+  provider:     jetrix            # jetrix | jira | clickup | azure | <any name>
+  mcp:          project-mcp       # the registered server name — recorded, never assumed
+  project_ref:  <id or key>       # the LOCKED project/folder. We select it, never create it.
+  project_path: <Acme / Delivery / Supplier Platform>   # what summaries print
+  container_ref:  <id or key>     # WHERE ISSUES ARE CREATED, under project_ref.
+  container_path: <… / Delivery OS>                     # what summaries print
+  container_kind: list            # list | epic | none  (none → == project_ref)
+  capabilities:
+    apps:       true              # false → repos + dev branch asked at bind
+    tabs:       7                 # 1 → the six BA files + Implementation as ## sections in one body
+    documents:  scope-mcp         # none → scope.html stays local
+  mapping:      null              # ten keys, null where unsupported, confirmed once:
+                                  # browse[] is ORDERED — "project" is not one level in
+                                  # every tool. ClickUp: Workspace → Space → Folder → List.
+                                  # A flat tracker is a one-element list.
+                                  # resolve_project · resolve_container · create_container
+                                  # create_issue · update_issue · read_issue
+                                  # child_issues · comments · attachments · set_status · put_document
+  status_map:   null              # PLANNED · IN_PROGRESS · REVIEW · DONE · BLOCKED → that tool's states
+
+```
+
+**Two levels, not one — the project is locked, the container is where issues land.** `browse[]` ends at the thing that already exists and we never create: a Jetrix Solution, a Jira project, a ClickUp Folder. Issues are not created there. They are created in a **container** under it, and `container_ref` is the only ref any push or pull targets — `project_ref` is for display and for resolving the container, nothing else.
+
+| | project_ref | container_ref | `container_kind` |
+|---|---|---|---|
+| Jetrix | Solution | an MC List named after `solutionSlug` | `list` |
+| ClickUp | Folder (or Space) | a **List** — mandatory, a task cannot exist outside one | `list` |
+| Jira | project `SUP` | an epic, **or the project itself** | `epic` / `none` |
+| Azure | project | an Area Path, or a parent work item | `list` / `none` |
+
+`container_kind: none` means that tracker creates issues directly in the project; `container_ref` is then set equal to `project_ref` rather than left null, so consumers never branch. **A null `container_ref` is a broken bind** — halt and point at `/jetrix:init refresh`, never fall back to `project_ref` silently. That fallback is exactly how a workspace quietly files thirty features into the wrong place.
+
+One container per workspace, named after the workspace, is the default on every tracker — it is what Jetrix already does and it keeps the mapping back from issue to workspace obvious. Grouping *within* it is the tracker's own job (an initiative label, a sprint), not a second container.
+
+**The one-body projection — `capabilities.tabs: 1`.** Mission Control has seven tab fields; nothing else does. Where a tracker has one description field, push concatenates the local files under fixed headings and pull splits them back out. **Push and pull are inverses, so the heading set is the contract — and it is the one already shipped**, written by `references/pull/list.md` and parsed by `references/push/task.md` §2:
+
+```markdown
+<!-- delivery-os:v1 FEAT-SUP-001 -->
+
+## Description
+## Business Rules
+## Acceptance Criteria
+## NFRs
+## Test Scenarios
+## Assumptions / Dependencies
+## Implementation
+```
+
+**Emit this order and this spelling; accept more.** `push/task.md` §2 holds the alias table (`Dependencies`, `Test Cases`, `Non-Functional Requirements`, …) and is the only parser — a tracker body is written by hand as often as not. A section whose field is empty is **omitted**, heading and all, rather than left blank.
+
+Three rules keep the round-trip safe:
+
+- **The marker is the gate.** No `<!-- delivery-os:v1 … -->` and pull does not split at all — the body was written by hand in the tracker, so it becomes Description verbatim and the run says so. Never guess at splitting someone's prose.
+- **An unrecognised `##` heading halts the pull.** It is not dropped. A heading someone added in the tracker is content, and silently discarding it is the worst outcome available.
+- **A child issue carries only `## Description` and `## Implementation`.** Acceptance and Test Scenarios live on the parent, exactly as they do on Mission Control sub-tasks.
+
+`## Implementation` runs long — 32k characters is normal. Where a tracker refuses a body that size, attach `implementation.md` and leave a pointer line under the heading rather than truncating a build spec.
+
+**Addressing a ticket.** Accept whatever that tracker calls it, **including a pasted URL** — a URL is what someone actually has in hand. Jetrix takes `Task-11` / `Feature-4` / `FEAT-SUP-001` / the Mongo id; Jira takes `SUP-123` or its browse URL; ClickUp takes the task id or its URL. Resolve through `mapping.read_issue`.
+
+**Matching a ticket back to a local folder** needs its own mechanism, because only Mission Control has `metadata.externalId`. Jira custom-field ids vary per instance and labels are neither universal nor long enough, so identity travels in the one field every tracker has — the body:
+
+```
+<!-- delivery-os:v1 FEAT-SUP-001 -->
+
+## Description
+…
+```
+
+Paired with `tracker_issue_ref` in the local `status.md`, the link is two-way: local → tracker by the ref, tracker → local by the marker. **An issue with no marker was filed by hand in the tracker** — treat it as the non-feature track, never as a feature whose folder went missing.
+
+Reports follow `capabilities.documents`: `scope-mcp` publishes `scope.html` to Dashboard → Reports and returns a stable share link; `none` keeps it local. There is no separate reports binding.
+
+`mapping` and `status_map` are `null` on Jetrix (its tools are fixed) and filled on any other tracker by the discovery step at `/jetrix:init` §2c. A refresh preserves both — they are confirmed by a human once and never re-derived.
+
 ### Source handling — reference, never copy or move
 Original source files (local folders/files, Google Drive, etc.) **stay where they are**. The workspace never copies, moves, or deletes a user's originals. Intake only:
 1. **records** each source in `intake.index.md` (its real location + classification + status), and

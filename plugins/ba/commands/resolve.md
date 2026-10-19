@@ -25,4 +25,28 @@ Invoke the **ba-agent** subagent with the responses-file path. Pass it this inst
 
 ## 3. Surface the result
 
-When the agent returns, present the **round summary**: how many questions were Resolved / Accepted-as-assumption / Needs-verification (list the follow-ups the author still needs to answer) / still Open, the score and verdict movement (e.g. "3.4 → 6.2, Significant gaps → Estimate with caveats"), which scope edits were applied, and any `DEC`/`ASM`/`CLR` rows logged. Link to the new round's `.html` (interactive) and `.md`. If items still need verification, tell the user to answer the follow-ups in the new report and export again.
+When the agent returns, present the **round summary**: how many questions were Resolved / Accepted-as-assumption / Needs-verification (list the follow-ups the author still needs to answer) / still Open, the score and verdict movement (e.g. "3.4 → 6.2, Significant gaps → Estimate with caveats"), which scope edits were applied, and any `DEC`/`ASM`/`CLR` rows logged.
+
+A round writes a **new timestamped report**. Link and serve it exactly as `/ba:review` §3 does — local only, never published. The round number belongs in the summary so nobody opens the wrong file.
+
+**Reuse a server that is already up.** If one is serving `ba/reviews` from an earlier command in this session, the new round is already reachable — print its URL rather than starting a second one on another port, which only splits the user's attention across two tabs.
+
+Close every round with this block. **The routing rule is `/ba:review` §3's, applied to the new counts** — a resolve round that still leaves a Blocker open routes to resolve again, not forward:
+
+```
+Round 2 — scope readiness 3.4 → 6.2   Significant gaps → Estimate with caveats
+  Resolved <n> · Assumption <n> · Needs-verification <n> · Open <n>
+  Logged: DEC-004, DEC-005, ASM-002, CLR-009
+
+Report   http://127.0.0.1:<port>/scope-review-<ts>.html
+         ba/reviews/scope-review-<ts>.html
+
+Next:
+  <one block, chosen by /ba:review §3's table against the NEW counts>
+```
+
+Three endings, and they are not interchangeable:
+
+- **Follow-ups outstanding** (`Needs-verification`) → answer them in the new report, export, `/ba:resolve` again. Name the follow-ups; "some items need verification" tells the author nothing to act on.
+- **No Blocker left** → `/ba:features`.
+- **New material arrived instead of answers** → `/ba:scope add "…"`, then re-review. Resolve adjudicates answers to existing questions; it cannot absorb a new document.

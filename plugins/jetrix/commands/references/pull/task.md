@@ -2,6 +2,8 @@
 
 Materializes ONE feature folder locally. `<ref>` accepts any of:
 
+**On a non-Jetrix tracker** `<ref>` is whatever that tracker calls an issue — a key, an id, or a pasted URL — resolved through `mapping.read_issue`. The response carries one body, not seven fields, so split it per `delivery-os-conventions` §1.c. No marker → no split, and §7's non-feature fallback below is exactly where that lands.
+
 - `11` or `TASK-42` — task number (routed to `task_number`). A bare integer is the normal form.
 - `FEAT-CLSF-01` — BA feature id (routed to `feature_id="FEAT-CLSF-01"`)
 - `6a61...` (24-char hex) — MongoDB `_id` (routed to `task_object_id`)

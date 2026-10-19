@@ -2,6 +2,14 @@
 
 Creates ONE MC Task per `features/<slug>/` folder. Features are grouped into MC Lists by resolved `list_name` — one Task per feature, one MC List per unique `list_name` value, one `feature_upsert_bundle` call per group (task-mcp's `solution_slug` parameter carries the resolved List name for that batch). First push per Task = POST (create); repush = PUT (update by `jetrix_task_object_id` stored in `feature.md` frontmatter).
 
+**On a non-Jetrix tracker** the walk, the hash-check, the write-back and the no-prompt rule below are all unchanged. Two things differ, and both are read from `tracker` in `project.json`:
+
+- **One body, not seven tabs.** `capabilities.tabs: 1` → concatenate the BA files under the headings in `delivery-os-conventions` §1.c, marker first, omitting any section whose file is empty.
+- **The call.** `mapping.create_issue` / `mapping.update_issue` on `tracker.mcp` instead of `feature_upsert_bundle` — resolve the schema with `ToolSearch` first. Every issue is created in **`tracker.container_ref`**, the list or epic `/jetrix:init` §5a locked; `project_ref` never receives an issue. There is no per-list grouping to do, so §3a's fallback warning and §4's batching collapse to one issue per feature in that one container.
+- **A null `container_ref` halts the push.** Say the bind is incomplete and point at `/jetrix:init refresh`. Never substitute `project_ref`: on ClickUp it is a Folder and the create fails anyway, and on Jira it silently files every feature loose in the project where nobody is looking for it.
+
+Write back `tracker_issue_ref` (whatever key that tracker returned) where §5 writes `jetrix_task_object_id`. Same sync-state file, same content hashes — a re-push skips unchanged features exactly as it does on Jetrix.
+
 ### ⚠️ Operating rule for the agent running this stage — NEVER prompt the user mid-push
 
 The push is a mechanical operation, not a design conversation. Once it starts, **carry it to completion or halt with a specific "run X first" error** — those are the only two outcomes.

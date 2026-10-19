@@ -1,5 +1,16 @@
 ## Stage: `scope` (implemented — uses scope-mcp)
 
+**Not on Jetrix? This stage does not run.** `tracker.capabilities.documents` is `none` on every other tracker — there is nowhere to put `scope.md` or `scope.html`. Report the local paths and stop:
+
+```
+Scope documents stay local on <provider>.
+
+  .jetrix/ba/scope.md
+  .jetrix/ba/scope.html          npx serve .jetrix/ba
+
+Features still push —  /jetrix:push feature
+```
+
 ### 2. Walk local files — via Bash ONLY, never `Read`
 
 **Hard rule: do NOT use the `Read` tool to open any of the scope files.** Reading an 81KB scope.md into Claude's context defeats the entire direct-to-GCS design and will slow the push to a crawl. The point of the three-phase flow is that file bytes stay out of Claude — this step is where that discipline starts.

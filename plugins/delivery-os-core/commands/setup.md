@@ -1,5 +1,5 @@
 ---
-description: Register the delivery-os MCP servers on your machine — always under their canonical short names (project-mcp, scope-mcp, task-mcp). No flag → prod URLs. `--staging` → staging URLs. `--local` → localhost. One environment per machine; to switch, `claude mcp remove <name>` then re-run. Idempotent — safe to re-run.
+description: Register the delivery-os MCP servers on your machine — always under their canonical short names (project-mcp, scope-mcp, task-mcp). No flag → prod URLs. `--staging` → staging URLs. `--local` → localhost. One environment per machine; to switch, `claude mcp remove <name>` then re-run. Ends by printing the portal URL for that environment and handing off to `/jetrix:init`, which lists your projects or prints how to create one. Idempotent — safe to re-run.
 argument-hint: "[--staging | --local]"
 ---
 
@@ -48,6 +48,14 @@ Only one of `--staging` or `--local` at a time. `--staging --local` is rejected.
 
 Pick the URL set for the mode and hold it as `target_urls = { "project-mcp": "...", "scope-mcp": "...", "task-mcp": "..." }`.
 
+Also hold the **portal URL** for the mode — §5 prints it, because the portal and the MCPs must be the same environment:
+
+| Mode | Portal |
+|---|---|
+| production | `https://app.jetrix.ai/` |
+| staging | `https://staging-jetrix.web.app/` |
+| local | the locally served portal build |
+
 ## 2. Check what's already registered
 
 Run ONE Bash call:
@@ -83,36 +91,13 @@ claude mcp add --transport http task-mcp    https://task-mcp-prod-423614975588.a
 
 `--staging` and `--local` use the same three names against the staging / local URLs in the table above.
 
-## 4. Kick off the OAuth handshake
+## 4. OAuth happens on the first real call
 
-`claude mcp add` only stores a name → URL row in `~/.claude.json`. It does NOT sign the teammate in. The first tool call from each MCP triggers a browser-based OAuth flow — that's when the actual Jetrix login happens and a token gets cached locally.
+`claude mcp add` only stores a name → URL row in `~/.claude.json`. It does NOT sign the teammate in. The first tool call to each MCP opens a browser tab for the Jetrix sign-in, and Claude Code caches the token.
 
-**Do this next, in this exact order:**
+**Nothing needs running on purpose.** The next step in §5 is `/jetrix:init`, which touches `project-mcp` immediately; `scope-mcp` and `task-mcp` follow on the first pull and the first push. Three servers, three sign-ins, spread across the first few commands the teammate was going to run anyway.
 
-```
-1. In THIS Claude Code session, run one MCP tool to force the handshake.
-   The safest one is a read that has no side effects — pick either:
-
-     /jetrix:init             (tries project_list_solutions → triggers OAuth)
-     mcp__project-mcp__project_list_solutions   (direct tool call)
-
-2. A browser tab will open pointing at the MCP's authorization server:
-     Production →  project-mcp-prod-423614975588.asia-south1.run.app
-     Staging    →  project-mcp-staging-771850316307.asia-south1.run.app
-     Local      →  127.0.0.1:8788
-
-3. Sign in to Jetrix with the teammate's normal credentials.
-   Grant the consent screen — this authorizes Claude Code to call the MCP
-   on the teammate's behalf. Token gets cached in ~/.claude.json.
-
-4. Repeat steps 1-3 for scope-mcp and task-mcp:
-     mcp__scope-mcp__scope_list_documents solution_id=<anything>
-     mcp__task-mcp__list_all_lists solution_id=<anything>
-
-   (In practice, running /jetrix:project-setup end-to-end touches all
-   three MCPs — one setup command triggers all three handshakes back
-   to back, so a teammate rarely notices the split.)
-```
+The browser tab points at that MCP's own authorization server — `project-mcp-prod-…asia-south1.run.app` for production, the `-staging-` host for staging, `127.0.0.1:8788` for local.
 
 **Only ONE sign-in per MCP per environment.** After that the cached token gets reused until it expires (long-lived by design). Second and third runs of any command hit the MCP silently — no browser.
 
@@ -134,29 +119,25 @@ Print a summary tagged with:
 Example (production, first run, clean machine):
 
 ```
-Delivery-OS MCP setup complete — production.
+✓ Registered — production
 
-  + project-mcp     (production)
-  + scope-mcp       (production)
-  + task-mcp        (production)
+  + project-mcp
+  + scope-mcp
+  + task-mcp
 
-NEXT — sign in to each MCP (one-time per environment):
+  Portal: https://app.jetrix.ai/
 
-  A browser tab will open the first time each MCP is called. Sign in
-  to Jetrix, grant consent, and Claude Code caches the token. After
-  that, you're done.
+Next:
+  /jetrix:init        lists your projects, or tells you how to create one
 
-  Fastest way: run /jetrix:project-setup — it touches all three MCPs
-  back-to-back, so all three OAuth flows fire in one session.
-
-  Or trigger them one by one:
-    mcp__project-mcp__project_list_solutions
-    mcp__scope-mcp__scope_list_documents solution_id=<any>
-    mcp__task-mcp__list_all_lists solution_id=<any>
-
-  Verify anytime with:  claude mcp list
-  (Names showing `! Needs authentication` still need the browser step.)
+  Using Jira, ClickUp, Azure or another tool?
+    claude mcp add --transport http <name> <its-mcp-url>
+    then  /jetrix:init --tracker=<name>
 ```
+
+**Print the portal URL for the mode this run registered** (§1's table). Getting it wrong is the expensive mistake here: a Solution created in the staging portal does not exist to production MCPs, and `/jetrix:init` then reports the project as not found with no hint why.
+
+`/jetrix:init` lists what you already have, or prints how to create one — so setup asks nothing it would have to guess.
 
 Example (production request, but names are already registered against staging):
 

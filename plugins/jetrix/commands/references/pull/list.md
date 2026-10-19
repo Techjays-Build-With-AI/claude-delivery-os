@@ -2,6 +2,8 @@
 
 Materializes every task in an MC List — both FEATURE tasks (BA feature folders) and non-FEATURE tasks (bugs, chores, ad-hoc work). `<ref>` accepts:
 
+**On a non-Jetrix tracker** a "list" is a **container**: the ClickUp List or Jira epic that holds issues. With no `<ref>`, it is `tracker.container_ref` — the one `/jetrix:init` §5a locked, which is the normal case. With a `<ref>`, it is whichever other container was named, so a one-off pull from a neighbouring list needs no re-bind. Either way the ref goes to `mapping.child_issues`. The file layout below is the canonical one-body projection, so both sides already agree on it; the only difference is that the fields arrive pre-joined in one body and get split rather than read individually.
+
 - A **list name** (e.g. `"Reported Issues"`, `"Supplier Management"` — use the exact List name shown in MC)
 - A **MongoDB `_id`** (24-char hex)
 

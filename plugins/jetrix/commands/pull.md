@@ -59,6 +59,27 @@ The per-stage flow (manifest call, filter, curl loop, sync-state update) lives i
 - `<stage>` (required): `scope` | `connection-map` | `task <ref>` | `sprint <ref>` | `list <ref>` | `all`. If missing or unknown, print the table above and stop.
 - `<ref>` (required for `task`/`sprint`/`list` stages): identifier — accepts human forms (`TASK-42`, `FEAT-CLSF-01`, sprint number, list name) or a MongoDB `_id`. Plugin routes the ref to the right filter param on `feature_pull_bundle`.
 
+## 1.5. Resolve the tracker
+
+Read `tracker` from `project.json`. The stage files branch on `capabilities`, never on `provider`.
+
+| | `jetrix` | any other tracker |
+|---|---|---|
+| which server | `scope-mcp` + `task-mcp` | `tracker.mcp`, via `tracker.mapping` |
+| what is read | the Solution's List | `tracker.container_ref`, so an unrelated ticket in the same project is never swept in |
+| task fields | 7 tabs → 7 files | **one body** → split on `##` into the same 7 files |
+| `scope` stage | pulls BA docs + connection-map + features | documents are local-only, so it pulls **features only** |
+| `connection-map` stage | pulls it | **skipped** — `/jetrix:init` §9a wrote it from the user's own answers |
+
+**Splitting a body back into files is governed by `delivery-os-conventions` §1.c, and it is strict.** No
+`<!-- delivery-os:v1 … -->` marker → do not split: the body was written by hand in the tracker, so it becomes
+`feature.md` verbatim and the run says so. An unrecognised `##` heading → **halt**, never drop it — a heading someone
+added in the tracker is content.
+
+**Which local folder an issue belongs to comes from the marker's `<FEAT-ID>`**, not from the issue's position or title.
+An issue with no marker is a hand-filed ticket and materialises under `tasks/<slug>.md`, which is what
+`/dev:plan` §2f already expects.
+
 ## 2. Route to the stage-specific flow
 
 Once the stage is resolved, `Read` the corresponding file and execute its instructions verbatim. The stage file assumes the preflight above has run and `project_root` / `workspace_root` / `solutionId` / `solutionSlug` are known.

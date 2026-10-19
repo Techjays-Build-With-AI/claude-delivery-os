@@ -2,6 +2,13 @@
 
 TL runs this AFTER `/dev:plan` writes per-feature `tl-plan.md` files (the buildable 9-section technical spec). Each MC Task's `implementationDetails` gets **that one file's body verbatim** — no concatenation, no unit-file walking, no manifest degradation. `/dev:plan` is responsible for producing a self-contained document sized under Mission Control's 60 KB cap; this stage only ships what compose produced. Status flips to `READY_FOR_DEV`. Does NOT touch BA-owned body fields.
 
+**On a non-Jetrix tracker** there is no `implementationDetails` field. `tl-plan.md` becomes the issue body's `## Implementation` section: read the current body, replace that one section, write it back with `mapping.update_issue`. Everything above the heading is left byte-for-byte alone.
+
+- **No marker, no edit.** A body without `<!-- delivery-os:v1 … -->` was written by hand in the tracker. Skip it and say so rather than rewriting someone's ticket.
+- **Size.** Mission Control's cap is 60 KB and other trackers are lower. Where a body that size is refused, attach `tl-plan.md` and leave a pointer line under the heading — never a truncated build spec.
+
+The `READY_FOR_DEV` flip goes through `mapping.set_status` and `tracker.status_map`.
+
 If a feature folder has no `tl-plan.md`, this stage skips it with a clear message pointing the user at the right recovery command. Two cases:
 
 - **This teammate hasn't composed yet locally** → run `/dev:plan <slug>` to generate `tl-plan.md` from the local graph.

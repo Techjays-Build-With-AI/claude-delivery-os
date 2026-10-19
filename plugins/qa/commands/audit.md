@@ -31,11 +31,22 @@ Stack: <detected stack · package manager · runner or "none">
 Blockers: <n>   Major: <n>   Minor: <n>
 Current coverage: <measured %, or "not instrumented">
 
-Report → qa/audits/test-audit-<ts>.html
+Report
+  http://127.0.0.1:<port>/test-audit-<ts>.html     ← open in your browser
+  qa/audits/test-audit-<ts>.html                   ← the file itself
 
 Next:
-  1. Open the report, set Adopt / Skip / Defer per finding, Export approvals
+  1. Set Adopt / Skip / Defer per finding, click Save approvals — it writes
+     qa/audits/test-audit-<ts>-approvals.md
   2. /qa:plan qa/audits/test-audit-<ts>-approvals.md
 ```
+
+**Start the server yourself as the last action of the run** — the same script the BA review uses, pointed at this folder:
+
+```bash
+node ${CLAUDE_PLUGIN_ROOT}/../delivery-os-core/scripts/serve-review.js .jetrix/qa/audits
+```
+
+It picks a free port from 4100, opens the browser, and prints `DELIVERY_OS_SERVE_READY http://127.0.0.1:<port>/` — read the port from that line. Save approvals POSTs back to it, so the approvals file lands in `qa/audits/` and `/qa:plan` can be run against the path the toast shows. Opened from `file://` instead, Save degrades to a download and the page says so; report the local path and carry on rather than failing the audit over it.
 
 **Report `Current coverage` as a measured number** whenever coverage tooling exists — run it and read the result; never estimate. This is the figure the human needs to set a reachable floor at `/qa:plan`: on an existing repo the floor is baselined to what the code passes **today** and ratcheted afterwards, not set to a greenfield default it cannot meet. Where no coverage tool is configured, say `not instrumented` rather than implying zero.

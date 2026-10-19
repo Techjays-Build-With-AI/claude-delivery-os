@@ -5,6 +5,8 @@ to**. Invoked by the `task`, `list`, and `sprint` stages after their own
 materialization step has run. Not a stage of its own — never routed to
 directly from `/jetrix:pull`.
 
+**On a non-Jetrix tracker** every tracker has comments and most have attachments, so this sub-flow runs — through `mapping.comments` and `mapping.attachments` on `tracker.mcp`, written to the same two places. A mapping key recorded as `null` at `/jetrix:init` §2c means that tracker has no such API: skip that half, say which, and never substitute a near-miss tool. Resolved/unresolved state is Mission Control's; elsewhere, record whatever that tracker returns and leave the count out rather than inventing one.
+
 **Target directory per task kind** — this is the only thing that varies:
 
 | Task kind | `--target-dir` |

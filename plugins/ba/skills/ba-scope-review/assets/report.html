@@ -214,8 +214,64 @@
   .btn.primary:hover { filter: brightness(1.08); background: var(--accent); }
   #export-note { font-size: 12px; color: var(--muted); }
 
+
+  /* ---- Tabs ------------------------------------------------------------ */
+  nav.tabs { display: flex; gap: 2px; margin: 18px 0 0; border-bottom: 1px solid var(--border);
+    overflow-x: auto; scrollbar-width: none; }
+  nav.tabs::-webkit-scrollbar { display: none; }
+  nav.tabs button { appearance: none; background: none; border: 0; border-bottom: 2px solid transparent;
+    padding: 10px 14px; font: inherit; font-size: 14px; font-weight: 600; color: var(--muted);
+    cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 7px; }
+  nav.tabs button:hover { color: var(--text); }
+  nav.tabs button[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); }
+  nav.tabs .tabcount { font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 999px;
+    background: var(--surface-2); color: var(--muted); border: 1px solid var(--border);
+    font-variant-numeric: tabular-nums; }
+  nav.tabs button[aria-selected="true"] .tabcount { background: var(--accent); color: #fff; border-color: var(--accent); }
+  nav.tabs .tabcount.urgent { background: var(--blocker); color: #fff; border-color: var(--blocker); }
+  section.panel[hidden] { display: none; }
+  .panel-intro { color: var(--muted); font-size: 13.5px; margin: 16px 0 2px; max-width: 72ch; }
+
+  /* ---- Register cards --------------------------------------------------- */
+  .reg { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 14px 16px; margin: 10px 0; }
+  .reg-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 7px; }
+  .reg-head .fid { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px; font-weight: 700; color: var(--muted); }
+  .reg-q { font-weight: 600; }
+  .reg-meta { font-size: 12.5px; color: var(--muted); margin-top: 6px; }
+  .reg-body { font-size: 14px; margin-top: 8px; }
+  .reg-sides { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+  .reg-side { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 9px 11px; }
+  .reg-side h5 { margin: 0 0 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  .reg-side .src { font-size: 12px; color: var(--muted); margin-top: 5px; }
+  @media (max-width: 640px) { .reg-sides { grid-template-columns: 1fr; } }
+
+  /* ---- Save bar + modal -------------------------------------------------- */
+  .savebar { position: sticky; bottom: 0; z-index: 15; margin: 18px -20px 0; padding: 12px 20px;
+    background: color-mix(in srgb, var(--surface) 94%, transparent); backdrop-filter: blur(8px);
+    border-top: 1px solid var(--border); display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .savebar .spacer { flex: 1 1 auto; }
+  .save-note { font-size: 12px; color: var(--muted); }
+
+  .modal-back { position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,.45);
+    display: flex; align-items: center; justify-content: center; padding: 20px; }
+  .modal-back[hidden] { display: none; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    box-shadow: 0 18px 48px rgba(0,0,0,.3); max-width: 540px; width: 100%; padding: 22px 24px; }
+  .modal h3 { margin: 0 0 8px; font-size: 17px; display: flex; align-items: center; gap: 9px; }
+  .modal .tick { width: 22px; height: 22px; border-radius: 50%; background: var(--excellent); color: #fff;
+    display: inline-flex; align-items: center; justify-content: center; font-size: 13px; flex: 0 0 auto; }
+  .modal .tick.warn { background: var(--adequate); }
+  .modal p { margin: 10px 0; font-size: 14px; }
+  .modal .pathbox, .modal .cmd { background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 9px 11px; font-size: 12.5px; word-break: break-all;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 18px; }
+
   @media print {
-    .respond-card, .respond-actions { display: none; }
+    .respond-card, .respond-actions, .savebar, nav.tabs { display: none; }
+    section.panel[hidden] { display: block; }   /* print every tab, not only the open one */
     header.topbar { position: static; box-shadow: none; }
     details.area { break-inside: avoid; } details.area[open] > summary::after { content: ""; }
     .toolbar, .sevfilter { display: none; } .card { break-inside: avoid; box-shadow: none; }
@@ -242,6 +298,9 @@
   <div class="meta" id="meta"></div>
   <div id="round-banner"></div>
 
+  <nav class="tabs" id="tabs" role="tablist"></nav>
+
+  <section class="panel" data-panel="overview" role="tabpanel">
   <div class="card" id="exec">
     <h2>Executive summary</h2>
     <p class="summary-text" id="exec-summary"></p>
@@ -265,26 +324,60 @@
   </div>
   <div id="areas"></div>
 
-  <div class="section-label">Scope questions &amp; gaps</div>
-  <div class="sevfilter" id="sevfilter"></div>
-  <div class="card"><table class="findings"><thead><tr>
-    <th>ID</th><th>Sev.</th><th>Status</th><th>Feature</th><th>Question</th><th>Suggested scope addition</th>
-  </tr></thead><tbody id="findings-body"></tbody></table></div>
-
-  <div class="section-label">Open questions — respond &amp; export</div>
-  <p class="progress-line" style="margin:4px 0 0">Type an answer under each open question, choose an intent, then <b>Export responses</b> — the page downloads a Markdown file named for this review. Save it in <code>ba/reviews/</code> and run <code>/ba:resolve</code> on it to have the agent adjudicate, close items, and fold the answers back into the scope.</p>
-  <div id="respond-list"></div>
-  <div class="respond-actions">
-    <button class="btn primary" id="exportBtn">Export responses</button>
-    <span id="export-note"></span>
-  </div>
-
   <div class="section-label">Recommended next actions</div>
   <div class="card"><ol class="actions" id="actions"></ol></div>
 
   <div id="handoff-wrap"></div>
+  </section>
+
+  <section class="panel" data-panel="open" role="tabpanel" hidden>
+    <p class="panel-intro">Every gap this review raised. Answer what you can, then <b>Save answers</b> —
+      the file lands in the reviews folder and <code>/ba:resolve</code> reads it from there.</p>
+    <div class="sevfilter" id="sevfilter"></div>
+    <div class="card"><table class="findings"><thead><tr>
+      <th>ID</th><th>Sev.</th><th>Status</th><th>Feature</th><th>Question</th><th>Suggested scope addition</th>
+    </tr></thead><tbody id="findings-body"></tbody></table></div>
+
+    <div class="section-label">Respond</div>
+    <div id="respond-list"></div>
+    <div class="savebar">
+      <button class="btn primary" id="saveBtn">Save answers</button>
+      <button class="btn" id="docBtn">Export as .doc</button>
+      <span class="spacer"></span>
+      <span class="save-note" id="save-note"></span>
+    </div>
+  </section>
+
+  <section class="panel" data-panel="client" role="tabpanel" hidden>
+    <p class="panel-intro">What to put in front of the client, in their language. Ask these on the call or by
+      mail, then type the answers into <b>Open questions</b> — this tab is the asking list, not the answering one.</p>
+    <div class="toolbar"><button class="btn" data-doc="client">Export as .doc</button></div>
+    <div id="client-list"></div>
+  </section>
+
+  <section class="panel" data-panel="clarifications" role="tabpanel" hidden>
+    <p class="panel-intro">Logged clarifications (<code>CLR-###</code>) from <code>ba/logs/clarifications.md</code>
+      — questions already raised, with who owns each and where it stands.</p>
+    <div class="toolbar"><button class="btn" data-doc="clarifications">Export as .doc</button></div>
+    <div id="clar-list"></div>
+  </section>
+
+  <section class="panel" data-panel="contradictions" role="tabpanel" hidden>
+    <p class="panel-intro">Two things the material says that cannot both be true. Each needs a decision, not an
+      answer — until one is made, anything built on top of it is a guess.</p>
+    <div class="toolbar"><button class="btn" data-doc="contradictions">Export as .doc</button></div>
+    <div id="contra-list"></div>
+  </section>
 
   <footer id="footer"></footer>
+</div>
+
+<div class="modal-back" id="modal-back" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <h3 id="modal-title"><span class="tick" id="modal-tick">&#10003;</span><span id="modal-heading"></span></h3>
+    <div id="modal-body"></div>
+    <div class="modal-actions"><button class="btn primary" id="modal-ok">Got it</button></div>
+  </div>
 </div>
 
 <script>
@@ -651,11 +744,13 @@
   // ---- Open items: respond & export ----
   var openItems = (data.questions || []).filter(function (f) { return !TERMINAL[statusOf(f)]; });
   var rl = document.getElementById("respond-list");
-  var exportBtn = document.getElementById("exportBtn");
-  var exportNote = document.getElementById("export-note");
+  var saveBtn = document.getElementById("saveBtn");
+  var docBtn = document.getElementById("docBtn");
+  var saveNote = document.getElementById("save-note");
   if (!openItems.length) {
     rl.appendChild(el("p", { class: "empty", text: "All questions are closed — nothing to respond to." }));
-    if (exportBtn) exportBtn.style.display = "none";
+    if (saveBtn) saveBtn.style.display = "none";
+    if (docBtn) docBtn.style.display = "none";
   } else {
     openItems.forEach(function (f) {
       var st = statusOf(f);
@@ -686,7 +781,8 @@
     });
   }
 
-  if (exportBtn) exportBtn.addEventListener("click", function () {
+  // ---- Responses: build once, used by both Save and .doc export ----
+  function buildResponsesMd() {
     var reviewId = data.reviewId || "review";
     var L = ["---", "doc_type: scope-review-responses", "source_review: " + reviewId,
       "scope: " + (data.documentReviewed || ""), "exported_from: html-report", "---", "",
@@ -705,15 +801,272 @@
       L.push("");
       if (resp) answered++;
     });
-    var blob = new Blob([L.join("\n")], { type: "text/markdown;charset=utf-8" });
+    return { md: L.join("\n"), answered: answered, name: "scope-review-" + reviewId + "-responses.md" };
+  }
+
+  function download(name, text, mime) {
+    var blob = new Blob([text], { type: mime });
     var url = URL.createObjectURL(blob);
-    var a = el("a", { href: url, download: "scope-review-" + reviewId + "-responses.md" });
+    var a = el("a", { href: url, download: name });
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     setTimeout(function () { URL.revokeObjectURL(url); }, 1500);
-    if (exportNote) exportNote.textContent = answered
-      ? "Downloaded scope-review-" + reviewId + "-responses.md (" + answered + " answered) — save it in ba/reviews/ and run /ba:resolve on it."
-      : "Downloaded, but no answers were filled in yet — add some and export again.";
+  }
+
+  // ---- Modal ----
+  var mBack = document.getElementById("modal-back");
+  var mTick = document.getElementById("modal-tick");
+  var mHead = document.getElementById("modal-heading");
+  var mBody = document.getElementById("modal-body");
+  function closeModal() { mBack.hidden = true; }
+  document.getElementById("modal-ok").addEventListener("click", closeModal);
+  mBack.addEventListener("click", function (e) { if (e.target === mBack) closeModal(); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !mBack.hidden) closeModal(); });
+
+  function showModal(ok, heading, nodes) {
+    mTick.className = ok ? "tick" : "tick warn";
+    mTick.innerHTML = ok ? "&#10003;" : "!";
+    mHead.textContent = heading;
+    mBody.innerHTML = "";
+    nodes.forEach(function (n) { mBody.appendChild(n); });
+    mBack.hidden = false;
+    document.getElementById("modal-ok").focus();
+  }
+
+  // ---- Save: POST to the serving script, fall back to a download ----
+  // serve-review.js writes the file into the reviews folder and returns the
+  // path it actually wrote, so the confirmation names a real location rather
+  // than a hopeful one. Opened over file://, there is no server to ask.
+  if (saveBtn) saveBtn.addEventListener("click", function () {
+    var r = buildResponsesMd();
+    if (!r.answered) {
+      showModal(false, "Nothing to save yet", [
+        el("p", { text: "No answers were filled in. Type at least one response, then Save." })
+      ]);
+      return;
+    }
+    saveBtn.disabled = true;
+    if (saveNote) saveNote.textContent = "Saving…";
+
+    fetch("/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ filename: r.name, content: r.md })
+    })
+      .then(function (res) { return res.json(); })
+      .then(function (out) {
+        if (!out || !out.ok) throw new Error((out && out.error) || "save refused");
+        showModal(true, "Response saved", [
+          el("p", { text: r.answered + " answer" + (r.answered === 1 ? "" : "s") + " saved to:" }),
+          el("div", { class: "pathbox", text: out.path }),
+          el("p", { text: "You can run resolve now:" }),
+          el("div", { class: "cmd", text: "/ba:resolve " + out.path })
+        ]);
+        if (saveNote) saveNote.textContent = "Saved — " + out.path;
+      })
+      .catch(function () {
+        download(r.name, r.md, "text/markdown;charset=utf-8");
+        showModal(false, "Saved to Downloads", [
+          el("p", { text: "This page was not opened through the review server, so it could not write to the folder directly. The file went to your Downloads." }),
+          el("p", { text: "Move it to ba/reviews/, then run:" }),
+          el("div", { class: "cmd", text: "/ba:resolve ba/reviews/" + r.name }),
+          el("p", { text: "To save straight into the folder next time, re-run the review — it serves this page for you:" }),
+          el("div", { class: "cmd", text: "/ba:review" })
+        ]);
+        if (saveNote) saveNote.textContent = "Downloaded — server not reachable";
+      })
+      .then(function () { saveBtn.disabled = false; });
   });
+
+  // ---- .doc export (Word opens HTML served under this MIME type) ----
+  function docExport(title, bodyHtml, fileBase) {
+    var html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" ' +
+      'xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">' +
+      '<head><meta charset="utf-8"><title>' + esc(title) + '</title><style>' +
+      'body{font-family:Calibri,Arial,sans-serif;font-size:11pt;line-height:1.45;}' +
+      'h1{font-size:18pt;}h2{font-size:13pt;margin-top:18pt;}' +
+      'table{border-collapse:collapse;width:100%;}td,th{border:1px solid #999;padding:5pt;text-align:left;}' +
+      '.m{color:#555;font-size:9.5pt;}</style></head><body>' +
+      "<h1>" + esc(title) + "</h1>" +
+      '<p class="m">' + esc(data.project || "") + " · " + esc(data.documentReviewed || "") +
+      " · " + esc(data.reviewDate || "") + "</p>" + bodyHtml + "</body></html>";
+    download(fileBase + ".doc", html, "application/msword");
+  }
+
+  function esc(v) {
+    return String(v == null ? "" : v).replace(/[&<>"]/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+    });
+  }
+
+  function rowsDoc(items, cols) {
+    if (!items.length) return "<p>None recorded.</p>";
+    var h = "<table><tr>" + cols.map(function (c) { return "<th>" + esc(c[0]) + "</th>"; }).join("") + "</tr>";
+    items.forEach(function (it) {
+      h += "<tr>" + cols.map(function (c) { return "<td>" + esc(c[1](it)) + "</td>"; }).join("") + "</tr>";
+    });
+    return h + "</table>";
+  }
+
+  // ---- The three registers ----------------------------------------------
+  // These come from ba/client-questions.md, ba/logs/clarifications.md and
+  // ba/logs/contradictions.md, folded into the review JSON at review time.
+  // Absent keys render as an honest empty state, never as a broken tab.
+  var clientQs = data.clientQuestions || [];
+  var clarifs = data.clarifications || [];
+  var contras = data.contradictions || [];
+
+  function emptyState(node, text) {
+    node.appendChild(el("div", { class: "card" }, [el("p", { class: "empty", text: text })]));
+  }
+
+  (function renderClient() {
+    var node = document.getElementById("client-list");
+    if (!clientQs.length) return emptyState(node, "No client-facing questions have been drafted for this round.");
+    clientQs.forEach(function (q) {
+      var card = el("div", { class: "reg" });
+      card.appendChild(el("div", { class: "reg-head" }, [
+        el("span", { class: "fid", text: q.id || "" }),
+        q.status ? el("span", { class: "statustag", style: "background:" + statusColor(q.status), text: q.status }) : el("span"),
+        q.area ? el("span", { class: "areatag", text: q.area }) : el("span")
+      ]));
+      card.appendChild(el("div", { class: "reg-q", text: q.question || "" }));
+      if (q.whyItMatters) card.appendChild(el("div", { class: "reg-body", text: q.whyItMatters }));
+      var bits = [];
+      if (q.askedOn) bits.push("asked " + q.askedOn);
+      if (q.owner) bits.push("owner " + q.owner);
+      if (q.linkedTo) bits.push("→ " + q.linkedTo);
+      if (bits.length) card.appendChild(el("div", { class: "reg-meta", text: bits.join(" · ") }));
+      node.appendChild(card);
+    });
+  })();
+
+  (function renderClarifications() {
+    var node = document.getElementById("clar-list");
+    if (!clarifs.length) return emptyState(node, "No clarifications logged. New ones land here as /ba:resolve promotes them.");
+    clarifs.forEach(function (c) {
+      var card = el("div", { class: "reg" });
+      card.appendChild(el("div", { class: "reg-head" }, [
+        el("span", { class: "fid", text: c.id || "" }),
+        c.status ? el("span", { class: "statustag", style: "background:" + statusColor(c.status), text: c.status }) : el("span"),
+        c.raid ? el("span", { class: "areatag", text: "RAID " + c.raid }) : el("span")
+      ]));
+      card.appendChild(el("div", { class: "reg-q", text: c.question || "" }));
+      if (c.resolution) card.appendChild(el("div", { class: "reg-body", text: c.resolution }));
+      var bits = [];
+      if (c.owner) bits.push("owner " + c.owner);
+      if (c.raisedOn) bits.push("raised " + c.raisedOn);
+      if (c.dueBy) bits.push("due " + c.dueBy);
+      if (bits.length) card.appendChild(el("div", { class: "reg-meta", text: bits.join(" · ") }));
+      node.appendChild(card);
+    });
+  })();
+
+  (function renderContradictions() {
+    var node = document.getElementById("contra-list");
+    if (!contras.length) return emptyState(node, "No contradictions found between the sources. That is a good sign, not a missing check.");
+    contras.forEach(function (c) {
+      var card = el("div", { class: "reg" });
+      card.appendChild(el("div", { class: "reg-head" }, [
+        el("span", { class: "fid", text: c.id || "" }),
+        c.status ? el("span", { class: "statustag", style: "background:" + statusColor(c.status), text: c.status }) : el("span"),
+        c.severity && SEV[c.severity] ? el("span", { class: "sevtag", style: "background:" + SEV[c.severity].c, text: c.severity }) : el("span")
+      ]));
+      if (c.topic) card.appendChild(el("div", { class: "reg-q", text: c.topic }));
+      var sides = el("div", { class: "reg-sides" });
+      sides.appendChild(el("div", { class: "reg-side" }, [
+        el("h5", { text: "One source says" }),
+        el("div", { text: c.statementA || "" }),
+        c.sourceA ? el("div", { class: "src", text: c.sourceA }) : el("span")
+      ]));
+      sides.appendChild(el("div", { class: "reg-side" }, [
+        el("h5", { text: "Another says" }),
+        el("div", { text: c.statementB || "" }),
+        c.sourceB ? el("div", { class: "src", text: c.sourceB }) : el("span")
+      ]));
+      card.appendChild(sides);
+      if (c.resolution) card.appendChild(el("div", { class: "reg-body", text: "Decision: " + c.resolution }));
+      else card.appendChild(el("div", { class: "reg-meta", text: "Undecided — anything built on this is a guess." }));
+      node.appendChild(card);
+    });
+  })();
+
+  // ---- Per-tab .doc export ----
+  if (docBtn) docBtn.addEventListener("click", function () {
+    var r = buildResponsesMd();
+    var h = "";
+    rl.querySelectorAll(".respond-card").forEach(function (card) {
+      var f = qById[card.getAttribute("data-fid")] || {};
+      h += "<h2>" + esc(f.id || "") + " — " + esc(f.question || "") + "</h2>";
+      h += '<p class="m">' + esc(f.severity || "") + " · " + esc(f.feature || "") + "</p>";
+      h += "<p><b>Intent:</b> " + esc(card.querySelector("select").value) + "</p>";
+      h += "<p>" + esc((card.querySelector("textarea").value || "").trim() || "(no response yet)") + "</p>";
+    });
+    docExport("Open questions", h || "<p>All questions are closed.</p>",
+      "scope-review-" + (data.reviewId || "review") + "-open-questions");
+  });
+
+  document.querySelectorAll("[data-doc]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var which = b.getAttribute("data-doc");
+      var id = data.reviewId || "review";
+      if (which === "client") {
+        docExport("Client questions", rowsDoc(clientQs, [
+          ["ID", function (x) { return x.id; }], ["Question", function (x) { return x.question; }],
+          ["Why it matters", function (x) { return x.whyItMatters; }], ["Status", function (x) { return x.status; }]
+        ]), "scope-review-" + id + "-client-questions");
+      } else if (which === "clarifications") {
+        docExport("Clarifications", rowsDoc(clarifs, [
+          ["ID", function (x) { return x.id; }], ["Question", function (x) { return x.question; }],
+          ["Owner", function (x) { return x.owner; }], ["Status", function (x) { return x.status; }],
+          ["Resolution", function (x) { return x.resolution; }]
+        ]), "scope-review-" + id + "-clarifications");
+      } else {
+        docExport("Contradictions", rowsDoc(contras, [
+          ["ID", function (x) { return x.id; }], ["Topic", function (x) { return x.topic; }],
+          ["One source says", function (x) { return x.statementA; }],
+          ["Another says", function (x) { return x.statementB; }],
+          ["Decision", function (x) { return x.resolution; }]
+        ]), "scope-review-" + id + "-contradictions");
+      }
+    });
+  });
+
+  // ---- Tabs ----
+  // The count is the point: a tab with 3 unresolved contradictions should say so
+  // from the tab strip, not reward someone for clicking through to find out.
+  (function renderTabs() {
+    var openCount = openItems.length;
+    var blockers = openItems.filter(function (f) { return f.severity === "Blocker"; }).length;
+    var TABS = [
+      { key: "overview", label: "Overview" },
+      { key: "open", label: "Open questions", n: openCount, urgent: blockers > 0 },
+      { key: "client", label: "Client questions", n: clientQs.length },
+      { key: "clarifications", label: "Clarifications", n: clarifs.filter(function (c) { return !TERMINAL[c.status]; }).length },
+      { key: "contradictions", label: "Contradictions", n: contras.filter(function (c) { return !c.resolution; }).length, urgent: contras.some(function (c) { return !c.resolution; }) }
+    ];
+    var nav = document.getElementById("tabs");
+    var panels = {};
+    document.querySelectorAll("section.panel").forEach(function (p) { panels[p.getAttribute("data-panel")] = p; });
+
+    function select(key) {
+      Object.keys(panels).forEach(function (k) { panels[k].hidden = k !== key; });
+      nav.querySelectorAll("button").forEach(function (b) {
+        b.setAttribute("aria-selected", b.getAttribute("data-tab") === key ? "true" : "false");
+      });
+      if (location.hash.slice(1) !== key) history.replaceState(null, "", "#" + key);
+    }
+
+    TABS.forEach(function (t) {
+      var b = el("button", { "data-tab": t.key, role: "tab", "aria-selected": "false" },
+        [el("span", { text: t.label })]);
+      if (t.n != null) b.appendChild(el("span", { class: "tabcount" + (t.urgent ? " urgent" : ""), text: String(t.n) }));
+      b.addEventListener("click", function () { select(t.key); });
+      nav.appendChild(b);
+    });
+
+    var initial = location.hash.slice(1);
+    select(panels[initial] ? initial : "overview");
+  })();
 
   // ---- Actions / footer ----
   var ac = document.getElementById("actions");

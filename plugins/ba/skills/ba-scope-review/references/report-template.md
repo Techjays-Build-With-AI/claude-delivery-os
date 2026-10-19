@@ -91,6 +91,43 @@ This is the JSON injected into `assets/report.html` at the `__REVIEW_DATA__` tok
       "whyNotScope": "The business rule (one open record per tag) is stated in §3.1.7; how it is guaranteed under concurrency is an engineering choice."
     }
   ],
+  "clientQuestions": [
+    {
+      "id": "CQ-001",
+      "question": "Do staff sign in with a company email address, or their own?",
+      "whyItMatters": "Decides whether we can use your existing Microsoft sign-in or have to build a separate login.",
+      "area": "AUTH",
+      "status": "Open",
+      "owner": "Priya (Acme)",
+      "askedOn": "2026-10-18",
+      "linkedTo": "SQ-004"
+    }
+  ],
+  "clarifications": [
+    {
+      "id": "CLR-007",
+      "question": "Is MFA mandatory for admin accounts?",
+      "owner": "Acme IT",
+      "status": "Open",
+      "raid": "Q-04",
+      "raisedOn": "2026-10-12",
+      "dueBy": "2026-10-25",
+      "resolution": null
+    }
+  ],
+  "contradictions": [
+    {
+      "id": "CON-001",
+      "topic": "Offline editing",
+      "statementA": "Technicians work fully offline for a whole shift.",
+      "sourceA": "Discovery call, 12 Oct",
+      "statementB": "Every job update is validated server-side before it saves.",
+      "sourceB": "Requirements doc \u00a74.2",
+      "severity": "Blocker",
+      "status": "Open",
+      "resolution": null
+    }
+  ],
   "nextActions": ["Pin the auth method (SQ-004) and the CRM partner (SQ-011) — both block the estimate."]
 }
 ```
@@ -115,6 +152,11 @@ Field rules:
 - `group` drives the section dividers in the scorecard — use your own module-group names (e.g. `Core Modules`, `Supporting Modules`, `Cross-cutting`). Keep features in order so each group's rows are contiguous.
 - `kind` (optional) is the feature kind (UI/auth, integration, data/reporting, AI/automation, admin, workflow) — shown as a tag.
 - `handoffs` carries the technical follow-ups the review deliberately did **not** score — the things that belong to `tl-spec-review`. `id` is `TL-###` (zero-padded, append-only), `feature` links it to a feature `code`, `question` is what the TL must settle, `whyNotScope` says which business decision is already made and which engineering choice remains. Empty `[]` when there are none. These are not gaps and never affect a score; the array exists so refusing to score something doesn't mean losing it.
+- **`clientQuestions`, `clarifications`, `contradictions` are the three register tabs.** They are not re-derived here — they are the review's copy of `ba/client-questions.md`, `ba/logs/clarifications.md` and `ba/logs/contradictions.md`, folded in at review time so the report is one surface instead of four files. Each is `[]` when its source file is absent or empty, which the HTML renders as an honest empty state. **Never invent a row to fill a tab.**
+  - `clientQuestions` is the **asking** list — phrased for the client, in their vocabulary, with `whyItMatters` saying what it changes for *them*, not for the estimate. `linkedTo` points at the `SQ-###` it will answer, so a client reply lands back on the right gap. Answers are typed into the **Open questions** tab, never here: the BA fills this report, the client never opens it.
+  - `clarifications` mirrors the `CLR-###` log, including `raid` (the RAID `Q-##`), `owner` and `dueBy`. `status` uses the same controlled values as `questions`. A `CLR` with no owner is a question nobody is going to answer — record the gap rather than leaving the field out.
+  - `contradictions` holds the `CON-###` conflicts. Both sides are **required and must be quoted or closely paraphrased with their source** (`sourceA` / `sourceB` — a call date, a document section, an `EX-###`), because a contradiction a reader cannot verify is an accusation. `resolution` is null until a human decides; the HTML says so in as many words, since an undecided contradiction silently carried into a build is the single most expensive thing this review can miss.
+
 - `gatingQuestions` lists the IDs (Blockers + the most important Majors) surfaced at the top; each must exist in `questions`.
 - `questionIds` on a feature links it to its rows in `questions`; the HTML makes them clickable.
 - `dimension` on a question is one of the nine coverage keys (or omit) — used to tag which sub-heading the gap sits in.

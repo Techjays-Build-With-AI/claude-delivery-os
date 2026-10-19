@@ -25,16 +25,58 @@ Invoke the **ba-agent** subagent with the scope reference and output path. Pass 
 
 When the agent returns, present its **executive summary and feature scorecard**: the overall score, the scope-readiness verdict, the scorecard table, and the top 3–5 gating questions (Blockers/Majors first) with the scope addition each needs. Keep it tight — the per-feature detail lives in the report.
 
-Close every run with this block, filled in — the report path and the next command must be copy-pasteable, never described in prose:
+**The review report is local. It is never published.** `scope.html` is the client-facing artifact and goes to Dashboard → Reports; the review is the BA's working surface — it holds unanswered questions, contradictions and a readiness score that is wrong until the round closes. Hosting that is a liability, and nobody but the BA fills it in. Never call `scope_prepare_report_push` here.
+
+**Open it for them — do not print a command and hope.** Start the server yourself, in the background, as the last action of the run:
+
+```bash
+node ${CLAUDE_PLUGIN_ROOT}/../delivery-os-core/scripts/serve-review.js .jetrix/ba/reviews
+```
+
+It picks a free port from 4100, opens the browser, and prints one machine-readable line — `DELIVERY_OS_SERVE_READY http://127.0.0.1:<port>/`. **Read the port off that line; never assume 4100**, because a second workspace already serving will have taken it.
+
+Why it must be served rather than double-clicked: Save POSTs the answers back to this server, which writes `scope-review-<ts>-responses.md` into the folder and returns the path it wrote. Opened from `file://` there is no server to ask, so Save degrades to a download and the page says so — correct, but it puts the file in Downloads and hands the user a move step. Starting the server is what keeps that step out of the flow.
+
+If Node is unavailable or the server will not start, say so in one line and print the local file path instead. A review nobody can save from is still worth reading.
+
+Close every run with this block, filled in — every path and command copy-pasteable, never described in prose:
 
 ```
 Scope readiness: <score> / 10 — <verdict>
 Blockers: <n>   Major: <n>   Minor: <n>   Nit: <n>
-Report → ba/reviews/scope-review-<ts>.html
+
+Report   http://127.0.0.1:<port>/scope-review-<ts>.html    ← open in your browser
+         ba/reviews/scope-review-<ts>.html                  ← the file itself
 
 Next:
-  1. Open the report, answer each question inline, click "Export responses"
+  1. Answer the questions, click Save — it writes straight to
+     ba/reviews/scope-review-<ts>-responses.md
   2. /ba:resolve ba/reviews/scope-review-<ts>-responses.md
+
+  (the review server is running in this session — Save stops working when it stops)
 ```
 
 The HTML is where the questions get answered — say so as a step, not as a footnote. A reader who is only told the file exists will read it and answer nowhere.
+
+### The next step depends on the score — choose ONE
+
+Print exactly one `Next:` block. **Blockers decide it, not the score**, because a 7/10 hiding one Blocker is not estimate-ready and a 5/10 of Minors is.
+
+| Reading | Next |
+|---|---|
+| **Any Blocker** | `/ba:resolve` on the responses file. Nothing else — say which Blockers gate it. |
+| **No Blocker, Majors open** | Offer both: `/ba:features` now (the Majors become `OQ-###` in the feature folders and travel with the build), or `/ba:resolve` first to close them. **Recommend resolve** where a Major has `consequence: scope` or `integrations` — those change what gets built, not just the estimate. |
+| **No Blocker, Minors/Nits only** | `/ba:features`. Say the open items ride along as `OQ-###`. |
+
+Where new material has arrived rather than answers, the step is `/ba:scope add "…"` and then re-review — `/ba:resolve` adjudicates answers to *existing* questions and has nothing to do with new sources.
+
+```
+Next:
+  No blockers — 3 Major, 6 Minor open.
+
+  /ba:features                                       build the breakdown now
+                                                     (the 9 open items ride along as OQ-###)
+
+  or close them first:
+  /ba:resolve ba/reviews/scope-review-<ts>-responses.md
+```

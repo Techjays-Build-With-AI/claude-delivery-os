@@ -1,6 +1,6 @@
 ---
-description: Bind the current workspace to a Jetrix Solution AND scaffold the delivery-os working tree in one command. Writes `.jetrix/project.json` (gitignored) with solution + apps + env config + GitHub install info, `.jetrix/cache/repolocation.json` (gitignored) with per-app local repo paths, and pulls the Solution's `connection-map.md` (if built). Then seeds the delivery-os tree (`shared-context/`, `ba/`, `features/`, `tl/`, `qa/`, `doc/`, `tasks/`) — same work `/delivery-os:init` does, invoked inline as the final step. Pass `--skip-scaffold` to bind only. Accepts the Solution ObjectId or slug/name — auto-detects. First MCP call triggers Claude Code's OAuth flow (one-time per teammate per machine). Idempotent — re-run to refresh Jetrix-sourced fields without clobbering hand-edits.
-argument-hint: "<projectId | slug/name> [--skip-scaffold]"
+description: Bind the current workspace to a project in your tracker AND scaffold the delivery-os working tree in one command. Jetrix is the default; pass `--tracker=<name>` to bind against any tool whose MCP you have registered — the command finds that MCP, maps its tools once, and everything downstream is identical. The project reference is optional on every tracker: with none, it lists what you have, or prints how to create one. Writes `.jetrix/project.json` (gitignored) with solution + apps + env config + GitHub install info, `.jetrix/cache/repolocation.json` (gitignored) with per-app local repo paths, and pulls the Solution's `connection-map.md` (if built). Then seeds the delivery-os tree (`shared-context/`, `ba/`, `features/`, `tl/`, `qa/`, `doc/`, `tasks/`) — same work `/delivery-os:init` does, invoked inline as the final step. Pass `--skip-scaffold` to bind only. Accepts the Solution ObjectId or slug/name — auto-detects. First MCP call triggers Claude Code's OAuth flow (one-time per teammate per machine). Idempotent — re-run to refresh Jetrix-sourced fields without clobbering hand-edits.
+argument-hint: "[project-ref] [--tracker=<name>] [refresh] [--skip-scaffold]"
 ---
 
 # /jetrix:init
@@ -138,22 +138,78 @@ Once confirmed, treat `workspace_root` as immutable for the rest of this command
 
 ## 1. Parse arguments
 
-`$ARGUMENTS` may carry up to two tokens in any order — the Solution reference and an optional `--skip-scaffold` flag:
+`$ARGUMENTS` may carry, in any order:
 
-- **Solution reference** (required):
-  - Matches `/^[a-f0-9]{24}$/` → treat as a Solution **ObjectId**. Go straight to `project_get_solution`.
-  - Otherwise → treat as a **slug or name**. Resolve via `project_list_solutions` first.
-- **`--skip-scaffold`** (optional): capture as `skip_scaffold=true`. When set, §11.5 skips the delivery-os tree seed; the teammate can run `/delivery-os:init` later to fill it in.
+- **Project reference** (optional — blank lists what you have):
+  - Matches `/^[a-f0-9]{24}$/` → a Jetrix Solution **ObjectId**.
+  - Otherwise → a slug, name, or the tracker's own project key.
+- **`--tracker=<name>`** (optional, default `jetrix`): the project-management tool holding the tasks.
+- **`refresh`** (optional): re-fetch into an existing bind. See §4.
+- **`--skip-scaffold`** (optional): skip the §11.5 tree seed.
 
-If no Solution reference is given, ask for either an ObjectId or a name/slug. Do NOT guess.
+## 2. Resolve the tracker
 
-## 2. Precheck
+**Default is `jetrix`.** Read it in this order — `project.json`'s `tracker.provider` on a re-run, then `--tracker=`, then the default. Never ask when one of those answers.
 
-Confirm `project-mcp` is registered as an MCP server. If not → stop and tell the teammate to register it. Do not attempt other MCP calls until this is fixed.
+Known trackers:
+
+| `--tracker=` | MCP | Add it with |
+|---|---|---|
+| `jetrix` | `project-mcp` · `scope-mcp` · `task-mcp` | already registered by `/delivery-os:setup` |
+| `jira` | `atlassian` | `claude mcp add --transport http atlassian https://mcp.atlassian.com/v2/mcp` |
+| `clickup` | `clickup` | `claude mcp add --transport http clickup <url>` |
+| `azure` | `azure` | `claude mcp add --transport http azure <url>` |
+| anything else | whatever it was registered as | the user adds it; §2b finds it |
+
+### 2a. On `jetrix`, make no check
+
+`/delivery-os:setup` registered those three. If a call fails because the tool isn't there, say `Run /delivery-os:setup first — it registers all three.` and stop. Do not pre-check.
+
+**Never run `claude mcp list`** for any check here — it health-checks every registered server over the network, so on a machine with many connectors the command appears to hang before doing any work.
+
+### 2b. On any other tracker, find its MCP first
+
+The user installed it, so verify it before resolving anything. Resolve with `ToolSearch` — MCP tools may be deferred, so an empty tool list is not an answer:
+
+- `ToolSearch` the tracker name (`jira atlassian issue`, `clickup task`, …). Tools returned → registered; record the server name as `tracker.mcp`, since it is whatever the user typed at `claude mcp add` (`atlassian`, `claude_ai_Atlassian_Rovo`, …) and we never assume it.
+- Nothing returned → print the `claude mcp add` line from the table (or, for an unknown tracker, `claude mcp add --transport http <name> <its-mcp-url>`), say `Nothing was written.`, and stop.
+
+### 2c. Map the tracker's tools once
+
+Read the returned schemas and propose the mapping. Ten keys, `null` where the tracker cannot do it:
+
+```
+browse[] · resolve_project · resolve_container · create_container
+create_issue · update_issue · read_issue · child_issues
+comments · attachments · set_status · put_document
+```
+
+**`resolve_container` and `create_container` are what §5a needs.** On ClickUp they are `clickup_get_lists` and `clickup_create_list`; on Jira, epic search and epic create; where a tracker files issues straight into the project, both are `null` and §5a records `container_kind: none`. A tracker that can list containers but not create them gets `create_container: null` — §5a then offers only the existing ones and says where to make a new one.
+
+**`browse` is an ordered list, because “project” is not one level in every tool.** Jetrix has Solutions; Jira has Projects; ClickUp has Workspace → Space → Folder → List, and tasks live in the List. Record the tools that walk from the root down to whatever holds tasks — a flat tracker is simply a one-element list:
+
+```
+jetrix    browse: [project_list_solutions]
+jira      browse: [jira_get_visible_projects]
+clickup   browse: [clickup_get_workspaces, clickup_get_spaces,
+                   clickup_get_folders, clickup_get_lists]
+```
+
+Also propose a `status_map` for `PLANNED · IN_PROGRESS · REVIEW · DONE · BLOCKED` from the statuses the schemas expose. **Always show the status map for confirmation** — it is the one part discovery guesses badly. Store both in `project.json` §8; a re-run never asks again.
+
+### 2d. Capabilities
+
+Set from the tracker, and branch on these — never on the provider name:
+
+| | `jetrix` | every other tracker |
+|---|---|---|
+| `apps` | `true` — repos come from the Solution | `false` — repo path + dev branch asked in §9 |
+| `tabs` | `7` — one file per tab | `1` — the six BA files plus Implementation as `##` sections in one body |
+| `documents` | `scope-mcp` — publishes `scope.html` to Dashboard → Reports | `none` — `scope.html` is still rendered, it just stays local |
 
 ## 3. First MCP call → OAuth handshake (automatic)
 
-The first invocation of any `mcp__project-mcp__*` tool triggers Claude Code's OAuth flow. Browser opens → teammate signs in to Jetrix → consent → token cached locally by Claude Code. All Jetrix MCPs share the auth server, so this one sign-in covers everything. Nothing to do beyond completing the browser flow.
+The first invocation of any MCP tool triggers Claude Code's OAuth flow. Browser opens → the teammate signs in → consent → token cached locally. The three Jetrix MCPs share one auth server, so a single sign-in covers them; another tracker's MCP has its own.
 
 If OAuth is cancelled → stop with *"Sign-in failed. Rerun `/jetrix:init`."*
 
@@ -161,28 +217,120 @@ If OAuth is cancelled → stop with *"Sign-in failed. Rerun `/jetrix:init`."*
 
 If `<workspace_root>/.jetrix/project.json` already exists:
 
-- **Same `solutionId` as the argument** → ask *"Workspace already initialized for `<solutionName>` (`<solutionId>`). Refresh project details from Jetrix? [y/n]"*. On yes, continue and re-fetch. On no, stop.
-- **Different `solutionId`** → hard STOP. Tell teammate *"This workspace is already initialized for `<other-name>` (`<other-id>`). Use a separate workspace folder for each Jetrix project."*
+- **`refresh` passed** → re-fetch without asking. **The reference is optional** — it is already in `project.json`, so bare `/jetrix:init refresh` is the canonical form and the one to print whenever a gap is reported. It works the same on every tracker, because the provider is recorded too.
+- **Same `project_ref`, no `refresh`** → ask *"Workspace already initialized for `<name>` (`<ref>`). Refresh project details? [y/n]"*. On yes, re-fetch. On no, stop.
+- **Different `project_ref`** → hard STOP. *"This workspace is already initialized for `<other-name>` (`<other-ref>`). Use a separate workspace folder for each project."*
 
-## 5. Resolve the Solution
+A refresh re-fetches the project, its apps and their env branches, and re-attempts the connection map. It **preserves** `bound_at`, the repo paths already given, `tracker.mapping` and `tracker.status_map`.
 
-**ObjectId path:**
-- `mcp__project-mcp__get_solution(solution_id=<arg>)`
-- On 404 / 403 → stop with *"Solution `<id>` not found or you're not a Member."*
+## 5. Resolve the project
 
-**Slug/name path:**
-- `mcp__project-mcp__list_solutions(query=<arg>)`
-- 0 matches → stop; list available names.
-- >1 matches → interactive picker: *"Multiple matches: [1] `<name>` (`<slug>`, `<id>`) [2] ... Pick a number."*
-- 1 match → confirm; then `get_solution(solution_id=<picked>)`.
+On `jetrix` the calls are `project-mcp`'s; on any other tracker they are `mapping.resolve_project`. The shape is the same.
 
-Capture full solution: `_id`, `name`, `slug`, `description`, `type`, `environments`.
+**No reference — walk `browse`.** One picker per level, names only, never ids. The user chooses `Acme` → `Delivery`
+→ `Supplier Platform`; the id behind it is never typed and never shown unless something fails. A one-element `browse`
+is a single picker, which is the Jetrix and Jira case.
+
+**`browse` stops at the project — the thing that already exists.** It does not walk into the list or epic that will
+hold the features; §5a does that, because that one may have to be created and this step never creates anything.
+
+Record both:
+
+```yaml
+project_ref:  "901203847"                          # what the API needs
+project_path: "Acme / Delivery / Supplier Platform"  # what a human recognises
+```
+
+`project_path` is what every later summary prints. `901203847` means nothing to the person reading it, and a workspace
+bound to the wrong list is expensive to notice.
+
+**A reference was given:**
+- ObjectId → `get_solution(solution_id=<arg>)`. Anything else → `list_solutions(query=<arg>)`.
+- 0 matches → stop, listing what is available.
+- >1 → picker: *"Multiple matches: [1] `<name>` (`<slug>`, `<id>`) [2] … Pick a number."*
+- 1 → confirm, then fetch it.
+- 404 / 403 → stop with *"`<ref>` not found or you're not a Member."*
+
+**Blank — list instead of asking.** `list_solutions()` with no query:
+
+- **Projects returned** → picker, with a final row `None of these — create a new one`.
+- **Nothing returned, or that row picked** → print the create instructions for this tracker and stop. Nothing is written.
+
+```
+Create it in the portal:
+
+  1. Solution Explorer → New Solution
+     name · one-line description · environments (dev · staging · prod)
+  2. Copy the project id — the 24-character string in the address bar
+  3. Add one app per repository
+     web application · backend api · mobile application · fullstack · workflow
+     One app = one repo. This decides how a feature splits into sub-tasks later.
+  4. Connections tab — drag each app on, wire them, label every arrow,
+     Save, then Build map
+  5. Integration tab, per app — paste the GitHub URL, Connect, select the repo,
+     set the env branches (dev → develop, staging → staging, prod → main), Save
+
+Then:  /jetrix:init <project-id>
+```
+
+**The reference is optional on every tracker.** `--tracker=jira` on its own lists that tool's projects exactly as a blank `/jetrix:init` lists Solutions; passing the key is only a shortcut past the picker.
+
+**On any other tracker, steps 3–5 do not exist** — there are no apps, no connections tab and no integration tab. Print only: create the project in that tool, note its key, then `/jetrix:init --tracker=<name> <key>`. The repo paths and dev branches are asked at §9 instead.
+
+Capture the project: id, name, slug, description, type, environments.
+
+### 5a. Lock the container — where features will actually be created
+
+The project is selected. **Issues are not created in it**; they are created in a container under it, and that is the
+ref every later push and pull targets. Skipping this is how a ClickUp bind succeeds and then
+`/jetrix:push feature` fails with nowhere to put anything — a task cannot exist outside a List.
+
+Call `mapping.resolve_container(project_ref)` and offer what comes back, plus one more row:
+
+```
+Where should features go in Supplier Platform?
+
+  [1] Backlog                       48 items
+  [2] Delivery OS                   0 items
+  [3] Sprint Board                  12 items
+
+  [n] Create a new one — "delivery-os"      ← default, named after this workspace
+
+Pick a number:
+```
+
+- **Existing picked** → record it.
+- **Create picked** → `mapping.create_container(project_ref, name)`. Default the name to the workspace slug, which is
+  what Jetrix already does, so an issue's container says which workspace produced it.
+- **`create_container: null`** → offer only the existing rows, and if none fit, print where to create one in that
+  tool and stop. Nothing is written — a half-bind is worse than no bind.
+- **`resolve_container: null`** → that tracker files issues straight into the project. Record
+  `container_kind: none` and set `container_ref` **equal to `project_ref`**, so no consumer has to branch.
+
+Record all three, and print `container_path` in the bind summary — `901203847` tells nobody which list their
+features just landed in:
+
+```yaml
+container_ref:  "901203847"
+container_path: "Acme / Delivery / Supplier Platform / Delivery OS"
+container_kind: list
+```
+
+**On Jetrix this step asks nothing.** The container is the MC List named after `solutionSlug`, resolved or created by
+`/jetrix:push feature` §3a exactly as it already is. Record it so `project.json` has the same shape on every tracker.
+
+**A refresh never re-asks.** `container_ref` is preserved like `mapping` and `status_map` — re-deriving it would
+silently move an existing workspace's features to a different list on the next run.
 
 ## 6. Soft workspace-name check
+
+**Jetrix only** — other trackers have no slug to compare against.
 
 Compare `solutionSlug` against workspace folder basename (normalized: lowercase, spaces → dashes). Mismatch → warn and confirm; never hard-fail. This is a nudge, not a rule.
 
 ## 7. Fetch full project context — ONE call
+
+**Jetrix only** (`capabilities.apps: true`). Other trackers have no app/env/repo records to fetch — skip §7 and §7a entirely and go to §7b with `apps: []`; §9 fills them.
 
 Call `mcp__project-mcp__get_solution_bundle(solution_id)`. This returns everything in a single MCP tool invocation:
 
@@ -207,6 +355,8 @@ Call `mcp__project-mcp__get_solution_bundle(solution_id)`. This returns everythi
 Per-app failures inside the bundle are already swallowed by project-mcp — apps whose env-configs or repo-integration fetch failed still appear in the response with `envConfigs: []` / `repositoryIntegration: null`. Not fatal for `/jetrix:init` — write the app with `envConfigs: []` if it came back empty. `repositoryIntegration` is **not** persisted locally either way (see the `project.json` shape below — `repoUrl` is the only repo field kept).
 
 ## 7a. If `apps[]` is empty — interactive app creation (no portal visit needed)
+
+**Jetrix only** — other trackers have no app records; §9 collects the repos instead.
 
 **Trigger:** the Solution exists but has zero apps yet. Rather than sending the teammate to the portal, walk them through creating each app right here.
 
@@ -288,7 +438,7 @@ first? [continue/wait]
 
 Once the loop exits (either path), **re-fetch the bundle** with `project_get_solution_bundle` so §8 writes `project.json` with the freshly-created apps (plus any repos/envs the teammate DID complete during the portal step before typing `continue`). Do NOT try to hand-merge — one clean re-fetch is simpler and self-verifying.
 
-## 7b. Confirm the Solution with the user before binding
+## 7b. Confirm the project with the user before binding
 
 **Before writing ANY file to disk**, print the resolved Solution and ask for an explicit `Y`. Users typo Solution ids/slugs and the wrong binding is expensive to undo (every subsequent `/jetrix:push` writes against the wrong Solution).
 
@@ -314,6 +464,18 @@ Create `<workspace_root>/.jetrix/` if missing. Then write `project.json`:
 
 ```json
 {
+  "tracker": {
+    "provider": "jetrix",
+    "mcp": "project-mcp",
+    "project_ref": "<Solution._id | project key | folder id — the LOCKED project>",
+    "project_path": "<the human-readable path the picker walked>",
+    "container_ref": "<MC List id | ClickUp List id | epic key — where issues are created>",
+    "container_path": "<the same path, plus the container>",
+    "container_kind": "list",
+    "capabilities": { "apps": true, "tabs": 7, "documents": "scope-mcp" },
+    "mapping":    null,
+    "status_map": null
+  },
   "solutionId": "<Solution._id>",
   "solutionSlug": "<slug>",
   "solutionName": "<name>",
@@ -339,7 +501,11 @@ Create `<workspace_root>/.jetrix/` if missing. Then write `project.json`:
 }
 ```
 
-**Idempotency:** on refresh, merge Jetrix-sourced fields (name, slug, description, apps[], env_branches). Preserve `bound_at`. Never write secrets — env-config response already excludes them.
+**Idempotency:** on refresh, merge tracker-sourced fields (name, slug, description, apps[], env_branches). Preserve `bound_at`, `tracker.mapping` and `tracker.status_map` — those were confirmed once and are not re-derived. Never write secrets.
+
+**On any other tracker** the `tracker` block carries that tool's values instead — `provider`, the `mcp` name §2b recorded, its `project_ref`, `capabilities.apps: false`, `tabs: 1`, `documents: "none"`, plus the `mapping` and `status_map` confirmed at §2c. The top-level `solution*` fields stay empty and `apps[]` is filled from §9.
+
+**Reports are a Jetrix capability, not a separate binding.** `capabilities.documents` is `scope-mcp` only on Jetrix, and that alone decides whether `scope.html` publishes to Dashboard → Reports. On any other tracker it is `none`: the HTML is written locally and every report step prints the path and the serve line instead. No second project to pick, nothing to ask.
 
 ## 9. Ask for per-app local repo paths
 
@@ -359,7 +525,41 @@ Answers → `<workspace_root>/.jetrix/cache/repolocation.json`:
 
 Keys = `projectId`. Values = absolute path OR literal `"SKIPPED"`.
 
+**When `capabilities.apps` is `false`** there is no app list to walk, so ask for the repos directly and take the dev branch in the same breath — that tracker has no Integration tab to hold it, and `/dev:build` branches from `dev` while `/dev:commit` defaults its PR base to it:
+
+```
+Which repos does this project cover? One per line, blank to finish.
+
+  D:\work\inhouse-server      dev branch? [develop]
+  D:\work\inhouse-client      dev branch? [develop]
+```
+
+Each answer becomes an `apps[]` entry — name from the folder, `env_branches.dev` from the answer — plus its `repolocation.json` row keyed by the same generated id.
+
+### 9a. Then draw the connection map — **only when `capabilities.apps` is `false` and there are 2+ repos**
+
+Jetrix gets `connection-map.md` from the portal's Connections tab. No other tracker has one, and the wiring cannot be inferred later — `/tl:code-map` reads each repo in isolation, so a mobile API call with no declared backend counterpart comes out unresolved and re-mapping is the only fix. Ask now, while the repos are already on screen:
+
+```
+How do these repos talk to each other?
+
+  inhouse-client  →  inhouse-server    what does it carry? [REST /api/v1]
+  inhouse-mobile  →  inhouse-server    what does it carry? [REST /api/v1]
+
+  Any external services? (Stripe, Twilio, a partner API — blank to skip)
+```
+
+Offer every ordered pair once, default the label to `REST`, and accept blank for *they do not talk*. Write the answers to `.jetrix/connection-map.md` in the same shape the portal's Build map produces — each app and its role, the wiring edges with what each carries, the auth boundary, and external integrations — so every consumer reads one format whatever the tracker.
+
+**The label is the useful part.** An unlabelled edge says two repos talk but not how, which is the half that `tl-read-code-context` needs to start a cross-repo trace.
+
+A single repo has nothing to wire — skip this entirely. Re-run it any time with `/jetrix:init <project-ref> refresh`, which re-offers the pairs with the current answers as defaults.
+
+From here nothing downstream can tell the difference.
+
 ## 10. Pull the connection-map — ONLY if the portal has built one
+
+**Jetrix only.** No other tracker has a Connections tab, so skip §10 entirely — §9a already wrote `connection-map.md` from the user's own answers, and there is nothing to pull.
 
 The connection-map is the LLM-synthesised architecture doc for the Solution, authored via the portal's Connections tab. Its canonical local path is **`<workspace_root>/.jetrix/connection-map.md`** — at the `.jetrix/` root, NOT under `<slug>/context/`. Rationale: `.jetrix/` root is stable across future plugin folder-reorgs; the connection-map is one file per Solution, not per feature/page/entity, so it belongs alongside `project.json`.
 
@@ -504,12 +704,62 @@ Workspace layout:
   .jetrix/tasks/                                                                [scaffold only]
 
 Next:
-  BA:  /ba:scope  →  /ba:features
-  TL:  /tl:code-map (brownfield)  or  /tl:scaffold (greenfield)
-  QA:  /qa:audit
-  Dev: /dev:build FEAT-<n>
-  Doc: /doc:proposal · /doc:magic-board · /doc:walkthrough · /doc:workflow
+  <ONE action — see below. Never a menu of roles.>
 ```
+
+**Name one next step, chosen from what the bind actually found.** A list of every role's entry point is not a next step; it is a menu, and it puts the decision back on someone who just asked the command to tell them.
+
+| What the bind found | Print |
+|---|---|
+| repos on disk, none mapped | `/tl:code-map` — and why: until a repo is mapped, code questions are answered by searching source, and `/dev:build` cannot start because Stage 0 needs `shared-context/coding-standards.md`, which the map authors |
+| repos all mapped | `/ba:scope add "<where your client material lives>"` |
+| no apps, or no repo linked | the portal step, then `/jetrix:init <project-ref> refresh` |
+| no apps and no client material yet | `/ba:scope` — discovery needs no repos |
+
+Where two are genuinely available — repos to map **and** material to scope — lead with the mapping and offer the other on one line beneath it. They are independent tracks, so neither blocks the other.
+
+**One ordering rule overrides the table, on Jetrix.** With **more than one repo and no connection map**, Build map comes before `/tl:code-map` — the map reads each repo in isolation, so without the wiring a mobile API call has no declared backend counterpart and the cross-repo links come out unresolved rather than wired. Say so rather than listing both as equal gaps:
+
+```
+Next
+  1 · portal → Connections → wire the 3 apps, Save, Build map
+  2 · /jetrix:init <project-id> refresh
+  3 · /tl:code-map
+
+  Mapping before the wiring exists means every cross-repo link
+  comes out unresolved, and re-mapping is the only fix.
+```
+
+A single-repo Solution has nothing to wire, so it goes straight to `/tl:code-map`. **On any other tracker this never arises** — §9a already drew the map from the user's own answers, so mapping can start immediately.
+```
+
+**Report what is missing, then carry on — never refuse over a gap.** A bind against a project with no apps, no connection map or no linked repo is a normal mid-engagement state, so name each gap and the step that fills it, and close with the exact line to run afterwards:
+
+```
+Gaps:
+  · no apps on this project            portal → add one per repo
+  · Admin panel has no linked repo     portal → that app → Integration tab
+  · connection-map not built           portal → Connections → Build map
+
+  Pick them up with:  /jetrix:init refresh
+```
+
+**A repo with no local path gets this block, verbatim, wherever it is hit.** It is the most common gap and the one that
+stops the most commands — `/tl:code-map` cannot read the repo, `/dev:build` cannot branch in it, `/dev:commit` cannot
+push from it — so every one of them prints the same two lines rather than its own wording:
+
+```
+Inhouse-server has no local path on this machine.
+
+  /jetrix:init refresh        re-asks for it, and re-fetches anything else
+                              the project has gained since the bind
+```
+
+On Jetrix the refresh also re-pulls apps, repo links and env branches from the Solution, so a repo linked in the portal
+since the bind needs nothing typed. On any other tracker there is nothing upstream to fetch — the refresh simply
+re-asks the paths, branches and wiring from §9/§9a with the current answers as defaults.
+
+The one thing that does stop the run is a missing MCP for a non-default tracker (§2b) — there is nothing to bind to, so nothing is written.
 
 Suppress the `[scaffold only]` rows from the printed layout when `scaffolded=false`; instead print one line: `.jetrix/  (delivery-os tree not seeded — run /delivery-os:init to fill it in)`.
 

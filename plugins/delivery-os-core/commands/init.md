@@ -126,11 +126,10 @@ Layout:
   .jetrix/tasks/          (empty — non-feature MC tasks)
 
 Next:
-  BA:  /ba:scope  →  /ba:features
-  TL:  /tl:code-map (brownfield)  or  /tl:scaffold (greenfield)
-  QA:  /qa:audit
-  Dev: /dev:build FEAT-<n>
-  Doc: /doc:proposal · /doc:magic-board · /doc:walkthrough · /doc:workflow
+  /tl:code-map                  repos on disk, not yet mapped
+  /ba:scope add "<sources>"     client material to work through
 ```
+
+This command only re-seeds a tree — it does not know what the workspace is for, so it offers the two entry points and nothing further. `/jetrix:init` is the one that has looked at the project and can name a single next step.
 
 Keep it idempotent — re-runs never clobber existing work; they only fill in missing pieces.

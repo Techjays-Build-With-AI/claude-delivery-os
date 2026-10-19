@@ -153,6 +153,16 @@ A scope can be complete and still be built on answers the client hasn't seen. Th
 Don't grade-inflate to be agreeable and don't crater every feature to look thorough — a calibrated 6 is more useful than a reflexive 3. That discipline now applies to the **coverage calls**: marking a dimension `Covered` because the topic is mentioned inflates the score just as surely as picking a generous number used to, and marking one `Absent` when the scope addresses it partially craters it. If a feature is genuinely well-scoped, the map will say so.
 
 ### 8. Build the review data object, then render (timestamped — never overwrite)
+**Fold in the three registers before you build the object.** The report has four tabs and three of them render from files this review does not otherwise touch — read each if it exists and map it into the matching array (`report-template.md` §1 has the shapes):
+
+| Source file | Array | Tab |
+|---|---|---|
+| `ba/client-questions.md` | `clientQuestions` | Client questions |
+| `ba/logs/clarifications.md` | `clarifications` | Clarifications |
+| `ba/logs/contradictions.md` | `contradictions` | Contradictions |
+
+A missing or empty file yields `[]` and an honest empty state in the tab — **never a fabricated row**. Where this run *raised* a new clarification or spotted a new contradiction, write it to the log file as well as the array; the register files stay the source of truth and the report stays their view.
+
 Capture the whole review as one structured JSON object — the single source all three outputs render from. Its schema is in `references/report-template.md` (project/knowledge-base panel, overall score + verdict, executive summary, gating questions, strengths, the `features` array with score/band/boundedness/coverage/exampleCompliance/assessment, and the `questions` array — the scope-gap register — with stable `SQ-###` IDs + severity + the suggested scope addition). Give every question a stable `SQ-###` ID (zero-padded, append-only, per the conventions). Build this object first so the renders can't disagree.
 
 Get a **run timestamp** so repeated reviews accumulate. Read the current local time and format it `YYYY-MM-DD-HHMMSS` (no colons — Windows-safe):

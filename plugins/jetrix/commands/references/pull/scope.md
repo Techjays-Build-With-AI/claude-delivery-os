@@ -1,5 +1,7 @@
 ## Stage: `scope` (implemented — uses scope-mcp)
 
+**On a non-Jetrix tracker** phases 1–3 below (manifest, download, apply) do not run — documents are local-only there, so there is nothing to fetch. Start at §5: materialize features via `mapping.child_issues` under **`tracker.container_ref`** (the list or epic the bind locked — not `project_ref`, which would sweep in every unrelated ticket in the project), then split each body per `delivery-os-conventions` §1.c instead of reading seven tab fields. The composer, the sync-state writes and §7's sub-task pass are unchanged.
+
 ### 2. Phase 1 — manifest (single MCP call)
 
 ```

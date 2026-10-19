@@ -25,4 +25,19 @@ Invoke the **qa-agent** subagent. Pass it this instruction:
 
 ## 3. Surface the result
 
-Present the **setup-plan summary**: which `QAF-###` recommendations are being implemented (with the chosen tools), the ordered steps, the target thresholds, and any deferred/open decisions. Link to `qa/test-setup-plan.md` and the draft `qa/quality-gates.md`. Tell the user to review, then run `/qa:setup` to build the harness. If a decision is still open, lead with the question.
+Present the **setup-plan summary**: which `QAF-###` recommendations are being implemented (with the chosen tools), the ordered steps, the target thresholds, and any deferred/open decisions. If a decision is still open, lead with the question — `/qa:setup` guesses nothing, so an unanswered decision stops the build there rather than here.
+
+Close with this block, filled in:
+
+```
+✓ Setup plan ready — <n> QAF adopted · <n> deferred · <n> skipped
+  Stack:     <runner · lint · typecheck · coverage · e2e>
+  Coverage:  <current %> → <target %>
+  Plan  → qa/test-setup-plan.md
+  Gates → qa/quality-gates.md   (Draft — /qa:setup promotes it to Active)
+
+Next:
+  /qa:setup                    build the harness and prove it green
+```
+
+Where a decision is still open, replace the `Next:` line with the question and say that `/qa:setup` cannot start until it is answered.

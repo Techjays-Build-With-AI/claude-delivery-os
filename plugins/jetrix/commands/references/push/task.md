@@ -2,6 +2,8 @@
 
 Ad-hoc task push. Unlike `feature`, which is tied to the BA 6-file folder layout, `task` accepts any `.md` file with the shape below and creates ONE MC Task per file. Target defaults to the solution's List (same as `feature`), or you can point at any List or Sprint.
 
+**On a non-Jetrix tracker** §2's heading table stops being a split and becomes a validation pass — the body ships whole, so the headings only have to be the canonical set. `feature_id` is still the identity anchor and travels in the marker. `task_type` has no universal equivalent: map it through `tracker.mapping` if `/jetrix:init` §2c recorded an issue-type key, otherwise drop it and note the drop in the report.
+
 ### 1. Parse the arguments
 
 ```

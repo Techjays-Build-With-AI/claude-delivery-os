@@ -23,7 +23,7 @@ Standard checks before any work:
 
 1. Walk up from `$PWD` looking for `.jetrix/project.json` (up to 3 parent levels). If missing → tell the user to run `/jetrix:init` first and stop.
 2. Read `solution_id`, `solution_slug`, and `apps[]` from `project.json`. Note the folder that CONTAINS `.jetrix/` as `workspace_root`; the container at `<workspace_root>/.jetrix/` as `project_root`.
-3. Read `.jetrix/cache/repolocation.json` — for each app in `apps[]`, resolve its absolute local path. `SKIPPED` values mean that repo is unavailable — log and continue.
+3. Read `.jetrix/cache/repolocation.json` — for each app in `apps[]`, resolve its absolute local path. `SKIPPED` or absent means that repo is unavailable — log and continue, but name it and the fix in the run summary rather than burying it: `<repo> has no local path — /jetrix:init refresh`. A feature that turns out to span it will halt at `/dev:build` otherwise.
 4. Confirm `task-mcp` is available. MCP tools may be listed directly **or deferred**, so resolve it rather than eyeballing: if `mcp__task-mcp__*` tools are already in your tool list, that's your answer; otherwise run `ToolSearch` with `select:mcp__task-mcp__get_task_by_id_or_number`. A returned schema means registered; `No matching deferred tools found` means it isn't → tell the user to run `/delivery-os:setup` and stop.
 
    **Never run `claude mcp list` for this.** It health-checks *every* registered MCP server over the network — including unrelated claude.ai connectors — so on a machine with many of them it blocks for minutes or never returns, and `/dev:plan` appears to hang with no output before doing any work.

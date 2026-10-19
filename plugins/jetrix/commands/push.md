@@ -59,6 +59,30 @@ The per-stage flow (walk / hash / MCP call sequence / skip-unchanged rules / pre
 - `<path>` (optional, task only): `.md` file or folder; see the `task` stage below.
 - `--list=<name|id>` / `--sprint=<id>` (task only): target selector — see the `task` stage below.
 
+## 1.5. Resolve the tracker
+
+Read `tracker` from `project.json`. **Every stage file below branches on `capabilities`, never on `provider`** — add a
+tracker and nothing in them changes.
+
+| | `jetrix` | any other tracker |
+|---|---|---|
+| which server | `project-mcp` · `scope-mcp` · `task-mcp` | `tracker.mcp`, via `tracker.mapping` |
+| where issues land | the MC List named after `solutionSlug` | `tracker.container_ref` — **never** `project_ref` |
+| task fields | 7 tabs, one file each | **one body**, `##` sections — see `delivery-os-conventions` §1.c |
+| `scope` stage | publishes documents + the report | `documents: none` → **skipped**, with one line saying where the files are |
+| `deliverable` stage | publishes | skipped, same line |
+| status | `task-mcp.update_task_status` | `mapping.set_status` through `tracker.status_map` |
+
+**Never name a tool directly on a non-Jetrix tracker.** Read the key from `tracker.mapping` and resolve the schema with
+`ToolSearch` before calling — the server name is whatever the user registered, and the tool names are that MCP's own.
+
+**Every pushed body carries the marker**, `<!-- delivery-os:v1 <FEAT-ID> -->`. It is what lets a later pull tell our
+content from something typed in the tracker, and what maps an issue back to its local folder. A push that omits it
+produces an issue no pull can ever claim.
+
+**Mapping key missing (`null`)?** Report the stage as unsupported on this tracker and continue with the rest — never
+substitute a near-miss tool. `put_document: null` means no document store, not "find something close".
+
 ## 2. Route to the stage-specific flow
 
 Once the stage is resolved, `Read` the corresponding file and execute its instructions verbatim. The stage file assumes the preflight above has run and `project_root` / `workspace_root` / `solutionId` / `solutionSlug` are known.

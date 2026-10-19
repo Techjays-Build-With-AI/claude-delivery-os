@@ -209,8 +209,8 @@ Pending in portal (open Solution Explorer → each app → Integration tab):
      Do it whenever; next /jetrix:init <slug> picks up the changes.)
 
 Connection map:  · Not built yet — open portal → Connections tab → Build map.
-                   (Or, if you know the wiring already, we can add a
-                   /jetrix:build-map command later.)
+                   (Or skip it: /jetrix:init asks for the wiring directly
+                   when the portal has none.)
 
 Workspace layout:
   .jetrix/project.json

@@ -2,6 +2,8 @@
 
 Materializes every feature folder currently in a sprint. `<ref>` accepts:
 
+**On a non-Jetrix tracker** sprints are not universal — Jira has them, other tools call the grouping something else or have none. If `/jetrix:init` §2c recorded no sprint key in `tracker.mapping`, say so and point at `/jetrix:pull list <ref>`. Never guess a filter param.
+
 - A **sprint number** (integer like `3`) — routed to `sprint_number=3`; task-mcp resolves it to `sprintId` server-side via the solution's sprint list
 - A **MongoDB `_id`** (24-char hex) — routed to `sprint_id`
 

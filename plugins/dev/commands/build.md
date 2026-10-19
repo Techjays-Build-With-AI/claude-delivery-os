@@ -162,7 +162,14 @@ Three cheap re-checks:
 
 ### Stage 3 — Branch creation (FIRST)
 
-- Resolve target repo (parent-alone → primary product repo; sub-task → repo matching `subtask_repo` frontmatter). If `SKIPPED` in `repolocation.json` → escalate.
+- Resolve target repo (parent-alone → primary product repo; sub-task → repo matching `subtask_repo` frontmatter). If `SKIPPED` or absent in `repolocation.json` → halt with the missing-path block below, not a generic escalation — there is a one-command fix and the user should see it:
+
+  ```
+  <repo> has no local path on this machine.
+
+    /jetrix:init refresh      re-asks for it, and re-fetches anything else
+                              the project has gained since the bind
+  ```
 - Resolve base branch from `.jetrix/project.json` `apps[].env_branches.dev` (default: `develop`).
 - Create branch:
   - Parent-alone → `feature/FEAT-<AREA>-NN-<slug>`

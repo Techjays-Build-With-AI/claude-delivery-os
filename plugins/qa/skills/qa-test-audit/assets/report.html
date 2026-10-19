@@ -118,6 +118,23 @@
     h1 { font-size:24px; }
     .score { font-size:44px; }
   }
+  .save-toast { position: fixed; right: 20px; bottom: 20px; z-index: 90; max-width: 440px;
+    background: #fff; color: #1f2328; border: 1px solid #d0d7de; border-left: 4px solid #1a7f37;
+    border-radius: 12px; box-shadow: 0 14px 40px rgba(0,0,0,.22); padding: 16px 18px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  .save-toast.warn { border-left-color: #bf8700; }
+  .save-toast .st-head { font-weight: 700; font-size: 15px; margin-bottom: 8px; }
+  .save-toast .st-path, .save-toast .st-cmd { background: #f6f8fa; border: 1px solid #d0d7de;
+    border-radius: 7px; padding: 7px 9px; font-size: 12.5px; word-break: break-all;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .save-toast .st-sub { font-size: 12.5px; color: #636c76; margin: 9px 0 5px; }
+  .save-toast .st-ok { margin-top: 13px; float: right; font: inherit; font-size: 13px;
+    padding: 5px 13px; border-radius: 7px; border: 1px solid #0969da;
+    background: #0969da; color: #fff; cursor: pointer; }
+  @media (prefers-color-scheme: dark) {
+    .save-toast { background: #161b22; color: #e6edf3; border-color: #30363d; }
+    .save-toast .st-path, .save-toast .st-cmd { background: #21262d; border-color: #30363d; }
+  }
 </style>
 </head>
 <body>
@@ -142,7 +159,7 @@
   <div id="findings"></div>
 
   <div class="exportbar">
-    <button onclick="exportApprovals()">Export approvals ↓</button>
+    <button onclick="exportApprovals()">Save approvals</button>
     <span class="count" id="count"></span>
     <span class="hint">Set Adopt / Skip / Defer per finding, then export the approvals file and run <code>/qa:plan</code>.</span>
   </div>
@@ -228,11 +245,46 @@ function exportApprovals() {
     const opt = st.decision === 'Skip' ? '—' : (f.recommendedOption || '—');
     out += `${f.id} · ${st.decision} · ${opt}${st.note ? ' · (note: ' + st.note + ')' : ''}\n`;
   });
-  const blob = new Blob([out], { type: 'text/markdown' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url; link.download = `test-audit-${DATA.auditId}-approvals.md`;
-  link.click(); URL.revokeObjectURL(url);
+  const name = `test-audit-${DATA.auditId}-approvals.md`;
+
+  // Served by serve-review.js -> it writes into qa/audits/ and tells us where.
+  // Opened from file:// -> no server to ask, so fall back to a download and
+  // say so, rather than claiming a save that did not happen.
+  fetch('/save', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ filename: name, content: out })
+  })
+    .then(r => r.json())
+    .then(res => {
+      if (!res || !res.ok) throw new Error((res && res.error) || 'refused');
+      saveToast(true, 'Approvals saved', res.path, '/qa:plan ' + res.path);
+    })
+    .catch(() => {
+      const url = URL.createObjectURL(new Blob([out], { type: 'text/markdown' }));
+      const link = document.createElement('a');
+      link.href = url; link.download = name;
+      link.click(); URL.revokeObjectURL(url);
+      saveToast(false, 'Saved to Downloads', 'Move it to qa/audits/ first',
+        '/qa:plan qa/audits/' + name);
+    });
+}
+
+function saveToast(ok, heading, pathLine, cmd) {
+  document.querySelectorAll('.save-toast').forEach(n => n.remove());
+  const box = document.createElement('div');
+  box.className = 'save-toast';
+  box.innerHTML =
+    '<div class="st-head">' + (ok ? '\u2713 ' : '! ') + heading + '</div>' +
+    '<div class="st-path"></div>' +
+    '<div class="st-sub">You can run it now:</div>' +
+    '<div class="st-cmd"></div>' +
+    '<button class="st-ok">Got it</button>';
+  box.querySelector('.st-path').textContent = pathLine;
+  box.querySelector('.st-cmd').textContent = cmd;
+  box.querySelector('.st-ok').onclick = () => box.remove();
+  if (!ok) box.classList.add('warn');
+  document.body.appendChild(box);
 }
 init();
 </script>
