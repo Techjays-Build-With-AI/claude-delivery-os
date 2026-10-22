@@ -41,7 +41,7 @@ inputs_hash: <sha256 of feature.md + owned unit bodies>
 ---
 ```
 
-**Per sub-task (`features/<slug>/subtask/<repo>/implementation.md`):**
+**Per sub-task (`features/<slug>/units/<repo>/implementation.md`):**
 ```yaml
 ---
 doc_type: implementation
@@ -50,11 +50,11 @@ produced_by: dev
 feature_id: FEAT-<AREA>-NN
 parent_task_object_id: <MC _id>
 parent_task_number: Feature-N
-subtask_number: 1..N
-subtask_repo: <repo-slug>
+unit_number: 1..N
+unit_repo: <repo-slug>
 capabilities: [<role>, <role>...]   # controlled vocab per Rule 11.15
-jetrix_subtask_object_id: <MC _id, empty until push>
-jetrix_subtask_number: Subtask-N
+jetrix_unit_object_id: <MC _id, empty until push>
+jetrix_unit_number: Subtask-N
 compose_mode: implementation
 composed_at: <ISO date>
 inputs_hash: <sha256 of feature.md + THIS sub-task's owned unit bodies>
@@ -256,7 +256,7 @@ Existing components reused + new components added + cross-sub-task deliveries/co
 
 **Reviewer note:** Reuse rows should be re-verified against the current context graph — the composer's snapshot could be a run old.
 
-<!-- v2.3.16 — NO §7 Coverage table. Plan-time coverage lives in §1 Satisfies column + qa/quality-gates.md tier pool. Build-time evidence lives in dev/acceptance-map.md. No "Deferred to E2E" concept — E2E is a covered tier owned by whichever sub-task authors the E2E test file (declared in that sub-task's §1 Files column, cross-referenced in other sub-tasks' §6 Touch points). §7 Risks and rollback follows next; former §8 Shared contract is now §8. -->
+<!-- v2.3.16 — NO §7 Coverage table. Plan-time coverage lives in §1 Satisfies column + qa/quality-gates.md tier pool. Build-time evidence lives in units/<repo>/status.md § ## Acceptance. No "Deferred to E2E" concept — E2E is a covered tier owned by whichever sub-task authors the E2E test file (declared in that sub-task's §1 Files column, cross-referenced in other sub-tasks' §6 Touch points). §7 Risks and rollback follows next; former §8 Shared contract is now §8. -->
 
 ## 7. Risks and rollback
 
@@ -315,7 +315,7 @@ Rules 1–15 in `SKILL.md` govern the shape. Highlights that apply to this templ
 - Rule 11.8 — cross-sub-task interconnection verified at compose time; identical wire shape across every sub-task that references it.
 - Rule 11.9 — pre-write self-consistency validation (10 checks).
 - Rule 11.10 — feature-shape adapters (migration, message contract, authz decision, expected query plans, dependency graph, monitoring observation contract).
-- Rule 11.11 (v2.3.16) — Plan-time coverage owner is §1 Satisfies column; build-time evidence in `dev/acceptance-map.md`; NO §7 Coverage table; NO "Deferred" concept.
+- Rule 11.11 (v2.3.16) — Plan-time coverage owner is §1 Satisfies column; build-time evidence in `units/<repo>/status.md § ## Acceptance`; NO §7 Coverage table; NO "Deferred" concept.
 - **Rule 0 (v2.3.17) — ONE compose, ONE lint, ONE optional auto-fix. NEVER a halt-and-rewrite loop.** 10 mechanical triggers halt (payload > 60 000 chars, `## 7. Coverage` heading, `Deferred` status, `**Assumptions.**` heading, pipe-row-on-one-line, unclosed code fence, framework field path in §8, `# FEAT-` heading, mermaid fence missing `mermaid` language tag, missing blank line before/after tables/fences/mermaid/headings). Most auto-fix in-place (string transforms — remove heading, insert newline, insert `mermaid` tag). Everything else — Rules 10a/10b/11.5/11.9/11.10/11.12/11.13 — becomes a WARN reported in a `## Compose lint findings` block. The user decides whether to fix and re-run, or accept.
 - **Rule 0d (v2.3.17) — MC rendering contract for `react-markdown v9 + remark-gfm v4 + mermaid v11`.** Tables: every row on its own physical line, header separator (`|---|---|`) on its own line, blank line before/after. Mermaid: fenced with exactly `\`\`\`mermaid`, node labels with numbers/spaces MUST be quoted (`S1["1. Step"]`). Code fences: balanced. Headings: `##` for numbered sections, `###` for sub-sections, never `#`. Blank lines before/after every table/fence/mermaid/heading — remark-gfm silently DROPS blocks without blank-line surrounds.
 - Rule 11.12 — §2 lists only affected dimensions; an unaffected one is omitted, not written as N/A.
@@ -363,10 +363,10 @@ produced_by: dev
 feature_id: FEAT-<AREA>-NN
 parent_task_object_id: <MC _id>
 parent_task_number: Feature-N
-subtask_number: 1..N
-subtask_repo: <repo-slug>
-jetrix_subtask_object_id: <MC _id, empty until push>
-jetrix_subtask_number: Subtask-N
+unit_number: 1..N
+unit_repo: <repo-slug>
+jetrix_unit_object_id: <MC _id, empty until push>
+jetrix_unit_number: Subtask-N
 compose_mode: description
 composed_at: <ISO date>
 inputs_hash: <sha256 of the compose inputs>
@@ -378,7 +378,7 @@ inputs_hash: <sha256 of the compose inputs>
 ```markdown
 ## User story
 
-**As a** <role from parent's users: frontmatter or workflow.md actors>,
+**As a** <role from parent's users: frontmatter or its ## Workflow actors>,
 **I want to** <what the user WANTS to do — action from user's POV, not "the system does X">,
 **So that** <business outcome the user gets>.
 
@@ -415,7 +415,7 @@ Format constraints (Rule 13):
 - Bullets `-` prefix.
 - Bold role names first two words of each bullet.
 - NO HTTP status codes (`400`, `409`, `201`), NO field names (`added_by`), NO file paths, NO framework names, NO method names (POST/GET/DELETE), NO tables, NO code fences, NO mermaid.
-- Business vocabulary from parent's feature.md + workflow.md — never technical translations.
+- Business vocabulary from parent's feature.md (Objective + ## Workflow) — never technical translations.
 
 ### Per-section character budget (HARD budget planned upfront, not trimmed after)
 
@@ -469,10 +469,10 @@ graph LR
 
 | # | Repo | MC Task | Depends on | Blocks | State |
 |---|---|---|---|---|---|
-| 1 | <repo> | Subtask-<N> | — | 2 | PLANNED |
-| 2 | <repo> | Subtask-<N+1> | 1 | — | PLANNED |
+| 1 | <repo> | Subtask-<N> | — | 2 | readyForDev |
+| 2 | <repo> | Subtask-<N+1> | 1 | — | readyForDev |
 
-`#` = execution sequence (from each sub-task's `subtask_number` frontmatter). `MC Task` = each sub-task's `jetrix_subtask_number` (MC display number). `Depends on` / `Blocks` reference other rows by `#`, not by MC task number (execution order is stable; MC numbering is not). `State` = each sub-task's `current_state` from its `status.md`.
+`#` = execution sequence (from each sub-task's `subtask_number` frontmatter). `MC Task` = each sub-task's `jetrix_subtask_number` (MC display number). `Depends on` / `Blocks` reference other rows by `#`, not by MC task number (execution order is stable; MC numbering is not). `State` = each sub-task's `status` from its `status.md`.
 
 ## Touch points
 

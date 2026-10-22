@@ -1,6 +1,6 @@
 ---
 name: ba-feature-breakdown
-description: Convert a scope document and its supporting discovery artifacts into a structured, implementation-ready feature breakdown — one folder per feature, each holding the business context, implementation plan, workflow, acceptance criteria, dependencies, open questions, and status a developer, tech lead, QA engineer, or coding agent needs to start building. Use whenever the user asks to "break the scope into features", "create feature folders", "produce a feature breakdown", "make the scope implementation-ready", or hand the scope off to build. Decomposes the scope into independently understandable features sized to plan/build/test/release, identifies the expected pages, APIs, workflows, integrations, background jobs, events, and data entities, distinguishes confirmed requirements from assumptions / open questions / out-of-scope / future-phase, preserves traceability back to the source scope, and maintains a feature-index. It creates the implementation *context* that precedes development — it never writes production code, and it never fabricates behavior, UI, business rules, API contracts, schemas, or integrations the source material doesn't support; missing information becomes an explicit open question, not an invented requirement. Re-run it when scope changes, a feature is split/merged/deferred, or new stakeholder, technical, or QA input arrives.
+description: Convert a scope document and its supporting discovery artifacts into a structured, implementation-ready feature breakdown — one folder per feature, each holding the business context, implementation plan, workflow, acceptance criteria, dependencies, open questions, and status a developer, tech lead, QA engineer, or coding agent needs to start building. Use whenever the user asks to "break the scope into features", "create feature folders", "produce a feature breakdown", "make the scope implementation-ready", or hand the scope off to build. Decomposes the scope into independently understandable features sized to plan/build/test/release, identifies the expected pages, APIs, workflows, integrations, background jobs, events, and data entities, distinguishes confirmed requirements from assumptions / open questions / out-of-scope / future-phase, preserves traceability back to the source scope. It creates the implementation *context* that precedes development — it never writes production code, and it never fabricates behavior, UI, business rules, API contracts, schemas, or integrations the source material doesn't support; missing information becomes an explicit open question, not an invented requirement. Re-run it when scope changes, a feature is split/merged/deferred, or new stakeholder, technical, or QA input arrives.
 ---
 
 # BA Feature Breakdown (scope → implementation-ready features)
@@ -13,42 +13,44 @@ This skill **does not write production code** and does not make technical-design
 
 ## Operating contract
 
-This produces **Delivery OS** context files. Read the **`delivery-os-conventions`** contract first if it isn't already in context — the frontmatter standard, the stable-ID rules, the source-citation form (`[SRC-### › <original location>]`), the controlled vocabulary, and the diagram convention (§8: Mermaid is the living source). The scope you consume is the module-centric **Techjays D&D scope** that `ba-extraction` produces (`ba/scope.md`), with its eleven sub-headings per module — including a **§3.x.3 Master Flow** and a **§3.x.4 Use Cases** layer; read `ba-extraction` if the expected scope structure isn't already in context, because your features map back to those modules, their `<MODULE>-<FR|AI|DET|HUM>-NN` requirement IDs, and their `<MODULE>-UC-NN` **use cases** (each a distinct scenario/route with its own flow and worked example). A use case is often the right size for a feature — or a small cluster of use cases becomes one — so carry the `UC-` ids into the feature and let each route's flow become an alternative flow in the feature's `workflow.md`.
+This produces **Delivery OS** context files. Read the **`delivery-os-conventions`** contract first if it isn't already in context — the frontmatter standard, the stable-ID rules, the source-citation form (`[SRC-### › <original location>]`), the controlled vocabulary, and the diagram convention (§8: Mermaid is the living source). The scope you consume is the module-centric **Techjays D&D scope** that `ba-extraction` produces (`requirements/<slug>/scope.md`), with its eleven sub-headings per module — including a **§3.x.3 Master Flow** and a **§3.x.4 Use Cases** layer; read `ba-extraction` if the expected scope structure isn't already in context, because your features map back to those modules, their `<MODULE>-<FR|AI|DET|HUM>-NN` requirement IDs, and their `<MODULE>-UC-NN` **use cases** (each a distinct scenario/route with its own flow and worked example). A use case is often the right size for a feature — or a small cluster of use cases becomes one — so carry the `UC-` ids into the feature and let each route's flow become an alternative flow in the feature's `## Workflow` section.
 
-**Output location.** The feature breakdown is written to a `context/` tree at the project root (a sibling of `ba/`, `shared-context/`, and `artifacts/`), because it is the shared *implementation context* the whole build team reads — not a BA-private register:
+**Output location.** The breakdown is written inside its requirement, because a feature belongs to the requirement
+that produced it — not to a flat pool shared by every requirement in the workspace:
 
 ```text
-context/
+requirements/<requirement-slug>/
   features/
-    feature-index.md
     <feature-slug>/
-      feature.md
-      implementation-plan.md
-      workflow.md
-      acceptance-criteria.md
-      business-rules.md          # feeds Business Rules tab at push time
-      nfrs.md                    # feeds NFRs tab at push time
-      test-scenarios.md          # feeds Test Scenarios tab at push time
-      dependencies.md
-      open-questions.md
+      feature.md                 # Description tab — includes the ## Workflow section
+      acceptance-criteria.md     # Acceptance Criteria tab
+      business-rules.md          # Business Rules tab
+      nfrs.md                    # NFRs tab
+      test-scenarios.md          # Test Scenarios tab
+      dependencies.md            # Dependencies tab — includes ## Open questions
       status.md
 ```
 
-Feature folder names are **lowercase kebab-case** (`supplier-onboarding`, `outlet-discovery`, `proposal-generation`, `contract-approval`). Each feature gets **all ten files**, every time — an empty section reads "None identified yet", never a missing file. The exact schema for each file, and for `feature-index.md`, is in **`references/feature-file-templates.md`** — build every file from it so the folders stay uniform and machine-parseable. How to *decide* the feature set (sizing, feature kinds, the breakdown rules, and the completion bar) is in **`references/decomposition-guide.md`** — read it before you cut the scope into features.
+**Seven files, and no index.** The workflow and the open questions are sections, not files: the push merged them
+anyway, so separate files meant composing the same merge twice and gave two files a chance to disagree. There is no
+the breakdown table in the run summary — `ls` is the list, status lives in each `status.md`, and a cached roll-up of two readable
+things only goes stale. It renders into `scope.html` from the live files instead.
 
-If there's no Delivery OS workspace (no `ba/scope.md`, no `intake.index.md`), don't block: take the scope path the user gives you, create `features/` next to it, and note in the run summary that a standard workspace wasn't found. Keep the frontmatter either way; only the location changes.
+Feature folder names are **lowercase kebab-case** (`supplier-onboarding`, `outlet-discovery`, `proposal-generation`, `contract-approval`). Each feature gets **all ten files**, every time — an empty section reads "None identified yet", never a missing file. The exact schema for each file, and for the breakdown table in the run summary, is in **`references/feature-file-templates.md`** — build every file from it so the folders stay uniform and machine-parseable. How to *decide* the feature set (sizing, feature kinds, the breakdown rules, and the completion bar) is in **`references/decomposition-guide.md`** — read it before you cut the scope into features.
+
+If there's no Delivery OS workspace (no `requirements/<slug>/scope.md`, no `sources.md`), don't block: take the scope path the user gives you, create `features/` next to it, and note in the run summary that a standard workspace wasn't found. Keep the frontmatter either way; only the location changes.
 
 ## Workflow
 
-### 0. Establish the initiative (work-batch grouping)
-Take the **`initiative`** for this run from the user (`/ba:features initiative=<name>`) — a lowercase-kebab slug like `payments-v2` that groups the features this scoping effort produces, so a developer can later plan and build just their batch even when `features/` holds many developers' in-flight features. If none is given, auto-generate `intake-<YYYY-MM-DD>` (from the system clock) and tell the user what you chose so they can rename it. Every feature you **create** in this run is stamped with this initiative (`initiative:` frontmatter in `feature.md` and `status.md`, and the `Initiative` column in `feature-index.md`). On a re-run, a feature that already exists **keeps its existing initiative** unless the user explicitly passes a new one — so grouping stays stable across merges and re-runs. See `delivery-os-conventions` §3.
+### 0. Establish the requirement
+Take the **`requirement`** for this run from the user (`/ba:features requirement=<slug>`) — a lowercase-kebab slug like `payments-v2` that groups the features this scoping effort produces, so a developer can later plan and build just their batch even when `features/` holds many developers' in-flight features. If none is given, auto-generate `intake-<YYYY-MM-DD>` (from the system clock) and tell the user what you chose so they can rename it. Every feature you **create** in this run is stamped with this initiative (`requirement:` frontmatter in `feature.md` and `status.md`, and the `Requirement` column in the breakdown table in the run summary). On a re-run, a feature that already exists **keeps its existing initiative** unless the user explicitly passes a new one — so grouping stays stable across merges and re-runs. See `delivery-os-conventions` §3.
 
 ### 1. Read the whole scope, and the knowledge base behind it
-Take the scope path from the user (default `ba/scope.md` when a workspace exists). The scope may be Markdown, `.docx`, or `.pdf` — use the `docx` / `pdf` skills to extract it if needed. **Read all of it before decomposing** — a capability introduced in §2 is specified in §3.x, bounded in §6 Global Out-of-Scope, and its open items live in the RAID registers. Then load the supporting context so your features are traceable and don't re-open settled questions:
-- **`ba/registers/requirements.md`, `ba/registers/workflows.md`, `ba/registers/business-rules.md`, `ba/registers/data.md`, `ba/registers/integrations.md`** — the source of the requirement IDs, workflows, rules, entities, and integrations you cite in each feature. Link to these; do not copy them (Rule 3).
-- **`ba/registers/use-cases.md`** — the scope's use cases (`<MODULE>-UC-##`), each a distinct route with its own flow and worked example. These are the primary input to a feature's `workflow.md`: the module master flow becomes the feature's overview flow, and each use case becomes an alternative flow. Carry the `UC-` ids into `feature.md` and cite them in acceptance criteria.
-- **`ba/registers/examples.md`** — the client's shared examples/scenarios (EX-###); use them to sanity-check that a feature's journey and acceptance criteria can actually satisfy what the client showed you. Reuse the worked example already attached to a use case where one exists.
-- **`ba/registers/assumptions.md`, `ba/logs/clarifications.md`, `ba/logs/contradictions.md`** — assumptions already logged (ASM-###), questions already open (CLR-###), and known conflicts (CON-###). Reuse these IDs rather than minting new open questions for things already tracked.
+Take the scope path from the user (default `requirements/<slug>/scope.md` when a workspace exists). The scope may be Markdown, `.docx`, or `.pdf` — use the `docx` / `pdf` skills to extract it if needed. **Read all of it before decomposing** — a capability introduced in §2 is specified in §3.x, bounded in §6 Global Out-of-Scope, and its open items live in the RAID registers. Then load the supporting context so your features are traceable and don't re-open settled questions:
+- **`requirements/<slug>/registers/requirements.md`, `requirements/<slug>/registers/workflows.md`, `requirements/<slug>/registers/business-rules.md`, `shared-context/data.md`, `shared-context/integrations.md`** — the source of the requirement IDs, workflows, rules, entities, and integrations you cite in each feature. Link to these; do not copy them (Rule 3).
+- **`requirements/<slug>/registers/use-cases.md`** — the scope's use cases (`<MODULE>-UC-##`), each a distinct route with its own flow and worked example. These are the primary input to a feature's `## Workflow` section: the module master flow becomes the feature's overview flow, and each use case becomes an alternative flow. Carry the `UC-` ids into `feature.md` and cite them in acceptance criteria.
+- **`requirements/<slug>/registers/examples.md`** — the client's shared examples/scenarios (EX-###); use them to sanity-check that a feature's journey and acceptance criteria can actually satisfy what the client showed you. Reuse the worked example already attached to a use case where one exists.
+- **`requirements/<slug>/ledger.md` (kind: assumption), `requirements/<slug>/ledger.md` (kind: question), `requirements/<slug>/ledger.md` (kind: contradiction)** — assumptions already logged (ASM-###), questions already open (CLR-###), and known conflicts (CON-###). Reuse these IDs rather than minting new open questions for things already tracked.
 - **`shared-context/`** — glossary, stakeholder-map, system-landscape, decision-log — for actor names, systems, and confirmed decisions (DEC-###).
 
 Record which sources you consulted; it goes in the run summary so the reader knows the breakdown's evidentiary base.
@@ -66,28 +68,27 @@ For every feature, create the folder (`features/<feature-slug>/`) and write all 
 
 | Local file | Task tab | Push behaviour |
 |---|---|---|
-| `feature.md` (Objective + In Scope + Out of Scope) | **Description** | Push splits and merges: Objective → `## Workflow` (from workflow.md) → In Scope → Out of Scope. Scope-after-workflow is intentional so AC / test-scenarios can cite scope points naturally. |
-| `workflow.md` (numbered flows + mermaid) | **Description** (merged) | Injected between Objective and In Scope in the Description tab. |
+| `feature.md` (Objective + In Scope + Out of Scope) | **Description** | Push splits and merges: Objective → `## Workflow` → In Scope → Out of Scope, all from this one file. Scope-after-workflow is intentional so AC / test-scenarios can cite scope points naturally. |
 | `business-rules.md` (BR table) | **Business Rules** | Sent verbatim |
 | `acceptance-criteria.md` (AC table grouped Happy / Validation / Edge) | **Acceptance Criteria** | Sent verbatim |
 | `nfrs.md` (NFR table by Area) | **NFRs** | Sent verbatim |
 | `test-scenarios.md` (Positive / Negative / Edge tables) | **Test Scenarios** | Sent verbatim |
-| `dependencies.md` (Depends on + Assumptions) | **Dependencies** | Merged with `open-questions.md` at push (concatenated with `**Open questions**` heading between) |
-| `open-questions.md` (bullet list) | **Dependencies** (merged) | Concatenated onto `dependencies.md` at push |
-| `implementation-plan.md` (BA's build areas) | — | **Local only, never pushed.** Kept for the BA agent's ongoing scoping notes. |
+| `dependencies.md` (Depends on + Assumptions) | **Dependencies** | Merged with `dependencies.md` § `## Open questions` at push (concatenated with `**Open questions**` heading between) |
+| `dependencies.md` § `## Open questions` (bullet list) | **Dependencies** | Concatenated onto `dependencies.md` at push |
+| `dependencies.md` | — | **Local only, never pushed.** Kept for the BA agent's ongoing scoping notes. |
 | `status.md` (operational tracker) | — | **Local only, never pushed.** Task status lives on MC's Task record itself; this file is the BA-side tracker. |
 
 **Per-file authoring guidance:**
 
 - **`feature.md`** — Description tab source. **Only three visible sections: Objective + In Scope + Out of Scope.** Identity (feature id, initiative, slug, use case ids), users, mapped scope §, mapped requirement / source ids, cross-feature dependency ids, and optional `list_name` (MC List routing) live in frontmatter — never in visible headings. Business Objective / User Value / Related APIs / Related Pages / Related Data Entities / Related Integrations sections are **not authored here** (they live elsewhere: Objective condenses them; TL's context graph owns Related APIs / Pages / Data Entities). If you want this feature's Task to land under a specific existing MC List (or a new List named differently from the scope module), set `list_name:` in frontmatter; otherwise push derives it from `mapped_scope:`.
-- **`workflow.md`** — the Workflow section that gets merged into Description. **Body content only — no H1, no H2s** (push adds a `## Workflow` heading; internal `##`s would nest wrongly). One **bold label** per named flow variant / use case (`**Submitting a supplier for review**`, `**Draft & resume**`), each followed by numbered steps. A single Mermaid `flowchart` at the end covers the overall shape. **No `## Business Rules` block** (lives in `business-rules.md`), **no `## Related Features` block** (lives in `depends_on_features` frontmatter and `dependencies.md`).
+- **`feature.md` § `## Workflow`** — the Workflow section that gets merged into Description. **Body content only — no H1, no H2s** (push adds a `## Workflow` heading; internal `##`s would nest wrongly). One **bold label** per named flow variant / use case (`**Submitting a supplier for review**`, `**Draft & resume**`), each followed by numbered steps. A single Mermaid `flowchart` at the end covers the overall shape. **No `## Business Rules` block** (lives in `business-rules.md`), **no `## Related Features` block** (lives in `depends_on_features` frontmatter and `dependencies.md`).
 - **`business-rules.md`** — the feature's BR slice as a numbered table. Feature-scoped IDs (`BR-1..N`); register-side globals in frontmatter `mapped_br_ids`.
 - **`acceptance-criteria.md`** — AC table grouped **Happy path · Validation · Edge cases**, feature-scoped IDs sequential across groups (not restarting), **every row cites at least one `BR-N` in the Rule column**. Skipping the Rule column is a defect — no criterion ships without an anchoring rule. Never mention filenames in the Criterion text (`see business-rules.md`, `per feature.md`) — cross-reference by ID only.
 - **`nfrs.md`** — NFR table by area, intro paragraph calibrating essentials. Mark essentials `*(essential)*` (Concurrency, Auditability). **Do not include a Performance row** for internal-app features — response-time tuning isn't a business requirement here, and a "no target" row is filler. Only include a Performance row when the scope names a concrete measurable target (`p95 < X ms`, etc.) and cite the scope § inline.
 - **`test-scenarios.md`** — Positive / Negative / Edge tables. First column header is `No.` (not `#` — some markdown normalisers split a header row on a bare `#`). Sequential numbers across groups. Every row cites an `AC-N`.
 - **`dependencies.md`** — Depends on + Assumptions. **Downstream dependencies, data dependencies, integration dependencies, and dependency risks are NOT authored here** — TL's context graph and the Implementation-tab Touch points subsection own them. Cross-feature dependency ids live in frontmatter `depends_on_features`.
-- **`open-questions.md`** — bullet list, one line per question with owner named inline. Identity / impact / status in frontmatter `open_questions[]`.
-- **`implementation-plan.md`** — BA's build-areas working file for ongoing scoping. Never pushed; the Implementation-tab source is `tl-plan.md`, produced by `/dev:plan` Stage 2 (which invokes the `tl-feature-compose` skill internally). For split features, the parent's `tl-plan.md` is a rollup naming each sub-task; per-sub-task detailed Implementation lives at `subtask/<repo>/implementation.md`.
+- **`dependencies.md` § `## Open questions`** — bullet list, one line per question with owner named inline. Identity / impact / status in frontmatter `open_questions[]`.
+- **`dependencies.md`** — the feature's dependencies and open questions. Never pushed; the Implementation-tab source is `tl-plan.md`, produced by `/dev:plan` Stage 2 (which invokes the `tl-feature-compose` skill internally). For split features, the parent's `tl-plan.md` is a rollup naming each sub-task; per-sub-task detailed Implementation lives at `units/<repo>/implementation.md`.
 - **`status.md`** — local BA-side operational tracker. Never pushed; task lifecycle status lives on the MC Task itself.
 
 Fill each file from the scope and registers. When a section has no supported content, write the labelled placeholder the template specifies — don't invent, and don't delete the heading.
@@ -109,13 +110,13 @@ This applies everywhere prose or table content lands: Criterion cells, Scenario 
 
 The three files added to the folder do not have their own scope § — each is composed from material you already loaded in step 1. Populate them **from evidence in the scope and registers**; do not invent.
 
-**`business-rules.md` — the feature's BR slice.** Walk `ba/registers/business-rules.md` (or the scope's `## Business Rules` per module) and pick out the rules this feature enforces at the point of decision, validation, or write. Include only rules the feature ACTS ON — not rules that surround it and belong to a sibling feature. Assign feature-scoped IDs `BR-1..N` in the order the rules apply during the user flow (validation rules first, then identity rules, then persistence rules — this is the same order the Implementation tab's execution table will follow later). Frontmatter carries `mapped_br_ids` linking each `BR-N` back to its `BR-###` register row. Each rule is one line; no rationale prose.
+**`business-rules.md` — the feature's BR slice.** Walk `requirements/<slug>/registers/business-rules.md` (or the scope's `## Business Rules` per module) and pick out the rules this feature enforces at the point of decision, validation, or write. Include only rules the feature ACTS ON — not rules that surround it and belong to a sibling feature. Assign feature-scoped IDs `BR-1..N` in the order the rules apply during the user flow (validation rules first, then identity rules, then persistence rules — this is the same order the Implementation tab's execution table will follow later). Frontmatter carries `mapped_br_ids` linking each `BR-N` back to its `BR-###` register row. Each rule is one line; no rationale prose.
 
 **`nfrs.md` — non-functional requirements grouped by area.** For each area (Concurrency, Auditability, Data classification, Availability, UX, Observability) — check the scope's non-functional section, the acceptance criteria for concurrency hints, the data-register for personal / regulated data classifications, and the integration-register for availability constraints. Write one row per area **only where the source specifies a requirement**. Skip areas the source is silent on — do not stub `None`. Values must be concrete (`single conditional write`, `no scheduled auto-approval`), never aspirational (`fast`, `secure`, `reliable`). **Do not include a Performance row for internal-app features** — response-time tuning isn't a business requirement, and a "no target" Performance row is filler. Only add Performance when the scope explicitly names a measurable target (`p95 < 500 ms`, `throughput ≥ 100 req/s`) and cite that scope § in the requirement cell.
 
 **`test-scenarios.md` — Positive / Negative / Edge exercising the ACs.** Walk `acceptance-criteria.md` — every AC becomes at least one Positive row and at least one Negative row (the failure mode). Then walk the business rules — every guard rule (`BR-4` self-approval, `BR-5` cancelled-request, execution-order dependencies) becomes at least one Edge row. Cite the AC id each scenario exercises. **Do not invent scenarios that aren't grounded in an AC or a BR** — every row must trace back. Combination scenarios (a request that fails two guards) belong in Edge and cite the guard that fires first per the execution order.
 
-**Coverage self-check — walk the seven required dimensions before shipping** (see `references/feature-file-templates.md` §10). Common misses that a QA team would rightfully add back if BA skips them:
+**Coverage self-check — walk the seven required dimensions before shipping** (see `references/feature-file-templates.md` §7). Common misses that a QA team would rightfully add back if BA skips them:
 
 1. **Boundary MIN** — any range constraint needs BOTH ends tested. `1–500 chars` → test `1 char` AND `0 chars`, not just the max.
 2. **Encoding** — any user-typed string that's stored + displayed → one non-ASCII scenario (emoji / CJK / accented).
@@ -127,7 +128,7 @@ The three files added to the folder do not have their own scope § — each is c
 
 For each dimension whose trigger applies but is unclear in the scope, raise an OQ (`OQ-###`) and mark the corresponding scenario row `# — (pending OQ-###)` — never silently omit. Optional-consider (transport failures, mid-flow state change, Submit-disabled matrix) may be OQ'd if the scope doesn't clearly name the behavior; those are natural QA territory otherwise. Two things stay off the BA rubric because they're genuinely QA specialty: UI-mirror of API concurrency, and timezone / locale display details.
 
-**Common to all three:** if the scope leaves a needed input silent, do not invent — write an open question in `open-questions.md` and leave the file's affected row blank with a `(pending OQ-###)` marker. NFRs and Test Scenarios can legitimately be short on a feature the scope is thin about; that is a signal to the reviewer, not a shortcut to skip authoring the file.
+**Common to all three:** if the scope leaves a needed input silent, do not invent — write an open question under `dependencies.md` § `## Open questions` and leave the file's affected row blank with a `(pending OQ-###)` marker. NFRs and Test Scenarios can legitimately be short on a feature the scope is thin about; that is a signal to the reviewer, not a shortcut to skip authoring the file.
 
 ### 5. Mark every uncertainty explicitly
 Use the controlled labels throughout: **Confirmed · Assumption · Open Question · Dependency · Risk · Out of Scope · Future Phase**. An item is *Confirmed* only when the scope or a register states it; anything you inferred is an **Assumption** (log it, note the risk); anything the scope leaves genuinely undecided is an **Open Question** (owner + impact). This is the line that keeps the breakdown honest: never promote an assumption to a requirement.
@@ -135,14 +136,18 @@ Use the controlled labels throughout: **Confirmed · Assumption · Open Question
 ### 6. Wire up dependencies and preserve traceability
 Identify dependencies **between** features (Supplier Approval depends on Supplier Onboarding; RFP Generation depends on Outlet Discovery) and record them in both features' `dependencies.md` and in the index. Every feature's `feature.md` must carry **Source References** back to the scope section and/or the register IDs it came from — traceability runs scope → feature, and no scope item may be silently dropped. Where you reference a page, API, or data entity that lives in another context file, **link to it, don't duplicate** the contract or schema (Rule 3).
 
-### 7. Create / update the feature index
-Write `features/feature-index.md` — the one-row-per-feature table (`Feature ID | Feature | Initiative | Status | Priority | Dependencies | Folder`). Fill the `Initiative` column from each feature's stamp. On a **re-run**, update it in place: add new features (with this run's initiative), update changed ones (preserving their existing initiative unless a new one was explicitly passed), and keep retired features visible with a status (e.g. `Merged into …`, `Deferred`) rather than deleting the row — the index is the map of the whole breakdown.
+### 7. Report the breakdown — as a table, not a file
+Return a one-row-per-feature table in the run summary: `Feature ID | Feature | Status | Priority | Dependencies | Folder`.
+
+**Do not write a `feature-index.md`.** `ls requirements/<slug>/features/` is the list and status lives in each `status.md`, so an index file is a cached aggregation of two things already readable — and it goes stale the moment one feature moves. The roll-up renders into `scope.html` from the live files instead.
+
+On a **re-run**, the table reflects the folders as they now stand: new features appear, changed ones show their current status, and a retired feature stays visible with a status that says what happened to it (`Merged into …`, `Deferred`) rather than vanishing. A feature that disappears from the summary with no explanation is indistinguishable from one you forgot.
 
 ### 8. Support incremental refinement (re-runs)
 The first breakdown needn't be perfect. When the scope changes, a stakeholder answers a question, technical design adds a constraint, UX shifts, QA finds an edge case, or a feature is split/merged/deferred/removed — re-run and **update in place**, preserving history where you can and clearly noting what changed (bump the feature's `status.md` "Last Updated", record the change, close the resolved open questions). Never blind-overwrite a feature folder; merge new understanding into it.
 
 ### 9. Summarise in chat
-Give the user the headline: how many features you created/updated, the feature-index table, the cross-feature dependency highlights, the count of open questions raised (Blockers first, with owners), and any scope items you couldn't confidently place (raised as questions, not dropped). Link to `feature-index.md` and note that each feature folder is self-contained. Keep it tight — the detail lives in the files.
+Give the user the headline: how many features you created/updated, the breakdown table, the cross-feature dependency highlights, the count of open questions raised (Blockers first, with owners), and any scope items you couldn't confidently place (raised as questions, not dropped). Note that each feature folder is self-contained. Keep it tight — the detail lives in the files.
 
 ## Local files vs Jetrix Task tabs — one-way format on push
 
@@ -155,7 +160,7 @@ The ten local files in a feature folder carry more content than the seven tabs o
 - **Author locally, push, don't pull back.** The machine that authored a feature keeps the rich local files as its source of truth. Do not `/jetrix:pull` a feature you authored — you will overwrite your rich local `feature.md` with the stripped tab version.
 - **Pull is for fresh teammates.** A teammate who never authored the feature but needs to work on it locally uses pull. They receive tab-shape content — enough to read and build against, less than the original author had.
 - **Round-trip fidelity is asymmetric by design.** The stripping is what makes Jetrix Task tabs match the target format; carrying every rich section forward would defeat that. If a section MUST survive push (an author's long-form design note that the tab reader shouldn't see), keep it in the local file only and don't rely on Jetrix as backup.
-- **Loss is bounded to `feature.md`'s bloat sections.** `workflow.md`, `acceptance-criteria.md`, `business-rules.md`, `nfrs.md`, `test-scenarios.md`, `dependencies.md`, `open-questions.md` all round-trip cleanly — those files already match tab shape.
+- **Loss is bounded to `feature.md`'s bloat sections.** `feature.md` § `## Workflow`, `acceptance-criteria.md`, `business-rules.md`, `nfrs.md`, `test-scenarios.md`, `dependencies.md`, `dependencies.md` § `## Open questions` all round-trip cleanly — those files already match tab shape.
 
 ## Completion criteria
 

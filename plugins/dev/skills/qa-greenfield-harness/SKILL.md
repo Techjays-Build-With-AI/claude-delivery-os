@@ -12,7 +12,7 @@ You are auto-provisioning a test harness so `/dev:build` can proceed without pro
 Read the **`delivery-os-conventions`** contract if not in context. Your inputs:
 
 - The target repository (from `/dev:build`'s repo resolution; sub-tasks scope to one repo)
-- The detected stack (from `dev-stack-adaptive-implementation`'s `stack-detection.md` — run BEFORE this skill in `/dev:build`; check `dev/implementation-log.md` for the detected-stack block, OR re-run stack detection here if the block isn't present)
+- The detected stack (from `dev-stack-adaptive-implementation`'s `stack-detection.md` — run BEFORE this skill in `/dev:build`; check `units/<repo>/status.md § ## Run history` for the detected-stack block, OR re-run stack detection here if the block isn't present)
 - Parent's `test-scenarios.md` — the E2E scenarios to seed as skeleton E2E tests
 - Parent's `nfrs.md` — performance / coverage / security bars that map to gates
 
@@ -42,7 +42,7 @@ From the detected framework, classify:
 - **Mobile:** Flutter, React Native
 - **DB:** Migrations-only repos (SQL scripts, Prisma-only) — treat as backend-ish
 
-Mixed frontend+backend in one repo (Next.js full-stack) → treat as frontend (use frontend matrix) since UI E2E covers most acceptance-map rows.
+Mixed frontend+backend in one repo (Next.js full-stack) → treat as frontend (use frontend matrix) since UI E2E covers most `## Acceptance` table rows.
 
 ### Step 2 — Pick from the matrix
 
@@ -117,7 +117,7 @@ bootstrapped_by: qa-greenfield-harness
 
 ## Detected stack
 
-<from dev/implementation-log.md detected_stack block>
+<from units/<repo>/status.md § ## Run history detected_stack block>
 
 ## Layer detected
 
@@ -186,7 +186,7 @@ If ANY of the above fails → set `qa/quality-gates.md` `harness_status: Draft`,
 
 ## Skills / agents invoked
 
-- Reads `dev-stack-adaptive-implementation`'s `references/stack-detection.md` output — via existing `dev/implementation-log.md` block
+- Reads `dev-stack-adaptive-implementation`'s `references/stack-detection.md` output — via existing `units/<repo>/status.md § ## Run history` block
 - Runs shell commands via the shell tool — direct, no MCP
 - No subagent delegation — everything runs in the dev-agent's own context
 

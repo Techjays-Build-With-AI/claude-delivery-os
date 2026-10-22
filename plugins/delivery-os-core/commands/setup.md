@@ -128,7 +128,8 @@ Example (production, first run, clean machine):
   Portal: https://app.jetrix.ai/
 
 Next:
-  /jetrix:init        lists your projects, or tells you how to create one
+  /jetrix:init <project-id>     binds this folder to that project
+  /jetrix:init                  prints how to find or create one
 
   Using Jira, ClickUp, Azure or another tool?
     claude mcp add --transport http <name> <its-mcp-url>
@@ -137,7 +138,7 @@ Next:
 
 **Print the portal URL for the mode this run registered** (§1's table). Getting it wrong is the expensive mistake here: a Solution created in the staging portal does not exist to production MCPs, and `/jetrix:init` then reports the project as not found with no hint why.
 
-`/jetrix:init` lists what you already have, or prints how to create one — so setup asks nothing it would have to guess.
+`/jetrix:init` with an id binds; without one it prints how to get an id — so setup asks nothing it would have to guess.
 
 Example (production request, but names are already registered against staging):
 

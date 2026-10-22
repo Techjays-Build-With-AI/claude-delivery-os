@@ -1,12 +1,12 @@
 # Eval runner (applied-AI features only)
 
-How the delivery loop **materializes, runs, and inspects** the evals the TL designed, during the `TESTING` phase, and feeds them into `dev/acceptance-map.md`. Read this with the shared **`eval-engineering`** skill (the method and the unit schema). This applies **only to AI-bearing features** with `EVAL-<AREA>-NN` units under `context/evals/<feature-slug>/`; a deterministic feature has no evals and is proven by the standard suite.
+How the delivery loop **materializes, runs, and inspects** the evals the TL designed, during the `agentExecuting` phase, and feeds them into `units/<repo>/status.md § ## Acceptance`. Read this with the shared **`eval-engineering`** skill (the method and the unit schema). This applies **only to AI-bearing features** with `EVAL-<AREA>-NN` units under `features/<slug>/evals/`; a deterministic feature has no evals and is proven by the standard suite.
 
 ---
 
 ## 1. Detect — are there evals to run?
 
-After `/dev:build` Stage 7 runs the standard local test suite, check whether the feature is AI-bearing (`delivery-os-conventions` §5) and has eval units in `context/evals/<feature-slug>/` (via `context/evals/eval-index.md`). If it's AI-bearing but has **no** evals, that's a planning gap — the planning gate (`readiness-and-planning.md` §0) should have had the TL design them; if it didn't, re-delegate to `tl-feature-planning` for this feature at `/dev:plan` time rather than proving an AI criterion with a deterministic assertion. If it's not AI-bearing, there's nothing to do here.
+After `/dev:build` Stage 7 runs the standard local test suite, check whether the feature is AI-bearing (`delivery-os-conventions` §5) and has eval units in `features/<slug>/evals/` (via `features/<slug>/evals/eval-index.md`). If it's AI-bearing but has **no** evals, that's a planning gap — the planning gate (`readiness-and-planning.md` §0) should have had the TL design them; if it didn't, re-delegate to `tl-feature-planning` for this feature at `/dev:plan` time rather than proving an AI criterion with a deterministic assertion. If it's not AI-bearing, there's nothing to do here.
 
 ## 2. Materialize — build a runnable verifier from each unit
 
@@ -20,7 +20,7 @@ Prefer the project's existing test framework and any eval-runner command QA expo
 
 ## 3. Run and inspect both sides
 
-Run each verifier and record the raw result in `dev/implementation-log.md`. Then **inspect both sides before trusting a pass** — the model's *trajectory* and the verifier's *verdict*:
+Run each verifier and record the raw result in `units/<repo>/status.md § ## Run history`. Then **inspect both sides before trusting a pass** — the model's *trajectory* and the verifier's *verdict*:
 
 - Did the model actually **do the work**, or did it satisfy the check without it (claimed an action it never took, over-cited to hit a "cites sources" bar, exploited answer material left in the environment, met a proxy not the goal)? A pass that survives only because the verifier is shallow is a **reward-hacked pass** — treat it as a failure, and record why.
 - Did a **false fail** come from the eval (a too-strict verifier, a bad fixture) rather than the code? That's an eval defect — feed it back to the TL (`tl-feature-planning`) to revise the unit; don't "fix" the code to satisfy a wrong verifier.
@@ -29,7 +29,7 @@ Because model output is non-deterministic, run a flaky-looking eval a small fixe
 
 ## 4. Feed the acceptance map
 
-Map each AI-driven acceptance criterion to its eval as the evidence, using the standard result values (`Passed` · `Failed` · `Blocked` · `Waived` · `Not Covered`) in `dev/acceptance-map.md`, with the eval id and run artifact as the evidence. An AI criterion with a designed eval that wasn't run is `Not Covered`, not `Passed`. A reward-hacked or failing eval is `Failed` — hand it to the repair loop.
+Map each AI-driven acceptance criterion to its eval as the evidence, using the standard result values (`Passed` · `Failed` · `Blocked` · `Waived` · `Not Covered`) in `units/<repo>/status.md § ## Acceptance`, with the eval id and run artifact as the evidence. An AI criterion with a designed eval that wasn't run is `Not Covered`, not `Passed`. A reward-hacked or failing eval is `Failed` — hand it to the repair loop.
 
 ## 5. Repair, within the loop's limits
 

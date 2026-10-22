@@ -35,7 +35,7 @@ Same 4-way resolution as `/dev:plan` Stage 0 — see [`plan.md`](../../dev/comma
 
 - `task_kind` (parent-alone or split-parent or sub-task)
 - `feature_id`, `feature_slug`, `feature_folder`
-- For a parent: whether it has sub-tasks (read `subtask/` folder)
+- For a parent: whether it has sub-tasks (read `units/` folder)
 - For a sub-task: parent's task_object_id + this sub-task's task_object_id + repo
 
 Log to `dev/task-update-run.md` (created in §3 below):
@@ -66,13 +66,13 @@ Read from disk:
 - **Split-parent:**
   - `features/<slug>/tl-plan.md` — parent rollup (Sub-tasks table + Touch points)
   - `features/<slug>/status.md`
-  - `features/<slug>/subtask/<repo>/{description.md, implementation.md, status.md}` per sub-task
+  - `features/<slug>/units/<repo>/{description.md, implementation.md, status.md}` per sub-task
 - **Sub-task:**
-  - `features/<slug>/subtask/<repo>/{description.md, implementation.md, status.md}`
+  - `features/<slug>/units/<repo>/{description.md, implementation.md, status.md}`
   - `features/<slug>/tl-plan.md` — parent rollup as reference
 - **Non-feature ticket** (§2f):
   - `tasks/<slug>.md` — the ticket itself; its `## Headings` ARE the MC tabs
-  - `tasks/<slug>/dev/implementation.md` and `dev/status.md` — the build's copy; the ticket's own `## Implementation` section is what reaches MC
+  - `tasks/<slug>/units/<repo>/implementation.md` and `units/<repo>/status.md` — the build's copy; the ticket's own `## Implementation` section is what reaches MC
 
 ### Non-feature tickets — what differs
 
@@ -154,13 +154,13 @@ Then run a **collection loop**. Each turn:
    - `"In §5, I see two <Domain>Panel places — the props table row for currentUserId, or the Rendered states line? Which one?"`
    - `"You said 'refusal message' — which endpoint's refusal table? POST /holidays or DELETE /holidays/:id?"`
 4. **Frame check.** If the user's change would violate an active rule, push back with the specific rule + the in-context alternative:
-   - `"§7 Coverage was removed in v2.3.16 — coverage lives in §1 Satisfies column + qa/quality-gates.md tier pool + dev/acceptance-map.md at build time. Do you want to add the AC-N reference to a §1 build step's Satisfies list instead?"`
+   - `"§7 Coverage was removed in v2.3.16 — coverage lives in §1 Satisfies column + qa/quality-gates.md tier pool + units/<repo>/status.md § ## Acceptance at build time. Do you want to add the AC-N reference to a §1 build step's Satisfies list instead?"`
    - `"An Assumptions heading in §7 was retired in v2.3.15 — boring decisions live in-context at §3 Invariants/Authz or §5 Effects/on-success. Where should 'no pagination' live: §3's list operation Invariants line, or §5's Panel Effects line?"`
    - `"Adding a business-rationale sentence ('This ensures the audit trail stays intact') is a Rule 3 rationale-starter. The FACT you want to preserve is `is_removed=false rows are invisible to the uniqueness check` — I can add that to §4 Stored data as a declaration hazard note. OK?"`
 5. **Draft the specific diff** (not the whole file). Store in memory as a `pending_changes` list entry:
    ```yaml
    - id: CHG-001
-     file: features/<slug>/subtask/backend/implementation.md
+     file: features/<slug>/units/backend/implementation.md
      section: §3 Operations exposed and consumed / POST /holidays / Refusals table
      kind: table-row-edit
      old_string: |
@@ -190,18 +190,18 @@ Once the user signals done, print the full change set:
 ```
 Ready to apply <N> changes:
 
-  CHG-001  [features/<slug>/subtask/backend/implementation.md]
+  CHG-001  [features/<slug>/units/backend/implementation.md]
            §3 Operations / POST /holidays / Refusals table
            - | 409 | date already has a holiday | "Holiday already exists on this date." |
            + | 409 | date already has a holiday | "A holiday is already scheduled for this date. Please choose another date." |
 
-  CHG-002  [features/<slug>/subtask/frontend/implementation.md]
+  CHG-002  [features/<slug>/units/frontend/implementation.md]
            §5 <Domain>Panel / Rendered states line
            - Loading: spinner. Refusal 500: message + Retry(refetch()). Refusal 400/404: message, no Retry. Empty: "No items yet." Populated: one <Domain>Row per element.
            + Loading: skeleton (3 placeholder rows). Refusal 500: message + Retry(refetch()). Refusal 400/404: message, no Retry. Empty: "No items yet." Populated: one <Domain>Row per element.
 
-  CHG-003  [features/<slug>/subtask/backend/implementation.md,
-             features/<slug>/subtask/frontend/implementation.md]   ← applied to BOTH (§8 shared contract)
+  CHG-003  [features/<slug>/units/backend/implementation.md,
+             features/<slug>/units/frontend/implementation.md]   ← applied to BOTH (§8 shared contract)
            §8 Shared contract / Time and locale row
            - Wire time format ISO-8601 UTC; formatting in user's locale via formatTimestamp.js
            + Wire time format ISO-8601 UTC; date-only fields (e.g. holiday date) sent as YYYY-MM-DD without time component
@@ -240,7 +240,7 @@ Log every applied CHG to `dev/task-update-run.md`:
 stage_4:
   changes_applied:
     - id: CHG-001
-      file: features/<slug>/subtask/backend/implementation.md
+      file: features/<slug>/units/backend/implementation.md
       applied_at: <ISO>
       local_char_delta: +42
     - ...
@@ -309,10 +309,10 @@ MC tasks (verified):
 Read-back verification: 3/3 pushes byte-identical (v2.3.17 §4f.i)
 
 Files touched locally (not yet committed):
-  - features/<slug>/subtask/backend/implementation.md
-  - features/<slug>/subtask/frontend/implementation.md
-  - features/<slug>/subtask/backend/status.md    (updated_at bumped)
-  - features/<slug>/subtask/frontend/status.md   (updated_at bumped)
+  - features/<slug>/units/backend/implementation.md
+  - features/<slug>/units/frontend/implementation.md
+  - features/<slug>/units/backend/status.md    (updated_at bumped)
+  - features/<slug>/units/frontend/status.md   (updated_at bumped)
 
 Next:
   · Review the local file diffs
@@ -340,7 +340,7 @@ Also write the same content to `dev/task-update-run.md` under `## Stage 6 — Re
 
 - **Never** rewrite a whole section to change one line. Always `Edit` with precise `old_string`. If a genuine restructure is needed, ask the user explicitly and confirm before applying.
 - **Never** push per-edit. All changes batch into ONE push cycle after user confirms.
-- **Never** touch BA-owned files (`acceptance-criteria.md`, `business-rules.md`, `test-scenarios.md`, `nfrs.md`, `dependencies.md`, `open-questions.md`, `feature.md`, `workflow.md`). Those are read-only reference for this command; the user runs `/ba:*` commands for BA edits.
+- **Never** touch BA-owned files (`acceptance-criteria.md`, `business-rules.md`, `test-scenarios.md`, `nfrs.md`, `dependencies.md`, `dependencies.md` § `## Open questions`, `feature.md`, `feature.md` § `## Workflow`). Those are read-only reference for this command; the user runs `/ba:*` commands for BA edits.
 - **Never** touch TL context units (`<repo>/context/code-context/…`). If a change is really about the source-of-truth contract, direct the user at the TL unit file or `/tl:code-map`.
 - **Never** update MC status (`todo → inProgress`, `inProgress → devReview`). This command is content-only. Status transitions belong to `/dev:build` / `/dev:commit` / MC UI.
 - **Never** update `qa/quality-gates.md`. That's `/qa:setup` / `/qa:health` scope.
@@ -421,7 +421,7 @@ user: ready
 
 Claude: Ready to apply 3 changes:
 
-  CHG-001  [features/holiday-calendar-management/subtask/backend/implementation.md]
+  CHG-001  [features/holiday-calendar-management/units/backend/implementation.md]
            §3 Operations / POST /holidays / Refusals table
            - | 409 | date already has a holiday | "Holiday already exists on this date." |
            + | 409 | date already has a holiday | "A holiday is already scheduled for this date. Please choose another date." |
@@ -431,7 +431,7 @@ Claude: Ready to apply 3 changes:
            - Wire time format ISO-8601 UTC; formatting in user's locale via formatTimestamp.js
            + Wire time format ISO-8601 UTC; date-only fields (e.g. holiday date) sent as YYYY-MM-DD without time component to avoid cross-timezone day-shift bugs
 
-  CHG-003  [features/holiday-calendar-management/subtask/frontend/implementation.md]
+  CHG-003  [features/holiday-calendar-management/units/frontend/implementation.md]
            §5 <Domain>Panel / Rendered states line
            - Loading: spinner. Refusal 500: message + Retry(refetch()). Refusal 400/404: message, no Retry. Empty: "No items yet." Populated: one <Domain>Row per element.
            + Loading: skeleton (3 placeholder rows). Refusal 500: message + Retry(refetch()). Refusal 400/404: message, no Retry. Empty: "No items yet." Populated: one <Domain>Row per element.
@@ -460,10 +460,10 @@ MC tasks (verified):
 Read-back verification: 3/3 pushes byte-identical (v2.3.17 §4f.i)
 
 Files touched locally (not yet committed):
-  - features/holiday-calendar-management/subtask/backend/implementation.md
-  - features/holiday-calendar-management/subtask/frontend/implementation.md
-  - features/holiday-calendar-management/subtask/mobile/implementation.md
-  - features/holiday-calendar-management/subtask/*/status.md (updated_at bumped)
+  - features/holiday-calendar-management/units/backend/implementation.md
+  - features/holiday-calendar-management/units/frontend/implementation.md
+  - features/holiday-calendar-management/units/mobile/implementation.md
+  - features/holiday-calendar-management/units/*/status.md (updated_at bumped)
 
 Next:
   · Review the local file diffs

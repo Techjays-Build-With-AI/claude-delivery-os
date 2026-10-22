@@ -2,7 +2,7 @@
 
 Materializes every task in an MC List — both FEATURE tasks (BA feature folders) and non-FEATURE tasks (bugs, chores, ad-hoc work). `<ref>` accepts:
 
-**On a non-Jetrix tracker** a "list" is a **container**: the ClickUp List or Jira epic that holds issues. With no `<ref>`, it is `tracker.container_ref` — the one `/jetrix:init` §5a locked, which is the normal case. With a `<ref>`, it is whichever other container was named, so a one-off pull from a neighbouring list needs no re-bind. Either way the ref goes to `mapping.child_issues`. The file layout below is the canonical one-body projection, so both sides already agree on it; the only difference is that the fields arrive pre-joined in one body and get split rather than read individually.
+**On a non-Jetrix tracker** a "list" is a **container**: the ClickUp List or Jira epic that holds issues. With no `<ref>`, it is `tracker.container_ref` — the one `/jetrix:init` §8 locked, which is the normal case. With a `<ref>`, it is whichever other container was named, so a one-off pull from a neighbouring list needs no re-bind. Either way the ref goes to `mapping.child_issues`. The file layout below is the canonical one-body projection, so both sides already agree on it; the only difference is that the fields arrive pre-joined in one body and get split rather than read individually.
 
 - A **list name** (e.g. `"Reported Issues"`, `"Supplier Management"` — use the exact List name shown in MC)
 - A **MongoDB `_id`** (24-char hex)
@@ -68,7 +68,7 @@ task_number: 230
 task_object_id: 6a7c376e6a993512f7ffba90
 task_type: task              # or "bug", "chore" — whatever MC returned
 title: Reported issue — login redirect loop
-status: inProgress
+status: inProgress            # ours, not the wire value — invert status_map off Jetrix (§5)
 priority: high
 list_id: 6a61d4b8c9e2a1d3f4e5b6c7
 list_name: Reported Issues
@@ -76,7 +76,7 @@ sprint_id:                    # empty if not in a sprint
 sprint_number:
 metadata:                     # verbatim task.metadata as YAML
   externalId: TASK-LOGIN-BUG
-  externalInitiative: q3-hotfixes
+  externalRequirement: q3-hotfixes
 last_pulled: 2026-08-13T...
 ---
 
@@ -112,7 +112,7 @@ Skip sections whose fields are empty so the file doesn't fill up with blank head
 |---|---|---|
 | `feature_id` | `metadata.externalId` | identity anchor — push halts without it |
 | `slug` | `metadata.externalSlug` | required by `task_upsert_bundle`; also names the file |
-| `initiative` | `metadata.externalInitiative` | MC replaces `metadata` wholesale on update, so an unread initiative is lost |
+| `requirement` | `metadata.externalInitiative` | MC replaces `metadata` wholesale on update, so an unread initiative is lost |
 | `task_type` | `taskType` | push forwards it, so a `bug` stays a `bug` |
 | `jetrix_task_object_id` | `task_object_id` | direct PUT instead of an `externalId` lookup |
 
@@ -126,4 +126,18 @@ A Solution's FEATURE tasks may be spread across **multiple MC Lists** (one per r
 
 ---
 
-Keep it **idempotent** — a re-pull of unchanged docs must be a no-op (only `lastPulled` timestamps get bumped). Never overwrite a locally-modified file whose contentHash differs from the last pull unless the remote hash also differs (that's covered because we compare local-vs-remote-record before deciding to download).
+Overwrite rules live in `/jetrix:pull` § *What a pull is allowed to overwrite* — including the both-sides-changed case, which stops and asks rather than taking remote.
+
+Report, and close with one next step chosen from what landed:
+
+```
+✓ Pulled list "Reported Issues" — 6 tasks, 2 features
+
+  Next: /dev:plan Task-230        the only one not yet planned
+```
+
+| What landed | Next |
+|---|---|
+| One task unplanned | `/dev:plan <its ref>` |
+| Several unplanned | `/dev:plan list=<name>` — it fans out across them |
+| Everything already planned | say so and stop |

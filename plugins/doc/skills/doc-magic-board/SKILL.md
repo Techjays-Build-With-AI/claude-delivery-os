@@ -32,7 +32,7 @@ attachment with the network unplugged.
 
 - **Read `delivery-os-conventions`** if a Delivery OS workspace is present (it isn't required).
 - **Source content from the workspace when it exists.** For a workflow/understanding board,
-  draft the spine and cards from `ba/scope.md`, `ba/registers/workflows.md`, and
+  draft the spine and cards from `requirements/<slug>/scope.md`, `requirements/<slug>/registers/workflows.md`, and
   `shared-context/` (the modules, workflows, actors, systems). Use real names and the
   client's real numbers; never fabricate — mark unknowns as `[[NEEDS: …]]` and list them back.
 - **Write the output to `doc/`** (create it on first use), timestamped so runs never

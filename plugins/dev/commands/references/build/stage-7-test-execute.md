@@ -1,16 +1,16 @@
 ## Stage 7 — Execute tests locally
 
-**Purpose.** Actually RUN the tests. Not a plan-mode "would run" — the exact commands from `qa/quality-gates.md` Required table execute in the target repo, and their real exit codes drive the acceptance-map at Stage 8.
+**Purpose.** Actually RUN the tests. Not a plan-mode "would run" — the exact commands from `qa/quality-gates.md` Required table execute in the target repo, and their real exit codes drive the `## Acceptance` table at Stage 8.
 
-**Runs after Stages 5-6.** State: `IN_DEVELOPMENT → TESTING`. MC: `inProgress` (unchanged).
+**Runs after Stages 5-6.** status `agentExecuting` · phase `implementing` → `testing`
 
-**On completion:** every Required gate has a real pass/fail result captured in `dev/implementation-log.md`. Failing gates route to Stage 8's repair loop.
+**On completion:** every Required gate has a real pass/fail result captured in `units/<repo>/status.md § ## Run history`. Failing gates route to Stage 8's repair loop.
 
 ---
 
 ### 7a. Preconditions
 
-- `dev/build-run.md` `stage-5-6.status: DONE`
+- `units/<repo>/status.md § ## Run history` `stage-5-6.status: DONE`
 - `qa/quality-gates.md` `harness_status: Active` (verified in Stage 4)
 - Target repo working tree contains the newly-written code + tests
 - Package dependencies installed (either by `qa-greenfield-harness` in Stage 4 OR pre-existing)
@@ -54,7 +54,7 @@ Treating an in-process dependency as external halts a suite that would have pass
    - HTTP service: `curl -f http://localhost:<port>/health` or `curl -f http://localhost:<port>/` returns 2xx/3xx
    - Database: framework-native ping (e.g. `pg_isready`, `mongosh --eval "db.runCommand({ping:1})"`)
    - Custom: probe defined in service's `.env.example` `HEALTH_CHECK_CMD` if present
-4. **Log started service** to `dev/implementation-log.md` under a new `external_services_started:` block:
+4. **Log started service** to `units/<repo>/status.md § ## Run history` under a new `external_services_started:` block:
 
    ```yaml
    external_services_started:
@@ -140,7 +140,7 @@ Coverage gates parse the coverage summary output (percentage per line/function/b
 
 ### 7e. Record each result
 
-Append to `dev/implementation-log.md` under a `test_runs:` section:
+Append to `units/<repo>/status.md § ## Run history` under a `test_runs:` section:
 
 ```yaml
 test_runs:
@@ -229,7 +229,7 @@ Run the diagnosis in this order, stopping at the first verdict that fits:
 
 **Why `harness-config` is checked before `flaky`:** instrumentation overhead presents *as* flakiness — a different few tests cross the limit each run. Calling it flaky stops at "unreliable test"; calling it harness-config names the fix. A timeout at exactly the tool default is the strongest signal, because no one chose that number.
 
-**Record the verdict** in `dev/implementation-log.md` beside the exit code:
+**Record the verdict** in `units/<repo>/status.md § ## Run history` beside the exit code:
 
 ```yaml
 - gate: QG-005
@@ -261,7 +261,7 @@ This shouldn't happen if Stage 4's `qa-greenfield-harness` bootstrap succeeded �
 
 ### 7h. Progress log format
 
-Append to `dev/build-run.md`:
+Append to `units/<repo>/status.md § ## Run history`:
 
 ```yaml
 stage-7:
@@ -280,7 +280,7 @@ stage-7:
 
 ### 7i. On `--resume`
 
-If `--resume` finds `stage-7.status: DONE`, skip Stage 7 entirely. Rationale: even if code was hand-edited between runs (unlikely), running Stage 8 (validate) will pick up the change through its acceptance-map rebuild.
+If `--resume` finds `stage-7.status: DONE`, skip Stage 7 entirely. Rationale: even if code was hand-edited between runs (unlikely), running Stage 8 (validate) will pick up the change through its `## Acceptance` table rebuild.
 
 If `stage-7.status: FAILED` on the last recorded run, re-execute Stage 7 fully — the developer might have fixed the failing gates by hand.
 

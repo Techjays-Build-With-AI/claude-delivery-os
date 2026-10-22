@@ -23,4 +23,19 @@ Invoke the **tl-agent** subagent with the document reference and output path. Pa
 
 ## 3. Surface the result
 
-When the agent returns, present its **executive summary and scorecard**: the overall score, the readiness verdict, the scorecard table, and the top 3–5 gating findings (Blockers/Majors first) with their suggested fixes. Link to both report files and point the user to `spec-review.html` as the interactive one to open in a browser. Keep it tight — the per-area detail lives in the report.
+When the agent returns, present its **executive summary and scorecard**: the overall score, the readiness verdict, the scorecard table, and the top 3–5 gating findings (Blockers/Majors first) with their suggested fixes. Link to both report files. Keep it tight — the per-area detail lives in the report.
+
+**Serve it and print both links** — `delivery-os-conventions` §1.e. Start the server in the background as the
+last action of the run and read the port from its `DELIVERY_OS_SERVE_READY` line:
+
+```bash
+node ${CLAUDE_PLUGIN_ROOT}/../delivery-os-core/scripts/serve-review.js .jetrix/tl-reviews
+```
+
+```
+Report   http://127.0.0.1:<port>/spec-review-<ts>.html      ← open in your browser
+         tl-reviews/spec-review-<ts>.html    ← the file itself
+```
+
+Never print the path alone and tell the user to open it: a `file://` page cannot fetch a sibling, and a path is
+not something anyone can click.

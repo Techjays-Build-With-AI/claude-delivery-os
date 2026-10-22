@@ -1,6 +1,6 @@
 ---
 name: tl-code-map
-description: Reverse-map an existing codebase into a committed, index-first code-context tree — read the real repository and derive its frontend pages, backend endpoints (with their request contract, validation, business logic and every database object they touch) and database objects grouped by kind (tables, collections, views, stored procedures, functions, triggers), each as a markdown unit file grouped by business domain, with semantic layer indexes that let an agent find the right file without opening any other. Use to onboard a brownfield project into Delivery OS ("map the existing repo", "reverse-engineer our codebase", "build the code context from the code", "we have a repo but no context graph"). The tree is written inside the mapped repository at `<repo>/context/code-context/` and committed with the code, so it travels with the repo and diffs in review; a workspace-level registry ties several repos together so a later /tl:plan reuses the as-built units instead of duplicating them. It detects the stack, extracts each layer, infers page→endpoint→object links from the code, and marks every unit as-built with a confidence and a source-file citation. It authors context from code; it does not modify or run the repository, does not write features (features stay BA-owned), and raises an open question rather than inventing a relationship it cannot see in the code.
+description: Reverse-map an existing codebase into a committed, index-first code-context tree — read the real repository and derive its frontend pages, backend endpoints (with their request contract, validation, business logic and every database object they touch) and database objects grouped by kind (tables, collections, views, stored procedures, functions, triggers), each as a markdown unit file grouped by business domain, with semantic layer indexes that let an agent find the right file without opening any other. Use to onboard a brownfield project into Delivery OS ("map the existing repo", "reverse-engineer our codebase", "build the code context from the code", "we have a repo but no context graph"). The tree is written inside the mapped repository at `<repo>/context/code-context/` and committed with the code, so it travels with the repo and diffs in review; a workspace-level registry ties several repos together so later forward planning reuses the as-built units instead of duplicating them. It detects the stack, extracts each layer, infers page→endpoint→object links from the code, and marks every unit as-built with a confidence and a source-file citation. It authors context from code; it does not modify or run the repository, does not write features (features stay BA-owned), and raises an open question rather than inventing a relationship it cannot see in the code.
 ---
 
 # TL Code Map (existing repository → committed, index-first code context)
@@ -16,11 +16,11 @@ You read the repository; you change nothing in it except the `code-context/` tre
 
 ## Operating contract
 
-Read the **`delivery-os-conventions`** contract first if it isn't in context (frontmatter standard, stable IDs, controlled vocabulary). Your file schemas are in **`references/code-context-templates.md`** — the exact shape of every index, unit and manifest, and the index-first read protocol they exist to serve. Your extraction method — how to find each layer per stack, how to derive business domains, how to read validation and data access, how to mark confidence — is in **`references/extraction-guide.md`**. Read `tl-feature-planning`'s `references/planning-guide.md` for the reuse match keys, so a later `/tl:plan` reuses your units instead of duplicating them.
+Read the **`delivery-os-conventions`** contract first if it isn't in context (frontmatter standard, stable IDs, controlled vocabulary). Your file schemas are in **`references/code-context-templates.md`** — the exact shape of every index, unit and manifest, and the index-first read protocol they exist to serve. Your extraction method — how to find each layer per stack, how to derive business domains, how to read validation and data access, how to mark confidence — is in **`references/extraction-guide.md`**. Read `tl-feature-planning`'s `references/planning-guide.md` for the reuse match keys, so a later `tl-feature-planning` (internal) reuses your units instead of duplicating them.
 
 **Input:** the **product repository** (via `repo=<path>` or the current workspace) and, where present, `shared-context/{architecture.md, technology-stack.md}` for the confirmed stack.
 
-**Output — and this is the important placement rule:** the tree is written **inside the mapped repository**, at `<repo>/context/code-context/` — a `context/` folder at the repo root, with `code-context/` inside it — and is **committed with the code**. Even when `/tl:code-map` runs from a parent workspace over several repos, each repo's context goes into that repo — never into the workspace, never inside `.jetrix/` (which is gitignored). The context then travels with the code: it is reviewable in a pull request, it diffs when the code changes, and anyone who clones the repo gets it. The only workspace-level artifact you write is **`<workspace>/.jetrix/tl/code-map-registry.md`** — a small pointer file listing each mapped repo, its context root, its indexes and its area tokens, so cross-repo links resolve and `/tl:plan` can find the as-built units.
+**Output — and this is the important placement rule:** the tree is written **inside the mapped repository**, at `<repo>/context/code-context/` — a `context/` folder at the repo root, with `code-context/` inside it — and is **committed with the code**. Even when `/tl:code-map` runs from a parent workspace over several repos, each repo's context goes into that repo — never into the workspace, never inside `.jetrix/` (which is gitignored). The context then travels with the code: it is reviewable in a pull request, it diffs when the code changes, and anyone who clones the repo gets it. The only workspace-level artifact you write is **`<workspace>/.jetrix/code-map-registry.md`** — a small pointer file listing each mapped repo, its context root, its indexes and its area tokens, so cross-repo links resolve and `tl-feature-planning` (internal) can find the as-built units.
 
 ```text
 <repo>/context/code-context/          # create the repo's context/ folder if it has none
@@ -31,7 +31,7 @@ Read the **`delivery-os-conventions`** contract first if it isn't in context (fr
               tables/ · collections/ · views/ · procedures/ · functions/ · triggers/
 ```
 
-Create only the layers and kind-folders the repo actually has. Every reverse-mapped unit carries `origin: reverse-mapped`, `mapped_from`, `mapped_from_commit` and `map_confidence` in frontmatter, and a **code citation** (`[code › <relative/path>]`) in its Source References instead of a `FEAT-…` — at map time no feature is linked yet, so its `## Used by Features` section and index column read `(as-built)` until a later `/tl:plan` links one. Every `##` heading forward planning defines is kept **verbatim** (`Reads / Writes Entities`, `Behaviour / Business Rules`, `Called by`, `Used by Endpoints`, `Used by Features`, `Integrations`, `Permissions`, `Status`); your enhancements are additive sections, never renames. Reading git metadata (`git rev-parse HEAD`) for the commit stamp is a permitted read-only call; omit the field if it isn't available.
+Create only the layers and kind-folders the repo actually has. Every reverse-mapped unit carries `origin: reverse-mapped`, `mapped_from`, `mapped_from_commit` and `map_confidence` in frontmatter, and a **code citation** (`[code › <relative/path>]`) in its Source References instead of a `FEAT-…` — at map time no feature is linked yet, so its `## Used by Features` section and index column read `(as-built)` until a later `tl-feature-planning` (internal) links one. Every `##` heading forward planning defines is kept **verbatim** (`Reads / Writes Entities`, `Behaviour / Business Rules`, `Called by`, `Used by Endpoints`, `Used by Features`, `Integrations`, `Permissions`, `Status`); your enhancements are additive sections, never renames. Reading git metadata (`git rev-parse HEAD`) for the commit stamp is a permitted read-only call; omit the field if it isn't available.
 
 **Never write into `code-context/`:** secrets, connection strings, credentials, or customer data. It is a committed, shareable description of structure and intent — column names and types yes, sample values no.
 
@@ -52,17 +52,50 @@ Three passes. Discovery enumerates cheaply; detail writes one unit at a time; **
 6. **Endpoints next.** One file per operation as `METHOD + path`, plus jobs, event consumers and webhooks with their trigger. Read the handler through to its data layer and record four things the templates make first-class: the **Request** contract (path, query, body, headers), the **Validation** rules *and where each is enforced* (schema middleware, handler check, database constraint), the **Business Logic** as ordered steps, and the **Data Access** table — every object touched, its kind, the **access mechanism** (ORM, direct query, stored-procedure call, function, view, repository, cache) and whether it reads, writes or executes. A repo that computes money in a stored procedure and one that computes it in a service look identical in a "reads/writes entities" list and completely different here; that distinction is the point. Flip the row to `mapped`.
 7. **Pages next.** One file per routed surface. Trace its API calls (service layer, `fetch`/`axios`, generated clients, query hooks, form actions) to the endpoints it consumes and wire `Consumes endpoints`. A modal, tab, drawer or widget is documented *inside* its page, not as its own unit. Flip the row to `mapped`.
 8. **Wire every link both ways and set confidence.** page → endpoint → object, and back (`Called by`, `Used by`). Object-to-object links too: a view lists what it reads from, a procedure lists what it touches, a trigger lists the table it fires on and the procedure it calls — and each of those objects lists the caller back. Mark each link's confidence from how directly the code shows it. Where a link is genuinely unresolvable, record an open question on the unit rather than guessing. See `references/extraction-guide.md` §8 for when a language server is worth standing up to move links from `Assumed` to `Confirmed` — this is the pass it helps most.
-9. **Mint IDs** append-only on the **same match keys** forward planning uses — route path for a page, normalised `METHOD + path` for an endpoint, object name for a database object — so `/tl:plan` reuses rather than duplicates. `PAGE-<AREA>-NN`, `EP-<AREA>-NN`, `ENT-<AREA>-NN` (all database kinds share the `ENT-` prefix; `Kind` distinguishes them).
+9. **Mint IDs** append-only on the **same match keys** forward planning uses — route path for a page, normalised `METHOD + path` for an endpoint, object name for a database object — so `tl-feature-planning` (internal) reuses rather than duplicates. `PAGE-<AREA>-NN`, `EP-<AREA>-NN`, `ENT-<AREA>-NN` (all database kinds share the `ENT-` prefix; `Kind` distinguishes them).
 
 ### Pass C — Synthesis (build the retrieval layer)
 
 10. **Write the semantic indexes.** For each layer, write the index in two parts: a **`## Domain Map`** — a few lines per domain saying what the domain *is*, what kinds of operations or objects live in it, what it touches, and when to look elsewhere — and a **`## Units`** table with one row per unit whose `Summary` cell is **copied verbatim** from that unit's own `## Summary` line, so the two can never drift. The database index carries both views: domains in the Domain Map, and the unit tables grouped by **kind**. Then write the root `code-context-index.md` (layers, domains, coverage, confidence) and the `README.md` stating the index-first read protocol. Synthesise the Domain Map **from the units you actually wrote** — it is a summary of evidence, never a guess about what a domain probably contains.
 11. **Respect the index budget.** A layer index must stay readable in one pass. If its Units table passes ~150 rows or the file passes ~500 lines, keep the Domain Map and a roll-up in the layer index and split the per-unit rows into per-domain `<domain>-index.md` files. Never let an index degrade into a directory listing.
-12. **Update the workspace registry** (`<workspace>/.jetrix/tl/code-map-registry.md`): this repo's path, layers, context root, commit, unit counts, index paths, area tokens, and any cross-repo link whose other end isn't mapped yet. **Single-repo run: write the file.** **Multi-repo run: do not write it** — concurrent mappers would clobber each other; **return** your registry row and pending-link rows to the caller, which merges them. This is what makes cross-repo links resolvable and as-built units reusable.
+12. **Update the workspace registry** (`<workspace>/.jetrix/code-map-registry.md`): this repo's path, layers, context root, commit, unit counts, index paths, area tokens, and any cross-repo link whose other end isn't mapped yet. **Single-repo run: write the file.** **Multi-repo run: do not write it** — concurrent mappers would clobber each other; **return** your registry row and pending-link rows to the caller, which merges them. This is what makes cross-repo links resolvable and as-built units reusable.
 13. **Run the integrity check.** Every forward link has its back-link; every endpoint has a caller or a declared trigger; no orphan object (or it's marked reference/seed); every unit has a `## Summary` and every index row mirrors it; every index has a Domain Map; shared units appear once with multiple back-links; nothing duplicated. Plus the **coverage check**: every `map-coverage.md` row is `mapped`, `skipped`-with-a-note, or `removed` — no silent `pending`.
 14. **Summarise in chat.** Units per layer and per kind (created vs reconciled), coverage (enumerated vs mapped vs skipped), the confidence spread, where the tree was written, integrity findings, and the next steps.
 
-15. **Author `shared-context/coding-standards.md` when missing (v2.3.19).** The downstream dev flow (`dev-stack-adaptive-implementation` Rule 13/14, code-review Dimension 8) is a hard-precondition consumer of this file — without it, `/dev:build` halts at Stage 0. `/tl:code-map` is the natural author: it has ALREADY detected the stack (Pass A step 1), read lint config, and read sample source files during pattern inference. Read `shared-context/coding-standards.md` first:
+15. **Author this repo's section of `shared-context/coding-standards.md` § `<repo>` when missing (v2.4).**
+
+    **One file, a `## <repo>` section each — and you write only your own.** `/tl:code-map` maps every repo in
+    one run, one subagent per repo, and every one of them writes this file. Written whole, the Python repo's
+    conventions are overwritten by the React repo's, last writer wins — and `/dev:build` Stage 0 **hard-gates**
+    on it, so the gate passes while describing a repo the unit is not building in. A gate that passes on the
+    wrong evidence is worse than one that fails.
+
+    Read the file, replace `## <repo>`, write it back. **Never regenerate it from one repo's stack.**
+
+    Frontmatter is a map keyed by repo, same shape as `quality-gates.md`:
+
+    ```yaml
+    ---
+    doc_type: coding-standards
+    schema_version: 2.0
+    repos:
+      backend:  { stack: python-fastapi, authored_by: tl-code-map, authored_at: <ISO> }
+      frontend: { stack: react-vite-ts,  authored_by: tl-code-map, authored_at: <ISO> }
+    ---
+    ```
+
+    A consumer resolves its section from the unit it is working in — `units/backend/` → `§ backend` — and a
+    single-repo workspace has one section, so there is no special case.
+
+    The downstream dev flow (`dev-stack-adaptive-implementation` Rule 13/14, code-review Dimension 8) reads
+    **that section only**. A missing section for this repo means this repo has no standards recorded, which is
+    the author case below — never a reason to use another repo's.
+
+    Then, for this repo's section:
+
+    **(original guidance follows)**
+
+     The downstream dev flow (`dev-stack-adaptive-implementation` Rule 13/14, code-review Dimension 8) is a hard-precondition consumer of this file — without it, `/dev:build` halts at Stage 0. `/tl:code-map` is the natural author: it has ALREADY detected the stack (Pass A step 1), read lint config, and read sample source files during pattern inference. Read `shared-context/coding-standards.md` § `<repo>` first:
 
     - **Present + all 12 sections filled** → nothing to do. Log `coding-standards.md: present + complete` to chat summary.
     - **Present + some sections blank / marked `[NEEDS AUTHOR]`** → fill only the blank sections. Never overwrite user-authored content.
@@ -119,4 +152,4 @@ You **author context from code; you do not**: modify, refactor, or run the repos
 
 ## Return value
 
-Return the headline: where the tree was written (`<repo>/context/code-context/`), units per layer and per database kind (created vs reconciled), the coverage from `map-coverage.md`, the confidence spread, the domains derived and their area tokens, the registry delta, link-integrity findings and any code you couldn't confidently map — and the next actions: review and commit the `code-context/` tree with the code, `/qa:audit` the repo for testability, and `/tl:plan initiative=<batch>` for new work, which will reuse this as-built context rather than recreate it.
+Return the headline: where the tree was written (`<repo>/context/code-context/`), units per layer and per database kind (created vs reconciled), the coverage from `map-coverage.md`, the confidence spread, the domains derived and their area tokens, the registry delta, link-integrity findings and any code you couldn't confidently map — and the next actions: review and commit the `code-context/` tree with the code, `/qa:audit` the repo for testability, and `/dev:plan requirement=<slug>` for new work, which will reuse this as-built context rather than recreate it.

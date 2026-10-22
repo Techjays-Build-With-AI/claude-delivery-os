@@ -2,7 +2,7 @@
 
 **Purpose.** For every TL unit this task built (endpoint, entity, page), update the unit file in the target repo's `<repo>/context/code-context/` to reflect that it's now real code, not just design. Adds source-file citation + commit stamp + confidence promotion.
 
-**Runs after Stage 9 security review passes.** State: `TESTING` (unchanged). MC: `inProgress`.
+**Runs after Stage 9 security review passes.** State: `agentExecuting` (unchanged). MC: `inProgress`.
 
 **On completion:** every owned unit is marked `origin: implemented` with the concrete evidence pointing at the code. Layer indexes reflect the new status. Ready for `/dev:commit` Stage 7's semantic merge.
 
@@ -10,19 +10,19 @@
 
 ### 10a. Preconditions (v2.3.27 — HARD gates)
 
-- `dev/build-run.md` `stage-9.status: DONE` (or SKIPPED)
+- `units/<repo>/status.md § ## Run history` `stage-9.status: DONE` (or SKIPPED)
 - Branch commits present — `git log <base>..HEAD` returns ≥ 1 commit
-- Target repo has `<repo>/context/code-context/` — created by `/tl:plan` OR `/tl:code-map`
-- **Stage 9 repair loop invoked if it had Critical findings (v2.3.27)** — read `build-run.md` `stage-9.findings`. If pre-repair `findings.critical > 0` but no `stage-9.repair_loop_invocation.invoked_at` block exists → HALT with `blocker: stage-9-repair-loop-not-invoked`. Same enforcement pattern as `/dev:commit` Stage 8 §8a for its fix loops. Flipping context units to `origin: implemented` on code with an unaddressed Critical security finding would misrepresent the graph as "verified" when the review actively said "block".
-- **Stage 9 final findings ARE clean** — after any repair loop, `stage-9.findings.critical` must be zero. Non-zero → HALT with `blocker: stage-9-repair-loop-did-not-clear-critical` (fix loop ran but ended ESCALATED; check `dev/escalation-<n>.md`).
+- Target repo has `<repo>/context/code-context/` — created by `tl-feature-planning` (internal) OR `/tl:code-map`
+- **Stage 9 repair loop invoked if it had Critical findings (v2.3.27)** — read `status.md` § `## Run history` `stage-9.findings`. If pre-repair `findings.critical > 0` but no `stage-9.repair_loop_invocation.invoked_at` block exists → HALT with `blocker: stage-9-repair-loop-not-invoked`. Same enforcement pattern as `/dev:commit` Stage 8 §8a for its fix loops. Flipping context units to `origin: implemented` on code with an unaddressed Critical security finding would misrepresent the graph as "verified" when the review actively said "block".
+- **Stage 9 final findings ARE clean** — after any repair loop, `stage-9.findings.critical` must be zero. Non-zero → HALT with `blocker: stage-9-repair-loop-did-not-clear-critical` (fix loop ran but ended ESCALATED; check `units/<repo>/status.md § ## Run history (a BLOCKED entry)`).
 
-If context tree is missing → escalate. `/dev:plan` should have run `/tl:plan` to create the graph; if we got here without it, that's a plan-side gap.
+If context tree is missing → escalate. `/dev:plan` should have run `tl-feature-planning` (internal) to create the graph; if we got here without it, that's a plan-side gap.
 
 ---
 
 ### 10b. Identify owned units
 
-The units to update are the ones this task owns (from `implementation.md` §1 Build sequence Units column + §3 Operations exposed and consumed + §4 Stored data changes + §5 User-facing surfaces for parent-alone, OR `subtask/<repo>/implementation.md` for sub-task).
+The units to update are the ones this task owns (from `implementation.md` §1 Build sequence Units column + §3 Operations exposed and consumed + §4 Stored data changes + §5 User-facing surfaces for parent-alone, OR `units/<repo>/implementation.md` for sub-task).
 
 Read the 3 layer indexes for the target repo:
 
@@ -41,7 +41,7 @@ For each owned unit file:
 Read the file. In frontmatter, apply these updates:
 
 ```yaml
-# Was (from /tl:plan)
+# Was (from forward planning)
 origin: designed
 design_confidence: Likely                   # or Assumed
 
@@ -119,17 +119,17 @@ Do NOT try to preview the merge here — just write to HEAD; commit later.
 The updates ARE part of what `/dev:commit` will gather:
 - Source + test code from Stages 5-6 (working tree, uncommitted)
 - Context-unit updates from Stage 10 (working tree, uncommitted)
-- Any local-runbook.md written by Stage 11 (working tree, uncommitted)
+- Any pr-summary.md § ## How to verify written by Stage 11 (working tree, uncommitted)
 
 `/dev:commit`'s Stage N gather-working-tree step collects ALL of this and structures the commit(s) per the user's preference (default: one well-formed commit; `--structured`: multiple by convention). The developer sees ONE clean commit history from `/dev:commit`, not a scatter of per-stage commits from `/dev:build`.
 
-Under NO circumstances does Stage 10 shell out to git. If the codebase you're mapping REQUIRES a specific staging pattern (e.g. some monorepo tools that scan git index), escalate as `dev/escalation-<n>.md` — don't unilaterally add git operations to Stage 10.
+Under NO circumstances does Stage 10 shell out to git. If the codebase you're mapping REQUIRES a specific staging pattern (e.g. some monorepo tools that scan git index), escalate as `units/<repo>/status.md § ## Run history (a BLOCKED entry)` — don't unilaterally add git operations to Stage 10.
 
 ---
 
 ### 10h. Progress log format
 
-Append to `dev/build-run.md`:
+Append to `units/<repo>/status.md § ## Run history`:
 
 ```yaml
 stage-10:

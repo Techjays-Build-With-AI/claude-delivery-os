@@ -105,6 +105,14 @@
   .derivation { margin: 8px 0 2px; font-size: 12px; color: var(--muted);
                 font-variant-numeric: tabular-nums; letter-spacing: .01em; }
   .movecard { margin-bottom: 8px; }
+  .sincegrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
+  .sincecol { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 11px 13px; }
+  .sincecol h5 { margin: 0 0 3px; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+  .sincecol .n { font-size: 21px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .sincecol ul { margin: 7px 0 0; padding-left: 15px; font-size: 13px; color: var(--muted); }
+  .sincecol li { margin: 3px 0; }
+  .sincecol li b { color: var(--text); font-weight: 600; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11.5px; }
+  .sincecol.warn { border-color: color-mix(in srgb, var(--major) 45%, transparent); }
   .moverow { padding: 10px 0; border-top: 1px solid var(--line); }
   .moverow:first-child { border-top: none; }
   .movehead { font-weight: 700; font-variant-numeric: tabular-nums; }
@@ -310,6 +318,8 @@
 
   <div id="kb-wrap"></div>
 
+  <div id="since-wrap"></div>
+
   <div id="movement-wrap"></div>
 
   <div class="section-label">Feature scorecard</div>
@@ -356,8 +366,9 @@
   </section>
 
   <section class="panel" data-panel="clarifications" role="tabpanel" hidden>
-    <p class="panel-intro">Logged clarifications (<code>CLR-###</code>) from <code>ba/logs/clarifications.md</code>
-      — questions already raised, with who owns each and where it stands.</p>
+    <p class="panel-intro">Questions <b>already raised</b> in an earlier round (<code>CLR-###</code>, from
+      <code>requirements/&lt;slug&gt;/ledger.md</code>) — each with an owner and where it stands. Not this
+      review’s questions: those are in <b>Open questions</b>.</p>
     <div class="toolbar"><button class="btn" data-doc="clarifications">Export as .doc</button></div>
     <div id="clar-list"></div>
   </section>
@@ -367,6 +378,13 @@
       answer — until one is made, anything built on top of it is a guess.</p>
     <div class="toolbar"><button class="btn" data-doc="contradictions">Export as .doc</button></div>
     <div id="contra-list"></div>
+  </section>
+
+  <section class="panel" data-panel="assumptions" role="tabpanel" hidden>
+    <p class="panel-intro">What the scope proceeds on because nobody has said otherwise. Each one is a bet —
+      the estimate holds only while it does, so an assumption nobody confirms is a risk with a polite name.</p>
+    <div class="toolbar"><button class="btn" data-doc="assumptions">Export as .doc</button></div>
+    <div id="asm-list"></div>
   </section>
 
   <footer id="footer"></footer>
@@ -466,6 +484,24 @@
 
   // ---- Executive summary ----
   document.getElementById("exec-summary").textContent = data.executiveSummary || "";
+  // One question, one id, one place to answer it. The three question tabs
+  // render the same ledger and split on STATUS -- which a row has exactly one
+  // of, so they cannot show the same row twice. (An earlier version also
+  // excluded anything present in `data.questions`; that array carries every
+  // row, open and closed, so the guard silently emptied the closed tab.)
+  var isOpen = function (r) { return r && !TERMINAL[r.status]; };
+
+  // Open questions + Client questions: the open rows. Same CLR ids -- the
+  // client tab is a view of the same list, written for a different reader.
+  var openQs = (data.questions || []).filter(isOpen);
+  var clientQs = (data.clientQuestions || []).filter(isOpen);
+
+  // Clarifications: the closed rows -- Resolved, Accepted-assumption,
+  // Won't-fix. The audit trail of what has been settled and how.
+  var clarifs = (data.clarifications || []).filter(function (c) {
+    return c && TERMINAL[c.status];
+  });
+
   var qById = {}; (data.questions || []).forEach(function (f) { qById[f.id] = f; });
   var gating = (data.gatingQuestions || []).map(function (id) { return qById[id]; }).filter(Boolean);
   if (gating.length) {
@@ -508,6 +544,52 @@
   // Score movement since the previous round. Round 1 has nothing to compare
   // against, and a feature whose score held steady is not listed - only the
   // moves, with the cause that produced each one.
+  // "Since the last round" -- what the author's answers did to the questions.
+  // Explicit in the data, not derived: a derived bucket cannot record WHY
+  // something was declined, and that reason is the point of the section.
+  (function renderSince() {
+    var wrap = document.getElementById("since-wrap");
+    var S = data.sinceLastRound;
+    if (!wrap || !S || !(+data.round > 1)) return;
+
+    var COLS = [
+      { k: "resolved",   label: "Accepted",                warn: false },
+      { k: "assumption", label: "Accepted as assumption",  warn: false },
+      { k: "insufficient", label: "Answered, not enough",  warn: true },
+      { k: "declined",   label: "Declined",                warn: true },
+      { k: "stillOpen",  label: "Still open",              warn: true }
+    ];
+    var any = COLS.some(function (c) { return (S[c.k] || []).length; });
+    if (!any) return;
+
+    wrap.appendChild(el("div", { class: "section-label",
+      text: "Since round " + (+data.round - 1) }));
+    var card = el("div", { class: "card" });
+    var grid = el("div", { class: "sincegrid" });
+
+    COLS.forEach(function (c) {
+      var rows = S[c.k] || [];
+      var col = el("div", { class: "sincecol" + (c.warn && rows.length ? " warn" : "") });
+      col.appendChild(el("h5", { text: c.label }));
+      col.appendChild(el("div", { class: "n", text: String(rows.length) }));
+      if (rows.length) {
+        var ul = el("ul");
+        rows.forEach(function (r) {
+          var li = el("li");
+          li.appendChild(el("b", { text: r.id || "" }));
+          // The note is the whole value for the three that are not "Accepted".
+          if (r.note) li.appendChild(document.createTextNode(" \u2014 " + r.note));
+          ul.appendChild(li);
+        });
+        col.appendChild(ul);
+      }
+      grid.appendChild(col);
+    });
+
+    card.appendChild(grid);
+    wrap.appendChild(card);
+  })();
+
   (function renderMovement() {
     var wrap = document.getElementById("movement-wrap");
     if (!wrap || !(+data.round > 1)) return;
@@ -669,9 +751,9 @@
 
   // ---- Question register + severity filter ----
   var counts = { Blocker: 0, Major: 0, Minor: 0, Nit: 0 };
-  (data.questions || []).forEach(function (f) { if (counts[f.severity] != null) counts[f.severity]++; });
+  openQs.forEach(function (f) { if (counts[f.severity] != null) counts[f.severity]++; });
   var fbody = document.getElementById("findings-body");
-  var sorted = (data.questions || []).slice().sort(function (x, y) {
+  var sorted = openQs.slice().sort(function (x, y) {
     return SEV_ORDER.indexOf(x.severity) - SEV_ORDER.indexOf(y.severity) || x.id.localeCompare(y.id);
   });
   if (!sorted.length) { fbody.appendChild(el("tr", {}, [el("td", { colspan: "6", class: "empty", text: "No questions logged." })])); }
@@ -719,7 +801,7 @@
     });
     return b;
   }
-  sf.appendChild(mkSev("All", (data.questions || []).length, null));
+  sf.appendChild(mkSev("All", openQs.length, null));
   SEV_ORDER.forEach(function (s) { sf.appendChild(mkSev(s, counts[s], SEV[s].c)); });
 
   function jumpTo(id) {
@@ -734,7 +816,7 @@
   if (data.round && data.round > 1) {
     var rb = el("div", { class: "round-banner" }, [el("span", { class: "pill", text: "Round " + data.round })]);
     if (data.priorReview) rb.appendChild(el("span", { class: "progress-line", text: "resolves scope-review-" + data.priorReview }));
-    var fsAll = data.questions || [];
+    var fsAll = openQs;
     var closedN = fsAll.filter(function (f) { return TERMINAL[statusOf(f)]; }).length;
     if (fsAll.length) rb.appendChild(el("span", { class: "progress-line",
       text: "· " + closedN + " of " + fsAll.length + " questions closed" + (closedN < fsAll.length ? ", " + (fsAll.length - closedN) + " still open" : " — all resolved") }));
@@ -822,6 +904,201 @@
   mBack.addEventListener("click", function (e) { if (e.target === mBack) closeModal(); });
   document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !mBack.hidden) closeModal(); });
 
+
+// ---- saving -------------------------------------------------------------
+// fetch("/save") only reaches the instance that served this page, which may be
+// gone while another serve-review is alive on a different port over the same
+// folder. Own origin first, then every loopback port in range, download last.
+// Per-requirement since v2.0, so this cannot be a constant: derive it from
+// the review's own documentReviewed ("requirements/<slug>/scope.md"). The old
+// hardcoded "ba/reviews" pointed at a folder nothing writes to any more, so
+// the page never recognised its own server.
+var SAVE_FOLDER = (function () {
+  var doc = (typeof data !== "undefined" && data && data.documentReviewed) || "";
+  var m = /^(.*)\/[^/]+\.md$/.exec(String(doc).replace(/\\/g, "/"));
+  return m ? m[1] + "/reviews" : "reviews";
+})();
+var PORT_LO = 4100, PORT_HI = 4120;
+
+// The absolute folder this report belongs to, written in at render time. The
+// server writes where the page says, so it stops mattering which folder the
+// server was started on -- which is what removes the port/folder matching.
+var SAVE_DIR = (typeof data !== "undefined" && data && data.saveDir) || null;
+
+// Only a fallback, for a page opened from something that is not the review
+// server: its own range, plus the dev servers people actually have running.
+var SCAN_PORTS = (function () {
+  var p = [];
+  for (var i = PORT_LO; i <= PORT_HI; i++) p.push(i);
+  return p.concat([5500, 5501, 3000, 8080, 8765]);
+})();
+
+var SAVE_BASE = null;          // resolved at load: "" = own origin, "http://..." = another port, null = none
+
+function postSave(base, name, body) {
+  return fetch(base + "/save", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ filename: name, content: body, dir: SAVE_DIR })
+  }).then(function (r) { return r.json(); })
+    .then(function (res) {
+      if (!res || !res.ok) throw new Error((res && res.error) || "refused");
+      return res;
+    });
+}
+
+// Any serve-review instance will do -- the destination travels with the save,
+// so matching a server to a folder is no longer necessary.
+var SAVE_BASE_ROOT = null;   // the folder the chosen instance serves
+
+function samePath(a, b) {
+  var n = function (p) {
+    // Windows hands us one separator, the URL another; compare on one form.
+    var s = String(p || "").split(String.fromCharCode(92)).join("/");
+    while (s.length && s.charAt(s.length - 1) === "/") s = s.slice(0, -1);
+    return s.toLowerCase();
+  };
+  return n(a) === n(b);
+}
+
+// Returns the instance, not just its address: which folder it serves decides
+// whether this page can hop onto it.
+function servesOurFolder(base) {
+  return fetch(base + "/__whoami")
+    .then(function (r) { return r.json(); })
+    .then(function (j) {
+      if (!j || j.app !== "serve-review") return null;
+      // Belt and braces: if the render did not write saveDir, and this server
+      // is the one serving THIS page, then its own root is the folder the
+      // report sits in. Removes the last dependency on a field being
+      // populated upstream.
+      if (!SAVE_DIR && base === "" && j.root) SAVE_DIR = j.root;
+      return { base: base, root: j.root || "" };
+    })
+    .catch(function () { return null; });
+}
+
+// Runs once, at load. Leaves SAVE_BASE holding whatever can take a write.
+// Any instance can take the save, because the destination travels with it --
+// but keep looking for the one serving THIS folder, since only that one can
+// also serve this page if we end up hopping. First exact match wins; any
+// instance is kept as the fallback.
+function resolveSaveBase() {
+  return servesOurFolder("").then(function (own) {
+    if (own) return own;
+    var ports = SCAN_PORTS.filter(function (p) { return String(p) !== location.port; });
+    return ports.reduce(function (chain, p) {
+      return chain.then(function (acc) {
+        if (acc && acc.exact) return acc;
+        return servesOurFolder("http://127.0.0.1:" + p).then(function (hit) {
+          if (!hit) return acc;
+          hit.exact = !!SAVE_DIR && samePath(hit.root, SAVE_DIR);
+          return hit.exact ? hit : (acc || hit);
+        });
+      });
+    }, Promise.resolve(null));
+  }).then(function (hit) {
+    SAVE_BASE = hit ? hit.base : null;
+    SAVE_BASE_ROOT = hit ? hit.root : null;
+    return SAVE_BASE;
+  });
+}
+
+// A browser cannot write to an arbitrary path unasked -- that is a security
+// boundary, not a gap in this page. It CAN write where the user points it, and
+// the dialog opens on the file name we suggest, so the answers land in the
+// review folder instead of in Downloads.
+// A cancelled dialog is a decision, not a failure: no file, no fallback.
+function isCancel(e) {
+  return e && (e.name === "AbortError" || /abort/i.test(String(e.message || "")));
+}
+
+function saveViaPicker(name, body) {
+  if (!window.showSaveFilePicker) return Promise.reject(new Error("no picker"));
+  return window.showSaveFilePicker({
+    suggestedName: name,
+    types: [{ description: "Markdown", accept: { "text/markdown": [".md"] } }]
+  }).then(function (handle) {
+    return handle.createWritable().then(function (w) {
+      return Promise.resolve(w.write(body))
+        .then(function () { return w.close(); })
+        .then(function () { return { ok: true, path: handle.name, viaPicker: true }; });
+    });
+  });
+}
+
+// Resolve once, memoised, and never depend on something else having run at
+// load: when that call went missing, SAVE_BASE stayed null and every save fell
+// to the picker even on the review server's own origin.
+var SAVE_BASE_READY = null;
+function saveBaseReady() {
+  // Keep a hit, never a miss. Memoising null meant a server started AFTER the
+  // page loaded could never be found: the first probe failed, the answer stuck,
+  // and Save kept opening the picker long after /save was reachable.
+  if (!SAVE_BASE_READY) {
+    SAVE_BASE_READY = resolveSaveBase().then(function (base) {
+      if (base === null) SAVE_BASE_READY = null;
+      return base;
+    });
+  }
+  return SAVE_BASE_READY;
+}
+
+// Called from the click handler. The base is normally already resolved, so
+// this settles in a microtask and Chrome's transient activation survives --
+// which is what lets the picker open on the one path that still needs it.
+function saveAnywhere(name, body) {
+  return saveBaseReady().then(function (base) {
+    if (base === null) return saveViaPicker(name, body);   // nothing serving
+    return postSave(base, name, body).catch(function () {
+      return saveViaPicker(name, body);                    // server died since
+    });
+  });
+}
+
+// ---- get onto the origin that can actually save ------------------------
+// Same report either way; the only difference is whether Save can reach /save.
+// Opened from Live Server (:5501) or off disk, hop to the review server now --
+// at load, before anything is typed, so nothing can be lost. We already know
+// the folder and the server already serves it; asking the user to find a path
+// we hold is the page asking them to do its job.
+function hopToServer() {
+  if (/[?&]nohop=1/.test(location.search)) return Promise.resolve(false);
+  var here = location.pathname.split("/").pop();
+  if (!here) return Promise.resolve(false);
+  return saveBaseReady().then(function (base) {
+    if (base === null) return false;          // nothing is serving: stay put
+    if (base === "") return false;            // already on the review server
+    // Only hop onto the instance that serves THIS folder. Another instance can
+    // still take the save, but it has never heard of this file and would answer
+    // the hop with a 404.
+    if (!samePath(SAVE_BASE_ROOT, SAVE_DIR)) return false;
+    location.replace(base + "/" + here + "?nohop=1");
+    return true;
+  });
+}
+
+// Shown only when the hop found nothing to hop to.
+function showSaveBanner() {
+  if (SAVE_BASE !== null) return;
+  var cmd = "node <delivery-os>/scripts/serve-review.js .jetrix/" + SAVE_FOLDER;
+  var bar = document.createElement("div");
+  bar.setAttribute("style",
+    "position:sticky;top:0;z-index:9999;padding:10px 16px;" +
+    "background:#3a2a12;color:#f3d9a4;border-bottom:1px solid #6b4e1f;" +
+    "font:13px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace");
+  bar.innerHTML =
+    "<b>No review server is running, so Save cannot write to the folder.</b> " +
+    "Start it and reload \u2014 then Save goes straight to disk, no dialog. " +
+    "Without it you get a file dialog instead.<br>" +
+    "<code style=\"display:inline-block;margin-top:6px;padding:4px 8px;" +
+    "background:#000;border-radius:3px\"></code>";
+  bar.querySelector("code").textContent = cmd;
+  document.body.insertBefore(bar, document.body.firstChild);
+}
+
+
+
   function showModal(ok, heading, nodes) {
     mTick.className = ok ? "tick" : "tick warn";
     mTick.innerHTML = ok ? "&#10003;" : "!";
@@ -847,15 +1124,14 @@
     saveBtn.disabled = true;
     if (saveNote) saveNote.textContent = "Saving…";
 
-    fetch("/save", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ filename: r.name, content: r.md })
-    })
-      .then(function (res) { return res.json(); })
+    // saveAnywhere already returns the PARSED result -- postSave does the
+    // .json() internally. Calling it again threw "res.json is not a function",
+    // which landed in the catch below and downloaded a file that had just been
+    // saved successfully.
+    saveAnywhere(r.name, r.md)
       .then(function (out) {
         if (!out || !out.ok) throw new Error((out && out.error) || "save refused");
-        showModal(true, "Response saved", [
+        showModal(true, out.viaPicker ? "Saved" : "Response saved", [
           el("p", { text: r.answered + " answer" + (r.answered === 1 ? "" : "s") + " saved to:" }),
           el("div", { class: "pathbox", text: out.path }),
           el("p", { text: "You can run resolve now:" }),
@@ -863,12 +1139,15 @@
         ]);
         if (saveNote) saveNote.textContent = "Saved — " + out.path;
       })
-      .catch(function () {
+      .catch(function (e) {
+        if (isCancel(e)) return;            // backed out of the dialog
         download(r.name, r.md, "text/markdown;charset=utf-8");
         showModal(false, "Saved to Downloads", [
-          el("p", { text: "This page was not opened through the review server, so it could not write to the folder directly. The file went to your Downloads." }),
-          el("p", { text: "Move it to ba/reviews/, then run:" }),
-          el("div", { class: "cmd", text: "/ba:resolve ba/reviews/" + r.name }),
+          el("p", { text: location.protocol === "file:"
+            ? "This page was opened straight from disk, so there was no server to save through. The file went to your Downloads."
+            : "No review server is running any more, so the file went to your Downloads instead. Nothing is lost." }),
+          el("p", { text: "Move it into " + SAVE_FOLDER + "/, then run:" }),
+          el("div", { class: "cmd", text: "/ba:resolve " + SAVE_FOLDER + "/" + r.name }),
           el("p", { text: "To save straight into the folder next time, re-run the review — it serves this page for you:" }),
           el("div", { class: "cmd", text: "/ba:review" })
         ]);
@@ -908,11 +1187,10 @@
   }
 
   // ---- The three registers ----------------------------------------------
-  // These come from ba/client-questions.md, ba/logs/clarifications.md and
+  // These come from the review data and requirements/<slug>/ledger.md, and
   // ba/logs/contradictions.md, folded into the review JSON at review time.
   // Absent keys render as an honest empty state, never as a broken tab.
-  var clientQs = data.clientQuestions || [];
-  var clarifs = data.clarifications || [];
+
   var contras = data.contradictions || [];
 
   function emptyState(node, text) {
@@ -942,7 +1220,7 @@
 
   (function renderClarifications() {
     var node = document.getElementById("clar-list");
-    if (!clarifs.length) return emptyState(node, "No clarifications logged. New ones land here as /ba:resolve promotes them.");
+    if (!clarifs.length) return emptyState(node, "Nothing closed yet. Answered and closed questions move here as /ba:resolve settles them \u2014 the open ones are in Open questions.");
     clarifs.forEach(function (c) {
       var card = el("div", { class: "reg" });
       card.appendChild(el("div", { class: "reg-head" }, [
@@ -990,6 +1268,30 @@
     });
   })();
 
+  var assumptions = data.assumptions || [];
+
+  (function renderAssumptions() {
+    var node = document.getElementById("asm-list");
+    if (!assumptions.length) return emptyState(node, "No assumptions recorded. Everything in the scope traces to a source.");
+    assumptions.forEach(function (a) {
+      var card = el("div", { class: "reg" });
+      card.appendChild(el("div", { class: "reg-head" }, [
+        el("span", { class: "fid", text: a.id || "" }),
+        a.status ? el("span", { class: "statustag", style: "background:" + statusColor(a.status), text: a.status }) : el("span"),
+        a.raid ? el("span", { class: "areatag", text: "RAID " + a.raid }) : el("span")
+      ]));
+      card.appendChild(el("div", { class: "reg-q", text: a.statement || "" }));
+      if (a.whyItMatters) card.appendChild(el("div", { class: "reg-body", text: a.whyItMatters }));
+      if (a.basis) card.appendChild(el("div", { class: "reg-meta", text: "Basis: " + a.basis }));
+      // The risk is the whole point of recording it -- say it even when unfilled.
+      card.appendChild(el("div", { class: "reg-meta", text: a.residualRisk
+        ? "If wrong: " + a.residualRisk
+        : "Residual risk not stated — an assumption without one is untested." }));
+      if (a.owner) card.appendChild(el("div", { class: "reg-meta", text: "Owner " + a.owner }));
+      node.appendChild(card);
+    });
+  })();
+
   // ---- Per-tab .doc export ----
   if (docBtn) docBtn.addEventListener("click", function () {
     var r = buildResponsesMd();
@@ -1020,6 +1322,13 @@
           ["Owner", function (x) { return x.owner; }], ["Status", function (x) { return x.status; }],
           ["Resolution", function (x) { return x.resolution; }]
         ]), "scope-review-" + id + "-clarifications");
+      } else if (which === "assumptions") {
+        docExport("Assumptions", rowsDoc(assumptions, [
+          ["ID", function (x) { return x.id; }], ["Assumption", function (x) { return x.statement; }],
+          ["Why it matters", function (x) { return x.whyItMatters; }],
+          ["If wrong", function (x) { return x.residualRisk; }],
+          ["Owner", function (x) { return x.owner; }], ["Status", function (x) { return x.status; }]
+        ]), "scope-review-" + id + "-assumptions");
       } else {
         docExport("Contradictions", rowsDoc(contras, [
           ["ID", function (x) { return x.id; }], ["Topic", function (x) { return x.topic; }],
@@ -1041,8 +1350,9 @@
       { key: "overview", label: "Overview" },
       { key: "open", label: "Open questions", n: openCount, urgent: blockers > 0 },
       { key: "client", label: "Client questions", n: clientQs.length },
-      { key: "clarifications", label: "Clarifications", n: clarifs.filter(function (c) { return !TERMINAL[c.status]; }).length },
-      { key: "contradictions", label: "Contradictions", n: contras.filter(function (c) { return !c.resolution; }).length, urgent: contras.some(function (c) { return !c.resolution; }) }
+      { key: "clarifications", label: "Clarifications", n: clarifs.length },
+      { key: "contradictions", label: "Contradictions", n: contras.filter(function (c) { return !c.resolution; }).length, urgent: contras.some(function (c) { return !c.resolution; }) },
+      { key: "assumptions", label: "Assumptions", n: assumptions.filter(function (a) { return !TERMINAL[a.status]; }).length }
     ];
     var nav = document.getElementById("tabs");
     var panels = {};
@@ -1053,7 +1363,11 @@
       nav.querySelectorAll("button").forEach(function (b) {
         b.setAttribute("aria-selected", b.getAttribute("data-tab") === key ? "true" : "false");
       });
-      if (location.hash.slice(1) !== key) history.replaceState(null, "", "#" + key);
+      // replaceState throws on a file:// page in some browsers, and the tab is
+      // a convenience -- never let it take the report down with it.
+      try {
+        if (location.hash.slice(1) !== key) history.replaceState(null, "", "#" + key);
+      } catch (e) { /* no deep-linkable tabs here; the page still works */ }
     }
 
     TABS.forEach(function (t) {
@@ -1064,7 +1378,8 @@
       nav.appendChild(b);
     });
 
-    var initial = location.hash.slice(1);
+    var initial = "";
+    try { initial = location.hash.slice(1); } catch (e) { /* ditto */ }
     select(panels[initial] ? initial : "overview");
   })();
 
@@ -1092,6 +1407,7 @@
   if (!(data.nextActions || []).length) ac.appendChild(el("li", { class: "empty", text: "None." }));
   document.getElementById("footer").textContent =
     "Generated by the Techjays BA Agent · ba-scope-review · " + (data.reviewDate || "");
+  hopToServer().then(function (hopped) { if (!hopped) showSaveBanner(); });
 })();
 </script>
 </body>

@@ -14,8 +14,8 @@ Your defining constraint is the same guardrail the dev agent respects: **you exe
 Read the **`delivery-os-conventions`** contract first if it isn't in context — the workspace layout, the frontmatter standard, stable IDs, and the controlled vocabulary. Your **inputs**, in priority order:
 
 1. The **architecture / tech spec** — a spec document the user points you at, or `shared-context/architecture.md` / `shared-context/technology-stack.md` if they exist. This is the primary source of the intended stack and structure. Use the `docx`/`pdf` skills to extract it if it isn't Markdown.
-2. The **TL context graph** (`context/frontend|backend|database` indexes) — the shape of what will be built (how many frontend surfaces, backend domains, entities) informs the skeleton's structure and whether it's a frontend app, an API service, a full-stack app, or a monorepo.
-3. **`shared-context/`** — `project-profile.md` (platform, constraints), `system-landscape.md` (systems it must fit), `glossary.md`.
+2. The **TL context graph** (`<repo>/context/code-context/{frontend,backend,database}` indexes) — the shape of what will be built (how many frontend surfaces, backend domains, entities) informs the skeleton's structure and whether it's a frontend app, an API service, a full-stack app, or a monorepo.
+3. **`shared-context/`** — `system-landscape.md` (platform, constraints), `system-landscape.md` (systems it must fit), `glossary.md`.
 4. The **user** — for any required decision the sources above leave open (see the decision list in `references/scaffold-guide.md`).
 
 Your **output** is a real repository plus the project design docs that describe it:
@@ -52,13 +52,13 @@ From the confirmed stack and the context graph, decide the layout: single app vs
 Create the skeleton, package-manager manifests, and the lint/format/type-check/test/build tooling for the stack. Add a minimal **passing** test and confirm a **green base build**. Initialise git (don't commit secrets; add a `.gitignore`). Add a README describing how to install, run, test, and build. Prefer official generators/starters for the stack where they exist (e.g. `create-vite`, `create-next-app`, `spring init`, `poetry new`) over hand-rolling.
 
 ### 5. Write the project design docs and log decisions
-Write `shared-context/technology-stack.md` (the exact stack + versions), `shared-context/architecture.md` (the architecture the scaffold realises — confirmed, or reconciled with the spec), and `shared-context/coding-standards.md` (naming, structure, lint/format rules, test conventions — the conventions the dev agent will follow). Append a `DEC-###` row to `shared-context/decision-log.md` for **every** stack decision made — both the ones the spec confirmed and the ones the user just answered — with confidence (`Confirmed` where the spec/user pinned it, `Assumed` only where explicitly accepted as a default).
+Write `shared-context/technology-stack.md` (the exact stack + versions), `shared-context/architecture.md` (the architecture the scaffold realises — confirmed, or reconciled with the spec), and `shared-context/coding-standards.md` § `<repo>` (naming, structure, lint/format rules, test conventions — the conventions the dev agent will follow). Append a `DEC-###` row to `shared-context/decision-log.md` for **every** stack decision made — both the ones the spec confirmed and the ones the user just answered — with confidence (`Confirmed` where the spec/user pinned it, `Assumed` only where explicitly accepted as a default).
 
 ### 6. Verify the base is green
 Run install → lint → type-check → test → build in the shell. The base build **must be green** before you hand off — that is the exact readiness item the dev agent checks. If it isn't green, fix the scaffold or report precisely what fails; don't declare the repo ready.
 
 ### 7. Summarise in chat
-Report: the confirmed stack and structure, which decisions the spec supplied vs which the user answered, the `DEC-###` logged, the repo location, and the green-base result (install/lint/type/test/build). Tell the user the workspace is now build-ready and they can run `/dev:build <feature>` (or `/dev:bootstrap` will now pass).
+Report: the confirmed stack and structure, which decisions the spec supplied vs which the user answered, the `DEC-###` logged, the repo location, and the green-base result (install/lint/type/test/build). Tell the user the workspace is now build-ready and they can run `/dev:plan <feature>` then `/dev:build <feature>` (or `/dev:bootstrap` will now pass).
 
 ## Boundaries
 

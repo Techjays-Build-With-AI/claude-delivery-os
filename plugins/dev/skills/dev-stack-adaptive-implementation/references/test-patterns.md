@@ -2,7 +2,7 @@
 
 **Purpose.** For every dev-plan step, write tests that assert on real behaviour AND map to at least one parent AC / BR / TS. Not "here's a test template per framework" — a MAPPING RULE from acceptance items to test kinds, with pattern-matched framework style.
 
-**Governing rule.** Tests are how `/dev:build` proves the acceptance-map at Stage 8. If a parent AC has no test row, the map is incomplete and Stage 8 fails.
+**Governing rule.** Tests are how `/dev:build` proves the `## Acceptance` table at Stage 8. If a parent AC has no test row, the map is incomplete and Stage 8 fails.
 
 ---
 
@@ -90,7 +90,7 @@ describe('SupplierService.create', () => {
 });
 ```
 
-Note the comment tags — every test cites the parent AC / BR it maps to. **Every test file writes these tags** so `/dev:build` Stage 8 can build the acceptance-map programmatically.
+Note the comment tags — every test cites the parent AC / BR it maps to. **Every test file writes these tags** so `/dev:build` Stage 8 can build the `## Acceptance` table programmatically.
 
 ---
 
@@ -166,7 +166,7 @@ describe('POST /supplier (AC-B1, AC-B2, AC-B3, BR-1)', () => {
 
 ## 4. E2E test template
 
-Only run E2E when this task is the LAST sub-task to land (per parent's rollup Sub-tasks table). Otherwise mark deferred-to-e2e in the acceptance-map.
+Only run E2E when this task is the LAST sub-task to land (per parent's rollup Sub-tasks table). Otherwise mark deferred-to-e2e in the `## Acceptance` table.
 
 ```typescript
 test('Supplier onboarding — end-to-end (AC-1, AC-2)', async ({ page }) => {
@@ -224,7 +224,7 @@ def test_creates_supplier():
     ...
 ```
 
-`/dev:build` Stage 8 greps for these ID references to fill the `Verified by` column in `acceptance-map.md`. Missing tag → test doesn't count toward acceptance-map completion.
+`/dev:build` Stage 8 greps for these ID references to fill the `Verified by` column in `status.md` § `## Acceptance`. Missing tag → test doesn't count toward `## Acceptance` table completion.
 
 ---
 
@@ -256,6 +256,6 @@ step_<n>:
   reason:        infra-only step (DI registration in supplier.module.ts); no behavioural assertion applicable
 ```
 
-`/dev:build` Stage 8 will accept these as `covered-by-infra` rows in the acceptance-map.
+`/dev:build` Stage 8 will accept these as `covered-by-infra` rows in the `## Acceptance` table.
 
 **Don't abuse this** — if 3 out of 10 steps have no test, something is wrong with the plan.

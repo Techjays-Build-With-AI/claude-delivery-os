@@ -6,8 +6,8 @@ The **Developer Agent** takes an approved, TL-planned feature and **builds + shi
 |---|---|
 | **Namespace** | `/dev:` |
 | **Commands** | `/dev:bootstrap [spec]` · **`/dev:plan <task>`** · **`/dev:resolve --plan <task>`** · **`/dev:build <task>`** · **`/dev:commit <task>`** · `/dev:fix-review <task> feedback=<...>` |
-| **Input** | BA feature breakdown (`features/<slug>/`), TL context graph (`context/frontend\|backend\|database`), product repository, and (for `/dev:build`) plan artifacts `/dev:plan` produced with `plan-blockers.md` all `RESOLVED` |
-| **Output** | Working code on `feature/FEAT-<AREA>-NN-<slug>[-<repo>]`, `dev/` context files per task, `features/tracker.md`, `dev/local-runbook.md` (developer verification guide), and a merged / mergeable PR with `dev/pr-summary.md` as body |
+| **Input** | BA feature breakdown (`features/<slug>/`), TL context graph (`<repo>/context/code-context/{frontend,backend,database}`), product repository, and (for `/dev:build`) plan artifacts `/dev:plan` produced with `plan-blockers.md` all `RESOLVED` |
+| **Output** | Working code on `feature/FEAT-<AREA>-NN-<slug>[-<repo>]`, `dev/` context files per task, each feature’s own `status.md`, `units/<repo>/pr-summary.md § ## How to verify` (developer verification guide), and a merged / mergeable PR with `units/<repo>/pr-summary.md` as body |
 | **Skills** | `feature-delivery-loop` · `dev-stack-adaptive-implementation` · `dev-stack-adaptive-code-review` · `qa-greenfield-harness` · `dev-pr-handoff` (slimmed to content-only). `dev-validation` retired (folded into `/dev:build` Stages 7–9). |
 
 ---
@@ -15,7 +15,7 @@ The **Developer Agent** takes an approved, TL-planned feature and **builds + shi
 ## The v2.2 three-command flow
 
 ```text
-/dev:plan <task>       ── verify TL graph exists (auto-runs /tl:plan if not)
+/dev:plan <task>       ── verify TL graph exists (auto-runs forward planning if not)
                         ── decide multi-repo → sub-task split
                         ── compose each sub-task's Description + Implementation
                         ── create sub-tasks in MC (batched via task-mcp)
@@ -29,21 +29,21 @@ The **Developer Agent** takes an approved, TL-planned feature and **builds + shi
                         ── auto-bootstrap qa-greenfield-harness (deterministic per-stack matrix)
                         ── dev-stack-adaptive-implementation (dynamic per stack, matches repo idioms)
                         ── stack-adaptive test writing + local execute
-                        ── acceptance-map vs parent AC+BR+TS+NFRs
+                        ── `## Acceptance` table vs parent AC+BR+TS+NFRs
                         ── security review — BUILD-TIME GATE: Critical-only blocking
                         ── code-context designed → implemented flip
-                        ── summary + dev/local-runbook.md
+                        ── summary + units/<repo>/pr-summary.md § ## How to verify
 
-         │  (developer verifies locally per local-runbook.md)
+         │  (developer verifies locally per pr-summary.md § ## How to verify)
          ▼
 
 /dev:commit <task>     ── 10-stage commit loop
                         ── security review — COMMIT-TIME GATE: Critical + High blocking
                         ── dev-stack-adaptive-code-review (7 dimensions × 4 severity tiers)
-                        ── acceptance-map re-verification + last-sub-task E2E resolution
+                        ── `## Acceptance` table re-verification + last-sub-task E2E resolution
                         ── bounded fix loop (routes back through security / review / acceptance)
                         ── tl-semantic-context-merge (unit-level, NOT git text-merge)
-                        ── push branch, raise PR with dev/pr-summary.md as body
+                        ── push branch, raise PR with units/<repo>/pr-summary.md as body
 
          │  (human reviewer reviews PR; on merge, webhook flips MC to done in v2.3)
          ▼
@@ -51,7 +51,7 @@ The **Developer Agent** takes an approved, TL-planned feature and **builds + shi
 PR merged → DONE (human-owned)
 ```
 
-Each command is user-invoked separately — the flow never chains automatically. Between `/dev:build` and `/dev:commit`, the developer runs the feature locally using `dev/local-runbook.md` to sanity-check.
+Each command is user-invoked separately — the flow never chains automatically. Between `/dev:build` and `/dev:commit`, the developer runs the feature locally using `units/<repo>/pr-summary.md § ## How to verify` to sanity-check.
 
 ---
 
@@ -60,13 +60,13 @@ Each command is user-invoked separately — the flow never chains automatically.
 | Command | Does | Stops at |
 |---|---|---|
 | `/dev:bootstrap [spec]` | Greenfield — ensure a usable, green product repo exists (scaffolds via the TL on project-zero) | build-ready workspace |
-| **`/dev:plan <task>`** | Just-in-time planning — verify TL graph, decide sub-task split, run per-task analysis (Stage 2 scratchpad), detect plan blockers (Stage 3), compose Description + Implementation and push to MC (Stage 4 — only after blockers resolved) | `PLANNED` (blockers `RESOLVED`) or `BLOCKED_ON_PLAN` |
-| **`/dev:resolve --plan <task>`** | Interactive plan-blocker resolution — walks every OPEN PB-### across the task's `dev/*plan-blockers.md`, presents options + TL recommendation per blocker, asks you to pick / type free text / skip, writes Resolution: fields to disk, then invokes `/dev:plan --resume` to fold + compose + push | `PLANNED` (blockers `RESOLVED`) OR still `BLOCKED_ON_PLAN` if any blockers were skipped |
-| **`/dev:build <task>`** | The 11-stage build loop — branch, harness bootstrap, implement, test, security-build-gate (Critical only), acceptance-map, code-context flip, local-runbook. Refuses on unresolved blockers | local `IN_PROGRESS`, MC `inProgress` |
-| **`/dev:commit <task>`** | The 10-stage commit loop — security-commit-gate (Critical + High), code review (Blocker + Major), acceptance re-verify, semantic-context-merge, push, PR raise | local `REVIEW`, MC `devReview` |
-| `/dev:fix-review <task> feedback=<path\|PR>` | Fold reviewer PR comments back in, re-verify, update `dev/pr-summary.md`; re-run relevant `/dev:commit` stages | local `REVIEW`, MC `devReview` |
+| **`/dev:plan <task>`** | Just-in-time planning — verify TL graph, decide sub-task split, run per-task analysis (Stage 2 scratchpad), detect plan blockers (Stage 3), compose Description + Implementation and push to MC (Stage 4 — only after blockers resolved) | `readyForDev` (blockers `RESOLVED`) or `blocked` |
+| **`/dev:resolve --plan <task>`** | Interactive plan-blocker resolution — walks every OPEN PB-### across the task's `dev/*plan-blockers.md`, presents options + TL recommendation per blocker, asks you to pick / type free text / skip, writes Resolution: fields to disk, then invokes `/dev:plan --resume` to fold + compose + push | `readyForDev` (blockers `RESOLVED`) OR still `blocked` if any blockers were skipped |
+| **`/dev:build <task>`** | The 11-stage build loop — branch, harness bootstrap, implement, test, security-build-gate (Critical only), `## Acceptance` table, code-context flip, `pr-summary.md` § `## How to verify`. Refuses on unresolved blockers | status `inProgress` (phase `built`) |
+| **`/dev:commit <task>`** | The 10-stage commit loop — security-commit-gate (Critical + High), code review (Blocker + Major), acceptance re-verify, semantic-context-merge, push, PR raise | status `devReview` (phase `pr-open`) |
+| `/dev:fix-review <task> feedback=<path\|PR>` | Fold reviewer PR comments back in, re-verify, update `units/<repo>/pr-summary.md`; re-run relevant `/dev:commit` stages | status `devReview` (phase `pr-open`) |
 
-`<task>` accepts any of: MC task number (`Task-N` / `Feature-N` / `Subtask-N`), `FEAT-<AREA>-NN` id, `features/<slug>/` folder, sub-task folder path (`features/<slug>/subtask/<repo>/`), or a bare slug. `/dev:plan` also accepts multi-target forms (`list=<name>`, `initiative=<name>`, `--all`). `/dev:build` with no target picks the next task at `PLANNED`; `/dev:commit` with no target picks the task most recently at `IN_PROGRESS`.
+`<task>` accepts any of: MC task number (`Task-N` / `Feature-N` / `Subtask-N`), `FEAT-<AREA>-NN` id, `features/<slug>/` folder, sub-task folder path (`features/<slug>/units/<repo>/`), or a bare slug. All three also accept the multi-target forms (`list=<name>`, `requirement=<slug>`, `--all`). **With no target, each one takes every task its gate admits** — `/dev:plan` every `todo`, `/dev:build` every `readyForDev`, `/dev:commit` every `inProgress` + `built` — fanned out bounded by `--concurrency` (default 5). Name a target to do just that one.
 
 Retired in v2.2: **`/dev:validate`** (folded into `/dev:build` Stages 7-9), **`/dev:pr`** (folded into `/dev:commit`).
 
@@ -78,11 +78,11 @@ Uses MC's existing enum verbatim — no invented local variants.
 
 | Local state | MC status | Set by |
 |---|---|---|
-| `PLANNED` | `readyForDev` | `/dev:plan` end |
-| `BLOCKED_ON_PLAN` | `readyForDev` (unchanged) | `/dev:plan` when `plan-blockers.md` OPEN |
-| `IN_PROGRESS` (build done) | `inProgress` | `/dev:build` Stage 11 |
-| `REVIEW` | `devReview` | `/dev:commit` Stage 1 |
-| `MERGE_CONFLICT` | `devReview` (unchanged) | `/dev:commit` Stage 7 halt |
+| `readyForDev` | `readyForDev` | `/dev:plan` end |
+| `blocked` | `readyForDev` (unchanged) | `/dev:plan` when `plan-blockers.md` OPEN |
+| `inProgress` (build done) | `inProgress` | `/dev:build` Stage 11 |
+| `devReview` | `devReview` | `/dev:commit` Stage 1 |
+| `devReview` | `devReview` (unchanged) | `/dev:commit` Stage 7 halt |
 | `BLOCKED` | `blocked` | Any stage's escalation |
 | `DONE` | `done` | PR-merge webhook (v2.3) |
 
@@ -127,24 +127,24 @@ Under a `dev/` subfolder in the task folder:
 | File | Written by | Purpose |
 |---|---|---|
 | `implementation.md` | `/dev:plan` | Ordered implementation steps, files, API/schema changes, test strategy |
-| `dev/plan-blockers.md` | `/dev:plan` | Plan-time blocker resolution log; `status: OPEN \| RESOLVING \| RESOLVED` |
+| `units/<repo>/plan-blockers.md` | `/dev:plan` | Plan-time blocker resolution log; `status: OPEN \| RESOLVING \| RESOLVED` |
 | `implementation.md §2 Impacted components` | `/dev:plan` | 12-dimension code impact |
 | `status.md` | all | Local state, owner lock, branch, next action |
-| `dev/build-run.md` | `/dev:build` | Per-stage log for build loop |
-| `dev/implementation-log.md` | `/dev:build` | Detected stack + inferred patterns + per-step evidence |
-| `dev/acceptance-map.md` | `/dev:build` (built) + `/dev:commit` (re-verified) | Parent AC + BR + TS + NFRs → validation → result |
-| `dev/security-findings-build.md` | `/dev:build` Stage 9 | Build-time findings (Critical-blocking) |
-| `dev/local-runbook.md` | `/dev:build` Stage 11 | Developer-facing manual verification guide |
-| `dev/commit-run.md` | `/dev:commit` | Per-stage log for commit loop |
-| `dev/security-findings-commit.md` | `/dev:commit` Stage 3 | Commit-time findings (Critical + High blocking) |
-| `dev/code-review-findings.md` | `/dev:commit` Stage 4 | 4-tier severity findings |
-| `dev/context-merge-log.md` | `/dev:commit` Stage 7 | Semantic merge outcome per unit + index |
+| `units/<repo>/status.md § ## Run history` | `/dev:build` | Per-stage log for build loop |
+| `units/<repo>/status.md § ## Run history` | `/dev:build` | Detected stack + inferred patterns + per-step evidence |
+| `units/<repo>/status.md § ## Acceptance` | `/dev:build` (built) + `/dev:commit` (re-verified) | Parent AC + BR + TS + NFRs → validation → result |
+| `units/<repo>/findings.md § ## Security — build` | `/dev:build` Stage 9 | Build-time findings (Critical-blocking) |
+| `units/<repo>/pr-summary.md § ## How to verify` | `/dev:build` Stage 11 | Developer-facing manual verification guide |
+| `units/<repo>/status.md § ## Run history` | `/dev:commit` | Per-stage log for commit loop |
+| `units/<repo>/findings.md § ## Security — commit` | `/dev:commit` Stage 3 | Commit-time findings (Critical + High blocking) |
+| `units/<repo>/findings.md § ## Code review` | `/dev:commit` Stage 4 | 4-tier severity findings |
+| `units/<repo>/findings.md § ## Context merge` | `/dev:commit` Stage 7 | Semantic merge outcome per unit + index |
 | `dev/context-merge-conflicts.md` | `/dev:commit` Stage 7 (on halt) | Human-resolvable merge conflicts |
-| `dev/pr-summary.md` | `/dev:commit` Stage 9 | Reviewer-facing PR body |
+| `units/<repo>/pr-summary.md` | `/dev:commit` Stage 9 | Reviewer-facing PR body |
 | `dev/decisions.md` | all | `DEC-###` audit trail |
-| `dev/escalation-<n>.md` | any (on `BLOCKED`) | Structured escalation for human |
+| `units/<repo>/status.md § ## Run history (a BLOCKED entry)` | any (on `BLOCKED`) | Structured escalation for human |
 
-Plus cross-feature `features/tracker.md`.
+Plus each feature’s own `status.md`.
 
 ---
 
@@ -154,7 +154,7 @@ Plus cross-feature `features/tracker.md`.
 - **Retry limits** — 3 focused repair attempts per finding, 2 broad re-runs per stage. Exceed → escalate.
 - **Never without human approval** — merge a PR, deploy to production, delete production data, modify secrets, change infra permissions, disable security controls, ignore failing tests, or `--no-verify` on push / signing.
 - **Scope discipline** — one repo per sub-task; cross-repo edits require a scope escalation.
-- **Escalate, don't guess** — business, architecture, security, dependency, or bounds-exceeded → structured `dev/escalation-<n>.md`.
+- **Escalate, don't guess** — business, architecture, security, dependency, or bounds-exceeded → structured `units/<repo>/status.md § ## Run history (a BLOCKED entry)`.
 
 A task never reaches PR because code was written — only when the mandatory completion criteria hold (acceptance map green, security gates passed, code review clean, semantic merge clean).
 
@@ -180,7 +180,7 @@ See **[docs/SETUP.md](../../docs/SETUP.md)**. Short version:
 
 **What if `/dev:plan` hasn't run?** `/dev:build` refuses with "run /dev:plan first". `/dev:build` never re-plans.
 
-**What if `dev/plan-blockers.md` has OPEN entries?** `/dev:build` refuses. User resolves via `/dev:plan --resume`, ticks the blocker as RESOLVED with a DEC-###, then re-runs `/dev:build`.
+**What if `units/<repo>/plan-blockers.md` has OPEN entries?** `/dev:build` refuses. User resolves via `/dev:plan --resume`, ticks the blocker as RESOLVED with a DEC-###, then re-runs `/dev:build`.
 
 **Why two security gates?** Fast build iteration (Critical only) + strict pre-PR check (Critical + High). Same skill, two thresholds.
 

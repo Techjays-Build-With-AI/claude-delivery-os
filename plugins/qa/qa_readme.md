@@ -6,8 +6,8 @@ The **Quality Assurance Agent** makes a repository *properly testable* and defin
 |---|---|
 | **Namespace** | `/qa:` |
 | **Commands** | `/qa:audit [repo]` · `/qa:plan <approvals>` · `/qa:setup [plan]` · `/qa:health [repo]` |
-| **Input** | The product repository and its tooling; where present, `features/`, `ba/scope.md`, and `shared-context/` |
-| **Output** | `qa/` — the audit report trio, `test-setup-plan.md`, the test harness itself, and **`quality-gates.md`** (the contract dev consumes) |
+| **Input** | The product repository and its tooling; where present, `features/`, `requirements/<slug>/scope.md`, and `shared-context/` |
+| **Output** | `qa/` — one audit page per round, `<repo>-setup.md`, the test harness itself, and **`quality-gates.md`** (the contract dev consumes) |
 | **Skills** | `qa-test-audit` · `qa-test-setup` · `qa-quality-gates` |
 
 ---
@@ -27,9 +27,9 @@ QA builds the kitchen; dev cooks each dish.
 ## The flow
 
 ```text
-/qa:audit    → read-only assessment → scored gap report (HTML + MD + JSON)
+/qa:audit    → read-only assessment → scored gap report (HTML + MD)
    ↓  human reviews, sets Adopt/Skip/Defer per finding, exports approvals
-/qa:plan     → approved recommendations → test-setup-plan.md + draft quality-gates.md
+/qa:plan     → approved recommendations → <repo>-setup.md § Plan + draft quality-gates.md § <repo>
    ↓  human reviews the plan
 /qa:setup    → build the harness in an isolated branch → prove a green smoke run
    ↓            → finalize quality-gates.md (harness_status: Active)
@@ -45,7 +45,7 @@ Every gap is a stable `QAF-###` finding; every gate is a `QG-###` in the contrac
 | Command | Does | Stops at |
 |---|---|---|
 | `/qa:audit [repo=<path>]` | Read-only test-readiness assessment; scores 12 areas, records `QAF-###` gaps with recommendations, renders the interactive report | scored report + approvals surface |
-| `/qa:plan <approvals>` | Turns the approved recommendations into `test-setup-plan.md` and drafts the quality gates | reviewable plan |
+| `/qa:plan <approvals>` | Turns the approved recommendations into `<repo>-setup.md` § `## Plan` and drafts that repo's gates | reviewable plan |
 | `/qa:setup [plan=<path>]` | Builds the harness in an isolated branch, proves a green smoke run, finalizes `quality-gates.md` | human review (never merges) |
 | `/qa:health [repo=<path>]` | Re-runs the required gates to catch drift; reports deltas | drift report |
 
@@ -57,11 +57,11 @@ Under `qa/` (created on first run):
 
 | File | What |
 |---|---|
-| `test-audit-<ts>.{html,md,json}` | The scored gap report — interactive report, Markdown artifact, and the JSON sidecar `/qa:plan` reads |
-| `test-audit-<ts>-approvals.md` | The human's Adopt/Skip/Defer decisions, exported from the report |
-| `test-setup-plan.md` | The ordered setup plan (only the approved recommendations) |
+| `<repo>-audit-<ts>.{html,md}` | The scored gap report — the interactive report and the Markdown artifact. Two files: the audit object rides inside the HTML at `<script id="audit-data">`, which is where `/qa:plan` reads it |
+| `<repo>-audit-<ts>-approvals.md` | The human's Adopt/Skip/Defer decisions, exported from the report |
+| `<repo>-setup.md` § `## Plan` | The ordered setup plan (only the approved recommendations) |
 | `quality-gates.md` | **The machine-readable contract** — required/optional checks, commands, thresholds, harness status |
-| `setup-log.md` · `decisions.md` · `escalation-<n>.md` | The setup run log, `DEC-###` decisions, and structured blocker notes |
+| `<repo>-setup.md` § `## Run history` (decisions go to `shared-context/decision-log.md`) | The setup run log, `DEC-###` decisions, and structured blocker notes |
 
 ---
 
@@ -70,7 +70,7 @@ Under `qa/` (created on first run):
 `qa/quality-gates.md` is the join between QA and Dev:
 
 - **Dev readiness gate** (`feature-delivery-loop`) reads it to confirm a usable harness exists before building. If it's missing or `harness_status` isn't `Active`, the gate routes to QA (`/qa:audit` → `/qa:setup`) — the same way project-zero routes to `/dev:bootstrap`.
-- **`dev-validation`** reads it to know which checks are **Required**, the exact command for each, and the bar (coverage floor, when e2e/contract tests are mandatory) — then maps results into the feature's `acceptance-map.md`.
+- **`dev-validation`** reads it to know which checks are **Required**, the exact command for each, and the bar (coverage floor, when e2e/contract tests are mandatory) — then maps results into the feature's `status.md` § `## Acceptance`.
 
 So the dev loop stops guessing the repo's tooling and verifies against a real, QA-owned standard.
 
@@ -103,4 +103,4 @@ Typical first run on an existing repo: `/qa:audit` → review the report, approv
 
 ## How it fits Delivery OS
 
-QA is a **consumer** of the BA/TL context and the **producer** of the test harness and the quality-gate contract. It reads `ba/scope.md`, `features/`, the TL `context/frontend|backend|database` graph, and `shared-context/` to match the harness to the real stack and to what must be testable; it writes `produced_by: qa` files under `qa/` and appends `DEC-###` decisions to the shared `decision-log.md`. See the shared [`delivery-os-conventions`](../delivery-os-core/skills/delivery-os-conventions/SKILL.md) contract.
+QA is a **consumer** of the BA/TL context and the **producer** of the test harness and the quality-gate contract. It reads `requirements/<slug>/scope.md`, `features/`, the TL `<repo>/context/code-context/{frontend,backend,database}` graph, and `shared-context/` to match the harness to the real stack and to what must be testable; it writes `produced_by: qa` files under `qa/` and appends `DEC-###` decisions to the shared `decision-log.md`. See the shared [`delivery-os-conventions`](../delivery-os-core/skills/delivery-os-conventions/SKILL.md) contract.

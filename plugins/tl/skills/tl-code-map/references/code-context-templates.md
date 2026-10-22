@@ -157,7 +157,7 @@ Confidence: 71% Confirmed, 22% Likely, 7% Assumed.
 
 ## Cross-repo
 This repo's endpoints are consumed by `acme-web`. Resolve cross-repo links through
-the workspace registry: `<workspace>/.jetrix/tl/code-map-registry.md`.
+the workspace registry: `<workspace>/.jetrix/code-map-registry.md`.
 ```
 
 ### 2.c `<layer>/_overview.md` — one per layer
@@ -280,7 +280,7 @@ One row per endpoint. `Summary` is copied verbatim from the unit file's `## Summ
 
 **Called by** is a page ID, or `Trigger: Schedule/Event/Webhook/Service` for non-UI entry points. When the caller lives in another repo, suffix the repo key: `PAGE-ACC-01 (acme-web)`.
 **Reads/Writes** is a compact roll-up of the unit's Data Access table: `object (R|W|RW|X)`, where `X` = executes (procedure/function). Cap it at the five most significant objects and append `…` — the unit file has the full list.
-**Used by Features** is `(as-built)` until a `/tl:plan` run links a feature to the unit — the same column and the same convention forward planning uses, so the two directions share one index.
+**Used by Features** is `(as-built)` until a `tl-feature-planning` (internal) run links a feature to the unit — the same column and the same convention forward planning uses, so the two directions share one index.
 **Status** (controlled): `Proposed · Designed · In Development · Released · Blocked` (+ retirement `Merged into … · Deferred · Removed`). Reverse-mapped units are `Released` when the code is on the mapped branch.
 
 ### 3.b `frontend/frontend-index.md`
@@ -530,7 +530,7 @@ Called by page(s) — see *Called by*.
 
 ## Reads / Writes Entities
 <!-- Forward planning names this section `Reads / Writes Entities`; the heading is kept verbatim so
-     a unit written here is still a unit /tl:plan can read and extend. The table below is the
+     a unit written here is still a unit forward planning can read and extend. The table below is the
      enhancement: every database object this endpoint touches and HOW it touches it.
      Kind: Table | View | Collection | Stored Procedure | Function | Trigger
      Access: ORM | Direct Query | Stored Procedure | Function | View | Repository | Cache
@@ -549,7 +549,7 @@ Called by page(s) — see *Called by*.
 | outbox_events | Table | Direct Query | W | same transaction as the invoice | ../../../../database/tables/outbox-events.md (ENT-CORE-04) | Confirmed |
 | invoice_lines (via trg_invoice_line_recalc) | Trigger | Trigger | — | fires on the line insert | ../../../../database/triggers/trg-invoice-line-recalc.md (ENT-BIL-15) | Confirmed |
 
-<!-- File paths: this file is code-<repo>/context/code-context/backend/domains/<domain>/endpoints/<slug>.md
+<!-- File paths: this file is code-context/backend/domains/<domain>/endpoints/<slug>.md
      → four levels up reaches code-context/.
      Indirect rows (Mode `—`) matter: a reader tracing "what writes audit_log" must find this
      endpoint even though its own code never names the table. -->
@@ -612,7 +612,7 @@ Confidence: Confirmed (extracted from source references above)
 <!--
   Read by dev-stack-adaptive-implementation Rule 7.v (Stage 7 real-service startup)
   to pre-verify env vars before running integration/E2E tier tests. Also read by
-  Stage 11 (local-runbook §3 Env vars) to populate the developer-facing setup guide.
+  Stage 11 (`pr-summary.md` § `## How to verify` §3 Env vars) to populate the developer-facing setup guide.
 -->
 
 ## Side Effects
@@ -643,7 +643,7 @@ Confidence: Confirmed (extracted from source references above)
 - Invoice numbers are sequence-derived and may have gaps. | Confirmed | BR-—
 
 ## Used by Features
-(as-built) — no feature linked yet. A later `/tl:plan` adds `FEAT-…` rows here and in the index.
+(as-built) — no feature linked yet. A later `tl-feature-planning` (internal) adds `FEAT-…` rows here and in the index.
 
 ## Open Questions
 - OQ-BIL-03 | `dryRun` rolls back a transaction that has already consumed an invoice number — is the gap intentional or a defect? | TL / Billing owner | Affects number continuity | Open
@@ -662,7 +662,7 @@ Confidence: Confirmed (extracted from source references above)
 
 ## 5. page.md
 
-One routed surface — what it is, who uses it, and the endpoints it consumes. Every heading forward planning's `page.md` defines is kept **verbatim** so the file stays a unit `/tl:plan` can read and extend; the reverse-map additions are `## Summary`, `## Area`, `## State & Data Handling`, `## Client-side Validation`, and the `origin`/`mapped_from`/`mapped_from_commit`/`map_confidence` frontmatter.
+One routed surface — what it is, who uses it, and the endpoints it consumes. Every heading forward planning's `page.md` defines is kept **verbatim** so the file stays a unit `tl-feature-planning` (internal) can read and extend; the reverse-map additions are `## Summary`, `## Area`, `## State & Data Handling`, `## Client-side Validation`, and the `origin`/`mapped_from`/`mapped_from_commit`/`map_confidence` frontmatter.
 
 ```md
 ---
@@ -717,7 +717,7 @@ status at a glance, and act on it (activate, deactivate, open detail).
 
 ## Consumes Endpoints
 <!-- Same-repo endpoints are relative paths — this file is
-     code-<repo>/context/code-context/frontend/pages/<area>/<slug>.md → three levels up to code-context/, e.g.
+     code-context/frontend/pages/<area>/<slug>.md → three levels up to code-context/, e.g.
        - GET /accounts — ../../../backend/domains/account/endpoints/list-accounts.md (EP-ACC-01)
      This page lives in acme-web and its endpoints live in acme-api, so both use the
      [repo:<key>] form, resolved through the registry (§8). -->
@@ -832,7 +832,7 @@ immutable once `status = 'Issued'` (corrections are credit notes, never edits).
 
 ## Used by Endpoints
 <!-- Forward planning's heading, kept verbatim. This file is
-     code-<repo>/context/code-context/database/<kind>/<slug>.md → two levels up reaches code-context/. -->
+     code-context/database/<kind>/<slug>.md → two levels up reaches code-context/. -->
 - EP-BIL-03 POST /accounts/{id}/invoices (RW) — ../../backend/domains/billing/endpoints/generate-invoice.md
 - EP-BIL-05 GET /accounts/{id}/invoices (R) — ../../backend/domains/billing/endpoints/list-invoices.md
 - EP-BIL-14 (Schedule) nightly-invoice-run (W) — ../../backend/domains/billing/endpoints/nightly-invoice-run.md
@@ -1008,9 +1008,9 @@ generated_at: YYYY-MM-DD
 
 ---
 
-## 8. Workspace registry — `<workspace>/.jetrix/tl/code-map-registry.md`
+## 8. Workspace registry — `<workspace>/.jetrix/code-map-registry.md`
 
-Each repo owns its full `code-context/`. The workspace owns one small file that says which repos exist, where their context is, and what they cover — so `/tl:plan` can find and **reuse** as-built units instead of duplicating them, and so a page in one repo can link to an endpoint in another.
+Each repo owns its full `code-context/`. The workspace owns one small file that says which repos exist, where their context is, and what they cover — so `tl-feature-planning` (internal) can find and **reuse** as-built units instead of duplicating them, and so a page in one repo can link to an endpoint in another.
 
 ```md
 ---
@@ -1025,7 +1025,7 @@ generated_at: YYYY-MM-DD
 
 Repositories mapped by `/tl:code-map`. Each repo's context is committed **inside that repo**
 at `<repo>/context/code-context/`; this file is the workspace-level pointer. Before creating a
-new unit, `/tl:plan` resolves match keys through these indexes.
+new unit, `tl-feature-planning` (internal) resolves match keys through these indexes.
 
 | Repo key | Path | Layers | Code context root | Mapped at commit | Last mapped | Units |
 |---|---|---|---|---|---|---|
@@ -1035,8 +1035,8 @@ new unit, `/tl:plan` resolves match keys through these indexes.
 ## Indexes
 | Repo key | Root | Backend | Frontend | Database |
 |---|---|---|---|---|
-| acme-api | code-context/code-context-index.md | code-<repo>/context/code-context/backend/backend-index.md | — | code-<repo>/context/code-context/database/database-index.md |
-| acme-web | code-context/code-context-index.md | — | code-<repo>/context/code-context/frontend/frontend-index.md | — |
+| acme-api | code-context/code-context-index.md | code-context/backend/backend-index.md | — | code-context/database/database-index.md |
+| acme-web | code-context/code-context-index.md | — | code-context/frontend/frontend-index.md | — |
 
 ## Cross-repo links
 Within a repo, links are relative paths. Across repos, prefix the repo key and give the
@@ -1072,6 +1072,6 @@ existing token when it serves the same domain; it never mints a second token for
 - **Bidirectional links are mandatory.** Page → *Consumes Endpoints* implies endpoint → *Called by*. Endpoint → *Data Access* implies object → *Used by → Endpoints*. Procedure → *Objects Touched* implies table → *Used by → Database objects*. The integrity check fails on a forward link with no back-link.
 - **Link, don't duplicate.** Contracts live once on the endpoint; columns live once on the object; stack conventions live once in `_overview.md`.
 - **Every fact carries provenance.** `mapped_from` in frontmatter, `[code › path]` in Source References, and a confidence on anything inferred. A unit with no code citation is an invention — delete it or turn it into an open question.
-- **Reverse-mapped frontmatter** (`origin`, `mapped_from`, `mapped_from_commit`, `map_confidence`) is provenance and stays in place forever — including after `/tl:plan` links a feature to the unit.
+- **Reverse-mapped frontmatter** (`origin`, `mapped_from`, `mapped_from_commit`, `map_confidence`) is provenance and stays in place forever — including after `tl-feature-planning` (internal) links a feature to the unit.
 - **Reconcile, never clobber.** A re-run extends: new links added, changed facts updated with a bumped `generated_at`, deleted code marked `Removed` rather than erased, hand-written prose in `Business Purpose` preserved unless the code contradicts it.
 - **Nothing sensitive.** This tree is committed and shared.

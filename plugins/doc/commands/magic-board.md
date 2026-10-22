@@ -15,7 +15,7 @@ You are the entry point for creating a **magic board** — a spatial, pannable/z
 - **`out=<prefix>`** — optional output-prefix override (default `doc/boards/board-<topic>`). A timestamp is always appended.
 - **Free-text** — any extra source material, emphasis, or custom rules (which systems to feature, what to leave out, brand/accent overrides, "keep it to 8 cards", etc.). Passed through verbatim.
 
-If a Delivery OS workspace exists, tell the agent to draft the board's spine and cards from `ba/scope.md`, `ba/registers/workflows.md`, and `shared-context/`.
+If a Delivery OS workspace exists, tell the agent to draft the board's spine and cards from `requirements/<slug>/scope.md`, `requirements/<slug>/registers/workflows.md`, and `shared-context/`.
 
 ## 2. Delegate
 
@@ -23,8 +23,22 @@ Invoke the **doc-agent** subagent. Pass it this instruction:
 
 > Create a **magic board** using the `doc-magic-board` skill. Topic: `<topic>`; kind: `<kind or "infer">`. Custom rules / source (verbatim, or "none"): `<free text>`.
 >
-> Build **one self-contained, offline-portable HTML file**: inline `assets/board-engine.js` (the pan/zoom/tour engine — keep it intact), inline all CSS and SVG, no external fetches. When a Delivery OS workspace exists, draft the spine and cards from `ba/scope.md`, `ba/registers/workflows.md`, and `shared-context/` (real names and the client's real numbers; never fabricate — mark unknowns `[[NEEDS: …]]`). Follow the skill's method: find the narrative spine, cluster into 3–6 left-to-right parts, design each card to its content (diagrams, two-column step cards, a wow card near the center, a closer), place cards by inline `left/top/width` with no overlaps, and wire `window.tour` in narrative order. Apply the voice rules (no em-dashes, no contrastive negation, address the client by name). Read a run timestamp and write `doc/boards/board-<topic>-<timestamp>.html` (create `doc/` if absent). Then do a QA pass (overview fits all clusters, every tour stop frames cleanly, no overlaps) and return a short summary, any `[[NEEDS: …]]` placeholders, and the file link.
+> Build **one self-contained, offline-portable HTML file**: inline `assets/board-engine.js` (the pan/zoom/tour engine — keep it intact), inline all CSS and SVG, no external fetches. When a Delivery OS workspace exists, draft the spine and cards from `requirements/<slug>/scope.md`, `requirements/<slug>/registers/workflows.md`, and `shared-context/` (real names and the client's real numbers; never fabricate — mark unknowns `[[NEEDS: …]]`). Follow the skill's method: find the narrative spine, cluster into 3–6 left-to-right parts, design each card to its content (diagrams, two-column step cards, a wow card near the center, a closer), place cards by inline `left/top/width` with no overlaps, and wire `window.tour` in narrative order. Apply the voice rules (no em-dashes, no contrastive negation, address the client by name). Read a run timestamp and write `doc/boards/board-<topic>-<timestamp>.html` (create `doc/` if absent). Then do a QA pass (overview fits all clusters, every tour stop frames cleanly, no overlaps) and return a short summary, any `[[NEEDS: …]]` placeholders, and the file link.
 
 ## 3. Surface the result
 
 When the agent returns, present its **summary**: what the board covers, its parts and tour length, which content came from the BA scope vs. supplied, and any placeholders still needing the user's input. Link to the generated `board-<topic>-<timestamp>.html` and tell the user to open it in a browser and use the on-screen next/prev (or arrow keys) to walk the tour, drag to pan, scroll to zoom, and press `O` for the overview. Keep it tight.
+
+**Serve it and print both links** — `delivery-os-conventions` §1.e. Start the server in the background as the
+last action and read the port from its `DELIVERY_OS_SERVE_READY` line:
+
+```bash
+node ${CLAUDE_PLUGIN_ROOT}/../delivery-os-core/scripts/serve-review.js .jetrix/doc/boards
+```
+
+```
+Report   http://127.0.0.1:<port>/board-<topic>-<ts>.html      ← open in your browser
+         doc/boards/board-<topic>-<ts>.html    ← the file itself
+```
+
+A path alone is not something anyone can click, and a `file://` page cannot fetch a sibling.

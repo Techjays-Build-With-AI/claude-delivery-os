@@ -1,6 +1,6 @@
 # Context file templates
 
-The exact schema for each unit file (page, endpoint, entity) and for the three layer indexes. Build every file from these so the `context/frontend|backend|database` graph stays uniform, bidirectionally linked, and machine-parseable. Fill sections from the feature breakdown and the BA registers; where a section has no supported content write the labelled placeholder (`None`, `TBD`, or `Open question — see below`) — **never delete a heading, never invent an integration or a rule the source can't ground**.
+The exact schema for each unit file (page, endpoint, entity) and for the three layer indexes. Build every file from these so the `<repo>/context/code-context/{frontend,backend,database}` graph stays uniform, bidirectionally linked, and machine-parseable. Fill sections from the feature breakdown and the BA registers; where a section has no supported content write the labelled placeholder (`None`, `TBD`, or `Open question — see below`) — **never delete a heading, never invent an integration or a rule the source can't ground**.
 
 Slugs are **lowercase kebab-case**. IDs are stable and append-only: `PAGE-<AREA>-NN`, `EP-<AREA>-NN`, `ENT-<AREA>-NN`, `NN` sequential within that area and layer. Links between units are **relative paths** so the graph resolves on disk. Confidence per designed fact uses the shared vocabulary: `Confirmed · Likely · Assumed · Conflicting · Needs Clarification`.
 
@@ -297,7 +297,7 @@ Proposed | Designed | In Development | Released | Blocked
 Table | Collection | View | Stored Procedure | Function | Trigger
 
 ## Source Data Entity
-DATA-004 (ba/registers/data.md) — the business entity this realises. `—` if none; note why.
+DATA-004 (shared-context/data.md) — the business entity this realises. `—` if none; note why.
 
 ## Purpose
 Stores the core supplier profile and its lifecycle status.

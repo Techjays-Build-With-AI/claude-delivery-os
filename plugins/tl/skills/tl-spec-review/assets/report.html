@@ -232,7 +232,7 @@
   </tr></thead><tbody id="findings-body"></tbody></table></div>
 
   <div class="section-label">Open items — respond &amp; export</div>
-  <p class="progress-line" style="margin:4px 0 0">Type a response under each open finding, choose an intent, then <b>Export responses</b> — the page downloads a Markdown file named for this review. Save it in <code>tl/</code> and run <code>/tl:resolve</code> on it to have the agent adjudicate and close items.</p>
+  <p class="progress-line" style="margin:4px 0 0">Type a response under each open finding, choose an intent, then <b>Save responses</b> — the page downloads a Markdown file named for this review. Save it in <code>tl/</code> and run <code>/dev:review</code> on it to have the agent adjudicate and close items.</p>
   <div id="respond-list"></div>
   <div class="respond-actions">
     <button class="btn primary" id="exportBtn">Export responses</button>
@@ -519,7 +519,7 @@
     var L = ["---", "doc_type: spec-review-responses", "source_review: " + reviewId,
       "spec: " + (data.documentReviewed || ""), "exported_from: html-report", "---", "",
       "# Responses to spec-review-" + reviewId, "",
-      "> Each section is one finding. Edit the response and intent, then run `/tl:resolve` on this file.", ""];
+      "> Each section is one finding. Edit the response and intent, then run `/dev:review` — it finds this file and resolves the round.", ""];
     var answered = 0;
     rl.querySelectorAll(".respond-card").forEach(function (card) {
       var fid = card.getAttribute("data-fid");
@@ -533,14 +533,233 @@
       L.push("");
       if (resp) answered++;
     });
-    var blob = new Blob([L.join("\n")], { type: "text/markdown;charset=utf-8" });
-    var url = URL.createObjectURL(blob);
-    var a = el("a", { href: url, download: "spec-review-" + reviewId + "-responses.md" });
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    setTimeout(function () { URL.revokeObjectURL(url); }, 1500);
-    if (exportNote) exportNote.textContent = answered
-      ? "Downloaded spec-review-" + reviewId + "-responses.md (" + answered + " answered) — save it in tl/ and run /tl:resolve on it."
-      : "Downloaded, but no responses were filled in yet — add some and export again.";
+
+// ---- saving -------------------------------------------------------------
+// fetch("/save") only reaches the instance that served this page. When a later
+// run started a second server, or this one's run has ended, that instance can
+// be gone while another is alive on a different port over the same folder --
+// and the save was possible the whole time. So: own origin first, then every
+// loopback port in range, and only then a download.
+var SAVE_FOLDER = "tl-reviews";   // the folder this report belongs to
+var PORT_LO = 4100, PORT_HI = 4120;
+
+// The absolute folder this report belongs to, written in at render time. The
+// server writes where the page says, so it stops mattering which folder the
+// server was started on -- which is what removes the port/folder matching.
+var SAVE_DIR = (typeof data !== "undefined" && data && data.saveDir) || null;
+
+// Only a fallback, for a page opened from something that is not the review
+// server: its own range, plus the dev servers people actually have running.
+var SCAN_PORTS = (function () {
+  var p = [];
+  for (var i = PORT_LO; i <= PORT_HI; i++) p.push(i);
+  return p.concat([5500, 5501, 3000, 8080, 8765]);
+})();
+
+var SAVE_BASE = null;          // resolved at load: "" = own origin, "http://..." = another port, null = none
+
+function postSave(base, name, body) {
+  return fetch(base + "/save", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ filename: name, content: body, dir: SAVE_DIR })
+  }).then(function (r) { return r.json(); })
+    .then(function (res) {
+      if (!res || !res.ok) throw new Error((res && res.error) || "refused");
+      return res;
+    });
+}
+
+// Any serve-review instance will do -- the destination travels with the save,
+// so matching a server to a folder is no longer necessary.
+var SAVE_BASE_ROOT = null;   // the folder the chosen instance serves
+
+function samePath(a, b) {
+  var n = function (p) {
+    // Windows hands us one separator, the URL another; compare on one form.
+    var s = String(p || "").split(String.fromCharCode(92)).join("/");
+    while (s.length && s.charAt(s.length - 1) === "/") s = s.slice(0, -1);
+    return s.toLowerCase();
+  };
+  return n(a) === n(b);
+}
+
+// Returns the instance, not just its address: which folder it serves decides
+// whether this page can hop onto it.
+function servesOurFolder(base) {
+  return fetch(base + "/__whoami")
+    .then(function (r) { return r.json(); })
+    .then(function (j) {
+      if (!j || j.app !== "serve-review") return null;
+      // Belt and braces: if the render did not write saveDir, and this server
+      // is the one serving THIS page, then its own root is the folder the
+      // report sits in. Removes the last dependency on a field being
+      // populated upstream.
+      if (!SAVE_DIR && base === "" && j.root) SAVE_DIR = j.root;
+      return { base: base, root: j.root || "" };
+    })
+    .catch(function () { return null; });
+}
+
+// Runs once, at load. Leaves SAVE_BASE holding whatever can take a write.
+// Any instance can take the save, because the destination travels with it --
+// but keep looking for the one serving THIS folder, since only that one can
+// also serve this page if we end up hopping. First exact match wins; any
+// instance is kept as the fallback.
+function resolveSaveBase() {
+  return servesOurFolder("").then(function (own) {
+    if (own) return own;
+    var ports = SCAN_PORTS.filter(function (p) { return String(p) !== location.port; });
+    return ports.reduce(function (chain, p) {
+      return chain.then(function (acc) {
+        if (acc && acc.exact) return acc;
+        return servesOurFolder("http://127.0.0.1:" + p).then(function (hit) {
+          if (!hit) return acc;
+          hit.exact = !!SAVE_DIR && samePath(hit.root, SAVE_DIR);
+          return hit.exact ? hit : (acc || hit);
+        });
+      });
+    }, Promise.resolve(null));
+  }).then(function (hit) {
+    SAVE_BASE = hit ? hit.base : null;
+    SAVE_BASE_ROOT = hit ? hit.root : null;
+    return SAVE_BASE;
+  });
+}
+
+// A browser cannot write to an arbitrary path unasked -- that is a security
+// boundary, not a gap in this page. It CAN write where the user points it, and
+// the dialog opens on the file name we suggest, so the answers land in the
+// review folder instead of in Downloads.
+// A cancelled dialog is a decision, not a failure: no file, no fallback.
+function isCancel(e) {
+  return e && (e.name === "AbortError" || /abort/i.test(String(e.message || "")));
+}
+
+function saveViaPicker(name, body) {
+  if (!window.showSaveFilePicker) return Promise.reject(new Error("no picker"));
+  return window.showSaveFilePicker({
+    suggestedName: name,
+    types: [{ description: "Markdown", accept: { "text/markdown": [".md"] } }]
+  }).then(function (handle) {
+    return handle.createWritable().then(function (w) {
+      return Promise.resolve(w.write(body))
+        .then(function () { return w.close(); })
+        .then(function () { return { ok: true, path: handle.name, viaPicker: true }; });
+    });
+  });
+}
+
+// Resolve once, memoised, and never depend on something else having run at
+// load: when that call went missing, SAVE_BASE stayed null and every save fell
+// to the picker even on the review server's own origin.
+var SAVE_BASE_READY = null;
+function saveBaseReady() {
+  // Keep a hit, never a miss. Memoising null meant a server started AFTER the
+  // page loaded could never be found: the first probe failed, the answer stuck,
+  // and Save kept opening the picker long after /save was reachable.
+  if (!SAVE_BASE_READY) {
+    SAVE_BASE_READY = resolveSaveBase().then(function (base) {
+      if (base === null) SAVE_BASE_READY = null;
+      return base;
+    });
+  }
+  return SAVE_BASE_READY;
+}
+
+// Called from the click handler. The base is normally already resolved, so
+// this settles in a microtask and Chrome's transient activation survives --
+// which is what lets the picker open on the one path that still needs it.
+function saveAnywhere(name, body) {
+  return saveBaseReady().then(function (base) {
+    if (base === null) return saveViaPicker(name, body);   // nothing serving
+    return postSave(base, name, body).catch(function () {
+      return saveViaPicker(name, body);                    // server died since
+    });
+  });
+}
+
+// ---- get onto the origin that can actually save ------------------------
+// Same report either way; the only difference is whether Save can reach /save.
+// Opened from Live Server (:5501) or off disk, hop to the review server now --
+// at load, before anything is typed, so nothing can be lost. We already know
+// the folder and the server already serves it; asking the user to find a path
+// we hold is the page asking them to do its job.
+function hopToServer() {
+  if (/[?&]nohop=1/.test(location.search)) return Promise.resolve(false);
+  var here = location.pathname.split("/").pop();
+  if (!here) return Promise.resolve(false);
+  return saveBaseReady().then(function (base) {
+    if (base === null) return false;          // nothing is serving: stay put
+    if (base === "") return false;            // already on the review server
+    // Only hop onto the instance that serves THIS folder. Another instance can
+    // still take the save, but it has never heard of this file and would answer
+    // the hop with a 404.
+    if (!samePath(SAVE_BASE_ROOT, SAVE_DIR)) return false;
+    location.replace(base + "/" + here + "?nohop=1");
+    return true;
+  });
+}
+
+// Shown only when the hop found nothing to hop to.
+function showSaveBanner() {
+  if (SAVE_BASE !== null) return;
+  var cmd = "node <delivery-os>/scripts/serve-review.js .jetrix/" + SAVE_FOLDER;
+  var bar = document.createElement("div");
+  bar.setAttribute("style",
+    "position:sticky;top:0;z-index:9999;padding:10px 16px;" +
+    "background:#3a2a12;color:#f3d9a4;border-bottom:1px solid #6b4e1f;" +
+    "font:13px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace");
+  bar.innerHTML =
+    "<b>No review server is running, so Save cannot write to the folder.</b> " +
+    "Start it and reload \u2014 then Save goes straight to disk, no dialog. " +
+    "Without it you get a file dialog instead.<br>" +
+    "<code style=\"display:inline-block;margin-top:6px;padding:4px 8px;" +
+    "background:#000;border-radius:3px\"></code>";
+  bar.querySelector("code").textContent = cmd;
+  document.body.insertBefore(bar, document.body.firstChild);
+}
+
+
+    var md = L.join("\n");
+    var name = "spec-review-" + reviewId + "-responses.md";
+
+    function fallbackDownload(reason) {
+      var blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
+      var url = URL.createObjectURL(blob);
+      var a = el("a", { href: url, download: name });
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(url); }, 1500);
+      if (exportNote) exportNote.textContent = reason + " Move " + name +
+        " into tl-reviews/ and run /dev:review.";
+    }
+
+    if (!answered) {
+      if (exportNote) exportNote.textContent =
+        "Nothing to save yet \u2014 fill in a response and export again.";
+      return;
+    }
+
+    // Save through the server when there is one. Downloading was the only path
+    // here, so every round needed a manual move -- the exact step the server
+    // exists to remove, and the step /dev:review assumes has not happened.
+    saveAnywhere(name, md)
+      .then(function (res) {
+        if (exportNote) exportNote.textContent = res.viaPicker
+          ? "Saved as " + res.path + " (" + answered + " answered) \u2014 wherever you chose. "
+            + "Run /dev:review once it is in tl-reviews/."
+          : "Saved to your workspace \u2014 " + answered + " answered, at " + res.path +
+            ". Run /dev:review to resolve the round.";
+      })
+      .catch(function (e) {
+        if (isCancel(e)) return;            // backed out of the dialog
+        // file:// means there was never a server; anything else means it has
+        // stopped since the page was opened, which is the common case after a
+        // long review and needs a restart, not a hunt through Downloads.
+        fallbackDownload(location.protocol === "file:"
+          ? "This page was opened straight from disk, so there was no server to save through."
+          : "The save server has stopped, so this went to Downloads instead. Nothing is lost.");
+      });
   });
 
   // ---- Questions / actions / footer ----
@@ -551,6 +770,7 @@
   (data.nextActions || []).forEach(function (t) { ac.appendChild(el("li", { text: t })); });
   document.getElementById("footer").textContent =
     "Generated by the Techjays TL Agent · tl-spec-review · " + (data.reviewDate || "");
+  hopToServer().then(function (hopped) { if (!hopped) showSaveBanner(); });
 })();
 </script>
 </body>

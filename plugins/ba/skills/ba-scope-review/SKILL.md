@@ -1,6 +1,6 @@
 ---
 name: ba-scope-review
-description: "Review a BA scope document (and the supporting scope knowledge base) the way a paranoid Business Analyst would before it goes out for estimate or sign-off. Use whenever the user asks to review, critique, audit, score, sanity-check, or 'poke holes in' a scope document, scope of work, requirements scope, or feature scope — especially a Techjays D&D module-centric scope. Classifies every feature/module, then interrogates each one for under-specification (e.g. 'create a login screen' → what auth method? email vs social vs OTP vs SSO? personal vs corporate email? verification? lockout? MFA?), checks in-scope/out-of-scope boundaries and assumptions, validates the scope against the examples the client shared, and scores each feature on coverage depth out of 10 with a scope-readiness verdict. This is a strictly **business-level** review: it judges what the business wants, and deliberately leaves implementation detail — system design, database/schema, field data types, API contracts, auth mechanisms, infrastructure — to the TL technical-spec review, never penalising the scope for omitting it. Produces an interactive single-page HTML dashboard plus a Markdown artifact and JSON sidecar. Trigger even if the user only says 'review the scope' without naming every dimension."
+description: "Review a BA scope document (and the supporting scope knowledge base) the way a paranoid Business Analyst would before it goes out for estimate or sign-off. Use whenever the user asks to review, critique, audit, score, sanity-check, or 'poke holes in' a scope document, scope of work, requirements scope, or feature scope — especially a Techjays D&D module-centric scope. Classifies every feature/module, then interrogates each one for under-specification (e.g. 'create a login screen' → what auth method? email vs social vs OTP vs SSO? personal vs corporate email? verification? lockout? MFA?), checks in-scope/out-of-scope boundaries and assumptions, validates the scope against the examples the client shared, and scores each feature on coverage depth out of 10 with a scope-readiness verdict. This is a strictly **business-level** review: it judges what the business wants, and deliberately leaves implementation detail — system design, database/schema, field data types, API contracts, auth mechanisms, infrastructure — to the TL technical-spec review, never penalising the scope for omitting it. Produces an interactive single-page HTML dashboard plus a Markdown artifact. Trigger even if the user only says 'review the scope' without naming every dimension."
 ---
 
 # BA Scope Review (paranoid scope interrogation)
@@ -9,28 +9,28 @@ You are reviewing a **scope document** the way a seasoned, slightly paranoid Bus
 
 The defining behaviour of this skill is **productive paranoia**. A scope line like *"the system will have a login screen"* is not a feature — it is the *name* of a feature with everything that matters left unsaid. A good review turns that one line into the dozen questions an estimator actually needs: *Which auth methods — email/password, social (Google/Apple/Microsoft), OTP/passwordless, magic link, SSO/SAML? If email, personal addresses or corporate-domain only? Is the address verified? Password policy? MFA? Account lockout after N failures? "Forgot password" flow? Session length and concurrent-session rules? What's stored, and under which compliance regime?* Each of those is a gap that, left unasked, becomes a change request later. **Find them before the estimate, not after.**
 
-A good review is **specific and actionable**. "The login feature is underspecified (3/10)" helps no one; "Auth method is never stated — the scope says 'login screen' but never says email/password vs social vs SSO, so the estimate, the data model, and the security review are all guesses (SQ-004, Blocker)" is a finding the author can act on. Every point you deduct must correspond to a gap; every gap should carry the concrete scope addition that would close it.
+A good review is **specific and actionable**. "The login feature is underspecified (3/10)" helps no one; "Auth method is never stated — the scope says 'login screen' but never says email/password vs social vs SSO, so the estimate, the data model, and the security review are all guesses (CLR-004, Blocker)" is a finding the author can act on. Every point you deduct must correspond to a gap; every gap should carry the concrete scope addition that would close it.
 
 ## Operating contract
 
 This skill produces a **Delivery OS artifact**. Read the **`delivery-os-conventions`** contract first if it isn't already in context (frontmatter standard, stable-ID rules, controlled vocabulary, the RAID-alignment rule). It also tells you what the scope document is *supposed* to contain — you review against the **Techjays D&D Scope Document Template** (module-centric, eleven sub-headings per module, including a **§3.x.3 Master Flow** and a **§3.x.4 Use Cases** layer), which is exactly what `ba-extraction` produces. Read `ba-extraction` if the expected scope structure isn't already in context; you are grading the scope's *coverage* of the nine dimensions **and** whether every branching requirement is expanded into distinct **use cases** — one per materially-different route, each with its own explanation, flow diagram, and worked example (the route-expansion check in `references/review-rubric.md` §A). A routing requirement collapsed into a couple of business-rule rows instead of separate use cases is the classic under-specification this review exists to catch.
 
-Each review is written as a **timestamped set** — `ba/reviews/scope-review-<timestamp>.html` (interactive dashboard), `scope-review-<timestamp>.md` (the Markdown artifact, frontmatter `doc_type: scope-review`, `produced_by: ba`), and `scope-review-<timestamp>.json` (the machine-readable sidecar the resolution loop reads) — so re-running a review never overwrites an earlier one and the folder keeps the full history (see step 8 for the timestamp format).
+Each review is **one timestamped page** — `requirements/<slug>/reviews/scope-review-<timestamp>.html`. Rounds accumulate rather than overwrite, so round 3 never destroys the record of round 1.
 
-If there is no Delivery OS workspace (no `ba/` and no `intake.index.md` nearby), don't block — write the files next to the document being reviewed (e.g. `<doc-dir>/scope-review-<timestamp>.{html,md,json}`) and note in the report that a workspace wasn't found. Keep the standard frontmatter in the Markdown either way; only the file *location* changes.
+If there is no Delivery OS workspace (no `requirements/` and no `sources.md` nearby), don't block — write the page next to the document being reviewed (e.g. `<doc-dir>/scope-review-<timestamp>.{html,md}`) and note in the report that a workspace wasn't found. Keep the standard frontmatter in the Markdown either way; only the file *location* changes.
 
-All three files render from the same structured **review data object** you build during the review, so they never drift, and all carry the run timestamp so repeated reviews never collide.
+The page renders from the structured **review data object** you build during the review, so what the reader sees and what `/ba:resolve` reads can never disagree. It carry the run timestamp so repeated reviews never collide.
 
 ## Workflow
 
 ### 1. Locate and read the scope document
-Take the path/handle from the user (default `ba/scope.md` when a workspace exists and none is given). The scope may be Markdown, `.docx`, or `.pdf` — use the `docx` / `pdf` skills to extract content if needed. Read the **whole** document before scoring; a gap left open in §3.x.2 (Out of scope) is sometimes resolved in §6 (Global out-of-scope), and penalising it would be wrong.
+Take the path/handle from the user (default `requirements/<slug>/scope.md` when a workspace exists and none is given). The scope may be Markdown, `.docx`, or `.pdf` — use the `docx` / `pdf` skills to extract content if needed. Read the **whole** document before scoring; a gap left open in §3.x.2 (Out of scope) is sometimes resolved in §6 (Global out-of-scope), and penalising it would be wrong.
 
 ### 2. Load the scope knowledge base
 The scope rarely stands alone. When a Delivery OS workspace is present, also read the supporting registers and shared context, because they let you (a) cross-check the scope and (b) validate against what the client actually said:
-- **`ba/registers/examples.md`** — the **examples/scenarios the client shared** (EX-###). This is your compliance oracle: every feature's scope must be consistent with these examples. An example that the scope can't satisfy is a contradiction, not a nicety.
-- `ba/registers/requirements.md`, `ba/registers/workflows.md`, `ba/registers/business-rules.md`, `ba/registers/data.md`, `ba/registers/integrations.md` — the flat working memory behind §3; use them to detect requirements that exist in a register but never made it into the scope (or vice-versa).
-- `ba/logs/clarifications.md` and `ba/logs/contradictions.md` — open questions and conflicts already known; don't re-raise what's logged, but **do** check whether the scope silently resolved a logged contradiction without recording the decision.
+- **`requirements/<slug>/registers/examples.md`** — the **examples/scenarios the client shared** (EX-###). This is your compliance oracle: every feature's scope must be consistent with these examples. An example that the scope can't satisfy is a contradiction, not a nicety.
+- `requirements/<slug>/registers/requirements.md`, `requirements/<slug>/registers/workflows.md`, `requirements/<slug>/registers/business-rules.md`, `shared-context/data.md`, `shared-context/integrations.md` — the flat working memory behind §3; use them to detect requirements that exist in a register but never made it into the scope (or vice-versa).
+- `requirements/<slug>/ledger.md` (kind: question) and `requirements/<slug>/ledger.md` (kind: contradiction) — open questions and conflicts already known; don't re-raise what's logged, but **do** check whether the scope silently resolved a logged contradiction without recording the decision.
 - `shared-context/glossary.md`, `stakeholder-map.md`, `system-landscape.md`, `decision-log.md` — for terminology, actors, systems, and confirmed decisions.
 
 Record which registers you actually consulted (and how many examples you checked) — it goes in the report's knowledge-base panel so the reader knows the review's evidentiary base. If a register is absent, note it; a scope with **no example-register at all** is itself a finding (you can't validate it against client reality).
@@ -86,7 +86,17 @@ A question that the scope already answers is not a gap — it is a reading error
 
 Take each candidate question and do two things.
 
-**Search for the answer, then record where you looked.** The scope is not read top-to-bottom by the author; an obligation opened in one module is often closed in a global section. Before a question ships, re-scan the places its answer would live — the feature's own §3.x sub-headings, the global §6 out-of-scope, the assumptions and business-rule registers, and the example register. Record those locations in the question's `checkedIn` field.
+**Search for the answer, then record where you looked.** The scope is not read top-to-bottom by the author; an obligation opened in one module is often closed in a global section. Before a question ships, re-scan the places its answer would live — the feature's own §3.x sub-headings, the global §6 out-of-scope, the ledger, and the example register. Record those locations in the question's `checkedIn` field.
+
+**Search the code too, where there is any — and nothing changes where there is not.** No `.jetrix/code-map-registry.md`, or no repos mapped, and this paragraph does not apply: screen against the scope and the registers as before. Where it does name mapped repos, use the `tl-read-code-context` skill before a question ships. **A question the running system already answers must not be asked** — asking a client which authentication method they want, about a product that has had SSO for two years, costs more credibility than the answer is worth, and it is the single largest source of the irrelevant questions this review has been criticised for.
+
+Three outcomes, and they are not the same:
+
+- **The code answers it** → drop the question. Record the unit id in `checkedIn` (`EP-AUTH-01`), and correct the coverage cell that produced it.
+- **The code answers it differently from the scope** → this is not a question, it is a `CON` row. Both statements, both sources, no preference between them.
+- **The code is silent, or the area is unmapped** → keep the question and say which in `checkedIn`. "Not in the graph" and "the graph does not reach here" are different, and only the second is a reason to run `/tl:code-map`.
+
+**As-built is not agreed.** A unit marked `(as-built)` describes what the code does, which is evidence of the current state and **not** evidence that anyone wants it to continue. Where a requirement would change it, the question stands.
 - **Answer found** → drop the question, and mark the dimension it came from `Covered` (or `Partial` if the answer is incomplete). The coverage map is what the score is computed from, so this correction has to land there, not just in the question list.
 - **Answer genuinely absent** → keep it, with `checkedIn` naming the sections you searched.
 
@@ -153,35 +163,53 @@ A scope can be complete and still be built on answers the client hasn't seen. Th
 Don't grade-inflate to be agreeable and don't crater every feature to look thorough — a calibrated 6 is more useful than a reflexive 3. That discipline now applies to the **coverage calls**: marking a dimension `Covered` because the topic is mentioned inflates the score just as surely as picking a generous number used to, and marking one `Absent` when the scope addresses it partially craters it. If a feature is genuinely well-scoped, the map will say so.
 
 ### 8. Build the review data object, then render (timestamped — never overwrite)
-**Fold in the three registers before you build the object.** The report has four tabs and three of them render from files this review does not otherwise touch — read each if it exists and map it into the matching array (`report-template.md` §1 has the shapes):
+**Fold the ledger in before you build the object.** The report is five tabs and four of them render from
+`requirements/<slug>/ledger.md`, which this review does not otherwise touch. Read it, filter on `kind`, and map
+each group into its array (`report-template.md` §1 has the shapes):
 
-| Source file | Array | Tab |
+**Every gap this review finds is appended to the ledger as a new `CLR-###` row before the object is built.**
+It does not get an id of its own. By the time you build the arrays the ledger already holds this run's
+questions alongside the earlier ones, and there is exactly one id per question in the system.
+
+| Ledger rows | Array | Tab |
 |---|---|---|
-| `ba/client-questions.md` | `clientQuestions` | Client questions |
-| `ba/logs/clarifications.md` | `clarifications` | Clarifications |
-| `ba/logs/contradictions.md` | `contradictions` | Contradictions |
+| `kind: question`, `Status: Open` | `questions` | **Open questions** — the answering surface, with a box per row |
+| the same open rows, client phrasing | `clientQuestions` | **Client questions** — a *view* for sending out |
+| `kind: question`, **closed** (`Answered` · `Closed` · `Superseded`) | `clarifications` | **Clarifications** — the audit trail |
+| `kind: contradiction` | `contradictions` | **Contradictions** |
+| `kind: assumption` | `assumptions` | **Assumptions** |
 
-A missing or empty file yields `[]` and an honest empty state in the tab — **never a fabricated row**. Where this run *raised* a new clarification or spotted a new contradiction, write it to the log file as well as the array; the register files stay the source of truth and the report stays their view.
+**`clientQuestions` carries the same `CLR-###` as the row it renders** — never a second id. It is the same
+question written for a different reader: `question` in the client's language, `whyItMatters` saying what it
+changes for *them*. Answering it in Open questions answers it, full stop, because it is one row.
 
-Capture the whole review as one structured JSON object — the single source all three outputs render from. Its schema is in `references/report-template.md` (project/knowledge-base panel, overall score + verdict, executive summary, gating questions, strengths, the `features` array with score/band/boundedness/coverage/exampleCompliance/assessment, and the `questions` array — the scope-gap register — with stable `SQ-###` IDs + severity + the suggested scope addition). Give every question a stable `SQ-###` ID (zero-padded, append-only, per the conventions). Build this object first so the renders can't disagree.
+**Clarifications is closed rows only.** It used to be every `CLR`, open and closed, which on a first review
+is the whole open list again — the Client questions tab repeated under another name. Closed-only means the
+three tabs can never show the same row twice.
+
+**`ledger.md` is the source; the report is its view.** A row raised by this run is written to the ledger
+*first* and rendered from it — never only into the array, or the next command sees a question the review
+invented. A missing or empty ledger yields `[]` and an honest empty state. **Never fabricate a row to fill a
+tab.**
+
+Capture the whole review as one structured JSON object — the single source all three outputs render from. Its schema is in `references/report-template.md` (project/knowledge-base panel, overall score + verdict, executive summary, gating questions, strengths, the `features` array with score/band/boundedness/coverage/exampleCompliance/assessment, and the `questions` array — the scope-gap register). **Every question carries the `CLR-###` of its ledger row**, zero-padded and append-only per the conventions — the review mints no id of its own. Build this object first so the renders can't disagree.
 
 Get a **run timestamp** so repeated reviews accumulate. Read the current local time and format it `YYYY-MM-DD-HHMMSS` (no colons — Windows-safe):
 - Bash: `date +%Y-%m-%d-%H%M%S`
 - PowerShell: `Get-Date -Format 'yyyy-MM-dd-HHmmss'`
 
-Set the data object's `reviewId` to this `<timestamp>` (the resolution loop's join key), `round` to `1`, `priorReview` to `null`, and put the human-readable time in `reviewDate`. The report **basename is `scope-review-<timestamp>`**; write three files with it. **Write the JSON sidecar first, then generate the HTML from it — do not hand-assemble the HTML.**
+Set the data object's `reviewId` to this `<timestamp>` (the resolution loop's join key), `round` to `1`, `priorReview` to `null`, and put the human-readable time in `reviewDate`. The report **basename is `scope-review-<timestamp>`**; write **two** files with it — `.html` and `.md`. **Write the data object to a scratch file, then generate the HTML from it — do not hand-assemble the HTML.** The scratch file is injection input, not an output: it does not go in `reviews/` and is not kept.
 
-- **JSON sidecar** — `ba/reviews/scope-review-<timestamp>.json`: the exact data object, verbatim (write it with the file-write tool so it is clean UTF-8). This is both the source for the HTML injection and the state `/ba:resolve` reads to carry questions forward.
-- **Interactive HTML** — `ba/reviews/scope-review-<timestamp>.html`: generate it by injecting the sidecar into the bundled template with the bundled script — **do not paste the assembled HTML through a shell or editor**, because the report contains non-ASCII glyphs (§, —, →) that a Windows code page will double-encode into mojibake (`§`→`Â§`, `—`→`â€"`) even though `<meta charset="utf-8">` is present. Run:
+- **The data object** — write it to a scratch path (anywhere outside `reviews/`, e.g. the system temp dir) purely as input to the injector below. **It is not an output.** `inject.js` embeds it verbatim into the page at `<script id="review-data">`, which is where `/ba:resolve` reads it from — so a shipped sidecar would be a second copy of something already inside the file, free to drift from it and to be edited by hand.
+- **Interactive HTML** — `requirements/<slug>/reviews/scope-review-<timestamp>.html`: generate it by injecting the sidecar into the bundled template with the bundled script — **do not paste the assembled HTML through a shell or editor**, because the report contains non-ASCII glyphs (§, —, →) that a Windows code page will double-encode into mojibake (`§`→`Â§`, `—`→`â€"`) even though `<meta charset="utf-8">` is present. Run:
 
   ```
-  node assets/inject.js assets/report.html ba/reviews/scope-review-<timestamp>.json __REVIEW_DATA__ ba/reviews/scope-review-<timestamp>.html
+  node assets/inject.js assets/report.html <scratch>/review-data.json __REVIEW_DATA__ requirements/<slug>/reviews/scope-review-<timestamp>.html
   ```
 
   `inject.js` reads and writes UTF-8 deterministically, validates the JSON, and aborts if it detects mojibake — so encoding can't silently corrupt the report. It replaces the single token `__REVIEW_DATA__` (inside the `<script id="review-data">` block) and changes **nothing else** — the feature scorecard, per-feature coverage matrix, example-compliance badges, severity filtering, question↔feature links, and the per-question response boxes + "Export responses" button are already wired and render client-side from your data. (If Node is unavailable, do the same replacement but ensure the output is saved as **UTF-8, no BOM**, then confirm the file contains `§`/`—` and not `Â§`/`â€"` before moving on.)
-- **Markdown artifact** — `ba/reviews/scope-review-<timestamp>.md`: assemble from `references/report-template.md` (frontmatter, executive summary, feature scorecard, per-feature detail with coverage + example-compliance, the severity-sorted scope-gap register, next actions).
-
-The `out=` argument overrides the **prefix/location** (e.g. `out=reports/acme` → `reports/acme-<timestamp>.{html,md,json}`); the timestamp is always appended so conflicts are impossible. Default prefix is `ba/reviews/scope-review`, or `<doc-dir>/scope-review` beside the reviewed doc when there's no workspace.
+- **No Markdown artifact.** It duplicated the page for a reader who has the page, and two renders of one data object are two things to keep in step. Where someone needs the review as text — to paste into a mail or a ticket — the page's own **Export as .doc** does it per tab, from the live data.
+The `out=` argument overrides the **prefix/location** (e.g. `out=reports/acme` → `reports/acme-<timestamp>.html`); the timestamp is always appended so conflicts are impossible. Default prefix is `requirements/<slug>/reviews/scope-review`, or `<doc-dir>/scope-review` beside the reviewed doc when there's no workspace.
 
 ### 9. Summarise in chat
 Give the user the headline: overall score, scope-readiness verdict, the feature scorecard, and the top 3–5 gating questions (Blockers first) with the scope addition each needs. Link to the files and point out that `scope-review-<timestamp>.html` is the interactive dashboard to open in a browser — and that they can **respond to each question inside it and click "Export responses"** to drive the resolution loop. Keep it tight — the detail lives in the files.
@@ -190,7 +218,7 @@ Give the user the headline: overall score, scope-readiness verdict, the feature 
 
 A review raises scope questions; the loop **closes** them. The author answers each question, the agent adjudicates each answer (resolve / accept-as-assumption / ask for verification / decline), and closed items are documented — so the scope converges from "here are the unknowns" to "here's what was decided." The full method (lifecycle states, adjudication rules, re-scoring, and the **promotion of answers into the scope and the RAID/clarification registers**) is in `references/resolution-loop.md` — read it before running a resolve round.
 
-In brief: the author opens the HTML report, types a response per question, and clicks **Export responses** → the page downloads `scope-review-<reviewId>-responses.md`. They save it (in `ba/reviews/`) and run `/ba:resolve <that-file>`. You then load the matching `scope-review-<reviewId>.json`, adjudicate each answered question (`Resolved` / `Accepted-assumption` / `Needs-verification` / `Won't-fix` / still `Open`) with a one-line rationale, give the exact scope edit so the answer lands in `scope.md`, recompute feature scores and the verdict (a resolved Blocker lifts the cap), promote terminal items into the BA registers (a confirmed answer → `decision-log.md` DEC-### and the relevant scope §3.x; an accepted assumption → `ba/registers/assumptions.md` ASM-### / RAID A-##; a still-open must-close → `ba/logs/clarifications.md` CLR-### / RAID Q-##), and write a new timestamped round.
+In brief: the author opens the HTML report, types a response per question, and clicks **Export responses** → the page downloads `scope-review-<reviewId>-responses.md`. They save it (in `requirements/<slug>/reviews/`) and run `/ba:resolve <that-file>`. You then read the prior round from the matching report’s `<script id="review-data">` block, adjudicate each answered question (`Resolved` / `Accepted-assumption` / `Needs-verification` / `Won't-fix` / still `Open`) with a one-line rationale, give the exact scope edit so the answer lands in `scope.md`, recompute feature scores and the verdict (a resolved Blocker lifts the cap), promote terminal items into the BA registers (a confirmed answer → `decision-log.md` DEC-### and the relevant scope §3.x; an accepted assumption → `requirements/<slug>/ledger.md` (kind: assumption) ASM-### / RAID A-##; a still-open must-close → `requirements/<slug>/ledger.md` (kind: question) CLR-### / RAID Q-##), and write a new timestamped round.
 
 ## Principles
 

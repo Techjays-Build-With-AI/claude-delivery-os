@@ -1,26 +1,26 @@
-## Stage 5 — Final acceptance-map verification (commit-time)
+## Stage 5 — Final `## Acceptance` table verification (commit-time)
 
-**Purpose.** Re-verify every row in `dev/acceptance-map.md` is still green. `/dev:build` built the map; between build and commit the developer may have hand-edited code (typo fix, refactor, additional cleanup) that could have broken tests. Never push a branch on stale test evidence.
+**Purpose.** Re-verify every row in `units/<repo>/status.md § ## Acceptance` is still green. `/dev:build` built the map; between build and commit the developer may have hand-edited code (typo fix, refactor, additional cleanup) that could have broken tests. Never push a branch on stale test evidence.
 
 Also: if this task is the LAST sub-task to land under the parent (all sibling sub-tasks are DONE in MC), run any `⏸ deferred-to-e2e` rows now.
 
-**Runs after Stage 4 (code review passed).** State: `REVIEW` (unchanged); MC: `devReview` (unchanged). On any regression, fix loop kicks in.
+**Runs after Stage 4 (code review passed).** State: `devReview` (unchanged); MC: `devReview` (unchanged). On any regression, fix loop kicks in.
 
-**On completion:** every row in `acceptance-map.md` is `✅ pass` OR `⏸ deferred-to-e2e` (with clear reason) — or, where the build handed over as `PARTIAL_HARNESS`, a carried `flaky` / `harness-config` row per §5b.i.
+**On completion:** every row in `status.md` § `## Acceptance` is `✅ pass` OR `⏸ deferred-to-e2e` (with clear reason) — or, where the build handed over as `PARTIAL_HARNESS`, a carried `flaky` / `harness-config` row per §5b.i.
 
 ---
 
 ### 5a. Preconditions
 
 - Stages 3+4 done, zero commit-time-blocking findings
-- `dev/acceptance-map.md` exists (from `/dev:build` Stage 8)
+- `units/<repo>/status.md § ## Acceptance` exists (from `/dev:build` Stage 8)
 - Test runner env is set up locally the same way `/dev:build` ran it
 
 ---
 
 ### 5b. Re-verification loop
 
-For every row in `acceptance-map.md`:
+For every row in `status.md` § `## Acceptance`:
 
 1. Read the `Verified by` column — the exact test spec + test id (e.g. `test/supplier/service.spec.ts::create rejects duplicate`)
 2. Execute ONLY that test (framework-native filter: `pnpm test -t "create rejects duplicate"`, `pytest -k`, `go test -run`, `dotnet test --filter`, etc.)
@@ -68,7 +68,7 @@ For each row in the map with `⏸ deferred-to-e2e`:
 
 ### 5d. Rebuild the map
 
-Rewrite `dev/acceptance-map.md` with the new column:
+Rewrite `units/<repo>/status.md § ## Acceptance` with the new column:
 
 ```markdown
 | ID | Source | Description | Verified by | Build-time | Commit-time |
@@ -88,13 +88,13 @@ Preserve the build-time column. Add the commit-time column. Never delete or over
 
 **Every row `✅ pass` or acceptably `⏸ deferred-to-e2e`** → mark Stage 5 done. Advance to Stage 7 (semantic merge).
 
-**One or more `⚠ regression` or `❌ fail`** → invoke the fix loop per `stage-6-fix-loop.md` §6a.i (v2.3.27). The fix loop is **MANDATORY and VERIFIABLE** — this stage MUST invoke `dev-stack-adaptive-implementation` in fix-mode via the Skill / Agent tool and record a `stage-5.fix_loop_invocation:` block in `commit-run.md` (fields per §6a.i). Applying the fix inline without recording the invocation trace is a spec violation and Stage 8 §8a will refuse to push. After fix loop, Stages 3+4+5 all re-run from the top.
+**One or more `⚠ regression` or `❌ fail`** → invoke the fix loop per `stage-6-fix-loop.md` §6a.i (v2.3.27). The fix loop is **MANDATORY and VERIFIABLE** — this stage MUST invoke `dev-stack-adaptive-implementation` in fix-mode via the Skill / Agent tool and record a `stage-5.fix_loop_invocation:` block in `status.md` § `## Run history` (fields per §6a.i). Applying the fix inline without recording the invocation trace is a spec violation and Stage 8 §8a will refuse to push. After fix loop, Stages 3+4+5 all re-run from the top.
 
 ---
 
 ### 5f. Progress log
 
-Append to `dev/commit-run.md`:
+Append to `units/<repo>/status.md § ## Run history`:
 
 ```yaml
 stage-5:
@@ -108,7 +108,7 @@ stage-5:
   rows_fixed_in_loop: 1
   e2e_run_this_task: false
   parent_last_subtask: false
-  acceptance_map: dev/acceptance-map.md
+  acceptance_map: units/<repo>/status.md § ## Acceptance
 ```
 
 ---
@@ -116,7 +116,7 @@ stage-5:
 ### 5g. Skills / agents invoked
 
 - No skill invocation — inline test-execution logic (same runners as `/dev:build` Stage 7)
-- Reuses stack-detection from `dev/implementation-log.md` for the correct test-runner command
+- Reuses stack-detection from `units/<repo>/status.md § ## Run history` for the correct test-runner command
 
 ---
 

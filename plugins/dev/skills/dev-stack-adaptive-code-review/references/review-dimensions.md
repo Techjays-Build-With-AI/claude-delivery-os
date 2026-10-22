@@ -2,7 +2,7 @@
 
 **Purpose.** Enumerate the review lens. For each dimension, the reviewer knows what to look for + what patterns to match against + what severity to emit.
 
-Each dimension applies to every diff regardless of stack. Framework-specific SIGNALS live in `stack-signals.md`. Numeric limits (complexity, function length, nesting depth, duplication) come from `shared-context/coding-standards.md` — Dimension 8 fires when the diff exceeds the declared limit.
+Each dimension applies to every diff regardless of stack. Framework-specific SIGNALS live in `stack-signals.md`. Numeric limits (complexity, function length, nesting depth, duplication) come from `shared-context/coding-standards.md` § `<repo>` — Dimension 8 fires when the diff exceeds the declared limit.
 
 ---
 
@@ -163,9 +163,9 @@ Each dimension applies to every diff regardless of stack. Framework-specific SIG
 
 ## Dimension 8 — Clean code & anti-patterns
 
-**Question.** Does the new code meet the engineering-standard limits declared in `shared-context/coding-standards.md` — complexity, length, nesting, duplication, recursion policy, magic values, boolean-flag arity, forbidden anti-patterns?
+**Question.** Does the new code meet the engineering-standard limits declared in `shared-context/coding-standards.md` § `<repo>` — complexity, length, nesting, duplication, recursion policy, magic values, boolean-flag arity, forbidden anti-patterns?
 
-**Read `shared-context/coding-standards.md` first.** Its §6 (function complexity budget), §7 (duplication policy), §8 (recursion policy), §9 (constants & magic values), §12 (anti-patterns forbidden) declare the NUMERIC and CATEGORICAL limits. Dimension 8 checks the diff against those limits. If `coding-standards.md` is missing or a section is blank, escalate that as a Blocker on `dev/escalation-<n>.md` — the review cannot fire without the contract to check against, and the fix goes upstream to whoever authors standards.
+**Read `shared-context/coding-standards.md` § `<repo>` first.** Its §6 (function complexity budget), §7 (duplication policy), §8 (recursion policy), §9 (constants & magic values), §12 (anti-patterns forbidden) declare the NUMERIC and CATEGORICAL limits. Dimension 8 checks the diff against those limits. If `coding-standards.md` is missing or a section is blank, escalate that as a Blocker on `units/<repo>/status.md § ## Run history (a BLOCKED entry)` — the review cannot fire without the contract to check against, and the fix goes upstream to whoever authors standards.
 
 **Signals.**
 
@@ -229,7 +229,7 @@ For each changed file:
 4. After all hunks in the file are reviewed, deduplicate: multiple hunks with the same underlying issue → one finding
 5. Move to next file
 
-For each finding written to `dev/code-review-findings.md` OR emitted via `ReportFindings`:
+For each finding written to `units/<repo>/findings.md § ## Code review` OR emitted via `ReportFindings`:
 
 ```yaml
 - severity: Major
@@ -259,6 +259,6 @@ For each finding written to `dev/code-review-findings.md` OR emitted via `Report
 
 - Reviewing style (lint / format catches these)
 - Reviewing security (`security-review` skill's job in `/dev:commit` Stage 3)
-- Reviewing test coverage numbers (Stage 8 acceptance-map covers correctness; QA gates cover the numbers)
+- Reviewing test coverage numbers (Stage 8 `## Acceptance` table covers correctness; QA gates cover the numbers)
 - Reviewing performance micro-optimizations (only NFR-declared perf targets are checked)
 - Speculating about "future maintenance burden" without concrete evidence

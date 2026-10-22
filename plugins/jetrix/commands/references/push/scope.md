@@ -5,8 +5,8 @@
 ```
 Scope documents stay local on <provider>.
 
-  .jetrix/ba/scope.md
-  .jetrix/ba/scope.html          npx serve .jetrix/ba
+  .jetrix/requirements/<slug>/scope.md
+  .jetrix/requirements/<slug>/scope.html
 
 Features still push —  /jetrix:push feature
 ```
@@ -27,22 +27,20 @@ cd "$PROJECT_ROOT"
 
 # Every scope-stage file the plugin will consider.
 CANDIDATES=(
-  ba/scope.md
-  ba/registers/data.md
-  ba/registers/workflows.md
-  ba/registers/business-rules.md
-  ba/registers/use-cases.md
-  ba/registers/integrations.md
-  ba/registers/examples.md
-  ba/registers/assumptions.md
-  ba/registers/requirements.md
-  ba/logs/clarifications.md
-  shared-context/project-profile.md
+  requirements/<slug>/scope.md
+  shared-context/data.md
+  requirements/<slug>/registers/workflows.md
+  requirements/<slug>/registers/business-rules.md
+  requirements/<slug>/registers/use-cases.md
+  shared-context/integrations.md
+  requirements/<slug>/registers/examples.md
+  requirements/<slug>/ledger.md` (kind: assumption)
+  requirements/<slug>/registers/requirements.md
+  requirements/<slug>/ledger.md` (kind: question)
   shared-context/glossary.md
   shared-context/stakeholder-map.md
   shared-context/system-landscape.md
   shared-context/decision-log.md
-  features/feature-index.md
 )
 
 for f in "${CANDIDATES[@]}"; do
@@ -58,9 +56,9 @@ Parse the output into a list of `{ path, size_kb, content_hash }` entries. If `<
 
 Skip:
 - Per-feature folders under `features/<slug>/` — they become MC Tasks via `/jetrix:push tasks`, not scope docs.
-- `artifacts/`, `intake-runs/` — local-only (Tier 3).
+- `artifacts/` — local-only (Tier 3).
 
-Missing paths are already skipped by the `[[ -f "$f" ]]` guard — no error if `features/feature-index.md` doesn't exist yet.
+Missing paths are already skipped by the `[[ -f "$f" ]]` guard — no error if the breakdown table in the run summary doesn't exist yet.
 
 **Do not `Read` any of these files anywhere in this command. The bytes exist only on disk; the plugin only ever holds their metadata (path, size_kb, content_hash).**
 
@@ -68,29 +66,27 @@ Missing paths are already skipped by the `[[ -f "$f" ]]` guard — no error if `
 
 **Tag scheme — two levels only:**
 
-- **`["scope"]`** → the primary scope document. Applied to `ba/scope.md` ONLY. This is the tag Mission Control's Documents UI filters by to surface the user-facing scope doc.
-- **`["scope-context"]`** → every other scope-stage file. Registers, shared-context/, feature-index. Uploaded so agents and `/jetrix:pull scope` can retrieve them, but **not surfaced in the Documents UI** — they're background context material, not primary deliverables.
+- **`["scope"]`** → the primary scope document. Applied to `requirements/<slug>/scope.md` ONLY. This is the tag Mission Control's Documents UI filters by to surface the user-facing scope doc.
+- **`["scope-context"]`** → every other scope-stage file. Registers and shared-context/. Uploaded so agents and `/jetrix:pull scope` can retrieve them, but **not surfaced in the Documents UI** — they're background context material, not primary deliverables.
 
 Per-file mapping:
 
 | Local path | Tags to send |
 |---|---|
-| `ba/scope.md` | `["scope"]` |
-| `ba/registers/data.md` | `["scope-context"]` |
-| `ba/registers/workflows.md` | `["scope-context"]` |
-| `ba/registers/business-rules.md` | `["scope-context"]` |
-| `ba/registers/use-cases.md` | `["scope-context"]` |
-| `ba/registers/integrations.md` | `["scope-context"]` |
-| `ba/registers/examples.md` | `["scope-context"]` |
-| `ba/registers/assumptions.md` | `["scope-context"]` |
-| `ba/registers/requirements.md` | `["scope-context"]` |
-| `ba/logs/clarifications.md` | `["scope-context"]` |
-| `shared-context/project-profile.md` | `["scope-context"]` |
+| `requirements/<slug>/scope.md` | `["scope"]` |
+| `shared-context/data.md` | `["scope-context"]` |
+| `requirements/<slug>/registers/workflows.md` | `["scope-context"]` |
+| `requirements/<slug>/registers/business-rules.md` | `["scope-context"]` |
+| `requirements/<slug>/registers/use-cases.md` | `["scope-context"]` |
+| `shared-context/integrations.md` | `["scope-context"]` |
+| `requirements/<slug>/registers/examples.md` | `["scope-context"]` |
+| `requirements/<slug>/ledger.md` (kind: assumption) | `["scope-context"]` |
+| `requirements/<slug>/registers/requirements.md` | `["scope-context"]` |
+| `requirements/<slug>/ledger.md` (kind: question) | `["scope-context"]` |
 | `shared-context/glossary.md` | `["scope-context"]` |
 | `shared-context/stakeholder-map.md` | `["scope-context"]` |
 | `shared-context/system-landscape.md` | `["scope-context"]` |
 | `shared-context/decision-log.md` | `["scope-context"]` |
-| `features/feature-index.md` | `["scope-context"]` |
 
 scope-mcp does **not** auto-add any identity tag — the plugin owns the tag semantics. Every future stage (task-mcp, deliverable-mcp) mirrors this two-level pattern with its own primary/support pair (`tasks`/`tasks-support`, etc.).
 
@@ -100,13 +96,13 @@ scope-mcp does **not** auto-add any identity tag — the plugin owns the tag sem
 > 2. **Merge** your new/updated keys into that object (do NOT drop any existing keys).
 > 3. **Write** the merged object back to the same path.
 >
-> Never write a file that only contains keys you just produced. Every stage's keys coexist in the same file — scope keys look like `ba/scope.md`, feature keys look like `tasks/FEAT-...`, context keys look like `<repo>/context/code-context/frontend/frontend-index.md`, etc. If you overwrite this file with only your stage's keys, other stages' entries are lost — the next push of those stages will look like a fresh upload and create duplicate FileMeta rows in Jetrix.
+> Never write a file that only contains keys you just produced. Every stage's keys coexist in the same file — scope keys look like `requirements/<slug>/scope.md`, feature keys look like `tasks/FEAT-...`, context keys look like `<repo>/context/code-context/frontend/frontend-index.md`, etc. If you overwrite this file with only your stage's keys, other stages' entries are lost — the next push of those stages will look like a fresh upload and create duplicate FileMeta rows in Jetrix.
 
 `sync-state.json` is a tiny JSON file (metadata only, never bytes) — safe to read with the `Read` tool since its size is bounded by the number of scope files. Read `<workspace_root>/.jetrix/cache/sync-state.json` (create empty `{}` if missing). Each entry looks like:
 
 ```json
 {
-  "ba/scope.md": {
+  "requirements/<slug>/scope.md": {
     "documentId": "doc_abc123",
     "version": 3,
     "contentHash": "sha256:...",
@@ -129,8 +125,8 @@ For every file that needs push, invoke ONCE:
 mcp__scope-mcp__scope_prepare_push(
   solution_id=<from project.json>,
   docs=[
-    { path: "ba/scope.md",         mime_type: "text/markdown" },
-    { path: "ba/registers/data.md", mime_type: "text/markdown" },
+    { path: "requirements/<slug>/scope.md",         mime_type: "text/markdown" },
+    { path: "shared-context/data.md", mime_type: "text/markdown" },
     ...
   ]
 )
@@ -142,13 +138,13 @@ Response:
   "solution_id": "...",
   "prepared": N,
   "docs": [
-    { "path": "ba/scope.md", "signed_upload_url": "https://...", "gcs_path": "gs://.../project-context/<sol>/scope/<ts>-ba__scope.md", "mime_type": "text/markdown", "ok": true },
+    { "path": "requirements/<slug>/scope.md", "signed_upload_url": "https://...", "gcs_path": "gs://.../project-context/<sol>/scope/<ts>-ba__scope.md", "mime_type": "text/markdown", "ok": true },
     ...
   ]
 }
 ```
 
-**Path contract:** `path` you send in and receive back is always the *relative local path inside the delivery-os container* (e.g. `ba/scope.md`). scope-mcp stores it verbatim on `FileMeta.originalName`, and pull replays it back so a puller can reconstruct the exact folder tree via `mkdir -p $(dirname path)`. The `gcs_path` is a flattened storage detail (`project-context/<sol>/scope/<ts>-<flattened>`); only the upload script in step 5 needs it.
+**Path contract:** `path` you send in and receive back is always the *relative local path inside the delivery-os container* (e.g. `requirements/<slug>/scope.md`). scope-mcp stores it verbatim on `FileMeta.originalName`, and pull replays it back so a puller can reconstruct the exact folder tree via `mkdir -p $(dirname path)`. The `gcs_path` is a flattened storage detail (`project-context/<sol>/scope/<ts>-<flattened>`); only the upload script in step 5 needs it.
 
 Skip any doc whose `ok:false` from this response and record the error to report later.
 
@@ -166,11 +162,11 @@ LOG=$(mktemp)
 # --upload-file selects PUT-via-file (same as `-T` on the command line).
 cat > "$CFG" <<'CURLCFG'
 url = "<signed_upload_url_1>"
-upload-file = "<project_root_absolute>/ba/scope.md"
+upload-file = "<project_root_absolute>/requirements/<slug>/scope.md"
 header = "Content-Type: text/markdown"
 
 url = "<signed_upload_url_2>"
-upload-file = "<project_root_absolute>/ba/registers/data.md"
+upload-file = "<project_root_absolute>/shared-context/data.md"
 header = "Content-Type: text/markdown"
 
 # ...one block per prepared doc
@@ -202,7 +198,7 @@ mcp__scope-mcp__scope_finalize_push(
   solution_id=<from project.json>,
   docs=[
     {
-      path: "ba/scope.md",
+      path: "requirements/<slug>/scope.md",
       gcs_path: "<from prepare response>",
       size_kb: 81,
       mime_type: "text/markdown",
@@ -222,7 +218,7 @@ Response:
   "solution_id": "...",
   "finalized": N,
   "docs": [
-    { "path": "ba/scope.md", "documentId": "doc_abc123", "version": 3, "ok": true },
+    { "path": "requirements/<slug>/scope.md", "documentId": "doc_abc123", "version": 3, "ok": true },
     ...
   ]
 }
@@ -234,7 +230,7 @@ Response:
 
 ```json
 {
-  "ba/scope.md": {
+  "requirements/<slug>/scope.md": {
     "documentId": "<from finalize response>",
     "version": <from finalize response>,
     "contentHash": "<sha256 computed in step 2>",
@@ -250,11 +246,10 @@ Do NOT update sync-state for docs that failed in either Phase 2 or Phase 3 — n
 ```
 ✓ Pushed 12 scope-stage docs (Solution: LarkIQ).
 
-  ba/scope.md                       → doc_abc123 (v3, uploaded)
-  ba/registers/data.md               → doc_def456 (v1, first push)
-  ba/registers/workflows.md           → skipped (unchanged)
+  requirements/<slug>/scope.md                       → doc_abc123 (v3, uploaded)
+  shared-context/data.md               → doc_def456 (v1, first push)
+  requirements/<slug>/registers/workflows.md           → skipped (unchanged)
   shared-context/glossary.md               → doc_ghi789 (v2, uploaded)
-  features/feature-index.md        → doc_jkl012 (v1, first push)
   ...
 
 Uploaded:  8    Skipped (unchanged):  4    Failed:  0

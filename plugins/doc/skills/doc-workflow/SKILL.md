@@ -32,14 +32,14 @@ This skill is part of the Techjays **Documentation Agent**. It produces one
 
 - **Read `delivery-os-conventions`** if a Delivery OS workspace is present (not required) — including **§8**, which makes the scope's **Mermaid flows the living source** for this branded SVG swimlane. Your job here is to *render* those flows into the Techjays swimlane, not to invent a new flow; the swimlane is the client-facing **projection** of the same journey.
 - **Source content from the workspace when it exists.** Draft the phases, actors,
-  swimlane steps, and the before/after value panels from `ba/scope.md`
+  swimlane steps, and the before/after value panels from `requirements/<slug>/scope.md`
   (the module Current→Future state, business rules, exceptions), and in particular
   its **§3.x.3 Master Flow** and **§3.x.4 Use Cases** — the Mermaid `flowchart`
   blocks are the authoritative node/branch structure: the **master flow** maps to a
   phase's decision skeleton (each labelled branch is a route to a use case), and
   each **use case's own flow** provides that route's steps, its decision/exit nodes,
   and the worked example behind a node's tooltip. Also use
-  `ba/registers/workflows.md` (WF steps, actors, systems, exceptions) and
+  `requirements/<slug>/registers/workflows.md` (WF steps, actors, systems, exceptions) and
   `shared-context/` (stakeholders, system landscape). Preserve the Mermaid branch
   **labels and decision points** faithfully (a `{…}` diamond becomes a Decision
   node; each labelled edge becomes an arrow with that condition) so the SVG and the
@@ -71,7 +71,7 @@ Ask (or infer from context) these items before writing any HTML:
 7. **KPI metrics** - 3-6 headline numbers with labels and sub-labels
 8. **Systems retained / retired** - names and brief descriptions
 
-If the user provides a BRD, process document, or existing content, extract all of the above from it. **When a Delivery OS workspace exists, prefer sourcing from `ba/scope.md`, `ba/registers/workflows.md`, and `shared-context/`** — map each scope module or workflow to a phase, its actors to swimlane columns, its Current→Future state to the value panel (current pain → AI solution), and its stated numbers to KPIs and hours-saved. For a module whose scope has a **§3.x.3 master flow and §3.x.4 use cases**, drive the swimlane straight off the Mermaid: the master-flow branch point becomes the phase's Decision node, and each use case becomes the branch it leads to (with that use case's own flow supplying the downstream nodes). Never invent metrics; mark unknowns `[[NEEDS: …]]`.
+If the user provides a BRD, process document, or existing content, extract all of the above from it. **When a Delivery OS workspace exists, prefer sourcing from `requirements/<slug>/scope.md`, `requirements/<slug>/registers/workflows.md`, and `shared-context/`** — map each scope module or workflow to a phase, its actors to swimlane columns, its Current→Future state to the value panel (current pain → AI solution), and its stated numbers to KPIs and hours-saved. For a module whose scope has a **§3.x.3 master flow and §3.x.4 use cases**, drive the swimlane straight off the Mermaid: the master-flow branch point becomes the phase's Decision node, and each use case becomes the branch it leads to (with that use case's own flow supplying the downstream nodes). Never invent metrics; mark unknowns `[[NEEDS: …]]`.
 
 ---
 

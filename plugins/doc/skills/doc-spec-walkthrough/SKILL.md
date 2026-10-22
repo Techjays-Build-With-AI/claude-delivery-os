@@ -59,7 +59,7 @@ an email attachment with the network unplugged.
   required).
 - **The source is the spec.** Draft every state, module, workflow step, command,
   and example from the supplied document (a `.md`, `.docx`, `.pdf`, or pasted
-  text) or, when a Delivery OS workspace exists, from `ba/scope.md` and
+  text) or, when a Delivery OS workspace exists, from `requirements/<slug>/scope.md` and
   `shared-context/`. Use the spec's real names, IDs, and numbers. **Never
   fabricate.** If the spec states a fact, use it verbatim; if a number or detail
   the page needs is absent, mark it `[[NEEDS: …]]` and list it back to the user.
@@ -115,7 +115,7 @@ down (even as a scratch outline) so the page is faithful:
    captured as `[[NEEDS: …]]`.
 
 If the user passed a document, extract all of the above from it. If a Delivery
-OS workspace exists, prefer `ba/scope.md` (modules, workflows) and
+OS workspace exists, prefer `requirements/<slug>/scope.md` (modules, workflows) and
 `shared-context/`. Ask the user only for what you truly cannot infer (usually
 just: which lifecycle is the spine, or confirmation of the title).
 

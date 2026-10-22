@@ -1,11 +1,11 @@
 ---
-description: Fold human reviewer feedback on an open PR back through the /dev:commit loop — re-run the affected commit stages (Stages 3–5 code fixes + Stage 7 semantic-context-merge if code-context units touched), refresh dev/pr-summary.md, keep local state REVIEW / MC status devReview. Escalates comments requiring product / architecture / security decisions instead of guessing. Never merges or deploys.
-argument-hint: "<Task-N | Feature-N | Subtask-N | slug | features/<slug> | features/<slug>/subtask/<repo> | FEAT-<AREA>-NN> [feedback=<path-to-review-comments> | pr=<link>]"
+description: Fold human reviewer feedback on an open PR back through the /dev:commit loop — re-run the affected commit stages (Stages 3–5 code fixes + Stage 7 semantic-context-merge if code-context units touched), refresh units/<repo>/pr-summary.md, keep local state devReview / MC status devReview. Escalates comments requiring product / architecture / security decisions instead of guessing. Never merges or deploys.
+argument-hint: "<Task-N | Feature-N | Subtask-N | slug | features/<slug> | features/<slug>/units/<repo> | FEAT-<AREA>-NN> [feedback=<path-to-review-comments> | pr=<link>]"
 ---
 
 # /dev:fix-review
 
-You respond to **reviewer feedback** on a task already at local `REVIEW` (MC `devReview`) — the PR is open and the human left comments. You NEVER merge or deploy.
+You respond to **reviewer feedback** on a task already at local `devReview` (MC `devReview`) — the PR is open and the human left comments. You NEVER merge or deploy.
 
 ## 1. Parse arguments
 
@@ -22,18 +22,18 @@ If target present but feedback source missing → ask where the review comments 
 ## 2. Verify state
 
 Read `status.md`:
-- `current_state: REVIEW` — expected
+- `status: devReview` — expected
 - MC status: `devReview` — expected
-- `pr_url:` non-empty in `dev/commit-run.md`
+- `pr_url:` non-empty in `units/<repo>/status.md § ## Run history`
 
-If state is anything other than `REVIEW`, halt with the actual state and route to the appropriate command (`/dev:build` if `PLANNED`; `/dev:commit` if `IN_PROGRESS`).
+Requires `status: devReview` **and** `phase: pr-open`. Anything else → halt with the actual status and route: `/dev:build` on `readyForDev`, `/dev:commit` on `inProgress`, and on `devReview` + `merge-conflict` say there is no PR yet — Stage 7 halts before the push — and route to `/dev:commit --resume`.
 
 ## 3. Categorize each comment
 
 For each comment in the feedback:
 
 - **Actionable code fix** — clear defect, missing test, style deviation from repo conventions, security concern. Route to Stage 6 fix-loop mechanics (see `plugins/dev/commands/references/commit/stage-6-fix-loop.md`) — invoke `dev-stack-adaptive-implementation` in fix-mode, capped at 3 focused attempts per comment.
-- **Product / architecture / security decision needed** — comment asks "should we do X instead" where X is a design change beyond scope. Do NOT guess. Write `dev/escalation-<n>.md` with the comment + decision needed + recommended options + rationale. Local state `REVIEW → BLOCKED`; MC status `devReview → blocked`. Halt for that comment; siblings continue.
+- **Product / architecture / security decision needed** — comment asks "should we do X instead" where X is a design change beyond scope. Do NOT guess. Write `units/<repo>/status.md § ## Run history (a BLOCKED entry)` with the comment + decision needed + recommended options + rationale. Local state `devReview → BLOCKED`; MC status `devReview → blocked`. Halt for that comment; siblings continue.
 - **Clarification** — comment asks a question about the code. Answer inline via `gh pr comment` (if available) OR record the answer in `dev/pr-comment-replies.md` for the developer to post. No code change.
 - **Nit / opinion** — non-blocking suggestion. Note in `dev/pr-comment-replies.md`; can defer to a follow-up PR.
 
@@ -49,9 +49,9 @@ After all actionable code fixes are applied for THIS round:
 
 Bounds: same as `/dev:commit` — 3 focused fix attempts per comment, 2 broad re-runs per stage. Exceed → escalate.
 
-## 5. Refresh `dev/pr-summary.md`
+## 5. Refresh `units/<repo>/pr-summary.md`
 
-Delegate to `dev-pr-handoff` skill (v2.2 slimmed — content compose only). Regenerate `dev/pr-summary.md` with:
+Delegate to `dev-pr-handoff` skill (v2.2 slimmed — content compose only). Regenerate `units/<repo>/pr-summary.md` with:
 
 - Purpose (unchanged)
 - Scope of changes (updated file count, +X/-Y)
@@ -60,11 +60,11 @@ Delegate to `dev-pr-handoff` skill (v2.2 slimmed — content compose only). Rege
 - Updated acceptance table
 - Updated follow-up suggestions (add any Minor from re-runs)
 
-Update the PR body via `gh pr edit <pr-number> --body-file dev/pr-summary.md`.
+Update the PR body via `gh pr edit <pr-number> --body-file units/<repo>/pr-summary.md`.
 
 ## 6. Progress log
 
-Append to `dev/commit-run.md`:
+Append to `units/<repo>/status.md § ## Run history`:
 
 ```yaml
 fix-review-round-<n>:
@@ -107,8 +107,7 @@ Re-run: Stage 3 (security) ✓ · Stage 4 (code review) ✓ · Stage 5 (acceptan
 Pushed: 2 new commits
 PR body: refreshed via gh pr edit
 
-Local state: REVIEW  (unchanged)
-MC status:   devReview  (unchanged)
+Status:        devReview  (unchanged)
 
 Next:
   1. Post the 2 clarification replies from dev/pr-comment-replies.md to the PR
@@ -117,7 +116,7 @@ Next:
 ```
 
 If ANY comment escalated:
-- Local state: `REVIEW → BLOCKED`
+- Status: `devReview → blocked` (phase `escalated`)
 - MC status: `devReview → blocked`
 - Lead the terminal output with the escalation
 

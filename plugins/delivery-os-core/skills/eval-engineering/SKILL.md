@@ -1,6 +1,6 @@
 ---
 name: eval-engineering
-description: The Delivery OS method for building runnable evals (verifiers) for applied-AI / LLM behaviour — the shared contract the TL uses to DESIGN evals during feature planning and the dev agent uses to RUN and inspect them during the delivery loop. Read this before authoring or executing an eval unit. It defines what an eval is here (instruction + environment + verifier), how to decide which tool calls run live vs. simulated, how to write verifiers that resist reward hacking, the EVAL-<AREA>-NN unit schema under context/evals/, and the optional Harbor / LangSmith export for teams on that stack. Adapted from LangChain's eval-engineering method (https://www.langchain.com/blog/towards-automating-eval-engineering). It is gated to AI/LLM features — deterministic features are proven by the normal acceptance-map flow and need no eval.
+description: The Delivery OS method for building runnable evals (verifiers) for applied-AI / LLM behaviour — the shared contract the TL uses to DESIGN evals during feature planning and the dev agent uses to RUN and inspect them during the delivery loop. Read this before authoring or executing an eval unit. It defines what an eval is here (instruction + environment + verifier), how to decide which tool calls run live vs. simulated, how to write verifiers that resist reward hacking, the EVAL-<AREA>-NN unit schema under features/<slug>/evals/, and the optional Harbor / LangSmith export for teams on that stack. Adapted from LangChain's eval-engineering method (https://www.langchain.com/blog/towards-automating-eval-engineering). It is gated to AI/LLM features — deterministic features are proven by the normal `## Acceptance` table flow and need no eval.
 ---
 
 # Eval Engineering (runnable verifiers for AI behaviour)
@@ -47,10 +47,10 @@ Eval engineering is iterative, exactly as the source describes: **build an eval 
 
 ## The EVAL unit — schema and location
 
-Eval units live in the `context/evals/` layer (a sibling of `frontend/backend/database`), authored by the TL and run by dev:
+Eval units live in the `features/<slug>/evals/` layer (a sibling of `frontend/backend/database`), authored by the TL and run by dev:
 
 ```text
-context/evals/
+features/<slug>/evals/
   eval-index.md                       # one row per eval: id, feature, criterion, verifier type, live/sim, status
   <feature-slug>/
     <eval-slug>.md                    # EVAL-<AREA>-NN — one eval unit
@@ -83,7 +83,7 @@ Trace mining is likewise optional: where LangSmith traces are available (`langsm
 ## Roles — who does what
 
 - **TL (`tl-feature-planning`)** — **designs** evals during planning: one per AI-driven acceptance criterion, with the live-vs-simulated calls and reward-hacking risks decided, linked into the graph, logged as `DEC-###`. It designs; it does not run.
-- **Dev (`feature-delivery-loop` → `/dev:build` Stages 6-7)** — **materializes and runs** the evals during the `TESTING` phase (v2.2 = `/dev:build` Stages 6-7), **inspects both sides**, feeds pass/fail into the acceptance map at Stage 8, and iterates failures through the bounded repair loop. It runs; it does not redesign the eval's intent (a genuinely wrong eval is fed back to the TL).
+- **Dev (`feature-delivery-loop` → `/dev:build` Stages 6-7)** — **materializes and runs** the evals during the `agentExecuting` phase (v2.2 = `/dev:build` Stages 6-7), **inspects both sides**, feeds pass/fail into the acceptance map at Stage 8, and iterates failures through the bounded repair loop. It runs; it does not redesign the eval's intent (a genuinely wrong eval is fed back to the TL).
 - **QA (`qa-quality-gates`)** — owns the **harness** the evals run on and may expose an eval-runner gate in `quality-gates.md`. It owns neither the design nor the run.
 
 ## Principles

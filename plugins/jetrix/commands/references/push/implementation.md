@@ -1,13 +1,13 @@
 ## Stage: `implementation` (implemented — uses task-mcp)
 
-TL runs this AFTER `/dev:plan` writes per-feature `tl-plan.md` files (the buildable 9-section technical spec). Each MC Task's `implementationDetails` gets **that one file's body verbatim** — no concatenation, no unit-file walking, no manifest degradation. `/dev:plan` is responsible for producing a self-contained document sized under Mission Control's 60 KB cap; this stage only ships what compose produced. Status flips to `READY_FOR_DEV`. Does NOT touch BA-owned body fields.
+TL runs this AFTER `/dev:plan` writes per-feature `tl-plan.md` files (the buildable 9-section technical spec). Each MC Task's `implementationDetails` gets **that one file's body verbatim** — no concatenation, no unit-file walking, no manifest degradation. `/dev:plan` is responsible for producing a self-contained document sized under Mission Control's 60 KB cap; this stage only ships what compose produced. Status flips to `readyForDev`. Does NOT touch BA-owned body fields.
 
 **On a non-Jetrix tracker** there is no `implementationDetails` field. `tl-plan.md` becomes the issue body's `## Implementation` section: read the current body, replace that one section, write it back with `mapping.update_issue`. Everything above the heading is left byte-for-byte alone.
 
 - **No marker, no edit.** A body without `<!-- delivery-os:v1 … -->` was written by hand in the tracker. Skip it and say so rather than rewriting someone's ticket.
 - **Size.** Mission Control's cap is 60 KB and other trackers are lower. Where a body that size is refused, attach `tl-plan.md` and leave a pointer line under the heading — never a truncated build spec.
 
-The `READY_FOR_DEV` flip goes through `mapping.set_status` and `tracker.status_map`.
+The `readyForDev` flip goes through `mapping.set_status` and `tracker.status_map`.
 
 If a feature folder has no `tl-plan.md`, this stage skips it with a clear message pointing the user at the right recovery command. Two cases:
 
@@ -131,22 +131,22 @@ Final line: `updated: N   skipped: M   failed: K` plus a list of skips/failures 
 
 ### 7. Never fall back to the old concat mode
 
-If a feature has no `tl-plan.md`, this stage **must not** silently reconstruct one by concatenating BA's `implementation-plan.md` + owned units. That path produced the "reads like a business user story" content Dharma flagged. The correct recovery is: tell the user to run `/dev:plan <slug>` (or `/dev:plan --dry-run <slug>` to compose locally without touching MC) and stop for that feature.
+If a feature has no `tl-plan.md`, this stage **must not** silently reconstruct one by concatenating BA's the feature folder + owned units. That path produced the "reads like a business user story" content Dharma flagged. The correct recovery is: tell the user to run `/dev:plan <slug>` (or `/dev:plan --dry-run <slug>` to compose locally without touching MC) and stop for that feature.
 
 ### 8. Sub-task Implementation push (v2.1+)
 
-For features whose `features/<slug>/subtask/<repo>/` exists locally, ALSO push each sub-task's Implementation tab. This runs after the parent's Implementation is pushed and its `tasks/<feature_id>` sync-state entry is up-to-date.
+For features whose `features/<slug>/units/<repo>/` exists locally, ALSO push each sub-task's Implementation tab. This runs after the parent's Implementation is pushed and its `tasks/<feature_id>` sync-state entry is up-to-date.
 
-**Detection.** For each parent whose feature.md has `jetrix_task_object_id` AND `features/<slug>/subtask/<repo>/` folders exist locally, enumerate the sub-tasks. Skip parents with no `subtask/` directory (parent-alone) — no additional work needed.
+**Detection.** For each parent whose feature.md has `jetrix_task_object_id` AND `features/<slug>/units/<repo>/` folders exist locally, enumerate the sub-tasks. Skip parents with no `units/` directory (parent-alone) — no additional work needed.
 
-**Assembly.** Extend the assemble script (or emit a follow-up sub-task-only payload) to walk `subtask/<repo>/implementation.md` per parent. Each sub-task payload:
+**Assembly.** Extend the assemble script (or emit a follow-up sub-task-only payload) to walk `units/<repo>/implementation.md` per parent. Each sub-task payload:
 
 ```json
 {
   "subtasks_by_parent": {
     "supplier-onboarding": [
       {
-        "subtask_object_id":      "6b72...",                          // from subtask/<repo>/description.md frontmatter jetrix_subtask_object_id
+        "subtask_object_id":      "6b72...",                          // from units/<repo>/description.md frontmatter jetrix_subtask_object_id
         "implementation_details": "<implementation.md body, frontmatter stripped>",
         "status":                 "todo",                              // "blocked" if compose flagged HELD
         "_local_impl_hash":       "sha256:..."
@@ -188,7 +188,7 @@ mcp__task-mcp__feature_update_implementation(
 }
 ```
 
-Merge with the entry created by `/jetrix:push feature` §7 (which set `taskNumber`, `taskObjectId`, `parentTaskObjectId`, `subtaskRepo`, `subtaskNumber`, `contentHash`).
+Merge with the entry created by `/jetrix:push feature` §7 (which set `taskNumber`, `taskObjectId`, `parentTaskObjectId`, `unitRepo`, `subtaskNumber`, `contentHash`).
 
 **Skip-only case.** A sub-task whose `implementation.md` is unchanged since last push → `[skip] Subtask-N <slug>/<repo> — unchanged (hash=<sha16>)`. No MCP call for that sub-task.
 

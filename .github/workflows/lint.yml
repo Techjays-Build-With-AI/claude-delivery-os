@@ -1,0 +1,18 @@
+name: lint
+
+# The plugin set states the same rules in several places - a command, a skill,
+# a schema, an agent description. Change one and the others silently keep
+# saying the old thing. This is the check that they still agree.
+on:
+  push:
+  pull_request:
+
+jobs:
+  lint-plugins:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: node scripts/lint-plugins.js

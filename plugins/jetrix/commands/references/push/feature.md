@@ -5,7 +5,7 @@ Creates ONE MC Task per `features/<slug>/` folder. Features are grouped into MC 
 **On a non-Jetrix tracker** the walk, the hash-check, the write-back and the no-prompt rule below are all unchanged. Two things differ, and both are read from `tracker` in `project.json`:
 
 - **One body, not seven tabs.** `capabilities.tabs: 1` → concatenate the BA files under the headings in `delivery-os-conventions` §1.c, marker first, omitting any section whose file is empty.
-- **The call.** `mapping.create_issue` / `mapping.update_issue` on `tracker.mcp` instead of `feature_upsert_bundle` — resolve the schema with `ToolSearch` first. Every issue is created in **`tracker.container_ref`**, the list or epic `/jetrix:init` §5a locked; `project_ref` never receives an issue. There is no per-list grouping to do, so §3a's fallback warning and §4's batching collapse to one issue per feature in that one container.
+- **The call.** `mapping.create_issue` / `mapping.update_issue` on `tracker.mcp` instead of `feature_upsert_bundle` — resolve the schema with `ToolSearch` first. Every issue is created in **`tracker.container_ref`**, the list or epic `/jetrix:init` §8 locked; `project_ref` never receives an issue. There is no per-list grouping to do, so §3a's fallback warning and §4's batching collapse to one issue per feature in that one container.
 - **A null `container_ref` halts the push.** Say the bind is incomplete and point at `/jetrix:init refresh`. Never substitute `project_ref`: on ClickUp it is a Folder and the create fails anyway, and on Jira it silently files every feature loose in the project where nobody is looking for it.
 
 Write back `tracker_issue_ref` (whatever key that tracker returned) where §5 writes `jetrix_task_object_id`. Same sync-state file, same content hashes — a re-push skips unchanged features exactly as it does on Jetrix.
@@ -46,8 +46,9 @@ Before walking, verify `features/` exists and has at least one feature folder wi
       features/<slug>/nfrs.md
     Run one of:
       /jetrix:pull scope           (pull all feature folders from Jetrix)
-      /jetrix:pull task <ref>      (pull just this feature)
-      /ba:features <slug>          (regenerate locally from scope)
+      /jetrix:pull task Task-230   (pull just this feature — use its real
+                                    id, in the bound tracker’s form)
+      /ba:features requirement=<slug>   (regenerate locally from scope)
     Then re-run /jetrix:push feature.
   ```
 - **Never silently skip** a feature just because a file is missing. Silent skips ship half-tasks; explicit halts let the user fix and retry.
@@ -105,11 +106,11 @@ Claude reads the ONE JSON blob and drives the rest of the flow from it:
 - **Solution-slug fallback** → interactive prompt in §3a below.
 - **Groups** → one `feature_upsert_bundle` call per group in §4 below.
 
-Each `<payload>` in a group is already the exact shape `feature_upsert_bundle` expects — `feature_id`, `slug`, `initiative`, `task_object_id` (from frontmatter, `null` for creates), `title` (fallback chain applied), the six body wire-fields with strip + FEAT→TASK rewrite applied, `metadata`, `status` (`"blocked"` if any local blocker signal fired, else `"todo"`), and `priority`. There's also a `_local_content_hash` field per payload — carry it through the MCP call verbatim (the response side reads it back into `apply-feature-responses.py` for sync-state).
+Each `<payload>` in a group is already the exact shape `feature_upsert_bundle` expects — `feature_id`, `slug`, `requirement`, `task_object_id` (from frontmatter, `null` for creates), `title` (fallback chain applied), the six body wire-fields with strip + FEAT→TASK rewrite applied, `metadata`, `status` (`"blocked"` if any local blocker signal fired, else `"todo"`), and `priority`. There's also a `_local_content_hash` field per payload — carry it through the MCP call verbatim (the response side reads it back into `apply-feature-responses.py` for sync-state).
 
 ### 3a. Warn on solution-slug List fallback (before pushing)
 
-The `list_name` fallback chain (implemented in `scripts/assemble-features.py` — `frontmatter.list_name` → `mapped_scope` with `§X.Y ` stripped → `initiative` → solution_slug) uses the solution slug as the last-resort catch-all. If ANY feature resolves to that fallback, don't silently push them there — they'd all pile up in a List named after the solution ("Plugin_Test"-style), which is what caused the "why did all my tasks land here?" report.
+The `list_name` fallback chain (implemented in `scripts/assemble-features.py` — `frontmatter.list_name` → `mapped_scope` with `§X.Y ` stripped → `requirement` → solution_slug) uses the solution slug as the last-resort catch-all. If ANY feature resolves to that fallback, don't silently push them there — they'd all pile up in a List named after the solution ("Plugin_Test"-style), which is what caused the "why did all my tasks land here?" report.
 
 Use the `solution_slug_fallback` list from the assembled JSON (§2) as the exact set to prompt about — those are the slugs that got the fallback. Don't re-derive the check here.
 
@@ -160,22 +161,22 @@ mcp__task-mcp__feature_upsert_bundle(
     {
       feature_id: "FEAT-AUTH-001",
       slug: "user-auth",
-      initiative: "user-portal",
+      requirement: "user-portal",
       task_object_id: "<from frontmatter, if present>",  // omit for create
 
       // The six BA-owned tab fields — passthrough / two-merge output from step 3(b).
       title:               "<frontmatter.title of feature.md, e.g. 'Supplier Onboarding'>",
-      description:         "<feature.md Objective + '\n\n## Workflow\n\n' + workflow.md body + '\n\n' + feature.md In-Scope+Out-of-Scope — the reordering puts scope AFTER workflow so AC / test-scenarios can cite it naturally>",
+      description:         "<feature.md Objective + '\n\n## Workflow\n\n' + feature.md § '## Workflow' body + '\n\n' + feature.md In-Scope+Out-of-Scope — the reordering puts scope AFTER workflow so AC / test-scenarios can cite it naturally>",
       business_rules:      "<business-rules.md body verbatim>",
       acceptance_criteria: "<acceptance-criteria.md body verbatim>",
       nfrs:                "<nfrs.md body verbatim, or ''>",
       test_scenarios:      "<test-scenarios.md body verbatim, or ''>",
-      assumptions:         "<dependencies.md + '\n\n**Open questions**\n\n' + open-questions.md, OR '\n\n**Open questions** ' + '— none. <reason>' when there are no questions — matches v2 shape>",
+      assumptions:         "<dependencies.md (its ## Open questions section is already inside it), OR '\n\n**Open questions** ' + '— none. <reason>' when there are no questions — matches v2 shape>",
 
       // Metadata — populates task.metadata for downstream flows (dev:build dep check, etc.)
       metadata: {
         externalId:          "FEAT-AUTH-001",
-        externalInitiative:  "user-portal",
+        externalRequirement:  "user-portal",
         externalSlug:        "user-auth",
         dependsOnFeatureIds: ["FEAT-USER-001"],
         useCases:            ["AUTH-UC-01", "AUTH-UC-02"],
@@ -209,14 +210,14 @@ mcp__task-mcp__feature_upsert_bundle(
 
 | Field | MC Tab | Source |
 |---|---|---|
-| `description` | Description | `feature.md` Objective + `workflow.md` (Workflow section + mermaid) + `feature.md` In-Scope + Out-of-Scope, joined at push. Order: Objective → Workflow → In Scope → Out of Scope. |
+| `description` | Description | `feature.md` Objective + `feature.md` § `## Workflow` (Workflow section + mermaid) + `feature.md` In-Scope + Out-of-Scope, joined at push. Order: Objective → Workflow → In Scope → Out of Scope. |
 | `business_rules` | Business Rules | `business-rules.md`, verbatim |
 | `acceptance_criteria` | Acceptance Criteria | `acceptance-criteria.md`, verbatim |
 | `nfrs` | NFRs | `nfrs.md`, verbatim |
 | `test_scenarios` | Test Scenarios | `test-scenarios.md`, verbatim |
-| `assumptions` | Dependencies (tab labelled Dependencies in UI) | `dependencies.md` (Depends on + Assumptions) + `open-questions.md` (Open questions bullets), joined at push |
+| `assumptions` | Dependencies (tab labelled Dependencies in UI) | `dependencies.md` (Depends on + Assumptions) + `dependencies.md` § `## Open questions` (Open questions bullets), joined at push |
 | `implementation_details` | Implementation | Not written here — `feature_update_implementation` writes it after `/dev:plan` produces `tl-plan.md` (which invokes the `tl-feature-compose` skill internally in Stage 2). |
-| — | (no tab) | `implementation-plan.md` and `status.md` are local-only, never pushed. |
+| — | (no tab) | `status.md` is local-only, never pushed. |
 
 Response per feature: `{slug, feature_id, task_object_id, task_number, version, updated_at, action ('created' | 'updated' | 'recreated'), ok}`. `recreated` means the cached `task_object_id` no longer existed in MC (deleted server-side) so a new task was created; the response also carries `previous_task_object_id`.
 
@@ -300,10 +301,10 @@ The script:
   like `Feature-4`, used by `/dev:plan` Stage 0 lookup) for rows whose
   `action` is `created` or `recreated`. Never re-Reads the file for this
   (regex-based rewrite).
-- (v2.1) Patches each sub-task's tab files (`subtask/<repo>/{description,
+- (v2.1) Patches each sub-task's tab files (`units/<repo>/{description,
   implementation, status}.md`) with `jetrix_subtask_object_id` +
   `jetrix_subtask_number` when `--subtask-responses` is provided. Resolves
-  `subtaskRepo` from the response's `metadata.subtaskRepo`, falling back to
+  `unitRepo` from the response's `metadata.subtaskRepo`, falling back to
   matching the sub-task's `subtask_number` frontmatter against local
   folders.
 - Writes per-feature entries under `tasks/<feature_id>` in sync-state with
@@ -312,14 +313,14 @@ The script:
   stale-write check), `lastPushed`. Merge-safe.
 - (v2.1) Writes per-sub-task entries under `subtasks/<subtask_object_id>`
   with `taskNumber`, `taskObjectId`, `parentTaskObjectId`, `featureId`,
-  `subtaskRepo`, `subtaskNumber`, `contentHash`, `version`, `updatedAt`,
+  `unitRepo`, `subtaskNumber`, `contentHash`, `version`, `updatedAt`,
   `lastPushed`.
   Preserves existing `implementationHash` (written by
   `apply-implementation-responses.py`).
 - Prints per-row status to stdout — `recorded` / `patched` / `failed` — with
   separate counts for features vs sub-tasks.
 
-### 6. Update `features/feature-index.md`
+### 6. Update the breakdown table in the run summary
 
 Add/update the `Task ID` column so rows show `TASK-<taskNumber>` next to each feature slug. (This file is scope-stage; push it separately via `/jetrix:push scope` after — sync-state will pick up the change.)
 
@@ -327,7 +328,7 @@ Report per-feature: `created` / `updated` / `recreated` (previous task was gone 
 
 ### 7. Sub-task handling (v2.1+)
 
-After parent features are pushed, walk `features/<slug>/subtask/<repo>/` for each pushed parent whose folder exists on disk. This handles sub-tasks that `/dev:plan` composed and the current push wave should publish.
+After parent features are pushed, walk `features/<slug>/units/<repo>/` for each pushed parent whose folder exists on disk. This handles sub-tasks that `/dev:plan` composed and the current push wave should publish.
 
 **Which command pushes sub-tasks — `/dev:plan` or `/jetrix:push feature`?**
 
@@ -349,9 +350,9 @@ sub-tasks — `assemble-features.py`'s skip-unchanged (via
 that Stage 2 already published. Bandwidth cost is `subtask_list` (one MCP
 call per parent to build the skip check) plus zero writes.
 
-**Detection.** For each parent feature just pushed successfully (`ok: true, action: created|updated|recreated`), check whether `features/<slug>/subtask/<repo>/` folders exist locally. Skip the sub-task step entirely for features with no local `subtask/` directory — they are parent-alone (unchanged behaviour).
+**Detection.** For each parent feature just pushed successfully (`ok: true, action: created|updated|recreated`), check whether `features/<slug>/units/<repo>/` folders exist locally. Skip the sub-task step entirely for features with no local `units/` directory — they are parent-alone (unchanged behaviour).
 
-**Assembly.** Extend the assemble script call in §2 to also emit a `subtasks_by_parent` map — for each parent slug, a list of sub-task payloads assembled from each `subtask/<repo>/description.md` + `implementation.md` + frontmatter (skip-unchanged via `_local_content_hash` on the concatenation of the two files). Each payload matches `task-mcp.subtask_upsert_bundle`'s input schema:
+**Assembly.** Extend the assemble script call in §2 to also emit a `subtasks_by_parent` map — for each parent slug, a list of sub-task payloads assembled from each `units/<repo>/description.md` + `implementation.md` + frontmatter (skip-unchanged via `_local_content_hash` on the concatenation of the two files). Each payload matches `task-mcp.subtask_upsert_bundle`'s input schema:
 
 ```json
 {
@@ -399,7 +400,7 @@ mcp__task-mcp__subtask_upsert_bundle(
 - Patch that sub-task's frontmatter files (`description.md`, `implementation.md`, `status.md`) with `jetrix_subtask_object_id: <task_object_id>` and `jetrix_subtask_number: <task_number>`.
 - Update sync-state `subtasks/<subtask_object_id>` entry (see the top-level task-mcp addition spec for shape).
 
-Rows with `ok: false` → log the error, mark that sub-task's `status.md` `current_state: BLOCKED`, continue with siblings (per-item isolation).
+Rows with `ok: false` → log the error, mark that sub-task's `status.md` `status: blocked` · `phase: escalated`, continue with siblings (per-item isolation).
 
 **Report.** Extend the final summary with a per-parent sub-task line: `sub-tasks created: 3 / updated: 0 / failed: 0 / skipped-unchanged: 0`.
 

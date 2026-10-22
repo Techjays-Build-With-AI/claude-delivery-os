@@ -13,7 +13,7 @@
 
 ### 4a0. `--skip-qa` short-circuit
 
-If `/dev:build` was invoked with `--skip-qa`, do **not** read the gate, bootstrap a harness, or install anything. Log to `build-run.md`:
+If `/dev:build` was invoked with `--skip-qa`, do **not** read the gate, bootstrap a harness, or install anything. Log to `status.md` § `## Run history`:
 
 ```yaml
 stage-4:
@@ -40,19 +40,27 @@ No usable test harness (qa/quality-gates.md <missing | Draft>).
 
 ### 4a. Read `qa/quality-gates.md`
 
-Look for `qa/quality-gates.md` at workspace root. Three states:
+Look for `qa/quality-gates.md` at workspace root, then **read the `## <repo>` section for the repo this unit
+builds in** — `units/backend/` → `§ backend`. The frontmatter `repos:` map carries that repo's
+`harness_status`, `coverage_floor` and `baseline_status`.
+
+**Never read the file as a whole and never fall back to another repo's section.** A missing section for this
+repo means this repo has no harness — which is the auto-bootstrap case below, not a reason to use the gates
+that happen to be there. Running `npm test` in a Python repo is exactly what that fallback produces.
+
+Three states, judged on **this repo's** section:
 
 | File state | Action |
 |---|---|
 | Missing entirely | Auto-bootstrap → §4b |
-| Exists, **no `harness_status` key** | Auto-bootstrap → §4b. This is the scaffold placeholder — treat it exactly as missing. It must never read as "not Active" and halt. |
+| Exists, **no `harness_status` key** | Auto-bootstrap → §4b. A file with no status was not written by `/qa:plan` or `/qa:setup`, so there is nothing to preserve. It must never read as "not Active" and halt. |
 | Exists, `harness_status: Active` (or legacy `Ready`) | Follow the gates — continue to Stage 5 |
 | Exists, `harness_status: Stack-Inferred` | Follow the inferred tier pools — continue to Stage 5 |
 | Exists, `harness_status: Draft` | **HALT — do NOT bootstrap.** A Draft was written by `/qa:plan`: it carries the framework and coverage floor a human just chose, and bootstrapping over it discards both silently. Print: *"Gates are drafted but not built. Run `/qa:setup` to finish standing up the harness, or `/dev:build --skip-qa` to proceed without tests for this task."* |
 | Exists, `harness_status: Broken` | HALT — do NOT bootstrap. Route to `/qa:health` → §4d |
 | Exists, `harness_status: Blocked` | HALT — do NOT bootstrap. A Required gate **could not run** (missing service, env var or tool), so nothing was measured. The stamp names the missing prerequisite: fix that, then `/qa:health`. Bootstrapping would replace a harness that is fine with one that is merely different. |
 
-Log the state to `dev/build-run.md` under `stage-4:`.
+Log the state to `units/<repo>/status.md § ## Run history` under `stage-4:`.
 
 ---
 
@@ -84,8 +92,8 @@ After the skill returns:
 
 If ANY check fails:
 - Set `qa/quality-gates.md` `harness_status: Draft` (the skill should have done this on its own failure, but belt-and-braces)
-- Write `dev/escalation-<n>.md` with the specific failure
-- Local state: `IN_PLANNING → BLOCKED`
+- Write `units/<repo>/status.md § ## Run history (a BLOCKED entry)` with the specific failure
+- Local state: `agentExecuting → BLOCKED`
 - MC status: `inProgress → blocked`
 - Halt Stage 4; sibling tasks continue
 
@@ -117,7 +125,7 @@ Do NOT try to bootstrap over `Broken` — that would mask the underlying issue.
 
 ### 4e. Progress log format
 
-Append to `dev/build-run.md`:
+Append to `units/<repo>/status.md § ## Run history`:
 
 ```yaml
 stage-4:
@@ -141,7 +149,7 @@ stage-4:
 
 ### 4f. On `--resume`
 
-If `--resume` finds `stage-4.status: DONE` in `build-run.md`, skip Stage 4 entirely. Don't re-run `qa-greenfield-harness` — the harness is already Active and re-running would re-install deps, waste time, and could rewrite `test-decision.md` unnecessarily.
+If `--resume` finds `stage-4.status: DONE` in `status.md` § `## Run history`, skip Stage 4 entirely. Don't re-run `qa-greenfield-harness` — the harness is already Active and re-running would re-install deps, waste time, and could rewrite `test-decision.md` unnecessarily.
 
 ---
 

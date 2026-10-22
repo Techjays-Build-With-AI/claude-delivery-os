@@ -35,7 +35,7 @@ The HTML report's **"Export responses"** button generates this Markdown and down
 ---
 doc_type: scope-review-responses
 source_review: 2026-06-30-143012        # the reviewId being answered — the join key
-scope: ba/scope.md
+scope: requirements/<slug>/scope.md
 generated_at: 2026-06-30 17:10
 ---
 
@@ -80,9 +80,9 @@ Write a short **adjudication rationale** for every decision — one or two sente
 
 A scope review exists to **improve the scope**, so closing a question means putting the answer where it belongs — not just marking it done in the report. For each terminal question, give the **concrete scope edit** and promote it (only when a Delivery OS workspace exists):
 
-- **`Resolved` (confirmed fact)** → state the exact edit to `ba/scope.md` (which §3.x sub-heading, what text), and append a `DEC-###` row to `shared-context/decision-log.md`. Set the question's `decisionId`.
-- **`Accepted-assumption`** → add an `ASM-###` row to `ba/registers/assumptions.md` (assumption, reason, risk, validation needed) — this is the RAID Assumptions `A-##` feed — and reference it from scope §7. Note the edit to the relevant §3.x.
-- **`Needs-verification` / still `Open`** (must-close items) → ensure a `CLR-###` exists in `ba/logs/clarifications.md` (the RAID Open-Questions `Q-##` feed) carrying the follow-ups, so the open question lives in the BA's own tracking, not only in the review.
+- **`Resolved` (confirmed fact)** → state the exact edit to `requirements/<slug>/scope.md` (which §3.x sub-heading, what text), and append a `DEC-###` row to `shared-context/decision-log.md`. Set the question's `decisionId`.
+- **`Accepted-assumption`** → add an `ASM-###` row to `requirements/<slug>/ledger.md` (kind: assumption) (assumption, reason, risk, validation needed) — this is the RAID Assumptions `A-##` feed — and reference it from scope §7. Note the edit to the relevant §3.x.
+- **`Needs-verification` / still `Open`** (must-close items) → ensure a `CLR-###` exists in `requirements/<slug>/ledger.md` (kind: question) (the RAID Open-Questions `Q-##` feed) carrying the follow-ups, so the open question lives in the BA's own tracking, not only in the review.
 - **`Won't-fix` / deferred** → record it as out-of-scope/phase-2 in scope §6 or the relevant §3.x.2, and log the decision (`DEC-###`) so the deferral is auditable.
 
 **Then sweep for stale references.** Promoting the answer fixes the place the gap lived; it does not fix every *other* place that mentioned the open question. Before the round is written, search the scope and registers for the closed id (`CLR-###`, `SQ-###`, `OQ-###`) and for phrases that assumed it was still open — "pending CLR-014", "to be confirmed", "not yet decided" — and update or delete each one. Also re-check any status line or build-state claim the answer invalidates.
@@ -120,4 +120,4 @@ Put the movement **at the top of the round**, above the scorecard, not buried in
 
 ## 7. Output of a resolve round
 
-`/ba:resolve` writes a **new timestamped review round** — `.html` / `.md` / `.json` (render the `.html` the same UTF-8-safe way as a fresh review: write the `.json` sidecar first, then `node assets/inject.js assets/report.html <round>.json __REVIEW_DATA__ <round>.html` — never hand-assemble the HTML) — carrying every question forward with its updated status and resolution thread (response, adjudication, follow-ups, the promoted `DEC`/`ASM`/`CLR` id) **and its original screening fields `checkedIn` and `consequence` unchanged** — those record why the question was raised in the first place, so a later round must preserve them rather than re-deriving or dropping them, the recomputed scores and verdict, and the list of scope edits to apply (or applied). Then summarise in chat: how many resolved / accepted-as-assumption / awaiting-verification (with the open follow-ups) / still open, the score+verdict movement, and which registers were updated. The loop repeats — export responses from the new report, resolve again — until no open items remain.
+`/ba:resolve` writes a **new timestamped review round** — `.html` / `.md` (render the `.html` the same UTF-8-safe way as a fresh review: write the data object to a scratch file, then `node assets/inject.js assets/report.html <scratch>/round.json __REVIEW_DATA__ <round>.html` — never hand-assemble the HTML) — carrying every question forward with its updated status and resolution thread (response, adjudication, follow-ups, the promoted `DEC`/`ASM`/`CLR` id) **and its original screening fields `checkedIn` and `consequence` unchanged** — those record why the question was raised in the first place, so a later round must preserve them rather than re-deriving or dropping them, the recomputed scores and verdict, and the list of scope edits to apply (or applied). Then summarise in chat: how many resolved / accepted-as-assumption / awaiting-verification (with the open follow-ups) / still open, the score+verdict movement, and which registers were updated. The loop repeats — export responses from the new report, resolve again — until no open items remain.

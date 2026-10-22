@@ -15,7 +15,7 @@ You are the entry point for generating a **workflow document**: an interactive, 
 - **`out=<prefix>`** — optional output-prefix override (default follows the skill's `[CLIENT]-[TOPIC]-[DDMonYYYY]` naming in `doc/`).
 - **Free-text** — any extra source material, emphasis, or custom rules (which phases/actors to feature, the KPI numbers, systems retained/retired, brand/accent overrides). Passed through verbatim.
 
-If a Delivery OS workspace exists, tell the agent to draft from `ba/scope.md`, `ba/registers/workflows.md`, and `shared-context/`.
+If a Delivery OS workspace exists, tell the agent to draft from `requirements/<slug>/scope.md`, `requirements/<slug>/registers/workflows.md`, and `shared-context/`.
 
 ## 2. Delegate
 
@@ -27,4 +27,19 @@ Invoke the **doc-agent** subagent. Pass it this instruction:
 
 ## 3. Surface the result
 
-When the agent returns, present its **summary**: the phases and actors covered, the headline KPIs and efficiency gain, which content came from the BA scope vs. supplied, and any placeholders still needing the user's numbers. Link to the generated HTML and tell the user to open it in a browser (sidebar nav jumps to phases; hover swimlane nodes and KPI cards for detail). Keep it tight.
+When the agent returns, present its **summary**: the phases and actors covered, the headline KPIs and efficiency gain, which content came from the BA scope vs. supplied, and any placeholders still needing the user's numbers. Link to both report files. Keep it tight.
+
+**Serve it and print both links** — `delivery-os-conventions` §1.e. Start the server in the background as the
+last action of the run and read the port from its `DELIVERY_OS_SERVE_READY` line:
+
+```bash
+node ${CLAUDE_PLUGIN_ROOT}/../delivery-os-core/scripts/serve-review.js .jetrix/doc/workflows
+```
+
+```
+Report   http://127.0.0.1:<port>/<CLIENT>-<TOPIC>-<date>.html      ← open in your browser
+         doc/workflows/<CLIENT>-<TOPIC>-<date>.html    ← the file itself
+```
+
+Never print the path alone and tell the user to open it: a `file://` page cannot fetch a sibling, and a path is
+not something anyone can click.

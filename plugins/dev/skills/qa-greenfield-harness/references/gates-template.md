@@ -11,15 +11,22 @@
 ```yaml
 ---
 doc_type: quality-gates
-schema_version: 1.0
+schema_version: 2.0
 produced_by: dev
-harness_status: Active                       # never Draft on a successful bootstrap
-baseline_status: BootstrappedByGreenfield    # tag for /tl:maturity + /qa:audit to know origin
-bootstrapped_by: qa-greenfield-harness
-bootstrapped_at: <ISO>
-last_updated: <ISO>
+generated_at: <ISO>
+repos:
+  <repo>:                                      # the slug of the repo being bootstrapped
+    harness_status: Active                     # never Draft on a successful bootstrap
+    baseline_status: BootstrappedByGreenfield  # tag so /tl:maturity + /qa:audit know the origin
+    coverage_floor: <n>
+    bootstrapped_by: qa-greenfield-harness
+    bootstrapped_at: <ISO>
 ---
 ```
+
+**Write only `repos.<repo>` and the `## <repo>` section.** If `qa/quality-gates.md` already exists, read it,
+add or replace your repo's entry and section, and write it back — **never regenerate the file.** Another repo's
+harness is already in there, and overwriting it is how `/dev:build` came to run `npm test` in a Python repo.
 
 ---
 
@@ -336,21 +343,27 @@ Only append lines that aren't already present.
 
 ## `qa/quality-gates.md` full example (React SPA)
 
-Complete file the skill writes for a React SPA target repo:
+The **section** the skill writes for a React SPA target repo. On a workspace that already has gates for another
+repo, only `repos.web` and `## web` are added — the rest of the file is untouched.
 
 ```markdown
 ---
 doc_type: quality-gates
-schema_version: 1.0
+schema_version: 2.0
 produced_by: dev
-harness_status: Active
-baseline_status: BootstrappedByGreenfield
-bootstrapped_by: qa-greenfield-harness
-bootstrapped_at: 2026-08-31T14:22:33Z
-last_updated: 2026-08-31T14:22:33Z
+generated_at: 2026-08-31T14:22:33Z
+repos:
+  web:
+    harness_status: Active
+    baseline_status: BootstrappedByGreenfield
+    coverage_floor: 60
+    bootstrapped_by: qa-greenfield-harness
+    bootstrapped_at: 2026-08-31T14:22:33Z
 ---
 
 # Quality Gates
+
+## web
 
 **Harness status:** Active
 **Origin:** bootstrapped by `qa-greenfield-harness` on 2026-08-31.

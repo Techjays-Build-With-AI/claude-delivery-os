@@ -4,40 +4,13 @@ The exact schema for the feature index and for each of the ten files in a featur
 
 Folder names are **lowercase kebab-case** (`supplier-onboarding`, `outlet-discovery`). Every feature folder contains all ten files, even when a section is empty.
 
-Feature IDs are stable and append-only: `FEAT-<AREA>-NN` where `<AREA>` is a short uppercase abbreviation for the capability area (Supplier → `SUP`, Sourcing → `SRC`, RFP → `RFP`) and `NN` is sequential within that area. New open questions minted here use `OQ-<AREA>-NN`; where a question is already tracked in the BA `ba/logs/clarifications.md`, reuse its `CLR-###` id instead of minting a new one.
+Feature IDs are stable and append-only: `FEAT-<AREA>-NN` where `<AREA>` is a short uppercase abbreviation for the capability area (Supplier → `SUP`, Sourcing → `SRC`, RFP → `RFP`) and `NN` is sequential within that area. New open questions minted here use `OQ-<AREA>-NN`; where a question is already tracked in the BA `requirements/<slug>/ledger.md` (kind: question), reuse its `CLR-###` id instead of minting a new one.
 
-Every feature also carries an **`initiative`** — the human-named work-batch slug (e.g. `payments-v2`) passed to `/ba:features initiative=<name>`, so a developer can later plan and build just the features from their own scoping effort even when the shared `features/` holds many developers' in-flight features (see `delivery-os-conventions` §3). It is written to the `initiative:` frontmatter of `feature.md` and `status.md`, and to the `Initiative` column of `feature-index.md`. On a re-run an existing feature **keeps** its initiative unless a new one is passed; a feature with none is `unassigned`.
-
----
-
-## feature-index.md
-
-`features/feature-index.md` — the map of the whole breakdown. One row per feature. On re-runs, update in place; keep retired features visible with a status (`Merged into …`, `Deferred`, `Removed`) rather than deleting the row.
-
-```md
----
-doc_type: feature-index
-schema_version: 1.1
-produced_by: ba
-status: Emerging
-generated_at: YYYY-MM-DD
----
-
-# Feature Index
-
-| Feature ID | Feature | Initiative | Status | Priority | Dependencies | Folder |
-|---|---|---|---|---|---|---|
-| FEAT-SUP-001 | Supplier Onboarding | supplier-portal | Ready for Planning | High | User Management, Document Storage | ./supplier-onboarding |
-| FEAT-SUP-002 | Supplier Approval Workflow | supplier-portal | Proposed | High | Supplier Onboarding, Notification Service | ./supplier-approval |
-| FEAT-SRC-001 | Outlet Discovery | sourcing-mvp | Proposed | High | Supplier Onboarding, Outlet Data | ./outlet-discovery |
-| FEAT-RFP-001 | RFP Generation | sourcing-mvp | Proposed | Medium | Outlet Discovery, Notification Service | ./rfp-generation |
-```
-
-**Status** (controlled values, shared with `feature.md` and `status.md`): `Proposed` · `Ready for Planning` · `In Development` · `In QA` · `UAT` · `Released` · `Blocked` (plus the retirement values above). **Priority**: `High` · `Medium` · `Low`. **Initiative**: the human-named work-batch slug the feature was scoped under (`unassigned` if none) — the grouping `/tl:plan` and `/dev:build` filter by.
+Every feature also carries an **`requirement`** — the human-named work-batch slug (e.g. `payments-v2`) passed to `/ba:features requirement=<slug>`, so a developer can later plan and build just the features from their own scoping effort even when the shared `features/` holds many developers' in-flight features (see `delivery-os-conventions` §3). It is written to the `requirement:` frontmatter of `feature.md` and `status.md`, and to the `Requirement` column of `feature-index.md`. On a re-run an existing feature **keeps** its initiative unless a new one is passed; a feature with none is `unassigned`.
 
 ---
 
-## 1. feature.md  →  Description tab (merged with workflow.md at push)
+## 1. feature.md  →  Description tab
 
 Description-tab shape. Just three visible sections — **Objective**, **In Scope**, **Out of Scope**. Author them in that order locally; keep the three grouped together so a reviewer of the BA file sees the feature's story end-to-end.
 
@@ -61,7 +34,7 @@ schema_version: 1.2
 produced_by: ba
 feature_id: FEAT-SUP-001
 title: Supplier Onboarding
-initiative: supplier-portal
+requirement: supplier-portal
 slug: supplier-onboarding
 list_name: "Supplier Management"        # optional — MC List this feature lands under; see resolution rule below
 use_cases: [SUP-UC-01, SUP-UC-02]
@@ -106,194 +79,11 @@ Enable operations teams to create, validate, and submit supplier profiles for ap
 - **No `## Business Objective`, `## Business Problem Solved`, `## Summary`, `## User Value`, `## Users`, `## Assumptions`, `## Open Questions`.** The Objective section is the whole business-context allowance. Users is metadata (frontmatter). Assumptions and Open questions live in `dependencies.md` and `open-questions.md`.
 - **Out-of-Scope must be explicit for items the reader might assume are in.** If notifications, escalations, or reporting are NOT built in this feature, name them explicitly — silent omission is worse than an explicit "no".
 - **The Workflow section for the Description tab** is authored in `workflow.md` and merged in at push time. Do not include it here.
-- **`list_name:` frontmatter is optional.** When present, that string is the MC List this feature's Task lands under (existing List → find; missing → create). When absent, push resolves the List name from `mapped_scope:` — strip the `§X.Y ` prefix and use the module label (`§3.2 Supplier Management` → `"Supplier Management"`). Falls back to `initiative:` if `mapped_scope:` is also missing, and finally to `solution_slug` so no feature is orphaned. Two features with the same `list_name` (or the same derived label) share a List. Set `list_name:` explicitly when you want to route this feature to a specific existing List or override the scope-module grouping.
+- **`list_name:` frontmatter is optional.** When present, that string is the MC List this feature's Task lands under (existing List → find; missing → create). When absent, push resolves the List name from `mapped_scope:` — strip the `§X.Y ` prefix and use the module label (`§3.2 Supplier Management` → `"Supplier Management"`). Falls back to `requirement:` if `mapped_scope:` is also missing, and finally to `solution_slug` so no feature is orphaned. Two features with the same `list_name` (or the same derived label) share a List. Set `list_name:` explicitly when you want to route this feature to a specific existing List or override the scope-module grouping.
 
 ---
 
-## 2. implementation-plan.md
-
-How the feature breaks into buildable **work areas** — not code. No low-level implementation instructions unless the technical design has already confirmed them.
-
-```md
----
-doc_type: implementation-plan
-schema_version: 1.1
-produced_by: ba
-feature_id: FEAT-SUP-001
-generated_at: YYYY-MM-DD
----
-
-# Implementation Plan: Supplier Onboarding
-
-## Implementation Goal
-Enable internal teams to create, validate, review, and submit supplier profiles for approval.
-
-## Proposed Build Areas
-
-### 1. Supplier Profile Management
-Users can create, edit, save, and view supplier profiles.
-
-Expected pages:
-- Supplier List Page
-- Create Supplier Page
-- Supplier Details Page
-
-Expected backend capabilities:
-- Create supplier
-- Retrieve supplier
-- Update supplier
-- Search suppliers
-
-Expected data entities:
-- suppliers
-- supplier_contacts
-
-### 2. Supplier Document Management
-Users can upload and manage compliance documents.
-
-Expected pages:
-- Supplier Details Page
-- Document Upload Modal
-
-Expected backend capabilities:
-- Upload supplier document
-- Retrieve supplier documents
-- Validate document metadata
-- Delete or replace document
-
-Expected data entities:
-- supplier_documents
-
-Expected integrations:
-- File storage service
-
-### 3. Supplier Review Submission
-Users can submit a supplier for review once all required fields are complete.
-
-Expected backend capabilities:
-- Validate onboarding completeness
-- Change supplier status
-- Record status history
-- Notify reviewers
-
-Expected data entities:
-- suppliers
-- supplier_status_history
-- audit_log
-
-### 4. Approval Queue
-Approvers can review pending suppliers and approve or reject them.
-
-Expected pages:
-- Supplier Approval Queue
-- Supplier Details Page
-
-Expected backend capabilities:
-- Retrieve suppliers pending review
-- Approve supplier
-- Reject supplier
-- Record approval decision
-
-## Suggested Delivery Sequence
-1. Supplier data model and basic profile management
-2. Supplier list and detail pages
-3. Document upload and validation
-4. Submit-for-review workflow
-5. Approval queue and decision workflow
-6. Notifications and audit history
-7. QA, UAT, and edge-case validation
-
-## Technical Considerations
-- Supplier status transitions must be controlled through backend validation.
-- Approval actions must be auditable.
-- File uploads must be linked to the correct supplier record.
-- Role-based access must be enforced for approval actions.
-- Supplier records should support draft saving.
-
-## Potential Risks
-- Mandatory document rules are not yet confirmed.
-- Approval workflow may differ by supplier type or geography.
-- Existing supplier data may require migration or cleanup.
-
-## Implementation Readiness
-Ready | Partially Ready | Not Ready
-
-## Blocking Items
-- Approval matrix confirmation
-- Mandatory document list
-- Document storage integration confirmation
-```
-
----
-
-## 3. workflow.md  →  Description tab (concatenated after `## Objective / In Scope / Out of Scope` under a `## Workflow` heading push adds)
-
-The end-to-end business journey as it will appear inside the Description tab's Workflow sub-section. **Body content only — no H1, no H2s.** Each flow variant is a **bold label** (`**Deciding a Pending request**`, `**Draft & resume**`), followed by numbered steps. A single Mermaid `flowchart` diagram covers the overall shape at the end (`delivery-os-conventions` §8); the Doc Agent renders the branded SVG from it. Use-case ids (`<MODULE>-UC-##`) and worked-example refs (`[EX-###]`) belong inline where they exist. *(Template shown with a four-backtick outer fence so the inner ```mermaid block nests cleanly.)*
-
-````md
----
-doc_type: feature-workflow
-schema_version: 1.2
-produced_by: ba
-feature_id: FEAT-SUP-001
-use_cases: [SUP-UC-01, SUP-UC-02]
-mapped_workflows: [WF-021]
-generated_at: YYYY-MM-DD
----
-
-**Submitting a supplier for review**
-
-1. User opens the Supplier List Page.
-2. User selects Create Supplier.
-3. User enters supplier company information and contacts.
-4. User uploads mandatory compliance documents.
-5. System validates required fields and required documents.
-6. User submits the supplier; system sets status to Pending Review.
-7. System notifies the assigned reviewer.
-8. Reviewer approves or rejects; system records the decision in audit history.
-9. If approved, the supplier becomes available for sourcing workflows.
-
-**Draft & resume**
-
-1. User saves incomplete supplier information as Draft; system stores the partial record.
-2. User returns and edits until all mandatory fields and documents are present.
-3. User submits — flow continues from step 5 of "Submitting a supplier for review".
-
-*Worked example:* Draft `SUP-DRAFT-118` saved with company info but no compliance docs; completed two days later and submitted. `[EX-021]`
-
-**Missing mandatory documents**
-
-- System prevents submission and displays the missing document requirements; user completes them and retries.
-
-**Rejection & rework**
-
-- Reviewer rejects with a reason; the operations user updates the profile and resubmits.
-
-```mermaid
-flowchart TD
-    A([Trigger: onboard a supplier]) --> B[Enter supplier details + documents]
-    B --> C{Submission complete?}
-    C -->|Saved incomplete| UCd[SUP-UC-02: Draft & resume]
-    C -->|Submitted| UCs[SUP-UC-01: Submit for review]
-    UCs --> D{Reviewer decision}
-    D -->|Approved| Z([Supplier available for sourcing])
-    D -->|Rejected| R([Rework & resubmit])
-    UCd --> B
-```
-````
-
-**Rules for this file (enforced by the composer at push time):**
-
-- **No H1, no H2s.** This file is body content that push concatenates under a `## Workflow` heading it adds itself — any internal `##` would nest under Workflow and create the wrong shape in the Description tab.
-- **Flow variants are bold labels, not headings.** `**Submitting a supplier for review**` — not `### Submitting …`. One bold label per named flow / route. Label is descriptive prose; do NOT append `· *UC-01*` suffixes — traceability lives in the `use_cases:` frontmatter.
-- **No `## Business Rules` block.** Business rules live in `business-rules.md` → the Business Rules tab. Restating them here duplicates content between two tabs.
-- **No `## Related Features` block.** Cross-feature links live in `dependencies.md` and in `depends_on_features` frontmatter — never in Workflow.
-- **One Mermaid diagram at the end** covers the whole flow shape; per-variant diagrams are omitted (the numbered steps and the single overview diagram are enough for the tab reader). If a variant is materially different enough to need its own diagram, escalate — usually it belongs as a separate feature.
-- Cite scope use-case / workflow / business-rule register IDs (`<MODULE>-UC-##`, `WF-###`, `BR-###`) inline where they exist. The `use_cases:` frontmatter lists every scope use case this feature realises, so traceability runs scope §3.x.4 → feature 1:1.
-
----
-
-## 4. acceptance-criteria.md  →  Acceptance Criteria tab
+## 2. acceptance-criteria.md  →  Acceptance Criteria tab
 
 Verifiable "done" statements grouped into three categories — **Happy path · Validation · Edge cases** — each row citing the business rule (`BR-N`) it enforces. Feature-scoped IDs (`AC-1..N`) sequential across all three groups. Group labels are sentence case (`**Happy path**`, `**Edge cases**`), not Title Case.
 
@@ -349,7 +139,7 @@ generated_at: YYYY-MM-DD
 
 ---
 
-## 5. dependencies.md  →  Dependencies tab (merged with open-questions.md at push)
+## 3. dependencies.md  →  Dependencies tab
 
 Two sections: **Depends on** and **Assumptions**. The third sub-section of the Dependencies tab — **Open questions** — is authored in `open-questions.md` and concatenated at push time. Downstream dependencies, data dependencies, integration dependencies, and dependency risks are **captured in the TL context graph** and surfaced in `tl-plan.md`'s Touch points subsection — they do NOT appear here. Cross-feature dependency IDs live in the frontmatter (`depends_on_features`) so `/dev:build` can gate on them.
 
@@ -387,58 +177,16 @@ generated_at: YYYY-MM-DD
 
 ---
 
-## 6. open-questions.md  →  Dependencies tab (merged into the "Open questions" sub-section at push)
-
-Bullet list of unresolved decisions, concatenated onto the Dependencies tab as its **Open questions** sub-section at push time. Bullets are the visible shape; identity / ownership / impact for every question live in frontmatter (`open_questions[]`) so the tracker can query, filter, and pair questions with owners without appearing as noise in the tab.
-
-**When there are no open questions**, write a single-line body: `— none. <one-line reason, e.g. "Remark limit, identity field and reversal policy are all fixed in Business Rules and Implementation.">`. Push merges this onto the same line as the `**Open questions**` separator, matching the v2 reference shape. Do NOT emit an empty bullet list.
-
-```md
----
-doc_type: feature-open-questions
-schema_version: 1.2
-produced_by: ba
-feature_id: FEAT-SUP-001
-open_questions:
-  - id: OQ-SUP-001
-    question: What document types are mandatory for onboarding?
-    owner: Compliance Team
-    impact: Blocks validation rules
-    status: Open
-  - id: OQ-SUP-002
-    question: Can suppliers update their own information through a portal?
-    owner: Product Owner
-    impact: Impacts user roles and UI scope
-    status: Open
-  - id: OQ-SUP-003
-    question: Does approval require one reviewer or multiple approval stages?
-    owner: Operations Lead
-    impact: Impacts workflow design
-    status: Open
-generated_at: YYYY-MM-DD
----
-
-- **Mandatory documents** — which document types are required for onboarding? Owner: Compliance Team.
-- **Supplier self-update** — can suppliers update their own information through a portal? Owner: Product Owner.
-- **Approval stages** — is approval a single reviewer or multi-stage? Owner: Operations Lead.
-- **Duplicate criteria** — what defines a duplicate supplier for the validation rule? Owner: Data Owner.
-- **Resubmission** — should rejected suppliers be allowed to resubmit? Owner: Product Owner.
-```
-
-When a feature has no open questions, the file body is a single line: `Open questions — none.`
-
-**Rules for this file:**
-
-- **Visible content is bullets** — the Dependencies tab's Open-questions sub-section renders these directly. No table headings in the body (Impact / Status live in frontmatter, not in the tab).
-- **Reuse `CLR-###` IDs** for questions already logged in the BA `ba/logs/clarifications.md`; mint `OQ-<AREA>-NN` for new ones. IDs live in the frontmatter `open_questions[].id`; the bullet body names the question and the owner in prose.
-- **An entry here must never be promoted into a confirmed requirement elsewhere.** Once answered, close via a scope edit or a `DEC-###` and set `status: Answered` in frontmatter — do not delete the entry.
-- **Frontmatter status values:** `Open` · `Answered` · `Deferred` · `Won't-fix`. Unknown owner → `Unassigned`; never invent one.
-
----
-
-## 7. status.md
+## 4. status.md
 
 The operational tracker for the feature.
+
+`status:` is the machine-readable one, and it is the field every gate reads
+(`delivery-os-conventions` §5). A freshly broken-down feature is `todo` — BA has
+described it, nobody has planned it. `/dev:plan` moves it to `readyForDev`, and
+from there the dev loop owns it. `## Current Status` below is the human line and
+carries no contract; leaving the frontmatter field out makes `/dev:plan` and
+`/dev:build` unable to see the feature at all.
 
 ```md
 ---
@@ -446,7 +194,8 @@ doc_type: feature-status
 schema_version: 1.1
 produced_by: ba
 feature_id: FEAT-SUP-001
-initiative: supplier-portal
+requirement: supplier-portal
+status: todo
 generated_at: YYYY-MM-DD
 ---
 
@@ -494,9 +243,9 @@ YYYY-MM-DD
 
 ---
 
-## 8. business-rules.md  →  Business Rules tab
+## 5. business-rules.md  →  Business Rules tab
 
-The feature's business-rule slice, curated per feature — not a copy of the workspace-wide `ba/registers/business-rules.md`. Feature-scoped IDs (`BR-1..N`) in visible content; global register IDs mapped in frontmatter.
+The feature's business-rule slice, curated per feature — not a copy of the workspace-wide `requirements/<slug>/registers/business-rules.md`. Feature-scoped IDs (`BR-1..N`) in visible content; global register IDs mapped in frontmatter.
 
 ```md
 ---
@@ -527,7 +276,7 @@ generated_at: YYYY-MM-DD
 
 ---
 
-## 9. nfrs.md  →  NFRs tab
+## 6. nfrs.md  →  NFRs tab
 
 Non-functional requirements grouped by area. **Concurrency** and **Auditability** are essentials for most internal features. Include an intro paragraph up front that calibrates the reader to what is and isn't a hard requirement for this feature.
 
@@ -565,7 +314,7 @@ For this application type, the essentials are **concurrency** and **auditability
 
 ---
 
-## 10. test-scenarios.md  →  Test Scenarios tab
+## 7. test-scenarios.md  →  Test Scenarios tab
 
 Concrete test cases split into **Positive · Negative · Edge**, each citing the AC (`AC-N`) it exercises. Sequential row numbers across the three groups.
 
@@ -643,3 +392,144 @@ generated_at: YYYY-MM-DD
 - UI concurrency mirror (API-level concurrency covers the guarantee).
 - Timezone / locale rendering details.
 - Product-specific attack vectors, performance / load edges, test-harness parameterisations.
+
+---
+
+## Folded in — these are sections, not files
+
+Two of these were separate files whose only consumer was the push, which merged them anyway. Keeping them apart
+meant composing the same merge twice and gave two files a chance to disagree. The content is unchanged; it now
+lives under a heading in the file it was always going to end up in.
+
+### The workflow — a `## Workflow` section of `feature.md`
+
+Place it after `## Objective` and before `## In Scope`, which is the order the push produced.
+
+The end-to-end business journey as it will appear inside the Description tab's Workflow sub-section. **Body content only — no H1, no H2s.** Each flow variant is a **bold label** (`**Deciding a Pending request**`, `**Draft & resume**`), followed by numbered steps. A single Mermaid `flowchart` diagram covers the overall shape at the end (`delivery-os-conventions` §8); the Doc Agent renders the branded SVG from it. Use-case ids (`<MODULE>-UC-##`) and worked-example refs (`[EX-###]`) belong inline where they exist. *(Template shown with a four-backtick outer fence so the inner ``mermaid block nests cleanly.)*
+
+```md
+---
+doc_type: feature-workflow
+schema_version: 1.2
+produced_by: ba
+feature_id: FEAT-SUP-001
+use_cases: [SUP-UC-01, SUP-UC-02]
+mapped_workflows: [WF-021]
+generated_at: YYYY-MM-DD
+---
+
+**Submitting a supplier for review**
+
+1. User opens the Supplier List Page.
+2. User selects Create Supplier.
+3. User enters supplier company information and contacts.
+4. User uploads mandatory compliance documents.
+5. System validates required fields and required documents.
+6. User submits the supplier; system sets status to Pending Review.
+7. System notifies the assigned reviewer.
+8. Reviewer approves or rejects; system records the decision in audit history.
+9. If approved, the supplier becomes available for sourcing workflows.
+
+**Draft & resume**
+
+1. User saves incomplete supplier information as Draft; system stores the partial record.
+2. User returns and edits until all mandatory fields and documents are present.
+3. User submits — flow continues from step 5 of "Submitting a supplier for review".
+
+*Worked example:* Draft `SUP-DRAFT-118` saved with company info but no compliance docs; completed two days later and submitted. `[EX-021]`
+
+**Missing mandatory documents**
+
+- System prevents submission and displays the missing document requirements; user completes them and retries.
+
+**Rejection & rework**
+
+- Reviewer rejects with a reason; the operations user updates the profile and resubmits.
+
+```mermaid
+flowchart TD
+    A([Trigger: onboard a supplier]) --> B[Enter supplier details + documents]
+    B --> C{Submission complete?}
+    C -->|Saved incomplete| UCd[SUP-UC-02: Draft & resume]
+    C -->|Submitted| UCs[SUP-UC-01: Submit for review]
+    UCs --> D{Reviewer decision}
+    D -->|Approved| Z([Supplier available for sourcing])
+    D -->|Rejected| R([Rework & resubmit])
+    UCd --> B
+```
+```
+
+**Rules for this file (enforced by the composer at push time):**
+
+- **No H1, no H2s.** This file is body content that push concatenates under a `## Workflow` heading it adds itself — any internal `##` would nest under Workflow and create the wrong shape in the Description tab.
+- **Flow variants are bold labels, not headings.** `**Submitting a supplier for review**` — not `### Submitting …`. One bold label per named flow / route. Label is descriptive prose; do NOT append `· *UC-01*` suffixes — traceability lives in the `use_cases:` frontmatter.
+- **No `## Business Rules` block.** Business rules live in `business-rules.md` → the Business Rules tab. Restating them here duplicates content between two tabs.
+- **No `## Related Features` block.** Cross-feature links live in `dependencies.md` and in `depends_on_features` frontmatter — never in Workflow.
+- **One Mermaid diagram at the end** covers the whole flow shape; per-variant diagrams are omitted (the numbered steps and the single overview diagram are enough for the tab reader). If a variant is materially different enough to need its own diagram, escalate — usually it belongs as a separate feature.
+- Cite scope use-case / workflow / business-rule register IDs (`<MODULE>-UC-##`, `WF-###`, `BR-###`) inline where they exist. The `use_cases:` frontmatter lists every scope use case this feature realises, so traceability runs scope §3.x.4 → feature 1:1.
+
+---
+
+### Open questions — an `## Open questions` section of `dependencies.md`
+
+Place it last, after the dependency tables.
+
+Bullet list of unresolved decisions, concatenated onto the Dependencies tab as its **Open questions** sub-section at push time. Bullets are the visible shape; identity / ownership / impact for every question live in frontmatter (`open_questions[]`) so the tracker can query, filter, and pair questions with owners without appearing as noise in the tab.
+
+**When there are no open questions**, write a single-line body: `— none. <one-line reason, e.g. "Remark limit, identity field and reversal policy are all fixed in Business Rules and Implementation.">`. Push merges this onto the same line as the `**Open questions**` separator, matching the v2 reference shape. Do NOT emit an empty bullet list.
+
+```md
+---
+doc_type: feature-open-questions
+schema_version: 1.2
+produced_by: ba
+feature_id: FEAT-SUP-001
+open_questions:
+  - id: OQ-SUP-001
+    question: What document types are mandatory for onboarding?
+    owner: Compliance Team
+    impact: Blocks validation rules
+    status: Open
+  - id: OQ-SUP-002
+    question: Can suppliers update their own information through a portal?
+    owner: Product Owner
+    impact: Impacts user roles and UI scope
+    status: Open
+  - id: OQ-SUP-003
+    question: Does approval require one reviewer or multiple approval stages?
+    owner: Operations Lead
+    impact: Impacts workflow design
+    status: Open
+generated_at: YYYY-MM-DD
+---
+
+- **Mandatory documents** — which document types are required for onboarding? Owner: Compliance Team.
+- **Supplier self-update** — can suppliers update their own information through a portal? Owner: Product Owner.
+- **Approval stages** — is approval a single reviewer or multi-stage? Owner: Operations Lead.
+- **Duplicate criteria** — what defines a duplicate supplier for the validation rule? Owner: Data Owner.
+- **Resubmission** — should rejected suppliers be allowed to resubmit? Owner: Product Owner.
+```
+
+When a feature has no open questions, the file body is a single line: `Open questions — none.`
+
+**Rules for this file:**
+
+- **Visible content is bullets** — the Dependencies tab's Open-questions sub-section renders these directly. No table headings in the body (Impact / Status live in frontmatter, not in the tab).
+- **Reuse `CLR-###` IDs** for questions already logged in the BA `requirements/<slug>/ledger.md` (kind: question); mint `OQ-<AREA>-NN` for new ones. IDs live in the frontmatter `open_questions[].id`; the bullet body names the question and the owner in prose.
+- **An entry here must never be promoted into a confirmed requirement elsewhere.** Once answered, close via a scope edit or a `DEC-###` and set `status: Answered` in frontmatter — do not delete the entry.
+- **Frontmatter status values:** `Open` · `Answered` · `Deferred` · `Won't-fix`. Unknown owner → `Unassigned`; never invent one.
+
+---
+
+---
+
+## Two files that no longer exist
+
+**`implementation-plan.md`** is dropped. It was a BA scratchpad, local-only, never pushed — and one character
+away from `/dev:plan`'s `implementation.md`, which is a different file with a different owner and a different
+meaning. Adjacent names for unrelated things is a defect, not a convenience. What belongs to the build plan is
+the TL's and the dev's to write.
+
+**`feature-index.md`** is dropped. `ls requirements/<slug>/features/` is the list, and status lives in each
+feature's `status.md` — so the index was a cached aggregation of two things that were already readable, and it
+went stale the moment one feature moved. The roll-up renders into `scope.html` instead, from the live files.

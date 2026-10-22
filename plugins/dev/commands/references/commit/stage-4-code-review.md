@@ -2,9 +2,9 @@
 
 **Purpose.** Delegate the feature-diff code review to `dev-stack-adaptive-code-review` skill. Reviews the diff against the repo's own conventions + parent's Business Rules. Reports findings in 4 severity tiers: `Blocker` / `Major` / `Minor` / `Nit`. At commit-time, blocks on `Blocker` and `Major`; `Minor` + `Nit` surface as follow-up suggestions in the PR body.
 
-**Runs after Stage 3 (security review passed).** State: `REVIEW` (unchanged); MC: `devReview` (unchanged). On any Blocker/Major finding, fix loop kicks in.
+**Runs after Stage 3 (security review passed).** State: `devReview` (unchanged); MC: `devReview` (unchanged). On any Blocker/Major finding, fix loop kicks in.
 
-**On completion:** `dev/code-review-findings.md` written (or `ReportFindings` emitted); zero Blocker + zero Major.
+**On completion:** `units/<repo>/findings.md § ## Code review` written (or `ReportFindings` emitted); zero Blocker + zero Major.
 
 ---
 
@@ -12,7 +12,7 @@
 
 - Stage 3 done, zero Critical + zero High security findings
 - Branch still up-to-date with base (`git fetch <remote>` before invocation)
-- `dev/implementation-log.md` present with `detected_stack:` + `inferred_patterns:` blocks from `/dev:build`
+- `units/<repo>/status.md § ## Run history` present with `detected_stack:` + `inferred_patterns:` blocks from `/dev:build`
 
 ---
 
@@ -22,17 +22,17 @@ Invoke `dev-stack-adaptive-code-review` inline (no subagent per the skill's Rule
 
 - The feature diff — `git diff <base>...HEAD`. **Under `tests_only`** this is the test files this commit adds or modifies, plus any product file the branch diff still contains; the product-code dimensions with no diff to read are skipped rather than reported empty (`commit.md` §2). If the review skill refuses to run, follow `commit.md` → *When a required tool cannot run*
 - The target repo path
-- `dev/implementation-log.md` — for the detected stack + inferred patterns (avoid re-detecting)
+- `units/<repo>/status.md § ## Run history` — for the detected stack + inferred patterns (avoid re-detecting)
 - Parent's `business-rules.md` — for BR enforcement checks
 - Parent's `nfrs.md` — for NFR-declared perf/rate targets
 
-The skill emits findings via `ReportFindings` tool if available, or writes directly to `dev/code-review-findings.md`.
+The skill emits findings via `ReportFindings` tool if available, or writes directly to `units/<repo>/findings.md § ## Code review`.
 
 ---
 
 ### 4c. Findings file
 
-`dev/code-review-findings.md` structure:
+`units/<repo>/findings.md § ## Code review` structure:
 
 ```yaml
 ---
@@ -79,7 +79,7 @@ severity_threshold: Major
 
 **Zero Blocker + Zero Major** → mark Stage 4 done. Minor + Nit findings persist in the findings file for PR body integration + follow-up. Advance to Stage 5.
 
-**One or more Blocker/Major** → invoke the fix loop per `stage-6-fix-loop.md` §6a.i (v2.3.27). The fix loop is **MANDATORY and VERIFIABLE** — this stage MUST invoke `dev-stack-adaptive-implementation` in fix-mode via the Skill / Agent tool and record a `stage-4.fix_loop_invocation:` block in `commit-run.md` (fields per §6a.i). Applying the fix inline without recording the invocation trace is a spec violation and Stage 8 §8a will refuse to push. After fix loop, Stage 3 (security) + Stage 4 (code review) both re-run from the top — code fixes may introduce new security concerns.
+**One or more Blocker/Major** → invoke the fix loop per `stage-6-fix-loop.md` §6a.i (v2.3.27). The fix loop is **MANDATORY and VERIFIABLE** — this stage MUST invoke `dev-stack-adaptive-implementation` in fix-mode via the Skill / Agent tool and record a `stage-4.fix_loop_invocation:` block in `status.md` § `## Run history` (fields per §6a.i). Applying the fix inline without recording the invocation trace is a spec violation and Stage 8 §8a will refuse to push. After fix loop, Stage 3 (security) + Stage 4 (code review) both re-run from the top — code fixes may introduce new security concerns.
 
 ---
 
@@ -91,7 +91,7 @@ Not applicable — `/dev:build` doesn't run code review; only security. Code rev
 
 ### 4f. Progress log
 
-Append to `dev/commit-run.md`:
+Append to `units/<repo>/status.md § ## Run history`:
 
 ```yaml
 stage-4:
@@ -105,7 +105,7 @@ stage-4:
     major: 0
     minor: 3
     nit: 2
-  findings_file: dev/code-review-findings.md
+  findings_file: units/<repo>/findings.md § ## Code review
 ```
 
 ---

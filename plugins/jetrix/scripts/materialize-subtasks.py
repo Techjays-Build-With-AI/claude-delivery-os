@@ -48,7 +48,7 @@ convention: empty tab = no local file):
     features/<parent_slug>/subtask/<subtaskRepo>/
       description.md          # always written (Description tab)
       implementation.md       # always written (Implementation tab)
-      status.md               # always written (mirrors MC status → PLANNED/etc.)
+      status.md               # always written (MC status verbatim + phase where known)
 
 Sync-state entries land under `subtasks/<subtask_object_id>` with
 `contentHash = sha256(description.md + implementation.md)` — matches
@@ -156,19 +156,18 @@ def _safe_yaml_scalar(value) -> str | None:
     return s
 
 
-# Map MC status enum → local 5-state loop-control vocabulary
-# (delivery-os-conventions §5 dev delivery state). Anything unrecognised
-# defaults to PLANNED so we never write a state that isn't in the enum.
-_MC_STATUS_TO_LOCAL = {
-    "todo":           "PLANNED",
-    "readyForDev":    "PLANNED",
-    "inProgress":     "IN_PROGRESS",
-    "agentExecuting": "IN_PROGRESS",
-    "devReview":      "REVIEW",
-    "inQaReview":     "REVIEW",
-    "reopen":         "IN_PROGRESS",
-    "blocked":        "BLOCKED",
-    "done":           "DONE",
+# One vocabulary (delivery-os-conventions §5): `status` IS MC's enum, so
+# there is nothing to translate -- it is copied verbatim. The only mapping left
+# is the local `phase`, and only for the two statuses that determine one.
+#
+# The rest are deliberately absent. MC has no phase field, so a pulled
+# `blocked` could be plan-blockers or escalated and a pulled `inProgress` could
+# be any build stage. A guess there routes /dev:build to the wrong recovery;
+# leaving it out makes the gates fall back to plan-blockers.md and Run history,
+# which actually know.
+_PHASE_ON_PULL = {
+    "readyForDev": "planned",
+    "devReview":   "pr-open",   # merge-conflict is local-only, never pushed
 }
 
 
@@ -176,8 +175,15 @@ def _iso_now() -> str:
     return datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
 
 
-def _local_state(mc_status: str) -> str:
-    return _MC_STATUS_TO_LOCAL.get((mc_status or "").strip(), "PLANNED")
+def _status_and_phase(mc_status: str):
+    """(status, phase|None) -- status verbatim, phase only when determined.
+
+    An MC status outside the documented seven (inQaReview, reopen, anything MC
+    adds later) passes through unchanged rather than being coerced, so a
+    widened enum never lands on disk as the wrong status.
+    """
+    st = (mc_status or "").strip() or "todo"
+    return st, _PHASE_ON_PULL.get(st)
 
 
 def _identity_frontmatter(
@@ -349,7 +355,7 @@ def materialize(
         ac             = st.get("acceptance_criteria") or ""
         ts             = st.get("test_scenarios") or ""
         mc_status      = st.get("status") or "todo"
-        local_state    = _local_state(mc_status)
+        task_status, task_phase = _status_and_phase(mc_status)
 
         # Description tab
         desc_fm_lines = _identity_frontmatter(
@@ -378,8 +384,8 @@ def materialize(
         impl_fm = impl_fm_lines + ["---"]
         impl_content = "\n".join(impl_fm) + "\n\n" + implementation.rstrip() + "\n"
 
-        # Status tab — includes the current_state body block for /dev:build
-        # + /dev:plan resume to read.
+        # Status tab — carries the status (+ phase where known) that
+        # /dev:build and /dev:plan --resume read.
         status_fm_lines = _identity_frontmatter(
             parent_feature_id, parent_task_object_id, parent_task_number,
             subtask_number, subtask_repo, subtask_object_id, subtask_task_num,
@@ -387,12 +393,13 @@ def materialize(
         )
         assert status_fm_lines is not None
         status_fm = status_fm_lines + ["---"]
-        # local_state comes from our own _MC_STATUS_TO_LOCAL enum mapping
-        # (bounded set) so it's guaranteed YAML-safe; sanity-check anyway.
-        safe_state = _safe_yaml_scalar(local_state) or "PLANNED"
+        # status comes straight off MC, so sanity-check it before it reaches
+        # YAML; phase is from our own bounded map and needs no check.
+        safe_status = _safe_yaml_scalar(task_status) or "todo"
         status_content = (
             "\n".join(status_fm)
-            + f"\n\ncurrent_state: {safe_state}\n"
+            + f"\n\nstatus: {safe_status}\n"
+            + (f"phase: {task_phase}\n" if task_phase else "")
             + "owner_lock: null\n"
             + "branch: null\n"
         )

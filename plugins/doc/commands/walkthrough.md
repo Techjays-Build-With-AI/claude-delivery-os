@@ -27,7 +27,7 @@ context.
   Passed through verbatim.
 
 If a Delivery OS workspace exists and no explicit spec is given, tell the agent
-to source from `ba/scope.md` and `shared-context/`.
+to source from `requirements/<slug>/scope.md` and `shared-context/`.
 
 ## 2. Delegate
 
@@ -70,3 +70,17 @@ module sections covered, which examples were drawn from the spec, and any
 `[[NEEDS: …]]` placeholders still needing input. Link to the generated HTML and
 tell the user to open it in a browser (sidebar jumps to sections; hover states
 and steps for detail; click a state to trace its transitions). Keep it tight.
+
+**Serve it and print both links** — `delivery-os-conventions` §1.e. Start the server in the background as the
+last action and read the port from its `DELIVERY_OS_SERVE_READY` line:
+
+```bash
+node ${CLAUDE_PLUGIN_ROOT}/../delivery-os-core/scripts/serve-review.js .jetrix/doc/walkthroughs
+```
+
+```
+Report   http://127.0.0.1:<port>/walkthrough-<topic>-<ts>.html      ← open in your browser
+         doc/walkthroughs/walkthrough-<topic>-<ts>.html    ← the file itself
+```
+
+A path alone is not something anyone can click, and a `file://` page cannot fetch a sibling.

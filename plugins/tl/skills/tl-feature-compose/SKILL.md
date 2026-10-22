@@ -1,6 +1,6 @@
 ---
 name: tl-feature-compose
-description: Compose self-contained implementation content for a feature or sub-task in one of three modes — implementation (plan-only 9-section technical spec §1–§9, stack-agnostic vocabulary, for a parent Task's Implementation tab, or for a single sub-task's Implementation tab scoped to one repo), description (user-story format for a sub-task's Description tab), or rollup (parent Implementation tab when the feature was split into sub-tasks — names each sub-task, sequence, cross-task dependencies, and touch points). Use whenever a feature has been planned technically (units exist in `context/frontend|backend|database/`) and needs a document a developer or coding agent can build from without opening the other files. Point it at one feature folder, a `FEAT-<AREA>-NN` id, an `initiative=<name>` slice, or the whole `features/` set; it reads the feature, its owned pages/endpoints/entities, and (when the repo is cloned locally) the target repo's file layout, and writes the appropriate document per mode. It never restates business rationale (that's in `feature.md`), never invents an endpoint/contract/schema/path the source can't ground, never leaks framework names or file paths, and never composes above Mission Control's 60 KB tab cap.
+description: Compose self-contained implementation content for a feature or sub-task in one of three modes — implementation (plan-only 9-section technical spec §1–§9, stack-agnostic vocabulary, for a parent Task's Implementation tab, or for a single sub-task's Implementation tab scoped to one repo), description (user-story format for a sub-task's Description tab), or rollup (parent Implementation tab when the feature was split into sub-tasks — names each sub-task, sequence, cross-task dependencies, and touch points). Use whenever a feature has been planned technically (units exist in `<repo>/context/code-context/{frontend,backend,database}/`) and needs a document a developer or coding agent can build from without opening the other files. Point it at one feature folder, a `FEAT-<AREA>-NN` id, an `requirement=<slug>` slice, or the whole `features/` set; it reads the feature, its owned pages/endpoints/entities, and (when the repo is cloned locally) the target repo's file layout, and writes the appropriate document per mode. It never restates business rationale (that's in `feature.md`), never invents an endpoint/contract/schema/path the source can't ground, never leaks framework names or file paths, and never composes above Mission Control's 60 KB tab cap.
 ---
 
 # TL Feature Compose (context graph + feature breakdown → buildable per-feature plan)
@@ -16,16 +16,16 @@ This skill **authors context, not code**. It produces the per-feature buildable 
 Read the **`delivery-os-conventions`** contract first if it isn't already in context — the workspace layout, frontmatter standard, stable-ID rules, source-citation form, and controlled vocabulary. Your inputs are:
 
 - **`.jetrix/connection-map.md` FIRST** (if present) — the workspace-level solution architecture doc. It names each repo's role, Wiring edges (transport per pair — `Frontend → Backend over REST`), auth boundary, and external integrations. Consult it BEFORE describing any cross-repo integration in your compose output — a sub-task's Implementation tab that says "the frontend consumes this endpoint" must trace through an EXISTING wiring edge; if it needs a NEW edge, that's a `[HELD]` open item, not an assumption.
-- The feature folder — `features/<slug>/feature.md`, `implementation-plan.md` (BA's build-areas, optional context), `workflow.md`, `acceptance-criteria.md`, `dependencies.md`, `open-questions.md`.
+- The feature folder — `features/<slug>/feature.md`, `acceptance-criteria.md`, `dependencies.md`.
 - The feature's **owned unit files** — pages under `<repo>/context/code-context/frontend/pages/`, endpoints under `<repo>/context/code-context/backend/domains/`, entities under `<repo>/context/code-context/database/entities/` — resolved via the three layer indexes and the feature-cell matching rule (`Used by Features` cell can hold multiple ids, comma-separated; match on word boundary).
-- The BA registers the units cite (`ba/registers/data.md`, `ba/registers/integrations.md`, `ba/registers/workflows.md`, `ba/registers/business-rules.md`) and `shared-context/decision-log.md`.
+- The BA registers the units cite (`shared-context/data.md`, `shared-context/integrations.md`, `requirements/<slug>/registers/workflows.md`, `requirements/<slug>/registers/business-rules.md`) and `shared-context/decision-log.md`.
 - The target app repos declared in `.jetrix/cache/repolocation.json` — read the file, and for each repo that exists locally, do a shallow layout scan (top-level + one level down) to establish routing/handler/model conventions. Never read env files, secrets, credentials, or files that look like credentials — treat any file matching `.env*`, `*.pem`, `*.key`, `*credentials*`, `*secret*` as off-limits.
 
 **Output** (v2.3 layout — flat 3 files at task root, no nested dev/). Depends on the mode (see §"Compose modes" below):
 
 - **`implementation` mode** on a parent-alone feature → `features/<slug>/implementation.md` (v2.3; was `tl-plan.md` before)
-- **`implementation` mode** on a sub-task → `features/<slug>/subtask/<repo>/implementation.md`
-- **`description` mode** on a sub-task → `features/<slug>/subtask/<repo>/description.md`
+- **`implementation` mode** on a sub-task → `features/<slug>/units/<repo>/implementation.md`
+- **`description` mode** on a sub-task → `features/<slug>/units/<repo>/description.md`
 - **`rollup` mode** on a parent whose feature was split → `features/<slug>/tl-plan.md` (kept — the parent rollup remains `tl-plan.md` on split; the sub-task Implementation tabs carry the detail)
 
 The body structure depends on the mode — see `references/implementation-plan-template.md`. Read the template before composing.
@@ -40,11 +40,11 @@ produced_by: tl
 feature_id: FEAT-<AREA>-NN
 parent_task_object_id: <MC _id>       # sub-task only — OMIT for parent-alone
 parent_task_number: Feature-N         # sub-task only — OMIT for parent-alone
-subtask_number: 1..N                  # sub-task only — OMIT for parent-alone
-subtask_repo: <repo-slug>             # sub-task only — OMIT for parent-alone
+unit_number: 1..N                  # sub-task only — OMIT for parent-alone
+unit_repo: <repo-slug>             # sub-task only — OMIT for parent-alone
 capabilities: [<role-a>, <role-b>]    # v2.3.11 — machine-readable roles this sub-task plays in the split (see Rule 11.15)
-jetrix_subtask_object_id: <MC _id>    # sub-task only — set after /jetrix:push subtask
-jetrix_subtask_number: Subtask-N      # sub-task only — set after push
+jetrix_unit_object_id: <MC _id>    # sub-task only — set after /jetrix:push subtask
+jetrix_unit_number: Subtask-N      # sub-task only — set after push
 compose_mode: implementation
 composed_at: <ISO date>
 inputs_hash: <sha256 of feature.md + owned unit files, for re-run skip>
@@ -61,10 +61,10 @@ produced_by: dev                      # invoked by /dev:plan Stage 2 (compose_mo
 feature_id: FEAT-<AREA>-NN
 parent_task_object_id: <MC _id>
 parent_task_number: Feature-N
-subtask_number: 1..N
-subtask_repo: <repo-slug>
-jetrix_subtask_object_id: <MC _id>    # set after /jetrix:push subtask
-jetrix_subtask_number: Subtask-N      # set after push
+unit_number: 1..N
+unit_repo: <repo-slug>
+jetrix_unit_object_id: <MC _id>    # set after /jetrix:push subtask
+jetrix_unit_number: Subtask-N      # set after push
 compose_mode: description
 composed_at: <ISO date>
 inputs_hash: <sha256 of the compose inputs>
@@ -87,7 +87,7 @@ inputs_hash: <sha256 of feature.md + owned unit files, for re-run skip>
 
 ## Compose modes
 
-Three distinct modes drive what body content this skill produces. The caller (`/dev:plan` Stage 2, or `/tl:plan`'s downstream) specifies the mode; the workflow branches on it in step 5.
+Three distinct modes drive what body content this skill produces. The caller (`/dev:plan` Stage 2, or `tl-feature-planning` (internal)'s downstream) specifies the mode; the workflow branches on it in step 5.
 
 ### Mode: `implementation` (default — parent-alone or per-sub-task Implementation tab)
 
@@ -104,32 +104,32 @@ The **single source of truth** for the task. Used for:
 
 **Size is not a reason to drop the frame.** A one-line presentational fix produces a §1 with one step and several `None.` sections — that is a complete plan, not a degenerate one. Prose in place of the frame is a refusal to state the file target, the rollback lever, and what the change satisfies; those are exactly what a reader needs when the change turns out to be wrong.
 
-Body sections (v2.3.16 — 8 sections §1–§8, stack-agnostic vocabulary; **`tl-feature-compose` writes ALL sections in ONE pass** at `/dev:plan` Stage 4. History: `§1 Business flow` and `§10 How to verify locally` removed in v2.3.10 (plan-only). v2.3.11 renamed §3/§4/§5 stack-agnostic + moved Shared contract to tail. **v2.3.16 removed `§7 Coverage`** — coverage is not a plan-time table; the plan states INTENT via §1 Satisfies column + the stack-driven tier pool (from `qa/quality-gates.md`, or from stack detection when user skipped QA setup at plan time), and EVIDENCE lives in `dev/acceptance-map.md` built at `/dev:build` Stage 8. No "Deferred" concept anywhere — every parent AC/BR/TS in this sub-task's scope is COVERED at every applicable tier for the layer):
+Body sections (v2.3.16 — 8 sections §1–§8, stack-agnostic vocabulary; **`tl-feature-compose` writes ALL sections in ONE pass** at `/dev:plan` Stage 4. History: `§1 Business flow` and `§10 How to verify locally` removed in v2.3.10 (plan-only). v2.3.11 renamed §3/§4/§5 stack-agnostic + moved Shared contract to tail. **v2.3.16 removed `§7 Coverage`** — coverage is not a plan-time table; the plan states INTENT via §1 Satisfies column + the stack-driven tier pool (from `qa/quality-gates.md`, or from stack detection when user skipped QA setup at plan time), and EVIDENCE lives in `units/<repo>/status.md § ## Acceptance` built at `/dev:build` Stage 8. No "Deferred" concept anywhere — every parent AC/BR/TS in this sub-task's scope is COVERED at every applicable tier for the layer):
 
-1. **Build sequence** — ordered steps table (# / Step / Files / Units / Satisfies) + mermaid step-graph (from Stage 2 analysis scratchpad `dev/<repo>-analysis.md § Build sequence`). The Files column names WHERE the code lands per step (new vs modified paths). **The Satisfies column is the CANONICAL plan-time coverage owner** — each parent AC/BR/TS ID in this sub-task's scope appears in at least one step's Satisfies column, per Rule 11.11.
+1. **Build sequence** — ordered steps table (# / Step / Files / Units / Satisfies) + mermaid step-graph (from Stage 2 analysis scratchpad `units/<repo>/analysis.md § Build sequence`). The Files column names WHERE the code lands per step (new vs modified paths). **The Satisfies column is the CANONICAL plan-time coverage owner** — each parent AC/BR/TS ID in this sub-task's scope appears in at least one step's Satisfies column, per Rule 11.11.
 2. **Impacted components** — 12-dimension impact matrix — Surfaces/Operations/Stored data/Authz/Integrations/Background jobs/Notifications/Observability/Existing tests/Docs/Flags/Analytics (from Stage 2 analysis scratchpad § Impact matrix). Repo/stack-specific dimension names (e.g. "Screens" for UI repos, "Migration" for stateful repos, "Accessibility" for interactive repos) are added by the compose based on repo shape.
 3. **Operations exposed and consumed** — every operation this sub-task owns or consumes (from TL context graph — owned endpoint/RPC/job units). Stack-agnostic name — covers REST endpoints, GraphQL resolvers, gRPC methods, queue message handlers, background jobs, CLI commands. Consumer sub-tasks pull owner's contract verbatim per Rule 11.6.
 4. **Stored data changes** — every persisted-state change this sub-task makes (from TL context graph — owned entity/collection/table/document units). Stack-agnostic name — covers SQL tables, NoSQL collections, KV keys, object-store paths, cache regions, files-on-disk stores. If the sub-task's repo has no persistence, `None.` (one line, per Rule 11.12).
 5. **User-facing surfaces** — every UI/interaction surface this sub-task adds or modifies (from TL context graph — owned page/screen/CLI-command units). Stack-agnostic name — covers web pages, mobile screens, CLI commands, terminal UIs, service dashboards. If the sub-task has no user-facing surface (e.g. backend-only), `None. Delivered by <sibling>.` (one line).
 6. **Touch points** — Reuse / New / Cross-sub-task table (from TL context graph + `code-context-index.md`). Cross-sub-task E2E ownership is stated here as a Cross-sub-task row (e.g. `E2E for AC-M owned by sub-task N (<repo>) — tests/e2e/<flow>.spec.js`).
-7. **Risks and rollback** — Risks table + Out of scope for this sub-task + two-tier rollback (cheapest lever, then full — see Rule 11.14). NO "Assumptions" heading — boring decisions live in §3 Invariants/Authz clauses and §5 Effects/on-success clauses per Rule 11.13 §5. Mitigation cells reference AC/BR/TS IDs + tier (e.g. `Covered by AC-1 + BR-3 at Unit + Integration tiers`), never a specific test file (test files live in `dev/acceptance-map.md` at build time).
+7. **Risks and rollback** — Risks table + Out of scope for this sub-task + two-tier rollback (cheapest lever, then full — see Rule 11.14). NO "Assumptions" heading — boring decisions live in §3 Invariants/Authz clauses and §5 Effects/on-success clauses per Rule 11.13 §5. Mitigation cells reference AC/BR/TS IDs + tier (e.g. `Covered by AC-1 + BR-3 at Unit + Integration tiers`), never a specific test file (test files live in `units/<repo>/status.md § ## Acceptance` at build time).
 8. **Shared contract** — feature-wide invariants inherited byte-for-byte across every sub-task in a split (see Rule 11.3). Placed LAST so the plan opens with buildable work and closes with the reference contract the reader looks up when a question arises.
 
-**Coverage NOT in the plan** — no `§7 Coverage` table. Plan-time intent lives in §1 Satisfies column + qa/quality-gates.md tier pool (or stack-detected fallback pool when the user skipped QA setup at plan time). Build-time evidence lives in `dev/acceptance-map.md`. The plan does not restate what those two artifacts already own.
+**Coverage NOT in the plan** — no `§7 Coverage` table. Plan-time intent lives in §1 Satisfies column + qa/quality-gates.md tier pool (or stack-detected fallback pool when the user skipped QA setup at plan time). Build-time evidence lives in `units/<repo>/status.md § ## Acceptance`. The plan does not restate what those two artifacts already own.
 
-**Hard precondition:** this mode REFUSES to run if the analysis scratchpad is missing OR blockers are still OPEN. The scratchpad lives at `features/<slug>/dev/analysis.md` (parent-alone), `features/<slug>/dev/<repo>-analysis.md` (sub-task), or `tasks/<slug>/dev/analysis.md` (filed ticket). Sections 1, 2, 7, 8 need the analysis scratchpad; running without it produces stub sections which we deliberately reject. See §"Hard rules" Rule 12 below.
+**Hard precondition:** this mode REFUSES to run if the analysis scratchpad is missing OR blockers are still OPEN. The scratchpad lives at `features/<slug>/units/<repo>/analysis.md` (parent-alone), `features/<slug>/units/<repo>/analysis.md` (sub-task), or `tasks/<slug>/units/<repo>/analysis.md` (filed ticket). Sections 1, 2, 7, 8 need the analysis scratchpad; running without it produces stub sections which we deliberately reject. See §"Hard rules" Rule 12 below.
 
 **Input contract for §§1, 2, 7, 8 (Stage 2 analysis scratchpad):**
 
 ```yaml
-# dev/<repo>-analysis.md — Stage 2's output
+# units/<repo>/analysis.md — Stage 2's output
 ---
 doc_type: analysis-scratchpad
 schema_version: 1.0
 produced_by: dev
 feature_id: FEAT-...
-subtask_number: 1
-subtask_repo: backend
+unit_number: 1
+unit_repo: backend
 generated_at: <ISO>
 ---
 build_sequence:      # → §1
@@ -150,10 +150,6 @@ impact_matrix:       # → §2
   docs: <impact>
   feature_flags: N/A | <impact>
   analytics: N/A | <impact>
-coverage:            # → §7 (Coverage)
-  - level: unit
-    covers: [AC-1, AC-9]
-    evidence: "..."
 risks_and_rollback:  # → §8
   risks:
     - description: "..."
@@ -164,7 +160,7 @@ risks_and_rollback:  # → §8
 
 Output path:
 - Parent-alone → `features/<slug>/implementation.md`
-- Per sub-task → `features/<slug>/subtask/<repo>/implementation.md`
+- Per sub-task → `features/<slug>/units/<repo>/implementation.md`
 
 ### Mode: `description` (sub-task or filed-`story` Description tab — v2.3.5 user-story format)
 
@@ -172,7 +168,7 @@ A **user story** describing what a user can do, plus the business context around
 
 Six deterministic sections, in this order:
 
-1. **User story** — the classic three-line format: `**As a** <role>, **I want** <action>, **So that** <benefit>`. Role comes from parent's `feature.md` `users:` frontmatter or `workflow.md` actors. Action is what the user WANTS to do (not what the system does). Benefit is the business outcome the user gets. Framing sentence follows: 2-3 sentences of business context establishing WHY this matters to the user — the pain point being solved, the current workaround being replaced.
+1. **User story** — the classic three-line format: `**As a** <role>, **I want** <action>, **So that** <benefit>`. Role comes from parent's `feature.md` `users:` frontmatter or `feature.md` § `## Workflow` actors. Action is what the user WANTS to do (not what the system does). Benefit is the business outcome the user gets. Framing sentence follows: 2-3 sentences of business context establishing WHY this matters to the user — the pain point being solved, the current workaround being replaced.
 2. **User scenarios** — bulleted list of the user's flows in business terms, one bullet per scenario (not per endpoint). Format each: **bold action name** — 1-2 sentences describing what the user does, sees, and gets. Written in present-tense active voice from the user's POV: "The user selects a date and name, and the system…" not "The system accepts a POST body with…". If a scenario involves a decision or fork, describe it business-terms.
 3. **Business rules that apply** — cite the parent's `BR-N` references + a 1-line paraphrase per rule. Only BRs that shape what the USER sees or does in THIS sub-task's flows.
 4. **What users see when refused** — bulleted list of business situations where the user doesn't get what they asked for. Framed as what the user READS or PERCEIVES, not what the API returns: "The user is told the date is already taken and shown the name of the existing holiday" not "409 with DUPLICATE_TAX_ID".
@@ -184,7 +180,7 @@ Six deterministic sections, in this order:
 - Bullets: `-` prefix, indent-preserved sub-bullets allowed for elaboration
 - Bold role names: **Add a holiday**, **Duplicate holiday** — first two words of each bullet
 - No HTTP status codes (`400`, `409`, `201`), no field names (`added_by`), no file paths, no framework names, no method names (POST/GET/DELETE), no tables, no code fences, no mermaid.
-- Business vocabulary from parent's `feature.md` + `workflow.md` — actor names, system names, data terms — never technical translations
+- Business vocabulary from parent's `feature.md` + `feature.md` § `## Workflow` — actor names, system names, data terms — never technical translations
 
 ### Per-section character budget (v2.3.4 — HARD budget planned upfront, not trimmed after)
 
@@ -219,8 +215,8 @@ doc_type: description
 schema_version: 2.0
 produced_by: dev
 feature_id: FEAT-HCAL-01
-subtask_number: 1
-subtask_repo: backend
+unit_number: 1
+unit_repo: backend
 compose_mode: description
 composed_at: 2026-08-31T15:00:00Z
 inputs_hash: sha256:...
@@ -266,7 +262,7 @@ Today the holiday calendar lives in a PDF that HR emails once a year, and the sa
 - **Sub-task 2 (frontend)** consumes all three endpoints delivered here.
 ```
 
-Output path: `features/<slug>/subtask/<repo>/description.md`
+Output path: `features/<slug>/units/<repo>/description.md`
 
 ### Mode: `rollup` (parent Implementation tab when the feature was split)
 
@@ -289,21 +285,21 @@ Output path: `features/<slug>/tl-plan.md`
 | Situation | Modes invoked |
 |---|---|
 | Feature is parent-alone (single-repo, bug, story, `--no-split`) | 1× `implementation` on parent → writes `features/<slug>/implementation.md` |
-| Feature is split (multi-repo, `--split`) | N× parallel: `description` on each sub-task → writes `subtask/<repo>/description.md`, AND `implementation` on each sub-task → writes `subtask/<repo>/implementation.md`. Then 1× `rollup` on parent → writes `features/<slug>/tl-plan.md` |
+| Feature is split (multi-repo, `--split`) | N× parallel: `description` on each sub-task → writes `units/<repo>/description.md`, AND `implementation` on each sub-task → writes `units/<repo>/implementation.md`. Then 1× `rollup` on parent → writes `features/<slug>/tl-plan.md` |
 
 ## Workflow
 
 ### 1. Resolve the target feature(s)
-Take the target from the user: one feature folder / slug / id, or the whole set. If an `initiative=<name>` filter is present, restrict to features whose `feature.md` `initiative` matches (report which features the filter selected). If the target resolves to nothing, tell the user and stop — do not compose a made-up feature.
+Take the target from the user: one feature folder / slug / id, or the whole set. If an `requirement=<slug>` filter is present, restrict to features whose `feature.md` `requirement` matches (report which features the filter selected). If the target resolves to nothing, tell the user and stop — do not compose a made-up feature.
 
 ### 2. Skip-unchanged check (unless `--force`)
 For each targeted feature, compute the `inputs_hash` — sha256 over the concatenation of `feature.md` + each owned unit file's body (frontmatter stripped, CRLF normalised). If a `tl-plan.md` exists with the same `inputs_hash` in its frontmatter, skip it and report `skipped-unchanged`. This is the same idempotence pattern `/jetrix:push` uses via `sync-state.json`.
 
 ### 3. Read the feature and its graph slice
 For each feature to compose:
-- Read `feature.md`, `workflow.md`, `acceptance-criteria.md`, `business-rules.md`, `nfrs.md`, `test-scenarios.md`, `dependencies.md`, `open-questions.md`. (`implementation-plan.md` and `status.md` are local-only and irrelevant here — do NOT read them.)
-- **Ensure the graph is local.** The graph lives per-repo under `<repo>/context/code-context/{frontend|backend|database}/`. If any of the 3 indexes is missing for a required repo, tell the user to run `/tl:plan` (for missing units) or `/tl:code-map` (to reverse-map an existing repo) first — no indexes, no graph — and stop.
-- Resolve owned units from the three indexes using the awk recipe from `references/index-resolution.md` (same matching rule `/jetrix:push implementation` uses — feature-cell word-boundary match, and the 2-hop endpoint→entity chain via each endpoint row's `Reads/Writes Entities` cell). Reject a feature with **zero owned units** — tell the user to run `/tl:plan` first, do not fabricate units.
+- Read `feature.md`, `acceptance-criteria.md`, `business-rules.md`, `nfrs.md`, `test-scenarios.md`, `dependencies.md`. (`status.md` is local-only and irrelevant here — do NOT read them.)
+- **Ensure the graph is local.** The graph lives per-repo under `<repo>/context/code-context/{frontend|backend|database}/`. If any of the 3 indexes is missing for a required repo, tell the user to run `/tl:code-map` — the repo has never been reverse-mapped (for missing units) or `/tl:code-map` (to reverse-map an existing repo) first — no indexes, no graph — and stop.
+- Resolve owned units from the three indexes using the awk recipe from `references/index-resolution.md` (same matching rule `/jetrix:push implementation` uses — feature-cell word-boundary match, and the 2-hop endpoint→entity chain via each endpoint row's `Reads/Writes Entities` cell). Reject a feature with **zero owned units** — tell the user to run `/dev:plan`, which builds the graph itself, do not fabricate units.
 - **Any unit file whose path resolves in an index but doesn't exist locally** becomes `[HELD · unit file unavailable — <id>]` in §8 with `TBD — unit-detail file unavailable` at its heading. Ask the user to sync the involved repo (`git pull` inside it) and re-run.
 - Read every owned page, endpoint, and entity file.
 
@@ -338,7 +334,7 @@ Nine sections (§1–§9), in this order. Cross-feature "must exist first" waits
 
 **One or two paragraphs of continuous prose** telling the story of what THIS sub-task does in business terms. No headings, no bullet lists, no tables, no code fences, no HTTP codes, no field lists.
 
-**Inputs:** parent's `feature.md` (Objective + In/Out of Scope), `workflow.md` (flow steps), scoped to the operations THIS sub-task's repo owns via its owned units. Read each sub-task's owned endpoints/pages/entities to understand what happens in this slice — but describe the outcome in business language, never the mechanism.
+**Inputs:** parent's `feature.md` (Objective + In/Out of Scope), `feature.md` § `## Workflow` (flow steps), scoped to the operations THIS sub-task's repo owns via its owned units. Read each sub-task's owned endpoints/pages/entities to understand what happens in this slice — but describe the outcome in business language, never the mechanism.
 
 **Business vocabulary:** use the actors, systems, and data terms the parent's BA files use ("supplier", "operations coordinator", "compliance service"), not the technical terms ("controller", "middleware", "collection").
 
@@ -357,11 +353,11 @@ Three sections in this order:
    ```
    |  #  | Repo     | MC Task    | Depends on | Blocks   | State    |
    |-----|----------|------------|------------|----------|----------|
-   |  1  | backend  | Subtask-7  | —          | 2, 3     | PLANNED  |
-   |  2  | frontend | Subtask-8  | 1          | —        | PLANNED  |
-   |  3  | mobile   | Subtask-9  | 1          | —        | PLANNED  |
+   |  1  | backend  | Subtask-7  | —          | 2, 3     | readyForDev  |
+   |  2  | frontend | Subtask-8  | 1          | —        | readyForDev  |
+   |  3  | mobile   | Subtask-9  | 1          | —        | readyForDev  |
    ```
-   `#` = execution sequence (from each sub-task's `subtask_number` frontmatter). `MC Task` = `jetrix_subtask_number` from the same. `Depends on` / `Blocks` = other rows referenced by `#`. `State` = each sub-task's `current_state` from its `status.md`.
+   `#` = execution sequence (from each sub-task's `subtask_number` frontmatter). `MC Task` = `jetrix_subtask_number` from the same. `Depends on` / `Blocks` = other rows referenced by `#`. `State` = each sub-task's `status` from its `status.md`.
 3. **Touch points** — aggregated Reuse / New table at the parent level. A component reused across multiple sub-tasks appears once with all consumers listed. Includes the internal review caveat about re-verifying reuse entries.
 
 **No Operations, Stored data changes, or User-facing surfaces sections in rollup mode** — those live per sub-task.
@@ -377,7 +373,7 @@ Compose runs in **at most two passes**, never more:
 1. **Pass 1 — Compose.** Read all inputs (analysis scratchpad, TL context units, parent BA files). Fill all 8 sections in ONE shot. Respect Rule 10 budgets as GUIDES (target numbers), not walls. Write the draft to memory.
 2. **Pass 1 — Lint (immediately after compose, single scan).** Run every rule below ONCE against the draft. Collect ALL findings into two buckets:
    - **HALT findings** (mechanical, only these 8 rules — see Rule 0a below) → STOP everything. Report all halt findings at once. Write nothing to disk. Do NOT auto-rewrite. User fixes the input (scratchpad, TL unit, BA file) and re-runs `/dev:plan`.
-   - **WARN findings** (everything else — Rules 10a/10b/11.5/11.9/11.10/11.12/11.13 that were previously halts) → collect into a `## Compose lint findings` block. Write draft to disk. Report warnings to the user in the terminal + append the block to `dev/plan-run.md` under this task's Stage 4. **User is not blocked** by warnings.
+   - **WARN findings** (everything else — Rules 10a/10b/11.5/11.9/11.10/11.12/11.13 that were previously halts) → collect into a `## Compose lint findings` block. Write draft to disk. Report warnings to the user in the terminal + append the block to `units/<repo>/status.md § ## Run history` under this task's Stage 4. **User is not blocked** by warnings.
 3. **Pass 2 (OPTIONAL — auto-fix only)** — if the ONLY halt findings are mechanical auto-fixes (remove a stray `## Assumptions` heading, remove a stray `## 7. Coverage` heading, remove `Deferred` status text — all string-level removals with no rewrite), apply the auto-fix, re-lint ONCE, then proceed as Pass 1. If Pass 2's lint still has HALT findings, STOP for real — never a third iteration.
 
 **Rule 0a — The 8 mechanical halt triggers (v2.3.17). Every other rule below is a WARNING that reports but does not block.**
@@ -389,14 +385,14 @@ Compose runs in **at most two passes**, never more:
 | 3 | `Deferred to E2E` / `Deferred` status text | remove the row / cell text | Retired concept per v2.3.16 |
 | 4 | `**Assumptions.**` or `## Assumptions` heading | remove the heading + associated bullets | Retired concept per v2.3.15 |
 | 5 | Pipe-table rows crammed on one physical line (`\| … \| … \| … \| \d+ \| …` pattern) | split rows at `\| \d+ \|` or `\| — \|` boundary + insert `\n` + ensure header separator row present | Unrenderable in MC — remark-gfm treats inline pipe run as regular paragraph text (this is the exact bug from the user's screenshot) |
-| 6 | Unclosed code fence (odd count of ` ``` `) | none — halt only | Parser breaks; downstream content silently swallowed |
+| 6 | Unclosed code fence (odd count of ` `` `) | none — halt only | Parser breaks; downstream content silently swallowed |
 | 7 | Framework field paths in §8 Shared contract (`req.`, `res.`, `result.response`, `ctx.`, `.headers[`) | none — halt only | Rule 11.3a — §8 is wire-only |
 | 8 | `# FEAT-` H1 heading (feature ID leak) | remove the heading line | Rule 4 |
 | 9 (NEW v2.3.17) | Mermaid block without `language-mermaid` tag (fenced but tag missing/wrong) | insert `mermaid` after opening fence | MC's `<MermaidDiagram>` component checks `className === 'language-mermaid'`; without it, block renders as a plain code fence, no diagram |
 | 10 (NEW v2.3.17) | Missing blank line before/after a table or code fence | insert `\n\n` at the boundary | remark-gfm silently DROPS blocks without blank-line surrounds — content vanishes from the render |
 | 11 (NEW v2.3.26) | Solo-pipe line OR table column-count mismatch (header cells ≠ separator cells) | Transform 0 deletes solo-pipe lines unconditionally; column-count mismatch HALTS (ambiguous fix) | CommonMark parsers see `|---|---|` as an H2 setext underline for the preceding line — the pipe-header renders as a huge false heading and the section's real H2 disappears into the noise |
 
-**Auto-fix scope (v2.3.17 clarification).** Auto-fix operations are pure string transforms applied IN the lint pass — remove a heading line, insert a newline, insert `mermaid` after ` ``` `. They do not count against Rule 0's max-one-auto-fix budget (that budget covers RE-COMPOSE cycles). Auto-fix runs deterministically on the lint scan output; if all halt triggers auto-fix cleanly, the file writes on the same pass. If any halt trigger cannot auto-fix (halt #1, #6, #7 have no auto-fix; auto-fixable ones fail on ambiguous boundaries), the compose HALTS with the byte range.
+**Auto-fix scope (v2.3.17 clarification).** Auto-fix operations are pure string transforms applied IN the lint pass — remove a heading line, insert a newline, insert `mermaid` after ` `` `. They do not count against Rule 0's max-one-auto-fix budget (that budget covers RE-COMPOSE cycles). Auto-fix runs deterministically on the lint scan output; if all halt triggers auto-fix cleanly, the file writes on the same pass. If any halt trigger cannot auto-fix (halt #1, #6, #7 have no auto-fix; auto-fixable ones fail on ambiguous boundaries), the compose HALTS with the byte range.
 
 **Everything else is a WARN.** Rules 10a (required-coverage checklist), 10b (density scan — rationale starters, AC/BR outside allowed sites, paragraph-where-line, adjacent redundancy, sentence>40 words, restated tables, cross-ref narratives), 11.5 (mermaid-not-fenced, mixed bullets, missing blank lines), 11.9 (self-consistency 10 checks), 11.10 (feature-shape adapters), 11.12 (bare N/A), 11.13 (content quality + adversarial read) — all become WARNINGS reported in the `## Compose lint findings` block. The user decides whether to fix and re-run, or accept.
 
@@ -404,7 +400,7 @@ Compose runs in **at most two passes**, never more:
 
 **Rule 0b — Report shape when compose emits warnings.**
 
-Append to the terminal output + `dev/plan-run.md`:
+Append to the terminal output + `units/<repo>/status.md § ## Run history`:
 
 ```markdown
 ## Compose lint findings — <feature-id> <sub-task-repo>
@@ -474,10 +470,10 @@ The compose LLM's output is TREATED AS UNRELIABLE for mechanical format. Rules 0
    text = check_table_column_counts(text)  # halts on mismatch, per Rule 0a #11
 
    # Transform 3: blank line before/after every table, code fence, mermaid, heading
-   text = ensure_blank_line_surrounds(text, patterns=["|", "```", "```mermaid", "##"])
+   text = ensure_blank_line_surrounds(text, patterns=["|", "``", "``mermaid", "##"])
 
    # Transform 4: mermaid fence needs language tag
-   # Pattern: ``` on its own line followed by `flowchart|graph|sequenceDiagram|stateDiagram|classDiagram|…`
+   # Pattern: `` on its own line followed by `flowchart|graph|sequenceDiagram|stateDiagram|classDiagram|…`
    text = tag_bare_mermaid_fences(text)
 
    # Transform 5: retired-concept string removal (auto-fixable halts from Rule 0a)
@@ -622,8 +618,8 @@ MC's Task detail view renders `implementationDetails` with `react-markdown v9 + 
 
 **Mermaid diagrams:**
 - Must be a fenced code block with EXACTLY the language tag `mermaid` (react-markdown checks `className === 'language-mermaid'`).
-- Opening fence on its own line: ` ```mermaid`
-- Closing fence on its own line: ` ``` `
+- Opening fence on its own line: ` ``mermaid`
+- Closing fence on its own line: ` `` `
 - Blank line before opening fence and after closing fence.
 - Node labels with special characters (numbers with dot, spaces, colons) MUST be quoted: `S1["1. Model"]` not `S1[1. Model]`.
 - WRONG: mermaid diagram inline without fence, or with a language tag like `mermaid-flowchart` (won't match; falls back to code block; no diagram).
@@ -638,9 +634,9 @@ MC's Task detail view renders `implementationDetails` with `react-markdown v9 + 
   ```
 
 **Fenced code blocks:**
-- Triple-backtick fences ` ``` ` for JSON, curl, bash, etc.
+- Triple-backtick fences ` `` ` for JSON, curl, bash, etc.
 - Language hint (`json`, `bash`, `mermaid`, etc.) directly after the opening fence, no space.
-- Balanced — every opening ` ``` ` has a matching closing ` ``` ` on its own line.
+- Balanced — every opening ` `` ` has a matching closing ` `` ` on its own line.
 
 **Headings:**
 - Use `##` (level 2) for numbered sections (§1–§8).
@@ -723,13 +719,13 @@ What IS allowed: `Jest`, `Mongoose`, `Express`, `React`, `Playwright` etc. named
 
 **The mental model:** implementation.md is a build script for a developer / coding agent. The dev-agent should be able to produce working code from this file plus the local TL context units (endpoint/entity/page files) without ever opening the BA files. Everything IN this file directly enters code; everything NOT in this file is either in a TL unit or on a BA tab. If a line's purpose is to make the reader UNDERSTAND rather than TYPE, that line is duplication and cuts.
 
-**Rule 4 — No feature identity in visible content.** Feature id, initiative, slug, and provenance live in the frontmatter and MC task metadata. Never a `# FEAT-…` H1. Never a "Provenance:" line. Never a reference to `feature.md`, `workflow.md`, `acceptance-criteria.md`, `ba/*`, `context/*`, or any scope-review filename. The Description and Dependencies tabs (BA-owned) carry any provenance the reader needs.
+**Rule 4 — No feature identity in visible content.** Feature id, initiative, slug, and provenance live in the frontmatter and MC task metadata. Never a `# FEAT-…` H1. Never a "Provenance:" line. Never a reference to `feature.md`, `feature.md` § `## Workflow`, `acceptance-criteria.md`, `ba/*`, `context/*`, or any scope-review filename. The Description and Dependencies tabs (BA-owned) carry any provenance the reader needs.
 
 **Rule 5 — Existing schema fields the feature does not write are named in one line, not tabled.** If the feature writes four fields on an existing data object, the §4 Stored data changes "Fields written" table contains those four — and only those four. Fields not written are named on a single "Never touched: `<field-a>`, `<field-b>`, `<field-c>`" line. That is the whole allowance.
 
 **Rule 6 — Response codes and messages are discriminated explicitly.** If an endpoint returns three distinct `409` messages, the Refusals table has three rows. Never collapse a code's variants into one row. Similarly for `400` variants.
 
-**Rule 7 — No client-narrative, no provenance callouts, no author commentary.** Forbidden: *"the client chose transparency knowingly"*, *"this document being complete is not consent"*, *"a module HR uses daily"*, `⚠ PROVENANCE — PLANNED, NOT BUILD-READY` blockquotes, *"acceptance criteria are authored as bullets without ids"*, *"SIMULATED response round"* preambles. The Description and Dependencies tabs carry any client-facing note.
+**Rule 7 — No client-narrative, no provenance callouts, no author commentary.** Forbidden: *"the client chose transparency knowingly"*, *"this document being complete is not consent"*, *"a module HR uses daily"*, `⚠ PROVENANCE — readyForDev, NOT BUILD-READY` blockquotes, *"acceptance criteria are authored as bullets without ids"*, *"SIMULATED response round"* preambles. The Description and Dependencies tabs carry any client-facing note.
 
 **Rule 8 — No aspirational text.** No *"consider"*, *"might"*, *"could"*, *"we should think about"*. Either the decision is made and stated, or the phase is marked `[HELD · waiting on OQ-<id>]`.
 
@@ -836,7 +832,7 @@ Boring decisions (no pagination / no rate limit / no permission model / no optim
 - **AC/BR mention outside §1 Satisfies column and §7 mitigation cells (v2.3.14, updated v2.3.16).** Any `AC-\d+`, `BR-\d+`, `TS-\d+`, `NFR-\d+` reference OUTSIDE `§1 Satisfies column` or `§7 mitigation Mitigation cell` → halt. Canonical mention sites in the plan are exactly two: §1 Satisfies column (per Rule 11.11, plan-time canonical coverage) and §7 mitigation cells (each cites the AC/BR/TS ID + applicable tier). Any §5 prose or §7 risk-description prose that mentions `BR-3` inline → halt. Direct AC/BR/TS mention in narrative prose is rationale leakage.
 - **"Handled per §X" / "See §X" narrative connectors (v2.3.14).** Any prose sentence whose primary purpose is to point the reader at another section (e.g. `"…handled per §3."` `"…as described in §7."`) → halt. Cross-references belong in table Cross-ref columns, not narrative prose. If a reader NEEDS the cross-ref inline, the table cell for that row carries it — the surrounding prose does not narrate the pointer.
 - **`**Assumptions.**` or `## Assumptions` heading anywhere (v2.3.15).** Halts naming the location. Boring decisions live IN CONTEXT at their code-implementation site per Rule 11.13 §5 — not as a collected "assumptions" list. Common misplacements the scan catches: `**Assumptions.** <bullets>` at §7 tail; `## Assumptions` inside any section; `Assumptions:` label at feature root.
-- **`## 7. Coverage` heading anywhere (v2.3.16).** Halts naming the location. Coverage is not a plan-time table — plan-time intent lives in §1 Satisfies column, build-time evidence in `dev/acceptance-map.md`. Any `## 7. Coverage`, `## Coverage`, or `**Coverage.**` heading in an implementation.md → halt.
+- **`## 7. Coverage` heading anywhere (v2.3.16).** Halts naming the location. Coverage is not a plan-time table — plan-time intent lives in §1 Satisfies column, build-time evidence in `units/<repo>/status.md § ## Acceptance`. Any `## 7. Coverage`, `## Coverage`, or `**Coverage.**` heading in an implementation.md → halt.
 - **`Deferred to E2E` or `Deferred` status text anywhere (v2.3.16).** Halts naming the line. E2E is a covered TIER (declared in `qa/quality-gates.md`, owned by a specific sub-task's §1), never a deferral status.
 
 **Interaction with Rule 11.4 (plan not code):** §5 service-layer paragraph max 6 lines includes prose only; code idioms remain forbidden per Rule 11.4. If 6 lines of prose can't cover the service layer's contract, the sub-task is describing more than one service layer.
@@ -917,9 +913,9 @@ Same discipline in both directions: backend §4 didn't paste `new mongoose.Schem
 |---|---|---|---|
 | Pipe-table rows crammed on one line | Regex: two or more `| \d+ |` or `| — |` cells on the same physical line separated only by ` | ` | Split at cell boundary, insert `\n`, ensure header separator row is present. Re-parse; if now a valid GFM table, continue | HALT (Rule 0a #5) with byte range |
 | Missing header separator (`|---|---|---|`) between header and body rows | Regex: line starting with `|` followed by another line starting with `|` where the second line's cells are not `---` | Insert `|---|---|…|` between header and first body row (column count = pipe count minus one) | HALT with byte range |
-| Unclosed code fence | Count of ` ``` ` in file is odd | none — HALT (Rule 0a #6) | — |
-| Mermaid fence missing `mermaid` language tag | Detect ` ``` ` on its own line followed by `flowchart` / `graph` / `sequenceDiagram` / `stateDiagram` / `classDiagram` on the next line | Insert `mermaid` after the opening fence: ` ```mermaid ` | HALT (Rule 0a #9) with byte range |
-| Missing blank line before/after table, code fence, mermaid block, heading | Scan for `[^\n]\n\|` (non-blank followed by table), `[^\n]\n\`\`\`` (non-blank followed by code fence), `[^\n]\n##` (non-blank followed by heading) | Insert `\n` before the block; scan the closing side, insert `\n` after | HALT (Rule 0a #10) with byte range |
+| Unclosed code fence | Count of ` `` ` in file is odd | none — HALT (Rule 0a #6) | — |
+| Mermaid fence missing `mermaid` language tag | Detect ` `` ` on its own line followed by `flowchart` / `graph` / `sequenceDiagram` / `stateDiagram` / `classDiagram` on the next line | Insert `mermaid` after the opening fence: ` ``mermaid ` | HALT (Rule 0a #9) with byte range |
+| Missing blank line before/after table, code fence, mermaid block, heading | Scan for `[^\n]\n\|` (non-blank followed by table), `[^\n]\n\`\`\` (non-blank followed by code fence), `[^\n]\n##` (non-blank followed by heading) | Insert `\n` before the block; scan the closing side, insert `\n` after | HALT (Rule 0a #10) with byte range |
 | Solo-pipe noise line — `\|` (or whitespace+pipes) on its own line preceding a table separator | Regex `^\s*\|+\s*$` matches | Delete the line unconditionally (v2.3.26, Transform 0) | never — always auto-fixable |
 | Table column-count mismatch — header row has N pipe-cells, separator row has M pipe-cells, N ≠ M | Count pipes in header vs `\|(:?-+:?\|)+` separator | none — the LLM's intent is ambiguous | HALT (Rule 0a #11) with byte range; re-compose |
 | Heading levels beyond `##` at section boundary | Regex: `^#[^#]` (level 1) at start of a section, or `^####` (level 4+) at section boundary | none | WARN (not halt) |
@@ -953,11 +949,11 @@ If the auto-fix cannot align pipe counts (a row's cell count doesn't match the h
 The scan runs, in order:
 
 1. **Pipe-table one-row-per-line check.** Walk every line that begins with `|`. Track the pipe-count per row. If two adjacent lines both begin with `|` AND share the same pipe-count AND appear on the same physical line separated by a space-pipe run (`| … | | …`), that's a single-line pipe-run-on → halt naming the line. Also: the header separator row (`|---|---|…|`) MUST appear on its own physical line between header and body — any table where the separator is inline with header or a body row → halt. WRONG: `| Step | Units | | 1 | … | | 2 | … |`. RIGHT: each row on its own physical line, separator row alone between header and body.
-2. **Mermaid MUST be a fenced code block.** Any table that names steps in numbered order (`1. X → 2. Y → 3. Z`) without a corresponding `\`\`\`mermaid` fenced block for the flowchart → halt. A numbered list is NOT a diagram — the diagram must render as one. RIGHT: `\`\`\`mermaid\nflowchart LR\n    S1[…] --> S2[…]\n\`\`\`` on its own three physical lines, opening fence on its own line, closing fence on its own line.
+2. **Mermaid MUST be a fenced code block.** Any table that names steps in numbered order (`1. X → 2. Y → 3. Z`) without a corresponding `\`\`\`mermaid` fenced block for the flowchart → halt. A numbered list is NOT a diagram — the diagram must render as one. RIGHT: `\`\`\`mermaid\nflowchart LR\n    S1[…] --> S2[…]\n\`\`\` on its own three physical lines, opening fence on its own line, closing fence on its own line.
 3. **Heading level check.** Every `## ` heading in `implementation` mode must be a level-2 heading of a numbered section (§1–§9). No `#` (level 1 — that's the MC tab title). No level 3+ *at section boundary* (level 3+ inside a section subsection is fine).
-4. **Code fences must be balanced.** For every opening ` ``` ` fence there must be a matching closing ` ``` ` fence on its own line. Odd count → halt naming the line of the last unclosed fence.
+4. **Code fences must be balanced.** For every opening ` `` ` fence there must be a matching closing ` `` ` fence on its own line. Odd count → halt naming the line of the last unclosed fence.
 5. **Bullet consistency.** Every bullet list uses `-` prefix (never `*`). Mixed → halt naming the offending block.
-6. **Blank-line-before-and-after every table, code fence, heading.** Missing blank lines cause the markdown parser to concatenate blocks. Scan for `[^\n]\n\|` (non-blank followed by table start), `[^\n]\n##` (non-blank followed by heading), `[^\n]\n\`\`\`` (non-blank followed by code fence). Any hit → halt.
+6. **Blank-line-before-and-after every table, code fence, heading.** Missing blank lines cause the markdown parser to concatenate blocks. Scan for `[^\n]\n\|` (non-blank followed by table start), `[^\n]\n##` (non-blank followed by heading), `[^\n]\n\`\`\` (non-blank followed by code fence). Any hit → halt.
 
 **On any halt:** write nothing to disk. Report the byte range + rule number + concrete fix (e.g. "line 47: pipe-table rows 3 and 4 crammed on the same physical line — insert a newline between them"). This is the last line of defense; catching it here means the developer never sees an implementation.md rendered as an unreadable wall of text.
 
@@ -973,11 +969,11 @@ The v2.3.4 output that only said "None owned. This sub-task consumes the three o
 
 **Rule 11.7 — Every sub-task's §3–§6 must reach the same structural completeness bar.** A sub-task without persistence (its `capabilities` don't include `owns-state`/`reads-state`) legitimately has `§4 Stored data changes` as `None.` — but its §3 Operations, §5 User-facing surfaces, §6 Touch points must each be as concrete as its siblings' are for the sections that DO apply to it. If a consumer sub-task's §3 is 3 sentences of prose while its owner sibling's §3 is 500 lines of contract tables, that's a completeness gap — the consumer section pulls the consumed contracts up per Rule 11.6.
 
-**Rule 11.11 — Plan-time coverage lives in `§1 Satisfies` column + `qa/quality-gates.md` tier pool; build-time evidence lives in `dev/acceptance-map.md` — NO `§7 Coverage` table in the plan (v2.3.16 replacement).**
+**Rule 11.11 — Plan-time coverage lives in `§1 Satisfies` column + `qa/quality-gates.md` tier pool; build-time evidence lives in `units/<repo>/status.md § ## Acceptance` — NO `§7 Coverage` table in the plan (v2.3.16 replacement).**
 
 Earlier drafts had a `§7 Coverage` table restating every parent AC/BR/TS with test file references at plan time. That table:
 - Duplicated the AC/BR/TS ID list already in parent BA files (`acceptance-criteria.md`, `business-rules.md`, `test-scenarios.md`).
-- Duplicated the evidence artifact `dev/acceptance-map.md` already built at `/dev:build` Stage 8.
+- Duplicated the evidence artifact `units/<repo>/status.md § ## Acceptance` already built at `/dev:build` Stage 8.
 - Grew to 30+ rows for a feature with 15 ACs × 5 BRs × 15 TS, adding noise without adding value.
 - Introduced "Deferred to E2E" as a coverage status, which is a QA-audit vocabulary that has no place in feature-plan discipline — the plan states what WILL BE COVERED, not what will be deferred.
 
@@ -987,14 +983,14 @@ Earlier drafts had a `§7 Coverage` table restating every parent AC/BR/TS with t
 |---|---|---|
 | `implementation.md §1 Build sequence` Satisfies column | Plan INTENT — which AC/BR/TS IDs each build step delivers | Plan time |
 | `qa/quality-gates.md` tier pool | STACK CONTRACT — which test tiers are mandatory for this sub-task's layer | QA setup (once per repo) — falls back to stack-detected pool if user skipped QA setup at plan time (see `/dev:plan` Stage 1 QA-check) |
-| `dev/acceptance-map.md` | Build EVIDENCE — actual test file::test name + Pass/Fail per AC/BR/TS | `/dev:build` Stage 8 |
+| `units/<repo>/status.md § ## Acceptance` | Build EVIDENCE — actual test file::test name + Pass/Fail per AC/BR/TS | `/dev:build` Stage 8 |
 
 **No "Deferred" concept in the plan — every parent AC/BR/TS in this sub-task's scope is COVERED.** For a new feature at plan/build time, coverage is 100% across every applicable tier for the sub-task's layer. What varies is WHICH tiers apply — that comes from the stack (via `qa/quality-gates.md` if present, or via stack detection when skipped). Cross-layer coverage (E2E) is a legitimate covered TIER, owned by whichever sub-task authors the E2E test file (declared in §1 Build sequence of that sub-task + cross-referenced in §6 Touch points of the others).
 
 **Plan-time coverage invariant enforced by Rule 11.9 §1:**
 - Every parent AC/BR/TS ID in this sub-task's scope MUST appear in the Satisfies column of at least one §1 build step, OR appear as a `Not applicable — <layer-specific reason>` note on the build step where it would otherwise apply, OR appear as a Cross-sub-task row in §6 Touch points pointing at the sibling sub-task whose §1 covers it.
 - Missing ID → halt naming the ID.
-- The plan does NOT list test file paths or test names — those are build-time artifacts in `dev/acceptance-map.md`.
+- The plan does NOT list test file paths or test names — those are build-time artifacts in `units/<repo>/status.md § ## Acceptance`.
 
 **Tier-strategy declaration:** `qa/quality-gates.md` declares which tiers are mandatory for each capability class (backend service, frontend app, mobile, worker, etc.). When `qa/quality-gates.md` is missing at plan time (user chose to skip QA setup — see `/dev:plan` Stage 1 QA-check with skip prompt), the plan uses stack-detected fallback tiers based on `shared-context/technology-stack.md` or repo package-manifest scan. Either way, the plan itself does not enumerate the tier list — the developer/agent reads it from the source-of-truth artifact at build time.
 
@@ -1003,7 +999,7 @@ Earlier drafts had a `§7 Coverage` table restating every parent AC/BR/TS with t
 - Cross-layer E2E owned by ONE sub-task (typically the last-landing frontend sub-task, or a dedicated e2e/ folder declared in `qa/quality-gates.md`)
 - §6 Touch points Cross-sub-task rows in other sub-tasks reference the E2E owner: `E2E for AC-M / BR-K owned by sub-task N (<repo>) — tests/e2e/<flow>.spec.js`
 
-**What §7 Risks and rollback mitigations reference now (v2.3.16):** ID + tier, never a specific test file. Example: `Covered by AC-1 + BR-3 at Unit + Integration tiers (per qa/quality-gates.md backend pool)`. The actual test file and test name live in `dev/acceptance-map.md` at build time.
+**What §7 Risks and rollback mitigations reference now (v2.3.16):** ID + tier, never a specific test file. Example: `Covered by AC-1 + BR-3 at Unit + Integration tiers (per qa/quality-gates.md backend pool)`. The actual test file and test name live in `units/<repo>/status.md § ## Acceptance` at build time.
 
 **Rule 11.12 — `§2` lists only the dimensions the task affects.** A plan whose impact matrix is mostly `N/A` buries the four rows that matter among nine that say nothing. Omit the dimension instead.
 
@@ -1045,7 +1041,7 @@ Consistency checks the compose runs (in order):
 
 8. **Success-vs-refusal branching stated.** If the plan uses "return the rejection object rather than throw" (or any equivalent no-throw pattern), the plan must state HOW callers distinguish success from refusal (e.g. "callers check `result.ok`" OR "callers check `result.response !== undefined`"). Every one of the three (or N) service-layer calls must branch — the branch is not optional. Missing → halt.
 
-9. **Test file paths NOT in the plan (v2.3.16 simplified).** The plan does NOT list test file paths or test names — those are build-time artifacts in `dev/acceptance-map.md`. If any `tests/` or `spec.` or `test.` file path appears in the plan outside §1 Build sequence's Files column for the tests step, → halt naming the leak. §1's Files column MAY name a test glob (e.g. `New: tests/<domain>*.spec.{js,jsx}`); specific test file::test names live in acceptance-map.md.
+9. **Test file paths NOT in the plan (v2.3.16 simplified).** The plan does NOT list test file paths or test names — those are build-time artifacts in `units/<repo>/status.md § ## Acceptance`. If any `tests/` or `spec.` or `test.` file path appears in the plan outside §1 Build sequence's Files column for the tests step, → halt naming the leak. §1's Files column MAY name a test glob (e.g. `New: tests/<domain>*.spec.{js,jsx}`); specific test file::test names live in status.md § ## Acceptance.
 
 10. **Cross-doc auth mechanism identity.** Backend `§3` phrasing describing the auth artefact (e.g. "session credential with email claim", "req.user.id"), and frontend `§5` service-layer phrasing describing the same artefact (e.g. "Authorization: Bearer <session token from local session store>") MUST cite the same UPSTREAM source — a `shared-context/system-landscape.md § Auth boundary` section OR a specific DEC. If they name different tokens/shapes and there's no explicit "these are the same X, per DEC-Y" bridge, → halt.
 
@@ -1119,7 +1115,7 @@ Rationale: keyword-scanning prose to determine role is brittle. A frontmatter fi
 
 Detected shapes + mandatory sub-sections:
 
-**a. Migration on an existing collection/table with live rows** (detected via `dev/<repo>-analysis.md § impact_matrix.database` mentioning "modified" or "altered" — not just "new"):
+**a. Migration on an existing collection/table with live rows** (detected via `units/<repo>/analysis.md § impact_matrix.database` mentioning "modified" or "altered" — not just "new"):
 
 - `§4` must include a "**Migration plan**" sub-section with:
   - Ordered forward migration steps (add column with default → backfill in batches → tighten constraint → remove default) — each step with its own execution characteristics
@@ -1129,7 +1125,7 @@ Detected shapes + mandatory sub-sections:
   - Consistency window — what queries might see stale/mixed data during migration
 - N/A is not acceptable here. If the sub-task says "modified an existing collection" and this block is missing → halt.
 
-**b. Queue / event / async contract** (detected via `dev/<repo>-analysis.md § impact_matrix.jobs` or `.notifications` non-N/A):
+**b. Queue / event / async contract** (detected via `units/<repo>/analysis.md § impact_matrix.jobs` or `.notifications` non-N/A):
 
 - `§3` must include a "**Message contract**" per message-type block:
   - Delivery semantics — at-least-once / exactly-once / at-most-once — chosen explicitly, not implied
@@ -1138,7 +1134,7 @@ Detected shapes + mandatory sub-sections:
   - Ordering guarantees — total order per key, no order, FIFO with partition-key
   - Payload schema and versioning strategy (adding fields, deprecating fields)
 
-**c. Real authz model** (detected via `dev/<repo>-analysis.md § impact_matrix.authz` mentioning roles OR per-object permissions):
+**c. Real authz model** (detected via `units/<repo>/analysis.md § impact_matrix.authz` mentioning roles OR per-object permissions):
 
 - `§3` must include an "**Authz decision**" block per endpoint:
   - Who can invoke — role names OR "any authenticated user" OR "resource owner only"
@@ -1203,8 +1199,12 @@ Detected shapes + mandatory sub-sections:
 **Why the fix goes to the TL context unit, not to the sub-task files.** Each sub-task's implementation.md is DERIVED from the TL context units it references (endpoint files, page files, entity files). If two sub-tasks disagree on a contract, one of them is reading a different version of the truth — or the unit itself is ambiguous. Editing the unit forces both sub-tasks to re-derive from the same source; editing one sub-task's file to match the other leaves the source-of-truth drift in place and re-emerges on the next re-compose.
 
 **Rule 12 — Analysis scratchpad precondition (v2.3, `implementation` mode only).** Before writing `implementation.md`, verify:
-1. `dev/<repo>-analysis.md` (sub-task) OR `dev/analysis.md` (parent-alone) exists with `doc_type: analysis-scratchpad` frontmatter and non-empty `build_sequence`, `impact_matrix`, `test_strategy`, `risks_and_rollback` blocks.
-2. `dev/<repo>-plan-blockers.md` (or `dev/plan-blockers.md` for parent-alone) is either absent OR has `status: RESOLVED` in frontmatter.
+1. `units/<repo>/analysis.md` exists with `doc_type: analysis-scratchpad` frontmatter and non-empty `build_sequence`, `impact_matrix` and `risks_and_rollback` blocks.
+
+   **`test_strategy` is NOT required.** It was removed from the scratchpad in v2.3.16 — plan-time coverage lives in `§1 Satisfies` plus the tier pool in `quality-gates.md § <repo>`, and build-time evidence in `status.md § ## Acceptance`. Requiring it halts every run that reaches this stage, because nothing has written it since.
+
+   There is one shape, not two: `units/<repo>/` exists at every N, so there is no parent-alone variant to branch on.
+2. `units/<repo>/plan-blockers.md` (or `units/<repo>/plan-blockers.md` for parent-alone) is either absent OR has `status: RESOLVED` in frontmatter.
 
 If either precondition fails, REFUSE to compose. Return a `stage_4_precondition_failed` error naming which precondition + which file. Never fabricate sections 2, 3, 8, 9 without the scratchpad — that produces the half-baked file this refactor exists to prevent. The caller (`/dev:plan` Stage 4 in `implementation-preparation.md`) checks the same preconditions before invoking this skill; both are belt-and-suspenders.
 
@@ -1213,7 +1213,7 @@ If either precondition fails, REFUSE to compose. Return a `stage_4_precondition_
 - **User-story voice mandatory** — §1 opens with the classic "**As a** … **I want** … **So that** …" three-liner. Every scenario in §2 is written from the user's perspective, present-tense active voice ("The user picks a date and types a name…"), NOT from the system's ("This sub-task saves a holiday…").
 - **NO dev-centric phrasing** — no "This sub-task delivers…", no "The service saves…", no "The endpoint accepts…". Reframe from what the SYSTEM does to what the USER does and sees.
 - **NO response codes** (`400`, `409`, `201`), NO field names (`added_by`, `is_removed`), NO file paths, NO framework names, NO HTTP methods (POST/GET/DELETE), NO tables, NO code fences, NO mermaid.
-- **All content in business vocabulary** from parent's `feature.md` + `workflow.md` + `workflow.md`'s actors — never technical translations.
+- **All content in business vocabulary** from parent's `feature.md` + `feature.md` § `## Workflow` + `feature.md` § `## Workflow`'s actors — never technical translations.
 
 Rule 2's "no framework names" applies here too, more strictly. See §"Compose modes" > "Mode: description" for the 6-section structure + example.
 
@@ -1223,8 +1223,8 @@ BEFORE calling `Write`, run the deterministic transformations from **Rule 0c.i**
 
 1. `split_table_rows(text)` — split pipe-run-on lines at row boundaries; insert `\n` between rows
 2. `insert_header_separator(text)` — insert `|---|---|…|` between header and body if missing
-3. `ensure_blank_line_surrounds(text, ["|", "```", "```mermaid", "##"])` — insert `\n\n` around every table, code fence, mermaid block, heading if missing
-4. `tag_bare_mermaid_fences(text)` — insert `mermaid` after ` ``` ` if followed by `flowchart|graph|sequenceDiagram|…`
+3. `ensure_blank_line_surrounds(text, ["|", "``", "``mermaid", "##"])` — insert `\n\n` around every table, code fence, mermaid block, heading if missing
+4. `tag_bare_mermaid_fences(text)` — insert `mermaid` after ` `` ` if followed by `flowchart|graph|sequenceDiagram|…`
 5. `strip_retired_headings(text)` — remove `## 7. Coverage`, `**Assumptions.**`, `Deferred to E2E`, `# FEAT-`, etc.
 
 After transformations, **RE-SCAN** the transformed string for HALT-only conditions (payload > 60 000 chars, unclosed code fence, framework field paths in §8, mis-aligned column counts after auto-fix). Any HALT → report + do NOT `Write`.
@@ -1238,8 +1238,8 @@ Write to the mode-appropriate output path with the mode-appropriate frontmatter 
 
 **Mode → output path recap:**
 - `implementation` on parent-alone → `features/<slug>/implementation.md` (frontmatter: `doc_type: implementation`, `compose_mode: implementation`)
-- `implementation` on a sub-task → `features/<slug>/subtask/<repo>/implementation.md` (frontmatter: `doc_type: implementation`, `compose_mode: implementation`)
-- `description` on a sub-task → `features/<slug>/subtask/<repo>/description.md` (frontmatter: `doc_type: description`, `compose_mode: description`)
+- `implementation` on a sub-task → `features/<slug>/units/<repo>/implementation.md` (frontmatter: `doc_type: implementation`, `compose_mode: implementation`)
+- `description` on a sub-task → `features/<slug>/units/<repo>/description.md` (frontmatter: `doc_type: description`, `compose_mode: description`)
 - `rollup` on parent → `features/<slug>/tl-plan.md` (frontmatter: `doc_type: tl-plan`, `compose_mode: rollup`)
 
 **Never write both `tl-plan.md` and sub-task files from the same call** — one call, one mode, one output. Callers that need both (`/dev:plan` Stage 2 in split branch) make multiple calls.
@@ -1256,9 +1256,9 @@ Return: features composed vs skipped-unchanged (with reason each), the size per 
 
 Depends on the mode.
 
-**`implementation` mode** — a feature (or sub-task) is composed when: the output file exists at the mode-appropriate path with the correct frontmatter (including `capabilities:` per Rule 11.15); contains exactly eight sections in order (§1 Build sequence · §2 Impacted components · §3 Operations exposed and consumed · §4 Stored data changes · §5 User-facing surfaces · §6 Touch points · §7 Risks and rollback · §8 Shared contract); no `§ Coverage` section (removed in v2.3.16 — plan-time intent lives in §1 Satisfies column + qa/quality-gates.md tier pool; build-time evidence lives in dev/acceptance-map.md); no `§ Business flow` and no `§ How to verify locally` (dropped in v2.3.10 — business context lives on the Description tab, verify runbook lives in status.md); every operation owned has its order-of-checks and refusals tables with one row per distinct response `message`; the §4 "Fields written" table lists only the fields written with a one-line "Never touched" boundary; every user-facing surface is named by role with its operation wiring; every REUSE from the context graph is captured in Touch points (not a separate Prerequisites section); §8 Shared contract passes the wire-only test (Rule 11.3a — no framework field paths); the file is ≤ 60 000 CHARACTERS (Rule 10 — `len(text)`, not byte length; multi-byte glyphs like em-dashes count as one character each); each section stayed under its Rule 10 per-section max on the FIRST write (no compose-then-trim rewrite pass); every concern in Rule 10a's required-coverage checklist for the sections that apply is present as ONE dense line or ONE table row (no missing concerns, no paragraph-where-a-line-would-do); Rule 10b density scan passed (no adjacent-sentence redundancy, no restated-table paragraphs, no sentence > 40 words); and none of the Rules 1–15 above are violated.
+**`implementation` mode** — a feature (or sub-task) is composed when: the output file exists at the mode-appropriate path with the correct frontmatter (including `capabilities:` per Rule 11.15); contains exactly eight sections in order (§1 Build sequence · §2 Impacted components · §3 Operations exposed and consumed · §4 Stored data changes · §5 User-facing surfaces · §6 Touch points · §7 Risks and rollback · §8 Shared contract); no `§ Coverage` section (removed in v2.3.16 — plan-time intent lives in §1 Satisfies column + qa/quality-gates.md tier pool; build-time evidence lives in units/<repo>/status.md § ## Acceptance); no `§ Business flow` and no `§ How to verify locally` (dropped in v2.3.10 — business context lives on the Description tab, verify runbook lives in status.md); every operation owned has its order-of-checks and refusals tables with one row per distinct response `message`; the §4 "Fields written" table lists only the fields written with a one-line "Never touched" boundary; every user-facing surface is named by role with its operation wiring; every REUSE from the context graph is captured in Touch points (not a separate Prerequisites section); §8 Shared contract passes the wire-only test (Rule 11.3a — no framework field paths); the file is ≤ 60 000 CHARACTERS (Rule 10 — `len(text)`, not byte length; multi-byte glyphs like em-dashes count as one character each); each section stayed under its Rule 10 per-section max on the FIRST write (no compose-then-trim rewrite pass); every concern in Rule 10a's required-coverage checklist for the sections that apply is present as ONE dense line or ONE table row (no missing concerns, no paragraph-where-a-line-would-do); Rule 10b density scan passed (no adjacent-sentence redundancy, no restated-table paragraphs, no sentence > 40 words); and none of the Rules 1–15 above are violated.
 
-**`description` mode** — a sub-task Description is composed when: `subtask/<repo>/description.md` exists with the correct frontmatter; the body is one or two paragraphs of continuous prose (no headings, no lists, no tables, no code fences); business vocabulary used throughout; distinct refusals named as distinct business situations (not response codes); length between 500–1500 characters (warn at 3 KB); none of the Rules 1–11 above are violated.
+**`description` mode** — a sub-task Description is composed when: `units/<repo>/description.md` exists with the correct frontmatter; the body is one or two paragraphs of continuous prose (no headings, no lists, no tables, no code fences); business vocabulary used throughout; distinct refusals named as distinct business situations (not response codes); length between 500–1500 characters (warn at 3 KB); none of the Rules 1–11 above are violated.
 
 **`rollup` mode** — a parent's rollup Implementation is composed when: `features/<slug>/tl-plan.md` exists with `compose_mode: rollup` in frontmatter; contains exactly the three sections (Build sequence · Sub-tasks · Touch points); the Build sequence names each sub-task by role and has a mermaid step-graph of sub-task nodes; the Sub-tasks table has one row per sub-task with `#`/`Repo`/`MC Task`/`Depends on`/`Blocks`/`State` columns; no Operations / Stored data changes / User-facing surfaces sections present (those live per sub-task); target ≤ 5 KB; none of the Rules 1–15 above are violated.
 

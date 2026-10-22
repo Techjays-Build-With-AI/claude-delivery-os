@@ -11,7 +11,7 @@ generated_at: YYYY-MM-DD
 ## Run Details
 - Date:
 - Mode:
-- Input Index: intake.index.md
+- Input Index: sources.md
 - Scope Version:
 
 ## Artifacts Scanned

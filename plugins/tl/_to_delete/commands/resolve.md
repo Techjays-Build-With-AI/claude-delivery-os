@@ -26,3 +26,17 @@ Invoke the **tl-agent** subagent with the responses-file path. Pass it this inst
 ## 3. Surface the result
 
 When the agent returns, present the **round summary**: how many findings were Resolved / Accepted-risk / Needs-verification (list the follow-up questions the author still needs to answer) / still Open, the score and verdict movement (e.g. "2.0 → 6.1, Not ready → Significant gaps"), and any `DEC-###` decisions logged. Link to the new round's `.html` (interactive) and `.md`. If items still need verification, tell the user to answer the follow-ups in the new report and export again.
+
+**Serve it and print both links** — `delivery-os-conventions` §1.e. Start the server in the background as the
+last action and read the port from its `DELIVERY_OS_SERVE_READY` line:
+
+```bash
+node ${CLAUDE_PLUGIN_ROOT}/../delivery-os-core/scripts/serve-review.js .jetrix/tl-reviews
+```
+
+```
+Report   http://127.0.0.1:<port>/spec-review-<ts>.html      ← open in your browser
+         tl-reviews/spec-review-<ts>.html    ← the file itself
+```
+
+A path alone is not something anyone can click, and a `file://` page cannot fetch a sibling.

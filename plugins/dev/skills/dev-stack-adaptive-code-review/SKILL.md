@@ -15,8 +15,8 @@ Read the **`delivery-os-conventions`** contract if not in context. Your inputs:
 
 - The feature diff — `git diff <base>...<HEAD>` in the target repo (base from `.jetrix/project.json` env_branches per `/dev:commit` Stage 2)
 - The target repo's existing files — for pattern inference on identifiers, error handling, DI, config, logging, naming
-- The detected stack from `dev/implementation-log.md` `detected_stack:` block (written by `dev-stack-adaptive-implementation` during `/dev:build`)
-- The inferred patterns from `dev/implementation-log.md` `inferred_patterns:` block (same source)
+- The detected stack from `units/<repo>/status.md § ## Run history` `detected_stack:` block (written by `dev-stack-adaptive-implementation` during `/dev:build`)
+- The inferred patterns from `units/<repo>/status.md § ## Run history` `inferred_patterns:` block (same source)
 - Parent's `business-rules.md` — every `BR-N` must be enforced at some point in the diff
 - Parent's `nfrs.md` — measurable NFRs the diff must satisfy
 
@@ -26,7 +26,7 @@ You **do not** modify code. You emit findings; `/dev:commit` Stage 6's fix loop 
 
 ### Phase 1 — Stack + pattern reload (fast)
 
-Read `dev/implementation-log.md` — pick up:
+Read `units/<repo>/status.md § ## Run history` — pick up:
 
 - `detected_stack:` block (from `dev-stack-adaptive-implementation`)
 - `inferred_patterns:` block (same)
@@ -54,7 +54,7 @@ Filter by severity per the commit-time threshold config:
 - **Minor** — surface as follow-up suggestions in the PR summary; do NOT block
 - **Nit** — log only; not in PR
 
-Emit findings via the `ReportFindings` tool if available, or write directly to `dev/code-review-findings.md`.
+Emit findings via the `ReportFindings` tool if available, or write directly to `units/<repo>/findings.md § ## Code review`.
 
 ## Hard rules
 
@@ -94,18 +94,18 @@ Review complete when:
 - Every changed file in the diff has been visited
 - Every dimension checked against the diff
 - Findings emitted with severity, file:line, concrete fix
-- `dev/code-review-findings.md` written (all findings) OR via `ReportFindings` tool
+- `units/<repo>/findings.md § ## Code review` written (all findings) OR via `ReportFindings` tool
 - No Blocker + no Major findings remain (else `/dev:commit` Stage 6 handles the fix loop)
 
 ## Skills / agents invoked
 
-- Reads `dev-stack-adaptive-implementation`'s output blocks in `dev/implementation-log.md` — direct file read
+- Reads `dev-stack-adaptive-implementation`'s output blocks in `units/<repo>/status.md § ## Run history` — direct file read
 - No subagents (repo pattern inference must persist across reads)
-- Emits findings via `ReportFindings` tool if available; else writes to `dev/code-review-findings.md`
+- Emits findings via `ReportFindings` tool if available; else writes to `units/<repo>/findings.md § ## Code review`
 
 ## Principles
 
-- **Diff-scoped, always.** The whole-repo review is `/tl:review` or `/tl:maturity`'s job; this reviewer looks at only what changed.
+- **Diff-scoped, always.** The whole-repo review is `/dev:review` or `/tl:maturity`'s job; this reviewer looks at only what changed.
 - **Match the repo.** Consistency with the codebase's actual patterns beats consistency with framework canon.
 - **Concrete fixes only.** Vague "this needs improvement" findings never emit — a specific proposed fix or silence.
 - **One finding per issue.** Don't spam.

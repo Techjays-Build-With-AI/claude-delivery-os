@@ -10,9 +10,9 @@ generated_at: YYYY-MM-DD
 
 > **Living source registry — maintained by `/ba:scope`.** You don't have to fill the table by hand. Just tell intake where your material is:
 >
-> ```text
+> ``text
 > /ba:scope add "meeting transcripts in <folder or Drive link>, requirements in <folder or Drive link>, invoice archive in <folder> for reference only"
-> ```
+> ``
 >
 > Intake classifies each source, generates a summary under `artifacts/`, and adds a row below. Originals are **referenced, never copied or moved.** You may still hand-edit this file (e.g. correct a usage mode) and re-run intake.
 

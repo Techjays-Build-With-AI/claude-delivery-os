@@ -29,7 +29,7 @@ For every file the current command touches:
 
 | Command | Files to hash | Compare against |
 |---|---|---|
-| `/jetrix:push feature` | 8 BA files: `feature.md`, `workflow.md`, `business-rules.md`, `acceptance-criteria.md`, `nfrs.md`, `test-scenarios.md`, `dependencies.md`, `open-questions.md` — per feature folder | `tasks/<feature_id>.contentHash` |
+| `/jetrix:push feature` | the BA files: `feature.md`, `business-rules.md`, `acceptance-criteria.md`, `nfrs.md`, `test-scenarios.md`, `dependencies.md`, `dependencies.md` § `## Open questions` — per feature folder | `tasks/<feature_id>.contentHash` |
 | `/jetrix:push implementation` | `tl-plan.md` body (frontmatter stripped) per feature folder | `tasks/<feature_id>.implementation_hash` |
 | `/dev:build <target>` | BOTH sets above, for the target feature folder only | Both keys above; drift on either → drifted |
 | `/jetrix:pull scope\|context` | Every file the pull would overwrite (per manifest) | `documents/<path>.contentHash` |

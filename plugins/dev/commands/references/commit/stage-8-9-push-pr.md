@@ -2,9 +2,9 @@
 
 Two closely-coupled stages. Combined in one reference file because their state transitions and failure surfaces overlap.
 
-**Runs after Stage 7 (semantic merge clean).** State: `REVIEW` (unchanged); MC: `devReview` (unchanged). On successful push + PR raise, no further state changes.
+**Runs after Stage 7 (semantic merge clean).** State: `devReview` (unchanged); MC: `devReview` (unchanged). On successful push + PR raise, no further state changes.
 
-**On completion:** feature branch is on origin; PR is open; PR body is `dev/pr-summary.md`; MC status is still `devReview` (waiting on human review).
+**On completion:** feature branch is on origin; PR is open; PR body is `units/<repo>/pr-summary.md`; MC status is still `devReview` (waiting on human review).
 
 ---
 
@@ -12,13 +12,13 @@ Two closely-coupled stages. Combined in one reference file because their state t
 
 ### 8a. Preconditions (v2.3.25 — HARD gates that refuse push if any is missing)
 
-- **Stage 2 base-branch confirmed by user** — check `commit-run.md` `stage-2.base_confirmed_by_user: true`; missing → HALT with `blocker: stage-2-base-not-confirmed` (user must re-run so the branch prompt fires)
-- **Stage 2 base pulled locally** — check `commit-run.md` `stage-2.base_pulled_at` timestamp exists; missing → HALT with `blocker: base-branch-not-pulled` (Stage 7 can't merge against a base that isn't on disk)
-- **Stage 3 fix loop invoked if it had blocking findings (v2.3.27)** — read `commit-run.md` `stage-3.findings`. If BEFORE-loop counts (Critical > 0 OR High > 0) but no `stage-3.fix_loop_invocation.invoked_at` block exists → HALT with `blocker: stage-3-fix-loop-not-invoked`. Same class as stage-7 gap: findings surfaced, agent moved on without running Stage 6, review said "block" and nobody acted on it.
-- **Stage 4 fix loop invoked if it had blocking findings (v2.3.27)** — read `commit-run.md` `stage-4.findings`. If (Blocker > 0 OR Major > 0) but no `stage-4.fix_loop_invocation.invoked_at` → HALT with `blocker: stage-4-fix-loop-not-invoked`.
-- **Stage 5 fix loop invoked if it had blocking findings (v2.3.27)** — read `commit-run.md` `stage-5.rows_regressed` and `stage-5.rows_failed`. If either > 0 but no `stage-5.fix_loop_invocation.invoked_at` → HALT with `blocker: stage-5-fix-loop-not-invoked`.
-- **Stage 3/4/5 final findings ARE clean** — after any fix loop, current counts must be zero for their blocking severities (Stage 3: Critical + High; Stage 4: Blocker + Major; Stage 5: regression + fail). Non-zero → HALT with `blocker: stage-<n>-fix-loop-did-not-clear-findings` (means the fix loop ran but ended in ESCALATED state; check `dev/escalation-<n>.md`; user must resolve manually and re-run).
-- **Stage 7 semantic-merge INVOKED** — check `commit-run.md` `stage-7.tl_semantic_context_merge_invocation.invoked_at` is set and `invocation` is non-empty (a subagent id, or `inline` where the Skill tool returned none); `invoked_at` MISSING or NULL → HALT with `blocker: stage-7-not-executed` (this is the user-reported gap: agent skipped Stage 7 by "reasoning it was a no-op"; the skill invocation is the ONLY evidence of execution)
+- **Stage 2 base-branch confirmed by user** — check `status.md` § `## Run history` `stage-2.base_confirmed_by_user: true`; missing → HALT with `blocker: stage-2-base-not-confirmed` (user must re-run so the branch prompt fires)
+- **Stage 2 base pulled locally** — check `status.md` § `## Run history` `stage-2.base_pulled_at` timestamp exists; missing → HALT with `blocker: base-branch-not-pulled` (Stage 7 can't merge against a base that isn't on disk)
+- **Stage 3 fix loop invoked if it had blocking findings (v2.3.27)** — read `status.md` § `## Run history` `stage-3.findings`. If BEFORE-loop counts (Critical > 0 OR High > 0) but no `stage-3.fix_loop_invocation.invoked_at` block exists → HALT with `blocker: stage-3-fix-loop-not-invoked`. Same class as stage-7 gap: findings surfaced, agent moved on without running Stage 6, review said "block" and nobody acted on it.
+- **Stage 4 fix loop invoked if it had blocking findings (v2.3.27)** — read `status.md` § `## Run history` `stage-4.findings`. If (Blocker > 0 OR Major > 0) but no `stage-4.fix_loop_invocation.invoked_at` → HALT with `blocker: stage-4-fix-loop-not-invoked`.
+- **Stage 5 fix loop invoked if it had blocking findings (v2.3.27)** — read `status.md` § `## Run history` `stage-5.rows_regressed` and `stage-5.rows_failed`. If either > 0 but no `stage-5.fix_loop_invocation.invoked_at` → HALT with `blocker: stage-5-fix-loop-not-invoked`.
+- **Stage 3/4/5 final findings ARE clean** — after any fix loop, current counts must be zero for their blocking severities (Stage 3: Critical + High; Stage 4: Blocker + Major; Stage 5: regression + fail). Non-zero → HALT with `blocker: stage-<n>-fix-loop-did-not-clear-findings` (means the fix loop ran but ended in ESCALATED state; check `units/<repo>/status.md § ## Run history (a BLOCKED entry)`; user must resolve manually and re-run).
+- **Stage 7 semantic-merge INVOKED** — check `status.md` § `## Run history` `stage-7.tl_semantic_context_merge_invocation.invoked_at` is set and `invocation` is non-empty (a subagent id, or `inline` where the Skill tool returned none); `invoked_at` MISSING or NULL → HALT with `blocker: stage-7-not-executed` (this is the user-reported gap: agent skipped Stage 7 by "reasoning it was a no-op"; the skill invocation is the ONLY evidence of execution)
 - **Stage 7 merged base matches Stage 2 base** — check `stage-7.tl_semantic_context_merge_invocation.base_ref` sha matches `stage-2.base_remote_sha`; mismatch → HALT with `blocker: stage-7-merged-against-wrong-base` (means Stage 7 pulled its own base separately from Stage 2's; not allowed)
 - **Stage 7.5 commits landed** — check `stage-7-5.commits_made` list is non-empty (or `stage-7-5.status: SKIPPED` with reason `working tree has no source/test/context uncommitted changes`)
 - **Working tree clean** — `git status --porcelain` shows only allowed `dev-local` / `workspace-local` files (see Stage 7.5 §7.5b categorization)
@@ -61,7 +61,7 @@ Never retry silently more than once for network. Never skip hooks.
 
 ### 8d. Progress log
 
-Append to `dev/commit-run.md`:
+Append to `units/<repo>/status.md § ## Run history`:
 
 ```yaml
 stage-8:
@@ -82,14 +82,60 @@ stage-8:
 ### 9a. Preconditions
 
 - Stage 8 pushed successfully
-- `dev/pr-summary.md` exists (composed at the end of Stage 5 + augmented after Stages 6 + 7 with follow-up items + merge results)
+- `units/<repo>/pr-summary.md` exists (composed at the end of Stage 5 + augmented after Stages 6 + 7 with follow-up items + merge results)
 - A working PR-creation mechanism per §9c's ladder (v2.3.22 — no longer requires `gh`)
 
-### 9b. Compose `dev/pr-summary.md`
+### 9b.0. Use the repo's own PR template when it has one
 
-This is the PR-reviewer-facing doc. NOT the developer's local runbook (`local-runbook.md`).
+**Look before composing.** A team with a `PULL_REQUEST_TEMPLATE` has already decided what a PR in this repo
+says — their ticket field, their risk checklist, their deploy notes. Ignoring it produces a PR that reads as
+though nobody checked, and it is the first thing a reviewer notices.
+
+Check, in this order, and stop at the first hit:
+
+```
+.github/PULL_REQUEST_TEMPLATE.md      .github/pull_request_template.md
+PULL_REQUEST_TEMPLATE.md              pull_request_template.md
+docs/PULL_REQUEST_TEMPLATE.md         docs/pull_request_template.md
+.github/PULL_REQUEST_TEMPLATE/        ← a DIRECTORY: several named templates
+.gitlab/merge_request_templates/      ← GitLab
+```
+
+| Found | What to do |
+|---|---|
+| One template | **It is the skeleton.** Keep its headings, order, wording and comments; fill its sections from the content §9b describes |
+| A directory of them | **Ask which**, listing the filenames. Never pick — the names are the team's own routing (`bugfix.md`, `release.md`) and only they know which applies |
+| None | §9b's structure below, unchanged |
+
+**Rules when filling someone else's template, in the order they get broken:**
+
+**Never tick a checkbox on the author's behalf.** A checklist item is an assertion by a human — *"I have
+tested this"*, *"I updated the docs"*. Ticking it because a gate passed is signing someone else's name.
+Leave every box unticked, and under the list add one line naming the ones this run already has evidence for,
+with where it is: *"Tests pass — Stage 7, 14/14; coverage 72.4%."* The author ticks.
+
+**Never delete a section because there is nothing to put in it.** A heading they wrote with `N/A` under it
+is an answer; a heading that vanished looks like it was never considered. Same for their HTML comments —
+`<!-- link the issue -->` stays unless it has been satisfied.
+
+**Never drop our content because their template has no home for it.** Anything left over goes at the end
+under `## Additional detail`, not in the bin. A Medium security finding with no matching heading is still a
+Medium security finding.
+
+**Fill their placeholders, do not leave them.** `<!-- Jira ticket -->` becomes the real ticket link — the
+task's tracker URL is already in `status.md`. An unfilled placeholder is worse than our own structure,
+because it looks like the template defeated us.
+
+Record which template was used in `status.md` § `## Run history` as `pr_template:` — the repo-relative path,
+or `default` — so a reviewer asking "why does this PR look different" has the answer in the record.
+
+### 9b. Compose `units/<repo>/pr-summary.md`
+
+This is the PR-reviewer-facing doc. NOT the developer's local runbook (`pr-summary.md` § `## How to verify`).
 
 Structure:
+
+Used when the repo has no template of its own.
 
 ```markdown
 # <PR title>
@@ -176,7 +222,7 @@ Omit this section entirely when the build verdict was `COMPLETE` or `PARTIAL_DEF
 - Not this PR's concern: rate-limiting (parent NFR doesn't require; can add later)
 ```
 
-Every section is auto-populated from the actual commit-run's data. Never placeholders.
+Every section is auto-populated from the actual run's data. Never placeholders.
 
 ### 9c. Raise the PR — 4-step fallback ladder (v2.3.22)
 
@@ -195,7 +241,7 @@ OWNER=$(echo "$OWNER_REPO" | cut -d/ -f1)
 REPO=$(echo "$OWNER_REPO" | cut -d/ -f2)
 ```
 
-**Try each step in order. On success, log which step ran to `dev/commit-run.md` and proceed.**
+**Try each step in order. On success, log which step ran to `units/<repo>/status.md § ## Run history` and proceed.**
 
 **Step 1 — `gh` CLI (if installed + authed):**
 
@@ -205,7 +251,7 @@ if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
     --base <resolved-base-branch> \
     --head <feature-branch> \
     --title "<computed title>" \
-    --body-file dev/pr-summary.md
+    --body-file units/<repo>/pr-summary.md
   # Log: pr_method: gh_cli
 fi
 ```
@@ -219,7 +265,7 @@ if [ -z "$PR_METHOD" ]; then
   CREDS=$(echo -e "protocol=https\nhost=github.com\n" | git credential fill 2>/dev/null)
   TOKEN=$(echo "$CREDS" | grep '^password=' | cut -d= -f2)
   if [ -n "$TOKEN" ]; then
-    BODY=$(jq -Rs . < dev/pr-summary.md)
+    BODY=$(jq -Rs . < units/<repo>/pr-summary.md)
     RESPONSE=$(curl -s -X POST \
       -H "Authorization: Bearer $TOKEN" \
       -H "Accept: application/vnd.github+json" \
@@ -258,14 +304,14 @@ fi
 ```bash
 if [ -z "$PR_METHOD" ]; then
   TITLE_ENC=$(printf '%s' "<computed title>" | jq -sRr @uri)
-  BODY_ENC=$(cat dev/pr-summary.md | jq -sRr @uri)
+  BODY_ENC=$(cat units/<repo>/pr-summary.md | jq -sRr @uri)
   COMPARE_URL="https://github.com/$OWNER/$REPO/compare/<base>...<head>?expand=1&title=$TITLE_ENC&body=$BODY_ENC"
   echo "PR-creation auth not available. Open this URL in your browser — the form will be pre-filled with title + body:"
   echo ""
   echo "  $COMPARE_URL"
   echo ""
   echo "After you click Create pull request, paste the PR URL back if you want /dev:commit --resume to record it."
-  # Log: pr_method: web_url_fallback + compare_url in commit-run.md
+  # Log: pr_method: web_url_fallback + compare_url in status.md § ## Run history
   # State: /dev:commit exits successfully; user manually completes the PR in browser
 fi
 ```
@@ -273,7 +319,7 @@ fi
 **"PR already exists" handling** — if Step 1 or Steps 2/3 return a "PR already exists" error (`422 Unprocessable Entity` with `A pull request already exists for <head>`):
 
 ```bash
-# Step 1: gh pr edit <pr-number> --body-file dev/pr-summary.md
+# Step 1: gh pr edit <pr-number> --body-file units/<repo>/pr-summary.md
 # Steps 2/3 curl: PATCH /repos/$OWNER/$REPO/pulls/<pr-number> with body update
 ```
 
@@ -318,7 +364,7 @@ Use `AskUserQuestion` for the yes/no. On `y`: run the install, run `gh auth logi
 
 ### 9e. Progress log
 
-Append to `dev/commit-run.md`:
+Append to `units/<repo>/status.md § ## Run history`:
 
 ```yaml
 stage-9:
@@ -330,7 +376,7 @@ stage-9:
   pr_url: https://github.com/acme/acme-backend/pull/247   # empty when pr_method == web_url_fallback (compare_url instead)
   compare_url: https://github.com/.../compare/...      # only when pr_method == web_url_fallback
   pr_title: "Supplier Onboarding — backend"
-  pr_body_file: dev/pr-summary.md
+  pr_body_file: units/<repo>/pr-summary.md
   action: created | updated | pending_user_completion
 ```
 
@@ -349,8 +395,8 @@ If `stage-9.status: HALTED` due to a transient issue, retry after human addresse
 ### 9h. Never
 
 - Never mark MC status `done` here — that's the PR-merge webhook's job (out of scope for v2.2; noted for v2.3)
-- Never modify `local-runbook.md` here (that's `/dev:build` Stage 11's file)
-- Never include "how to run locally" in the PR body (that's `local-runbook.md`)
+- Never modify `pr-summary.md` § `## How to verify` here (that's `/dev:build` Stage 11's file)
+- Never include "how to run locally" in the PR body (that's `pr-summary.md` § `## How to verify`)
 - Never inline test-run outputs in the PR body — link to CI runs if the CI exposes them
 - Never `--force-push` unless the developer explicitly asked
 - Never `--no-verify` on push
