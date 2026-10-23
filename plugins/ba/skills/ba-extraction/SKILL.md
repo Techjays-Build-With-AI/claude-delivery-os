@@ -139,6 +139,16 @@ Only `Open` clarifications appear. When the answer round-trip closes a `CLR`, it
 - `system-landscape.md` — systems, tools, platforms, integration touchpoints
 - `decision-log.md` — confirmed decisions (DEC) and their impact
 
+## Carry partial reads forward
+
+Extraction reads summaries, not originals, so it cannot tell a source that said little from one that
+was only partly read. **Classification records that distinction on the summary; never drop it here.**
+
+Where a summary is marked partially absorbed, repeat it in the intake run summary and treat the
+unread part as unknown — not as absent. A gap that came from skipping is a re-run; a gap that came
+from the source is a client question. Raising the first as the second is how a review ends up asking
+about an appendix nobody opened.
+
 ## Intake run summary (returned and rendered — not a file)
 
 Sections: Run Details (date, mode, input index, scope version) · Artifacts Scanned (totals by status) · Sources Processed table · New Information Identified · Scope Updates Made · Registers Updated · Contradictions Found · Clarifications Added · Indexing Assistance Needed · Risk Notes · Next Recommended Actions.
