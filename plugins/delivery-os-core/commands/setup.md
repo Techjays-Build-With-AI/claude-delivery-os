@@ -64,6 +64,8 @@ Run ONE Bash call:
 claude mcp list 2>&1
 ```
 
+**Why this command is right here and forbidden elsewhere.** `claude mcp list` health-checks *every* registered server over the network, so on a machine with many connectors it can block for minutes — which is why `/dev:plan` forbids it outright. Registering servers is this command's entire job, it runs once, and that latency is the point rather than a surprise. Anywhere that only needs to know whether a single server is registered uses `ToolSearch` on that server's own tool instead. Reading the two documents side by side without this note is what made them look contradictory.
+
 Parse the output. For each canonical name, record:
 - **registered + URL matches the mode's target** → skip (`= already at <mode>`)
 - **registered but URL is a DIFFERENT environment** → skip and add a warning to the final report (`⚠ project-mcp is registered at STAGING, but this run targeted PRODUCTION — leave it as-is, or remove and re-run`)

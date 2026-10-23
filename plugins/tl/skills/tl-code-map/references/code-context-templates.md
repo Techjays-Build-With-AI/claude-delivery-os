@@ -443,6 +443,9 @@ doc_type: endpoint
 schema_version: 1.3
 produced_by: tl
 endpoint_id: EP-BIL-03
+method: POST                     # verb, or SCHEDULE | EVENT | QUEUE | CLI for a non-HTTP entry point
+path: /billing/invoices/:id/generate
+match_key: "POST /billing/invoices/:P/generate"
 status: Released
 implementation_state: Implemented
 origin: reverse-mapped
@@ -664,7 +667,22 @@ Confidence: Confirmed (extracted from source references above)
 
 One routed surface — what it is, who uses it, and the endpoints it consumes. Every heading forward planning's `page.md` defines is kept **verbatim** so the file stays a unit `tl-feature-planning` (internal) can read and extend; the reverse-map additions are `## Summary`, `## Area`, `## State & Data Handling`, `## Client-side Validation`, and the `origin`/`mapped_from`/`mapped_from_commit`/`map_confidence` frontmatter.
 
-```md
+```
+
+**`method`, `path` and `match_key` are frontmatter, not prose.** They were body-only, under
+`## Method + Path`, so anything matching a route to a unit had to parse English out of a document:
+cross-repo link resolution, index rebuilds, drift checks, and a repair script that had to regex
+`Normalised match key:` to tell whether 17 units were implemented. Keep the body section for a human
+reader, and keep these three authoritative.
+
+- **`method`** — the HTTP verb, uppercase. For a non-HTTP entry point use the trigger kind:
+  `SCHEDULE`, `EVENT`, `QUEUE`, `CLI`.
+- **`path`** — the route exactly as the framework declares it, parameters and all.
+- **`match_key`** — `<METHOD> <path>` with every parameter normalised to `:P`, so
+  `/licences/:id/seats/:seatId` and `/licences/:licenceId/seats/:seat` compare equal. This is the
+  key forward planning and reverse mapping already agree on; it is now written down rather than
+  recomputed by each reader.
+md
 ---
 doc_type: page
 schema_version: 1.3

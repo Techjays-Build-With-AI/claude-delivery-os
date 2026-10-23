@@ -33,6 +33,8 @@ Record the detected stack in `units/<repo>/status.md § ## Run history` under a 
 
 ### Phase 2 — Pattern inference (10 targeted reads, no more)
 
+**Writing UI?** Follow **`references/ui-consistency.md`** as well — detect the component library, the token source and the shared components, then reuse them. Structural consistency without visual consistency still produces a screen that looks bolted on.
+
 Follow **`references/pattern-inference.md`** — read ≤ 10 existing files in the repo to establish:
 
 - Folder structure conventions

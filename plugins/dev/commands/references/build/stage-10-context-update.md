@@ -47,6 +47,8 @@ design_confidence: Likely                   # or Assumed
 
 # After Stage 10 update
 origin: implemented
+status: Active                              # from Proposed - the unit is real now
+implementation_state: Implemented           # from Planned - THIS is what readers filter on
 design_confidence: Confirmed                # promote from Likely (design was verified by working code)
 implemented_at: 2026-08-31T15:21:44Z        # ADD (from git commit timestamp of last touching commit)
 implemented_by_commit: <HEAD SHA>           # ADD
@@ -54,6 +56,14 @@ implemented_by_task: FEAT-SUP-001-1         # ADD (feature id + sub-task suffix 
 mapped_from: src/routes/supplier.ts         # ADD (canonical source file)
 mapped_from_line: 42                        # ADD (line of the export / entry point, if resolvable)
 ```
+
+**All four lifecycle fields move together, or none of them do.** `origin`, `status`,
+`implementation_state` and `design_confidence` describe one fact - this unit is built - and a reader
+filters on whichever one they happen to use. A real run flipped `origin` alone and left 17 units
+reading `origin: implemented` beside `implementation_state: Planned`; the code was there, the build
+reported COMPLETE, and anyone asking the context what was built was told the licence domain had never
+been started. Writing one field and not the rest is worse than writing none, because the
+contradiction looks like data rather than a bug.
 
 Confidence promotion rules:
 
@@ -98,9 +108,35 @@ For pages — verify `## Consumes endpoints` matches actual API calls in code.
 
 For each involved layer index:
 
-- Update the row's `Status` column — `draft` → `active`
+- Update the row's `Status` column to match the unit's new `status:` — **`Proposed` → `Active`**. Take the value from the unit file rather than assuming a vocabulary: an index row left at `Proposed` beside an implemented unit is the same contradiction as the frontmatter one, and it is what a reader sees first.
 - Update the row's `Confidence` column (if present) per §10c rules
 - If the row's `Summary` cell drifted from the unit's `## Summary` (rare — should stay in sync), take the unit's current summary as truth
+
+---
+
+### 10e.i. Completion check - no unit this task built may still read `Planned`
+
+Before Stage 10 reports DONE, re-read every unit you touched **and** every unit cited in this task's
+`implementation.md`, and confirm none still carries `implementation_state: Planned` or
+`status: Proposed`.
+
+Any that does is one of two things, and both need saying out loud rather than passing silently:
+
+| What it means | What to do |
+|---|---|
+| You built it but missed the flip | Flip it now, then re-check |
+| Another task's sub-task built it - a **shared unit** attributed to a different feature in the index | Flip it and record `implemented_by_task` as the task that actually wrote the code |
+
+The second case is the one that bites. §10b claims units by grepping the index's `Used by Features`
+column for THIS task's id, so a unit shared across features - a licence table used by DASH, LICN and
+EXIT - is claimed only by the feature the index names. When a different feature's sub-task writes the
+code, nobody claims it, and it stays `Planned` forever while the code sits in the repo. **Ownership
+for this check is whoever wrote the code, not whoever the index attributes it to.**
+
+Report the count in `status.md` § `## Run history` as `stage-10.units_flipped` and
+`stage-10.units_still_planned`. A non-zero `units_still_planned` is a finding, not a footnote: name
+each one in the build summary. The build must not report `COMPLETE` while the context says work it
+just did was never started.
 
 ---
 

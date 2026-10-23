@@ -69,6 +69,8 @@ That is the depth **every** feature gets: function → categories → definition
 For each feature, mark every dimension **Covered** / **Partial** / **Absent**. These map 1:1 to the Techjays D&D scope §3.x.1–3.x.9 sub-headings, so you're grading whether the scope actually filled them in. The **bounding layer above** is what "Covered" *means* for dimensions 2, 5, and 6 — don't mark them Covered just because the topic is mentioned; mark them Covered only when the feature is actually bounded.
 
 ### 1. Current → Future state (`current_future`)
+**Never raise a question about something the scope has already excluded.** Read the scope's out-of-scope entries — the per-module ones and the global list — before writing any question, and drop anything that lands inside them. A question about excluded work costs the client the same effort as a real one and teaches them the review has not read its own document. Where the exclusion itself looks wrong, that is a `CON-###` contradiction against the scope, not a question for the client.
+
 **Covered:** today's process is described — the actors, the trigger, the systems touched, the manual steps, and the pain points — and the future state names the split between what AI does, what deterministic logic does, and what a human still does.
 **Red flags:** future state only ("the system will…") with no baseline, so nobody can size the *change*; "automate the process" with no statement of which steps actually become automated vs stay manual.
 
@@ -181,6 +183,19 @@ That is one scope line → the handful of *business* decisions that make the eng
 - **Always probe roles & permissions** — "who can do this, and who can't?"
 - **Cross-check the examples** — does each EX-### the client shared actually work under this scope?
 - **Stop at the business line.** If a question is really about *how it's built* (schema, protocol, framework, infrastructure), it's the TL's — don't raise it as a scope gap.
+- **Walk a multi-step flow step by step.** A flow described as one sentence hides a question per step:
+  what information does this step need, which of it is mandatory, where does it come from, and what
+  does finishing it change for the step after. One question covering "the approval flow" gets one
+  vague answer; four covering its steps get four usable ones.
+- **Where the work extends something already live, ask about what is already there.** New-build
+  questions assume an empty system. An extension has records, users and documents in flight already,
+  so ask what happens to existing ones, how updated documents reach the new path, and what changes
+  for people using the current feature on the day it ships. These are the questions a client notices
+  are missing, because they are the ones that worry them.
+- **Check the sources before you ask.** If the supplied documents already answer a question, it is
+  not a client question — it is something extraction missed. Raise it as an extraction gap against
+  the source and cite where the answer sits. Asking a client what they have already written is the
+  fastest way to lose their confidence in the review, and several did say exactly that.
 
 ---
 

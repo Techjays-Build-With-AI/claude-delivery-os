@@ -197,6 +197,7 @@ For each detected issue that survives dedup **and** §5.3.0:
    - For an ambiguous BR: recommend option 1 (whichever reading matches `requirements/<slug>/registers/business-rules.md` most literally)
    - For a config value: recommend option 1 (existing convention in the repo if any; else industry default)
    - Include a "Trade-off" line per option — never present options without stakes
+   - **An option that drops something the analysis cited as used must say so in its trade-off.** If the scratchpad recorded a field, column or parameter as read — by a fallback, a downstream caller, anything — and an option removes it, the trade-off names it and what breaks. A recommendation that quietly discards a dependency the same run discovered is worse than no recommendation, because the citation makes it look considered.
 4. **Blocks:** list which AC / BR / TS / dev-plan step is blocked, so the user sees the downstream impact
 
 ---

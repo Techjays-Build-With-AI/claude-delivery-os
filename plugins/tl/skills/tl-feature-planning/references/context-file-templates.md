@@ -201,6 +201,9 @@ doc_type: endpoint
 schema_version: 1.1
 produced_by: tl
 endpoint_id: EP-SUP-02
+method: POST                     # verb, or SCHEDULE | EVENT | QUEUE | CLI for a non-HTTP entry point
+path: /suppliers                 # exactly as the framework declares it
+match_key: "POST /suppliers"     # <METHOD> <path> with every parameter normalised to :P
 status: Designed
 implementation_state: Planned    # Planned | In-Progress | In-Review | Implemented — per env; updated by /dev:build + merge agent
 generated_at: YYYY-MM-DD
@@ -274,7 +277,22 @@ Requires `supplier.create`. | Confidence: Assumed — auth model not yet confirm
 
 One data object — its physical design, and the endpoints that use it. Realises a BA `DATA-###` where one exists.
 
-```md
+```
+
+**`method`, `path` and `match_key` are frontmatter, not prose.** They were body-only, under
+`## Method + Path`, so anything matching a route to a unit had to parse English out of a document:
+cross-repo link resolution, index rebuilds, drift checks, and a repair script that had to regex
+`Normalised match key:` to tell whether 17 units were implemented. Keep the body section for a human
+reader, and keep these three authoritative.
+
+- **`method`** — the HTTP verb, uppercase. For a non-HTTP entry point use the trigger kind:
+  `SCHEDULE`, `EVENT`, `QUEUE`, `CLI`.
+- **`path`** — the route exactly as the framework declares it, parameters and all.
+- **`match_key`** — `<METHOD> <path>` with every parameter normalised to `:P`, so
+  `/licences/:id/seats/:seatId` and `/licences/:licenceId/seats/:seat` compare equal. This is the
+  key forward planning and reverse mapping already agree on; it is now written down rather than
+  recomputed by each reader.
+md
 ---
 doc_type: entity
 schema_version: 1.1
