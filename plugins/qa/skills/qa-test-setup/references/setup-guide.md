@@ -232,7 +232,7 @@ has the least coverage it will ever have.
 **A `Blocked` harness still gets its PR**, titled so nobody mistakes it for ready. What must not happen is a
 red run reported as a green one, or `Active` written over a sequence that did not pass.
 
-Commit the harness on the setup branch — cut from the base the user confirmed at the start of the run, never from whatever was checked out — push it, and raise a PR — the same four-step ladder `/dev:commit` uses (`gh pr create` → `git credential fill` → `gh auth login --with-token` → a printed `compare/` URL with title and body pre-filled). **Use the repo’s own `PULL_REQUEST_TEMPLATE` when it has one** — `stage-8-9-push-pr.md` §9b.0 — and never tick its checkboxes on the author’s behalf; name the items this run has evidence for instead. Report the PR URL in the summary.
+Commit the harness on the setup branch — cut from the base the user confirmed at the start of the run, never from whatever was checked out — push it, and raise a PR — the same four-step ladder `/dev:commit` uses (`gh pr create` → `git credential fill` → `gh auth login --with-token` → a printed `compare/` URL with title and body pre-filled). **Use the repo’s own `PULL_REQUEST_TEMPLATE` when it has one** — `stage-8-9-push-pr.md` §9b.0 — and never tick its checkboxes on the author’s behalf; name the items this run has evidence for instead. Report the PR URL in the summary — or, where the ladder reached its step 4, say plainly that the branch is pushed and the PR still has to be opened from the printed compare URL. Never report a compare link as a raised PR.
 
 **Never merge.** The coverage floor begins gating every teammate's PRs the moment it lands, and the setup may have escalated rather than finished clean — both are human calls.
 

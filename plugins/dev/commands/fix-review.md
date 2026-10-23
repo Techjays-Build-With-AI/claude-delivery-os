@@ -26,7 +26,7 @@ Read `status.md`:
 - MC status: `devReview` — expected
 - `pr_url:` non-empty in `units/<repo>/status.md § ## Run history`
 
-Requires `status: devReview` **and** `phase: pr-open`. Anything else → halt with the actual status and route: `/dev:build` on `readyForDev`, `/dev:commit` on `inProgress`, and on `devReview` + `merge-conflict` say there is no PR yet — Stage 7 halts before the push — and route to `/dev:commit --resume`.
+Requires `status: devReview`, `phase: pr-open` **and** a non-empty `pr_url:`. On `phase: pr-pending` the branch was pushed but no PR was ever opened (Stage 9 fell to its compare-link fallback) — halt and tell the user to open the PR from `compare_url`, then re-run `/dev:commit --resume <task>` so `pr_url` is recorded. There are no review comments to fetch from a PR that does not exist. Anything else → halt with the actual status and route: `/dev:build` on `readyForDev`, `/dev:commit` on `inProgress`, and on `devReview` + `merge-conflict` say there is no PR yet — Stage 7 halts before the push — and route to `/dev:commit --resume`.
 
 ## 3. Categorize each comment
 

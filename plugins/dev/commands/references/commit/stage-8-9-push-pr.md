@@ -262,24 +262,39 @@ Windows Git Credential Manager, macOS Keychain, and Linux libsecret all cache th
 
 ```bash
 if [ -z "$PR_METHOD" ]; then
-  CREDS=$(echo -e "protocol=https\nhost=github.com\n" | git credential fill 2>/dev/null)
-  TOKEN=$(echo "$CREDS" | grep '^password=' | cut -d= -f2)
+  CREDS=$(printf 'protocol=https\nhost=github.com\n\n' | git credential fill 2>/dev/null)
+  TOKEN=$(echo "$CREDS" | grep '^password=' | cut -d= -f2-)
   if [ -n "$TOKEN" ]; then
-    BODY=$(jq -Rs . < units/<repo>/pr-summary.md)
+    # node, not jq. jq is NOT a stated dependency of this plugin and is absent on a stock
+    # Windows box; node already is (scripts/lint-plugins.js, serve-review.js). While this
+    # step used jq, a machine without it produced an empty body, a malformed POST and a
+    # silent drop to Step 4: the user got a compare link and no reason why.
+    BODY=$(node -e "const fs=require('fs');process.stdout.write(JSON.stringify(fs.readFileSync(process.argv[1],'utf8')))" units/<repo>/pr-summary.md)
     RESPONSE=$(curl -s -X POST \
       -H "Authorization: Bearer $TOKEN" \
       -H "Accept: application/vnd.github+json" \
       -H "X-GitHub-Api-Version: 2022-11-28" \
       "https://api.github.com/repos/$OWNER/$REPO/pulls" \
       -d "{\"title\":\"<computed title>\",\"body\":$BODY,\"head\":\"<feature-branch>\",\"base\":\"<resolved-base-branch>\"}")
-    PR_URL=$(echo "$RESPONSE" | jq -r '.html_url // empty')
+    PR_URL=$(printf '%s' "$RESPONSE" | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{try{process.stdout.write(JSON.parse(d).html_url||'')}catch(e){}})")
     if [ -n "$PR_URL" ]; then
-      # Log: pr_method: git_credential_fill
+      PR_METHOD=git_credential_fill
       echo "PR opened: $PR_URL"
+    else
+      echo "[stage-9] API PR create failed: $(printf '%s' "$RESPONSE" | head -c 300)"
     fi
+  else
+    echo "[stage-9] no token in the git credential store; skipping the API step"
   fi
 fi
 ```
+
+**Every step that fails says why, before the next is tried.** The failure that produced this rule
+looked like a plugin bug and was a missing binary: `jq` absent, body empty, POST rejected, Step 4
+reached without a word. Record each attempted step and its reason under `stage-9.attempts` in
+`status.md` § `## Run history`, and name the missing tool in the terminal summary when one is the
+cause. Of `gh`, `jq`, `curl` and `node`, only **node** is guaranteed — never make a step depend on
+the others without a fallback.
 
 **Step 3 — Read token from `gh` config file (if `gh` was authed even though `gh` binary is missing):**
 
@@ -303,15 +318,48 @@ fi
 
 ```bash
 if [ -z "$PR_METHOD" ]; then
-  TITLE_ENC=$(printf '%s' "<computed title>" | jq -sRr @uri)
-  BODY_ENC=$(cat units/<repo>/pr-summary.md | jq -sRr @uri)
-  COMPARE_URL="https://github.com/$OWNER/$REPO/compare/<base>...<head>?expand=1&title=$TITLE_ENC&body=$BODY_ENC"
-  echo "PR-creation auth not available. Open this URL in your browser — the form will be pre-filled with title + body:"
+  TITLE_ENC=$(printf '%s' "<computed title>" | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>process.stdout.write(encodeURIComponent(d)))")
+  BODY_ENC=$(node -e "const fs=require('fs');process.stdout.write(encodeURIComponent(fs.readFileSync(process.argv[1],'utf8')))" units/<repo>/pr-summary.md)
+
+  # A URL is not a transport for a document. GitHub rejects a very long query
+  # string, and browsers truncate before that -- a real PR body of 18 KB encodes
+  # to ~50 KB and simply will not travel this way. Past the limit, send the user
+  # with a title only and tell them which file to paste, rather than handing over
+  # a URL that silently arrives with half a body or none.
+  if [ "${#BODY_ENC}" -lt 6000 ]; then
+    COMPARE_URL="https://github.com/$OWNER/$REPO/compare/<base>...<head>?expand=1&title=$TITLE_ENC&body=$BODY_ENC"
+    echo "Open this URL - the form is pre-filled with title and body:"
+  else
+    COMPARE_URL="https://github.com/$OWNER/$REPO/compare/<base>...<head>?expand=1&title=$TITLE_ENC"
+    echo "Open this URL. The body is ${#BODY_ENC} encoded chars - too long for a URL,"
+    echo "so the form carries the title only. Paste the description from:"
+    echo "  units/<repo>/pr-summary.md"
+  fi
   echo ""
   echo "  $COMPARE_URL"
   echo ""
-  echo "After you click Create pull request, paste the PR URL back if you want /dev:commit --resume to record it."
-  # Log: pr_method: web_url_fallback + compare_url in status.md § ## Run history
+  echo "After you click Create pull request, re-run /dev:commit --resume <task> so pr_url is recorded."
+  # Log: pr_method: web_url_fallback + compare_url + body_inlined: true|false
+fi
+```
+
+**A PR with no description is the failure this step exists to avoid.** Whenever the body does not
+travel in the URL, the summary must name the file to paste and say the PR is not complete until it is
+— one line, not a footnote. The run that prompted this printed a compare link with no `body=` at all
+and a note buried in a paragraph; the PRs were created empty.yaml
+status: devReview
+phase: pr-pending          # NOT pr-open — nobody can review what was never opened
+pr_url:                    # stays empty until a PR exists
+pr_method: web_url_fallback
+compare_url: https://github.com/<owner>/<repo>/compare/...
+```
+
+This matters because the next command believes it. `/dev:fix-review` gates on `phase: pr-open` **and**
+a non-empty `pr_url:`; a run that wrote `pr-open` with no URL produced 36 sub-tasks whose next step
+could not execute — it passed the phase check and failed on the missing URL, after telling the user
+to run it. On `pr-pending` the next step is **"open the PR from the compare link, then re-run
+`/dev:commit --resume <task>` so `pr_url` is recorded"** — never `/dev:fix-review`, which has no
+comments to fetch because there is no PR to comment on.
   # State: /dev:commit exits successfully; user manually completes the PR in browser
 fi
 ```

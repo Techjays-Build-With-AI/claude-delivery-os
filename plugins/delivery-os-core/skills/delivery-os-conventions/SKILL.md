@@ -773,6 +773,7 @@ phase: plan-blockers     # local detail — tells /dev:build WHY, so it can rout
 | `agentExecuting` | `testing` | `/dev:build` Stages 7–10 | |
 | `inProgress` | `built` | `/dev:build` Stage 11 | build complete, awaiting `/dev:commit` |
 | `devReview` | `pr-open` | `/dev:commit` Stage 3 onward | in the review pipeline |
+| `devReview` | `pr-pending` | `/dev:commit` Stage 9 Step 4 | pushed, but the PR was never opened — the user has a compare link to click |
 | `devReview` | `merge-conflict` | `/dev:commit` Stage 7 halt | resolvable, not a full block |
 | `blocked` | `plan-blockers` | `/dev:plan`, `plan-blockers.md` has OPEN rows | the human must decide |
 | `blocked` | `escalated` | any stage, execution-time | |
@@ -785,7 +786,7 @@ phase: plan-blockers     # local detail — tells /dev:build WHY, so it can rout
 | `/dev:plan` | `status: todo` — unplanned work. With `--resume`, `status: blocked` **and** `phase: plan-blockers`. **Never `readyForDev`:** that is this command's own output, so selecting it means re-planning finished work and skipping everything that actually needs a plan. |
 | `/dev:build` | `status: readyForDev`. On `blocked` + `plan-blockers` it refuses and routes to `/dev:plan --resume` — a different message from `blocked` + `escalated`. |
 | `/dev:commit` | `status: inProgress` **and** `phase: built`. `agentExecuting` means a build is still running. |
-| `/dev:fix-review` | `status: devReview` **and** `phase: pr-open`. On `merge-conflict` there is no PR yet. |
+| `/dev:fix-review` | `status: devReview` **and** `phase: pr-open` **and** a non-empty `pr_url:`. On `merge-conflict` there is no PR yet; on `pr-pending` the PR was never opened, so route to the compare link, not here. |
 | `/dev:resolve` | `status: blocked` **and** `phase: plan-blockers`. |
 
 ### What a question may be about

@@ -260,7 +260,8 @@ leave — each needs its own run."* A reader who assumes the whole repo was cove
 plainly.
 
 **Always print the PR link and the branch you are on.** §4 commits to `context/code-map-…`, pushes it and
-opens a PR. Two facts follow from that and both have to be said: the tree **is** available to whoever ran
+raises a PR — **or, where the ladder reached step 4, prints a compare URL and no PR exists yet**; say
+which of the two happened rather than asserting a PR. Two facts follow from that and both have to be said: the tree **is** available to whoever ran
 this, right now, because they are standing on that branch; and it is **not** available to anyone else until
 the PR merges. A reader who assumes their team can already see it loses an afternoon.
 
