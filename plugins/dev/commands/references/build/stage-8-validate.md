@@ -53,6 +53,42 @@ A non-feature target is never split, so the sub-task scoping rule below does not
 
 ---
 
+### 8b.i. A UI assertion also needs reachability evidence
+
+**A component that renders in a test is not a feature a user can reach.** A test mounts the component
+directly; the running app does not. So a screen can pass every test, report `COMPLETE`, and be
+invisible — the component exists, nothing routes to it, and the build never looked.
+
+For every assertion whose subject is a page, screen or section, establish **both**:
+
+1. **It renders** — the normal test evidence in §8c.
+2. **It is reachable** — trace it from the app entry point and record the chain. Either a route
+   declares it, or a routed ancestor renders it, or the navigation that drives it lists it. Cite the
+   file and line of the link, not the component's own file.
+
+Record the chain in the `## Acceptance` row's evidence:
+
+```
+AC-3  Assets register is visible to a signed-in user
+      renders:   AssetRegister.test.jsx::renders_rows
+      reachable: App.jsx:25 /profile -> SectionContent.jsx:5 -> profileNav.js:38 (nav entry)
+```
+
+**Where visibility is conditional, name the condition and say what makes it true.** A section behind a
+role check, a feature flag or a loaded identity is reachable only when that condition holds, and
+"reachable in principle" is what lets an invisible feature pass:
+
+```
+      gated by:  visibleSections() -> assets: me.meLoaded   (GET /api/me must succeed)
+```
+
+A row with no reachable chain is **not** a pass. Mark it `❌ unreachable`, name what is missing — a
+route, a nav entry, an unsatisfiable gate — and send it to §8f like any other failing row. This costs
+one trace per UI assertion and is the difference between a feature that was built and one that was
+delivered.
+
+---
+
 ### 8c. Map each assertion to test evidence — WITH REAL-SERVICE VALIDATION (v2.3.23)
 
 For each map row, grep the test source files (`step_N.tests_written` from `units/<repo>/status.md § ## Run history`) for the assertion's ID.

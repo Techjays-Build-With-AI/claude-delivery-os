@@ -129,6 +129,31 @@ If `<workspace_root>/.jetrix/project.json` already exists:
 
 A refresh re-fetches the project, its apps and their env branches, and re-attempts the connection map. It **preserves** `bound_at`, the repo paths already given, `tracker.mapping` and `tracker.status_map`.
 
+**Preserving a settled answer is right; preserving a blank is not.** After the re-fetch, walk what is
+still missing and offer to fill it — once, as one prompt, not per app:
+
+| Still missing after re-fetch | What to do |
+|---|---|
+| An app whose `repolocation.json` row is `"SKIPPED"` | Offer it again, with `skip` still a valid answer. Someone who skipped the mobile repo in January may have cloned it in March. |
+| An app with no `env_branches.dev` | Ask for the branch, defaulting to `develop`. `/dev:build` cuts from it and `/dev:commit` defaults its PR base to it, so a blank here is a decision deferred to the worst moment. |
+
+```
+Refreshed 4 apps. Two are still incomplete — fill them in now?
+
+  scheduled-service   repo path?   [skip]
+  mobile              dev branch?  [develop]
+```
+
+**This is not re-asking.** `container_ref`, `mapping` and `status_map` are preserved exactly as §12
+says, and an answer already given is never questioned again. The only thing offered is the value that
+is still blank — and a blank is not an answer, it is an absence that nothing else will ever fill.
+A declined offer writes `SKIPPED` again and the refresh completes; this never blocks.
+
+**Why it is worth a prompt.** A missing repo path is not felt at init. It is felt at `/dev:plan`,
+which logs `<repo> has no local path` and carries on, and then at `/dev:build`, where a feature
+spanning that repo halts — far from the cause, and usually in front of someone who was not there when
+it was skipped.
+
 ## 7. Resolve the project
 
 On `jetrix` the calls are `project-mcp`'s; on any other tracker they are `mapping.resolve_project`. The shape is the same.

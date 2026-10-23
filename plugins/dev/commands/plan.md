@@ -11,7 +11,7 @@ Read the **`delivery-os-conventions`** skill first if it's not in context — th
 
 - `.jetrix/project.json` — solution + apps + `repolocation.json` for repo → path mapping
 - The BA feature files (`features/<slug>/*.md`) for whichever features Stage 0 resolves
-- `shared-context/decision-log.md` — you'll append `DEC-###` rows for material planning decisions
+- `shared-context/decision-log.md` — you'll append `DEC-###` rows for material planning decisions. **Only the batch owner mints an id.** Workers run concurrently and the log is shared, so a worker that reads the last id and adds one will collide with its siblings — two features in a 7-feature run were handed the same `DEC-###` and a human had to separate them. A worker returns its proposed rows; the owner assigns ids and appends them in one write after the batch settles. Never append to the shared log from inside a worker.
 
 Everything you write goes to `.jetrix/requirements/<slug>/features/<slug>/units/<repo>/` or `.jetrix/plan-runs/`. **There is no `dev/` folder** — each unit holds its own work. Never modify code, never merge, never touch secrets.
 

@@ -13,7 +13,7 @@ This skill **authors context, not code**. It produces the per-feature buildable 
 
 ## Operating contract
 
-Read the **`delivery-os-conventions`** contract first if it isn't already in context — the workspace layout, frontmatter standard, stable-ID rules, source-citation form, and controlled vocabulary. Your inputs are:
+Read the **`delivery-os-conventions`** contract first if it isn't already in context — the workspace layout, frontmatter standard, stable-ID rules, source-citation form, and controlled vocabulary. Anything you write here is pushed to a tracker tab **verbatim** -- push repairs nothing -- so follow the markdown format contract in `references/markdown-format.md` while composing: table header and separator must have the same cell count (a mismatch renders as a line of literal pipes, not a rough table), never mix `-` and `*` in one list, and no trailing double-space. Your inputs are:
 
 - **`.jetrix/connection-map.md` FIRST** (if present) — the workspace-level solution architecture doc. It names each repo's role, Wiring edges (transport per pair — `Frontend → Backend over REST`), auth boundary, and external integrations. Consult it BEFORE describing any cross-repo integration in your compose output — a sub-task's Implementation tab that says "the frontend consumes this endpoint" must trace through an EXISTING wiring edge; if it needs a NEW edge, that's a `[HELD]` open item, not an assumption.
 - The feature folder — `features/<slug>/feature.md`, `acceptance-criteria.md`, `dependencies.md`.
