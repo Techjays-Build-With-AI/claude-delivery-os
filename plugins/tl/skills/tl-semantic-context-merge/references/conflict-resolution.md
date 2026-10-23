@@ -34,7 +34,7 @@ When a conflict is detected:
    - `dev/.context-merge-scratch/ours/<path>` — our copy
 3. Append a conflict entry to `dev/context-merge-conflicts.md` (see format below).
 4. Exit non-zero to `/dev:commit`.
-5. `/dev:commit` handles the halt: local state → `MERGE_CONFLICT`; MC status stays `inProgress` (do NOT flip to `blocked` — this is a mergeable state pending human input); prints the escalation summary; halts.
+5. `/dev:commit` handles the halt: local state → `devReview`; MC status stays `inProgress` (do NOT flip to `blocked` — this is a mergeable state pending human input); prints the escalation summary; halts.
 
 ---
 
@@ -71,7 +71,7 @@ Both sides' raw copies are preserved in:
 
 ## Conflict 1 — Endpoint contract change on both sides
 
-- File: context/backend/endpoints/user/EP-USR-01.md
+- File: <repo>/context/code-context/backend/domains/user/EP-USR-01.md
 - Field: contract (method)
 - Baseline: method: PUT   (updated_at 2026-08-30T14:00:00Z, from FEAT-USR-014 branch merged 2 hours ago)
 - Ours:     method: POST  (updated_at 2026-08-30T14:00:00Z, from this build)
@@ -90,7 +90,7 @@ Related decisions:
 
 ## Conflict 2 — Owner field with tied timestamps
 
-- File: context/backend/endpoints/supplier/EP-SUP-01.md
+- File: <repo>/context/code-context/backend/domains/supplier/EP-SUP-01.md
 - Field: owner
 - Baseline: owner: platform-team   (updated_at 2026-08-30T14:20:00Z, from team-restructure branch)
 - Ours:     owner: backend-team    (updated_at 2026-08-30T14:20:00Z)

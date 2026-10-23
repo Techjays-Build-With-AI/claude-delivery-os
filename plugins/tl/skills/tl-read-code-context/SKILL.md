@@ -1,6 +1,6 @@
 ---
 name: tl-read-code-context
-description: Fast, precise lookup skill for answering ANY question about the codebase from the TL context graph — the single source of truth for what exists (endpoints / pages / entities / decisions) and how it connects. Auto-triggers whenever the user asks about the codebase in general terms — "what is EP-...", "how does X work", "which files own Y", "what's the schema for Z", "who calls this endpoint", "trace this feature", "where is X defined", "what does <endpoint id> do", "explain <feature slug>", "show me the graph for <area>". Reads `<repo>/context/code-context/` layer indexes (`backend-index.md` / `frontend-index.md` / `database-index.md`) + per-unit files, walks cross-references via `Called by` / `Data Access` / `Related Units`, and returns a cited answer with unit IDs and file paths so the user can jump to source. Multi-repo aware (reads `.jetrix/cache/repolocation.json` for repo paths). Refuses to fabricate — if the graph doesn't cover the code area, says so and points at `/tl:code-map` for brownfield reverse-map or `/tl:plan` for greenfield planning.
+description: Fast, precise lookup skill for answering ANY question about the codebase from the TL context graph — the single source of truth for what exists (endpoints / pages / entities / decisions) and how it connects. Auto-triggers whenever the user asks about the codebase in general terms — "what is EP-...", "how does X work", "which files own Y", "what's the schema for Z", "who calls this endpoint", "trace this feature", "where is X defined", "what does <endpoint id> do", "explain <feature slug>", "show me the graph for <area>". Reads `<repo>/context/code-context/` layer indexes (`backend-index.md` / `frontend-index.md` / `database-index.md`) + per-unit files, walks cross-references via `Called by` / `Data Access` / `Related Units`, and returns a cited answer with unit IDs and file paths so the user can jump to source. Multi-repo aware (reads `.jetrix/cache/repolocation.json` for repo paths). Refuses to fabricate — if the graph doesn't cover the code area, says so and points at `/tl:code-map` for brownfield reverse-map or `tl-feature-planning` (internal) for greenfield planning.
 ---
 
 # TL Read Code Context (fast graph-backed answers to codebase questions)
@@ -22,7 +22,7 @@ Trigger on any of these question shapes, whether the user is talking to `dev-age
 - **Solution-level architecture / cross-repo wiring:** "how does the frontend talk to the backend?", "what's the auth boundary?", "how many repos are wired together?", "what external integrations do we have?", "what's the scheduled service for?", "what's the solution architecture?" — these questions are answered from `.jetrix/connection-map.md` FIRST (see Phase 2)
 
 Do NOT auto-trigger on:
-- Questions about non-code artifacts (BA scope, TL reviews, QA audits) — those live in `ba/` / `tl/reviews/` / `qa/`
+- Questions about non-code artifacts (BA scope, TL reviews, QA audits) — those live in `ba/` / `tl-reviews/` / `qa/`
 - Requests to WRITE code, run tests, or plan new features — those are `/dev:build`, `/qa:setup`, `/dev:plan`
 - Questions that clearly ask for the FILE contents of a specific known path — a direct `Read` is faster
 
@@ -34,7 +34,7 @@ Read the **`delivery-os-conventions`** contract if not in context — you need t
 
 1. `.jetrix/connection-map.md` — **workspace-level solution architecture (SOURCE OF TRUTH for cross-repo wiring, auth boundary, external integrations, data flow)**. Portal-synthesised; pulled by `/jetrix:init`. Read FIRST for any cross-repo, solution-level, or architecture question. When present, it establishes the WHOLE picture before you dive into any single repo's graph.
 2. `.jetrix/cache/repolocation.json` — map from repo slug → absolute local path
-3. `.jetrix/tl/code-map-registry.md` — one workspace-level pointer file naming each mapped repo, its context root, its area tokens
+3. `.jetrix/code-map-registry.md` — one workspace-level pointer file naming each mapped repo, its context root, its area tokens
 4. Per repo: `<repo>/context/code-context/code-context-index.md` — cross-layer summary (top-level entry for jumping to a layer)
 5. Per layer: `<repo>/context/code-context/<layer>/<layer>-index.md` — filenames on disk are `backend-index.md` / `frontend-index.md` / `database-index.md` (their frontmatter doc_types are `endpoint-index` / `page-index` / `entity-index` respectively). Each row: `Unit ID | Path | Owner | Origin | Related Features` + a `File` column pointing to the per-unit file.
 6. Per unit (endpoint / page / entity): `<repo>/context/code-context/<layer>/domains/<domain>/endpoints/<slug>.md` OR `<layer>/pages/<slug>.md` OR `<layer>/{tables,collections}/<slug>.md`. Body sections: `## Summary`, `## Contract` / `## Fields`, `## Called by`, `## Data Access`, `## Source References`, `## Related Units`.
@@ -44,7 +44,7 @@ Read the **`delivery-os-conventions`** contract if not in context — you need t
 
 - **Cited answer** in-chat. Every claim tagged with `[unit_id · file_path]` so the reader can jump. Include the actual snippet content, not a paraphrase.
 - **No file writes.** This skill is read-only.
-- **If graph is silent:** name the gap, tell the user which command fills it (`/tl:code-map <repo>` for brownfield reverse-map; `/tl:plan <feature>` for forward-planned units), stop.
+- **If graph is silent:** name the gap, tell the user which command fills it (`/tl:code-map <repo>` for brownfield reverse-map; forward planning for new units), stop.
 
 ## The lookup workflow — 4 phases, ≤5 file reads on the hot path
 
@@ -70,7 +70,7 @@ Decide which of the 8 question shapes applies. That determines the entry point:
 
 **Step 2b — Resolve repos to read** (only if the question dives into a specific unit / feature / walk):
 - If the question implies a specific repo (via a repo-scoped area token like `EP-USR-*` where `USR` maps to backend), read only that repo's context tree.
-- If the question is workspace-wide (e.g. "trace this feature"), fan out across every mapped repo whose area tokens are relevant. Read `.jetrix/tl/code-map-registry.md` to know which repos have the area token mapped.
+- If the question is workspace-wide (e.g. "trace this feature"), fan out across every mapped repo whose area tokens are relevant. Read `.jetrix/code-map-registry.md` to know which repos have the area token mapped.
 - **For cross-repo walks, always cite the connection-map's Wiring section** as the transport authority — a Frontend page calling a Backend endpoint traces through the wiring edge, not just the two unit files.
 
 ### Phase 3 — Walk to the answer (2-4 file reads)
@@ -121,7 +121,7 @@ Then STOP. Do NOT proactively read production source files, run tests, or expand
 
 **Rule 1 — Graph-first, never source-first.** For general codebase questions, the graph is authoritative. Read production source only when the graph explicitly points at it AND the user's question requires ground-truth verification (e.g. "does the code actually enforce BR-1?"). Even then, cite the graph unit that led you there.
 
-**Rule 2 — No fabrication.** If the graph doesn't cover a unit / feature / decision the user asked about, say so explicitly and route to the command that fills it: `/tl:code-map <repo>` for brownfield, `/tl:plan <feature>` for greenfield, `/ba:features` for missing feature-level context. Never invent an EP-###, PAGE-###, or DEC-###.
+**Rule 2 — No fabrication.** If the graph doesn't cover a unit / feature / decision the user asked about, say so explicitly and route to the command that fills it: `/tl:code-map <repo>` for brownfield, `/dev:plan <feature>` for greenfield, `/ba:features` for missing feature-level context. Never invent an EP-###, PAGE-###, or DEC-###.
 
 **Rule 3 — Fast paths, no agentic search.** ≤5 file reads on the hot path for a single-unit question. If the question spans a feature or requires multi-hop walks, cap at ≤15 reads and report the walk so the user sees what you read. Never invoke `Grep` or `Glob` for a question a two-file walk (index → unit) resolves.
 
@@ -137,7 +137,7 @@ Then STOP. Do NOT proactively read production source files, run tests, or expand
 
 **Rule 9 — When the graph disagrees with source (rare):** report the discrepancy. The graph might be stale (needs `/tl:code-map` refresh) or the source might have drifted (needs `/dev:commit` Stage 7 semantic merge). Naming the disagreement is the honest answer; picking a side isn't.
 
-**Rule 10 — Empty-graph gracefulness.** If a repo has no `context/code-context/` tree, tell the user: "This repo isn't mapped yet. Run `/tl:code-map <repo>` to reverse-map the existing code, or `/tl:plan <feature>` to forward-plan new units."
+**Rule 10 — Empty-graph gracefulness.** If a repo has no `context/code-context/` tree, tell the user: "This repo isn't mapped yet. Run `/tl:code-map <repo>` to reverse-map the existing code, or `/dev:plan <feature>` to forward-plan new units."
 
 ## Return format
 
@@ -228,4 +228,4 @@ An answer is complete when:
 - **Route on gaps.** If the graph is silent, that's a signal — route to the command that fills it. Never guess.
 - **Read-only, always.** This skill never writes. If asked to modify, refuse and route.
 - **Stack-name discipline.** The graph deliberately doesn't leak framework names. Don't inject them in the answer.
-- **Empty graph is not empty answer.** Even when the graph is silent, the routing to `/tl:code-map` OR `/tl:plan` is itself the answer.
+- **Empty graph is not empty answer.** Even when the graph is silent, the routing to `/tl:code-map` OR `tl-feature-planning` (internal) is itself the answer.

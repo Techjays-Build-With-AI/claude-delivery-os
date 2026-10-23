@@ -1,0 +1,11 @@
+{
+  "name": "techjays-delivery-os",
+  "private": true,
+  "description": "Claude Code plugin marketplace for the Techjays delivery flow.",
+  "scripts": {
+    "lint": "node scripts/lint-plugins.js",
+    "lint:all": "node scripts/lint-plugins.js --warnings",
+    "sync": "node scripts/sync-plugins.js --apply",
+    "sync:check": "node scripts/sync-plugins.js"
+  }
+}

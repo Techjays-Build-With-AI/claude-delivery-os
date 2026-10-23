@@ -48,7 +48,7 @@ Database Migration
 Email Template
 ```
 
-Document them inside the relevant feature's `implementation-plan.md` (as a build area or backend capability). **Exception:** a technical component *is* a feature when it's a genuinely reusable business capability the whole system leans on — e.g. `Notification Center`, `Audit History`, `User and Role Management`, `Document Upload Capability`. The test is Rule 1: does it carry business value on its own?
+Document them inside the relevant feature's `feature.md` (as a build area or backend capability). **Exception:** a technical component *is* a feature when it's a genuinely reusable business capability the whole system leans on — e.g. `Notification Center`, `Audit History`, `User and Role Management`, `Document Upload Capability`. The test is Rule 1: does it carry business value on its own?
 
 When in doubt between one big feature and several small ones, prefer the decomposition that lets a team **estimate and release independently** — that's the unit the breakdown exists to produce.
 
@@ -105,7 +105,7 @@ The feature breakdown is complete when:
 - [ ] Every major scope item maps to one or more features.
 - [ ] Every feature has a dedicated folder with all ten files.
 - [ ] Every feature includes business purpose, user context, workflow, acceptance criteria, dependencies, assumptions, and open questions.
-- [ ] Features are indexed in `feature-index.md`.
+- [ ] Features are indexed in the breakdown table in the run summary.
 - [ ] Features have a preliminary implementation sequence.
 - [ ] Cross-feature dependencies are documented in both features and the index.
 - [ ] Unresolved scope questions are visible and assigned where possible (owner or `Unassigned`).

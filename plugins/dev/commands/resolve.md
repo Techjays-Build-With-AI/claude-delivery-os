@@ -7,9 +7,9 @@ argument-hint: "<Task-N | Feature-N | Subtask-N | slug | features/<slug> | FEAT-
 
 You are the interactive blocker-resolution entry point. Walk every OPEN `PB-###` in the target task's plan-blockers files, present the options + recommendation, collect the user's choice per blocker, write Resolution fields back to disk, then hand off to `/dev:plan --resume` to fold the resolutions into the analysis scratchpad + compose + push.
 
-Read the **`delivery-os-conventions`** skill first if not in context — the v2.3 file layout, plan-blockers doc_type, and `BLOCKED_ON_PLAN` state model.
+Read the **`delivery-os-conventions`** skill first if not in context — the v2.3 file layout, plan-blockers doc_type, and `blocked` state model.
 
-**The single invariant:** you never invent a resolution. Every Resolution field is either (a) an option number the user picked, (b) free text the user typed, or (c) marked `_skipped_ — task stays BLOCKED_ON_PLAN` when the user chose to defer.
+**The single invariant:** you never invent a resolution. Every Resolution field is either (a) an option number the user picked, (b) free text the user typed, or (c) marked `_skipped_ — task stays blocked` when the user chose to defer.
 
 ---
 
@@ -22,7 +22,7 @@ Read the **`delivery-os-conventions`** skill first if not in context — the v2.
 - Local feature slug: `holiday-calendar-management`
 - Local feature folder: `features/holiday-calendar-management`
 - Internal id: `FEAT-<AREA>-NN`
-- **Non-feature ticket**: `tasks/<slug>.md` — blockers live at `tasks/<slug>/dev/plan-blockers.md`
+- **Non-feature ticket**: `tasks/<slug>.md` — blockers live at `tasks/<slug>/units/<repo>/plan-blockers.md`
 - Blank: find the ONE target whose `dev/*plan-blockers.md` has `status: OPEN`, scanning **both** `features/*/dev/` and `tasks/*/dev/`. If more than one → list them and ask which.
 
 **Flags:**
@@ -38,9 +38,9 @@ Same 4-way task resolution as `/dev:plan` Stage 0.
 Once resolved to `(feature_id, feature_folder)`, scan for OPEN blocker files:
 
 ```
-features/<slug>/dev/plan-blockers.md              # parent-alone
-features/<slug>/dev/<repo>-plan-blockers.md       # per sub-task on split
-tasks/<slug>/dev/plan-blockers.md                 # non-feature ticket (never split)
+features/<slug>/units/<repo>/plan-blockers.md              # parent-alone
+features/<slug>/units/<repo>/plan-blockers.md       # per sub-task on split
+tasks/<slug>/units/<repo>/plan-blockers.md                 # non-feature ticket (never split)
 ```
 
 A `§5.2a` ticket-vs-code blocker resolves like any other, with one rule: its options always include **"ticket is right — my reading is wrong, plan the fix as filed"**. Picking that records the user's ruling and proceeds with the ticket as written; it never edits the ticket to match the analysis.
@@ -56,8 +56,8 @@ For each file found, read its frontmatter:
 ```
 ✓ No OPEN plan blockers for <task-ref>. Nothing to resolve.
 
-Run: /dev:build <task-ref>  (if state is PLANNED)
-     /dev:plan <task-ref>   (if plan hasn't run)
+Run: /dev:build <task-ref>  (if state is readyForDev)
+     /dev:plan Feature-7    (if plan hasn't run)
 ```
 
 **One or more files** → set state `RESOLVING` in each file's frontmatter (idempotent — a `--resume` semantics if this command is re-invoked mid-session).
@@ -97,7 +97,7 @@ Format (target 300-800 chars — enough to explain, short enough to scan):
 
 **Concrete example:** <one real-world scenario — 2-3 sentences — that shows the observable difference between the options; use the actual entities from this task (holiday-calendar, EP-HCAL-01, etc.), not placeholders>
 
-**Detected in:** dev/<repo>-analysis.md § <block> · **Blocks:** <BR-N, AC-N> · **Recommended: Option 1 (<name>)**
+**Detected in:** units/<repo>/analysis.md § <block> · **Blocks:** <BR-N, AC-N> · **Recommended: Option 1 (<name>)**
 ```
 
 Rules for the `question` text:
@@ -128,7 +128,7 @@ The `AskUserQuestion` tool auto-provides an **"Other"** option that lets the use
 Add ONE extra explicit option per blocker:
 
 - **`label`**: `Skip this blocker for now`
-- **`description`**: `Task stays BLOCKED_ON_PLAN; the Resolution field is left as-is with a comment noting this run's skip. You can re-run /dev:resolve later or edit the file manually.`
+- **`description`**: `Task stays blocked; the Resolution field is left as-is with a comment noting this run's skip. You can re-run /dev:resolve later or edit the file manually.`
 - **`preview`**: Explanation of what happens next if skipped — build stays blocked, siblings continue, /dev:build refuses on this task until resolved.
 
 Place Skip LAST in the options array.
@@ -144,7 +144,7 @@ question: "Does one-holiday-per-date apply to *removed* holidays, or only to *ac
 
 **Concrete example:** Priya adds Diwali on 2026-11-08. Arjun later notices it was mis-dated and removes it. The next day Priya (or anyone) tries to add Diwali on 2026-11-08 again. Should this second add succeed (Option 1 — active-only) or be refused because the date has 'ever' held a holiday (Option 2 — all rows)? For a soft-delete design where removal is meant to preserve audit but free the calendar, Option 1 matches the mental model.
 
-**Detected in:** dev/backend-analysis.md § build_sequence step 1 · **Blocks:** BR-1, AC-9, AC-7, test scenario 11 · **Recommended: Option 1 (Active-only).** Or pick 'Other' to type your own resolution."
+**Detected in:** units/backend/analysis.md § build_sequence step 1 · **Blocks:** BR-1, AC-9, AC-7, test scenario 11 · **Recommended: Option 1 (Active-only).** Or pick 'Other' to type your own resolution."
 
 header: "PB-1-001"
 
@@ -182,11 +182,11 @@ options:
       BR-1 defeated under load. Rejected by TL on concurrency grounds.
 
   - label: "Skip this blocker for now"
-    description: "Task stays BLOCKED_ON_PLAN. You can re-run /dev:resolve later or edit the file manually. Sibling blockers continue to be prompted."
+    description: "Task stays blocked. You can re-run /dev:resolve later or edit the file manually. Sibling blockers continue to be prompted."
     preview: |
       Skip outcome:
       · Resolution field kept as-is with a skip comment
-      · Task remains BLOCKED_ON_PLAN
+      · Task remains blocked
       · /dev:plan --resume WILL NOT run (any skipped blocker halts fold)
       · /dev:build refuses on this task
       · Re-run /dev:resolve OR edit backend-plan-blockers.md manually
@@ -218,8 +218,8 @@ Resolutions collected for holiday-calendar-management (5 blockers):
   PB-2-003  →  Custom — "1 + document baseline in qa/quality-gates.md"
 
 Ready to write these to:
-  features/holiday-calendar-management/dev/backend-plan-blockers.md
-  features/holiday-calendar-management/dev/frontend-plan-blockers.md
+  features/holiday-calendar-management/units/backend/plan-blockers.md
+  features/holiday-calendar-management/units/frontend/plan-blockers.md
 
 Then invoke: /dev:plan --resume features/holiday-calendar-management
 
@@ -270,13 +270,12 @@ Terminal output combines the /dev:resolve summary + the /dev:plan --resume resul
   PB-2-003 → Custom (folded into frontend-analysis.md § test_strategy quality-gates) → DEC-046
 
 Stage 4 (compose + push) ran cleanly:
-  · subtask/backend/{description.md, implementation.md, status.md}   written
-  · subtask/frontend/{description.md, implementation.md, status.md}  written
+  · units/backend/{description.md, implementation.md, status.md}   written
+  · units/frontend/{description.md, implementation.md, status.md}  written
   · Subtask-7 (backend)  created  https://jetrix/…/Subtask-7
   · Subtask-8 (frontend) created  https://jetrix/…/Subtask-8
 
-Local state:  PLANNED  (both sub-tasks)
-MC status:    readyForDev  (both sub-tasks)
+Status:        readyForDev  (both sub-tasks)
 
 Next: /dev:build FEAT-HCAL-01-1  (backend)
       /dev:build FEAT-HCAL-01-2  (frontend)
@@ -294,7 +293,7 @@ Next: /dev:build FEAT-HCAL-01-1  (backend)
 - Never invent a resolution — every write comes from a user choice (option number OR typed text OR explicit skip)
 - Never modify anything in the file OTHER THAN the Resolution field + frontmatter `status` / `last_updated`
 - Never push to MC directly — that's `/dev:plan --resume`'s Stage 4 responsibility
-- Never resolve blockers on a task that's not `BLOCKED_ON_PLAN` — the file's `status: OPEN` is the authority
+- Never resolve blockers on a task that's not `blocked` — the file's `status: OPEN` is the authority
 - Never proceed past Stage 3 (write) without an explicit `y` from the confirm prompt
 - If the same PB-### appears in two files (rare edge case — deduplication should have happened at detection), warn and ask which file to keep
 

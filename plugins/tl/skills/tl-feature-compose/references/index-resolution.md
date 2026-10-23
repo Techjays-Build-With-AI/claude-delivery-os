@@ -25,7 +25,7 @@ Historical schemas as reference (verify each time — DO NOT hardcode):
 | `<repo>/context/code-context/backend/backend-index.md` | `Used by Features` | `File` | `Reads/Writes Entities` |
 | `<repo>/context/code-context/database/database-index.md` | *none* — features link indirectly | `File` | `Used by Endpoints` |
 
-**Reverse-mapped rows** — units produced by `/tl:map` carry `(as-built)` in their `Used by Features` cell. A `FEAT-` filter naturally excludes them. Composition should NOT pull as-built units unless the feature explicitly claims them (rare — usually as-built units get linked back on the next `/tl:plan` re-run, at which point they carry a real `FEAT-` id).
+**Reverse-mapped rows** — units produced by `/tl:code-map` carry `(as-built)` in their `Used by Features` cell. A `FEAT-` filter naturally excludes them. Composition should NOT pull as-built units unless the feature explicitly claims them (rare — usually as-built units get linked back on the next `tl-feature-planning` (internal) re-run, at which point they carry a real `FEAT-` id).
 
 ## Feature-cell matching rule
 
@@ -89,4 +89,4 @@ awk -F'|' -v f="$FEAT" '
 
 ## After resolution
 
-You have three sets of file paths — `PAGES`, `ENDPOINTS`, `ENTITIES`, each a set of `context/**/*.md` paths owned by the feature. Read each with `Read`; they are small (a couple hundred lines each). If any set is empty AND the feature declares that layer in `feature.md` (`Related Pages`, `Related APIs`, `Related Data Entities`), that's a broken graph — surface it as an open item and refuse to compose that feature until `/tl:plan` is re-run.
+You have three sets of file paths — `PAGES`, `ENDPOINTS`, `ENTITIES`, each a set of `context/**/*.md` paths owned by the feature. Read each with `Read`; they are small (a couple hundred lines each). If any set is empty AND the feature declares that layer in `feature.md` (`Related Pages`, `Related APIs`, `Related Data Entities`), that's a broken graph — surface it as an open item and refuse to compose that feature until `tl-feature-planning` (internal) is re-run.

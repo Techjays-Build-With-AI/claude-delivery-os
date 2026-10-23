@@ -13,11 +13,11 @@ The defining behaviour: **read the repo, then match it.** You never write "here'
 
 Read the **`delivery-os-conventions`** contract if not in context. Your inputs are what `/dev:plan` produced:
 
-- **`features/<slug>/implementation.md`** (parent-alone) OR **`features/<slug>/subtask/<repo>/implementation.md`** (sub-task) — the 8-section stack-agnostic build spec (§1 Build sequence, §2 Impacted components, §3 Operations exposed and consumed, §4 Stored data changes, §5 User-facing surfaces, §6 Touch points, §7 Risks and rollback, §8 Shared contract). v2.3.16 removed §7 Coverage — plan-time coverage lives in §1 Satisfies column + qa/quality-gates.md tier pool; build-time evidence in dev/acceptance-map.md.
+- **`features/<slug>/implementation.md`** (parent-alone) OR **`features/<slug>/units/<repo>/implementation.md`** (sub-task) — the 8-section stack-agnostic build spec (§1 Build sequence, §2 Impacted components, §3 Operations exposed and consumed, §4 Stored data changes, §5 User-facing surfaces, §6 Touch points, §7 Risks and rollback, §8 Shared contract). v2.3.16 removed §7 Coverage — plan-time coverage lives in §1 Satisfies column + qa/quality-gates.md tier pool; build-time evidence in units/<repo>/status.md § ## Acceptance.
 - **`features/<slug>/implementation.md §2 Impacted components`** — 12-dimension impact map (stack-agnostic dimensions per v2.3.11)
 - **`features/<slug>/tl-plan.md`** (split parent's rollup only) — Sub-tasks table + parent-level Touch points
-- **Parent BA files** — `feature.md`, `workflow.md`, `acceptance-criteria.md`, `business-rules.md`, `nfrs.md`, `test-scenarios.md` — the VALIDATION CONTRACT you write tests against
-- **`features/<slug>/dev/plan-blockers.md`** (if present, `status: RESOLVED`) — the resolved `DEC-###` decisions to honour
+- **Parent BA files** — `feature.md`, `acceptance-criteria.md`, `business-rules.md`, `nfrs.md`, `test-scenarios.md` — the VALIDATION CONTRACT you write tests against
+- **`features/<slug>/units/<repo>/plan-blockers.md`** (if present, `status: RESOLVED`) — the resolved `DEC-###` decisions to honour
 - **The target repository** — its existing files, `coding-standards.md`, `shared-context/technology-stack.md`, `package.json` / `pyproject.toml` / etc.
 - **`qa/quality-gates.md`** — the harness contract (Required gates, exact test commands, coverage floor). Read via [Stage 4 QA gate](../../commands/references/build/stage-4-qa-gate.md).
 
@@ -29,7 +29,7 @@ You write to the **target repo** — real code, real tests, on the branch `/dev:
 
 Follow **`references/stack-detection.md`** — a deterministic ladder that identifies language, framework, ORM, testing framework, package manager, config style. File-based signals only; no LLM guessing.
 
-Record the detected stack in `dev/implementation-log.md` under a `detected_stack:` block.
+Record the detected stack in `units/<repo>/status.md § ## Run history` under a `detected_stack:` block.
 
 ### Phase 2 — Pattern inference (10 targeted reads, no more)
 
@@ -82,7 +82,7 @@ Before writing any code that makes a request to a gated endpoint (backend servic
    - Substitute a generic `"Bearer " + token` if `Header format` says `Authorization: Bearer <id-token>` where `<id-token>` is a specific credential class
    - Copy an auth pattern from a SIBLING file in the same repo that turns out to use a different mechanism — the endpoint's `## Auth` is the authority, not sibling code
 4. If the endpoint's `## Auth` section is FREE-PROSE (unstructured) → **halt with `blocker: endpoint-auth-not-structured`**. The compose that produced the plan should have halted first via Rule 11.3 §8; if we're here, /tl:code-map needs re-running against the endpoint's source to produce structured `## Auth`.
-5. If the `## Auth` `Server prerequisites` list env vars, those get flagged into `dev/local-runbook.md` §3 by Stage 11.
+5. If the `## Auth` `Server prerequisites` list env vars, those get flagged into `units/<repo>/pr-summary.md § ## How to verify` §3 by Stage 11.
 
 **Concrete example — the exact bug from the user's real run:**
 
@@ -132,7 +132,7 @@ const response = await axios.post(url, {}, {
 
 **Rule 7.i — MOCKS DO NOT SATISFY INTEGRATION OR E2E TIERS (v2.3.23). This closes the "tests pass, real endpoint 401s" gap.**
 
-A test that mocks the HTTP call, mocks the database, or mocks the auth middleware is a UNIT test — no matter what its file is named or where it lives. Claiming it as "Integration" or "E2E" in `dev/acceptance-map.md` is a FALSE COVERAGE CLAIM.
+A test that mocks the HTTP call, mocks the database, or mocks the auth middleware is a UNIT test — no matter what its file is named or where it lives. Claiming it as "Integration" or "E2E" in `units/<repo>/status.md § ## Acceptance` is a FALSE COVERAGE CLAIM.
 
 **Tier definitions (binding):**
 
@@ -193,9 +193,9 @@ Before Stage 7 (Execute tests) runs any test file whose `tier:` header is `integ
 
 1. Check the backend's own README + `package.json` scripts + `.env.example` for the actual startup requirement (env vars, dependent services, DB connection)
 2. Attempt to start the backend (`npm run dev` / `python manage.py runserver` / equivalent) with a health-check timeout (max 30s)
-3. If startup fails (missing env var, port conflict, DB unreachable) → HALT the test run for that tier, mark the tier as `Not-covered` in acceptance-map.md, DO NOT claim Passed. Escalate as `dev/escalation-<n>.md` with the missing prerequisites.
+3. If startup fails (missing env var, port conflict, DB unreachable) → HALT the test run for that tier, mark the tier as `Not-covered` in status.md § ## Acceptance, DO NOT claim Passed. Escalate as `units/<repo>/status.md § ## Run history (a BLOCKED entry)` with the missing prerequisites.
 
-**Rule 7.vi — For consumer sub-tasks (frontend/mobile), the wire integration test hits the REAL backend running from the sibling sub-task's build.** If the sibling sub-task hasn't been built yet, the wire integration is `Not-covered` in this sub-task's acceptance-map, and the AC/BR/TS is marked `Deferred to cross-sub-task landing` — surfaced as a §6 Touch points cross-sub-task row: `Integration for AC-M owned by cross-sub-task landing test — closes when frontend + backend both merge to develop`.
+**Rule 7.vi — For consumer sub-tasks (frontend/mobile), the wire integration test hits the REAL backend running from the sibling sub-task's build.** If the sibling sub-task hasn't been built yet, the wire integration is `Not-covered` in this sub-task's `## Acceptance` table, and the AC/BR/TS is marked `Deferred to cross-sub-task landing` — surfaced as a §6 Touch points cross-sub-task row: `Integration for AC-M owned by cross-sub-task landing test — closes when frontend + backend both merge to develop`.
 
 This is DIFFERENT from the retired "Deferred to E2E" plan-time concept. Here it's a build-time evidence gap that resolves when both sub-tasks land, not a plan-time skip.
 
@@ -225,7 +225,7 @@ This is DIFFERENT from the retired "Deferred to E2E" plan-time concept. Here it'
 2. For each Satisfies ID: cross-match to a concern class (Data-integrity, Operation contract, etc.).
 3. From `qa/quality-gates.md` tier pool for this sub-task's capability class, list the Required tiers.
 4. Intersect: {concern-class tiers} ∩ {Required tiers for capability class}. Write a test at every tier in the intersection.
-5. Log each test file + test name + tier in `dev/implementation-log.md` per step.
+5. Log each test file + test name + tier in `units/<repo>/status.md § ## Run history` per step.
 
 **A slow test under instrumentation is a harness finding, not a test to patch.**
 
@@ -242,17 +242,17 @@ A concern class can match while the tier pool has nothing to intersect with — 
 When the intersection is empty:
 
 1. Write the tests you *can* at any tier that IS available — never skip the step entirely
-2. Log `tier-unavailable: <concern class> needs <tier>, not declared in qa/quality-gates.md` in `dev/implementation-log.md`
-3. Surface it in the Stage 11 summary under a heading the user cannot miss, and carry it into `dev/acceptance-map.md` as `not-verified` with that blocker — never `✅ pass`
+2. Log `tier-unavailable: <concern class> needs <tier>, not declared in qa/quality-gates.md` in `units/<repo>/status.md § ## Run history`
+3. Surface it in the Stage 11 summary under a heading the user cannot miss, and carry it into `units/<repo>/status.md § ## Acceptance` as `not-verified` with that blocker — never `✅ pass`
 4. Name the fix: the tier is added by `/qa:audit` → `/qa:plan` → `/qa:setup`
 
 A missing tier is a **contract gap to report**, not a licence to proceed quietly.
 
 **Halt cases:**
-- Step's Satisfies IDs have zero tests at any applicable tier → this step is INCOMPLETE. Do not mark complete; escalate as `dev/escalation-<n>.md` if the tier can't be reached without harness support.
+- Step's Satisfies IDs have zero tests at any applicable tier → this step is INCOMPLETE. Do not mark complete; escalate as `units/<repo>/status.md § ## Run history (a BLOCKED entry)` if the tier can't be reached without harness support.
 - `qa/quality-gates.md` missing entirely → refuse to write code; escalate `blocker: quality-gates-missing`. Point at `/dev:plan` §1e to author it (Yes or Skip path both produce a valid file).
 
-**dev/acceptance-map.md is the evidence artifact** built at Stage 8 — one row per parent AC/BR/TS with test-file references, tier, Pass/Fail status. The plan does NOT list test-file paths; only Stage 8 does.
+**units/<repo>/status.md § ## Acceptance is the evidence artifact** built at Stage 8 — one row per parent AC/BR/TS with test-file references, tier, Pass/Fail status. The plan does NOT list test-file paths; only Stage 8 does.
 
 **Rule 8 — Tests assert on behaviour, not on hardcoded responses.** A test that mocks the entire SUT to return the "correct" value proves nothing. Real state changes, real response shapes, real error paths.
 
@@ -260,11 +260,11 @@ A missing tier is a **contract gap to report**, not a licence to proceed quietly
 
 **Rule 10 — No secrets in code or tests.** Env var names OK; values never. Test fixtures use non-real placeholder values; production credentials are read from the repo's existing config mechanism.
 
-**Rule 11 — Stay in scope.** Touching a file the implementation.md build sequence didn't name requires a scope-escalation (write `dev/escalation-<n>.md` and halt). Don't silently refactor an unrelated module.
+**Rule 11 — Stay in scope.** Touching a file the implementation.md build sequence didn't name requires a scope-escalation (write `units/<repo>/status.md § ## Run history (a BLOCKED entry)` and halt). Don't silently refactor an unrelated module.
 
 **Rule 12 — Log every material technical choice.** Naming a new file, choosing between two implementation approaches, deciding on a mocking strategy — each is a `DEC-###`. Trivial choices (variable names inside a function) don't need logs.
 
-**Rule 13 — Standards-aware writing. Every write is checked against `shared-context/coding-standards.md` BEFORE the file is saved, not after.** The declared limits in `coding-standards.md` §6 (function complexity budget), §7 (duplication policy), §8 (recursion policy), §9 (constants & magic values), §10 (state & side effects), §12 (anti-patterns forbidden) are treated as HARD constraints on the code this skill produces — not as review suggestions to be caught later.
+**Rule 13 — Standards-aware writing. Every write is checked against `shared-context/coding-standards.md` § `<repo>` BEFORE the file is saved, not after.** The declared limits in `coding-standards.md` §6 (function complexity budget), §7 (duplication policy), §8 (recursion policy), §9 (constants & magic values), §10 (state & side effects), §12 (anti-patterns forbidden) are treated as HARD constraints on the code this skill produces — not as review suggestions to be caught later.
 
 For every function or block about to be written:
 
@@ -283,11 +283,11 @@ For every function or block about to be written:
    - If NO null-guard is present → HALT. The specific failure mode this catches: the value is `null` at runtime, the emitted code sends `Authorization: Bearer null`, the server's bearer-prefix check passes, `jwt.verify` fails, the user sees "session expired" when they were never signed in.
    - This is a Rule 12 anti-pattern (silent null-swallowing) applied specifically to auth headers because it's the highest-blast-radius instance of it.
 
-If a limit CANNOT be met without a real architectural change (splitting the sub-task, altering the plan, adding an abstraction not in implementation.md's `§6 Touch points`), escalate as `dev/escalation-<n>.md` — do NOT write past-limit code and add a `TODO: refactor later` comment. Past-limit code accepted at write time becomes review debt, then production debt.
+If a limit CANNOT be met without a real architectural change (splitting the sub-task, altering the plan, adding an abstraction not in implementation.md's `§6 Touch points`), escalate as `units/<repo>/status.md § ## Run history (a BLOCKED entry)` — do NOT write past-limit code and add a `TODO: refactor later` comment. Past-limit code accepted at write time becomes review debt, then production debt.
 
-(Note: §-refs in Rule 13 above point to `shared-context/coding-standards.md`'s sections — not to implementation.md sections. Only this closing paragraph's `§6 Touch points` reference points at implementation.md's §6.)
+(Note: §-refs in Rule 13 above point to `shared-context/coding-standards.md` § `<repo>`'s sections — not to implementation.md sections. Only this closing paragraph's `§6 Touch points` reference points at implementation.md's §6.)
 
-**Rule 14 — `shared-context/coding-standards.md` is a hard precondition.** If the file is missing OR any of §6, §7, §8, §9, §10, §12 is blank or absent, this skill REFUSES to write code. The escalation goes to `dev/escalation-<n>.md` with `blocker: coding-standards-missing`, naming which sections are missing. The fix goes upstream to `tl-project-scaffold` (greenfield) or an explicit standards-authoring step (brownfield) — never inline a guessed standard here. Rationale: without declared limits, Rule 13 has nothing to check against and Dimension 8 in review has nothing to enforce; the "100% engineering standard" guarantee collapses to "we hoped for the best."
+**Rule 14 — `shared-context/coding-standards.md` § `<repo>` is a hard precondition.** If the file is missing OR any of §6, §7, §8, §9, §10, §12 is blank or absent, this skill REFUSES to write code. The escalation goes to `units/<repo>/status.md § ## Run history (a BLOCKED entry)` with `blocker: coding-standards-missing`, naming which sections are missing. The fix goes upstream to `tl-project-scaffold` (greenfield) or an explicit standards-authoring step (brownfield) — never inline a guessed standard here. Rationale: without declared limits, Rule 13 has nothing to check against and Dimension 8 in review has nothing to enforce; the "100% engineering standard" guarantee collapses to "we hoped for the best."
 
 ## Completion criteria
 

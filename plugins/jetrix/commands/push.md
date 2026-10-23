@@ -9,10 +9,10 @@ Publish local delivery-os work to Jetrix. The first argument names the **stage**
 
 | Stage | MCP | What it pushes |
 |---|---|---|
-| `scope` | `scope-mcp` | BA outputs — `ba/*.md`, `shared-context/*.md`, `features/feature-index.md` |
-| `feature` | `task-mcp` | Per-feature MC Tasks — creates ONE parent Task per `features/<slug>/` folder AND (v2.1+) creates one Sub-task per `features/<slug>/subtask/<repo>/` folder under that parent, in a batched `subtask_upsert_bundle` call |
+| `scope` | `scope-mcp` | BA outputs — the requirement's files + `shared-context/*.md` |
+| `feature` | `task-mcp` | Per-feature MC Tasks — creates ONE parent Task per `features/<slug>/` folder AND (v2.1+) creates one Sub-task per `features/<slug>/units/<repo>/` folder under that parent, in a batched `subtask_upsert_bundle` call |
 | `task` | `task-mcp` | Ad-hoc tasks — ONE MC Task per `.md` file. Accepts a file, a folder, or omit for `tasks/**/*.md`. Optional `--list=<name\|id>` or `--sprint=<id>` chooses the target. |
-| `implementation` | `task-mcp` | Parent Implementation tab from `tl-plan.md` AND (v2.1+) each sub-task's Implementation tab from `subtask/<repo>/implementation.md` via `feature_update_implementation`. Status → `READY_FOR_DEV`. |
+| `implementation` | `task-mcp` | Parent Implementation tab from `tl-plan.md` AND (v2.1+) each sub-task's Implementation tab from `units/<repo>/implementation.md` via `feature_update_implementation`. Status → `readyForDev`. |
 | `deliverable` | `deliverable-mcp` | Client HTMLs — `doc/*.html` |
 | `all` | (all above) | Runs every implemented stage in order. |
 
@@ -28,11 +28,11 @@ The per-stage flow (walk / hash / MCP call sequence / skip-unchanged rules / pre
 
 1. Walk up from `$PWD` looking for **`.jetrix/project.json`** (up to 3 parent levels). If missing everywhere → stop and tell the user to run `/jetrix:init <projectId | slug>` first.
 2. Read `solutionId` + `solutionSlug` from it. Note the folder that CONTAINS `.jetrix/` as **`workspace_root`** — the entire `.jetrix/` is gitignored; it's the local working copy.
-3. Note `<workspace_root>/.jetrix/` as **`project_root`** — every content file walk below is relative to it. (Legacy v1 workspaces nested content under `.jetrix/<solutionSlug>/`; `/jetrix:init` §0.5 migrates those to v2 on the next run, so you never build a v1 path yourself.)
+3. Note `<workspace_root>/.jetrix/` as **`project_root`** — every content file walk below is relative to it. (Legacy v1 workspaces nested content under `.jetrix/<solutionSlug>/`; `/jetrix:init` §3 migrates those to v2 on the next run, so you never build a v1 path yourself.)
 4. Verify the role folders exist (`ba/`, `shared-context/`, `features/`, …). If missing → tell the user to run `/delivery-os:init` (or re-run `/jetrix:init` without `--skip-scaffold`).
 
 > **Directory contract (referenced throughout every stage file):**
-> ```
+> ``
 > <workspace_root>/
 > └── .jetrix/                         ← project_root, ENTIRELY gitignored
 >     ├── project.json
@@ -40,12 +40,12 @@ The per-stage flow (walk / hash / MCP call sequence / skip-unchanged rules / pre
 >     ├── cache/sync-state.json        ← sync-state ALWAYS lives here
 >     ├── shared-context/
 >     ├── ba/                          (scope.md, registers/, logs/, artifacts/, reviews/, …)
->     ├── features/                    (feature-index.md + per-feature <slug>/{feature.md, dev/, …})
+>     ├── requirements/<slug>/features/ (per-feature <slug>/{feature.md, dev/, …})
 >     ├── tl/                          (reviews/, maturity/, code-map-registry.md)
 >     ├── qa/                          (quality-gates.md, audits/, health/, escalations/)
 >     ├── doc/                         (decks/, walkthroughs/, workflows/, boards/)
 >     └── tasks/
-> ```
+> ``
 > Every `sync-state.json` reference in any stage file resolves to `<workspace_root>/.jetrix/cache/sync-state.json` — NEVER inside `<project_root>/`.
 
 ## 1. Parse the stage argument
@@ -58,6 +58,30 @@ The per-stage flow (walk / hash / MCP call sequence / skip-unchanged rules / pre
 - `<filename>` (optional, scope only): push a single file at that relative path instead of the whole stage.
 - `<path>` (optional, task only): `.md` file or folder; see the `task` stage below.
 - `--list=<name|id>` / `--sprint=<id>` (task only): target selector — see the `task` stage below.
+
+## 1.5. Resolve the tracker
+
+Read `tracker` from `project.json`. **Every stage file below branches on `capabilities`, never on `provider`** — add a
+tracker and nothing in them changes.
+
+| | `jetrix` | any other tracker |
+|---|---|---|
+| which server | `project-mcp` · `scope-mcp` · `task-mcp` | `tracker.mcp`, via `tracker.mapping` |
+| where issues land | the MC List named after `solutionSlug` | `tracker.container_ref` — **never** `project_ref` |
+| task fields | 7 tabs, one file each | **one body**, `##` sections — see `delivery-os-conventions` §1.c |
+| `scope` stage | publishes documents + the report | `documents: none` → **skipped**, with one line saying where the files are |
+| `deliverable` stage | publishes | skipped, same line |
+| status | `task-mcp.update_task_status` — `status` sent verbatim, no translation | `mapping.set_status` through `tracker.status_map`. `phase` is never sent. |
+
+**Never name a tool directly on a non-Jetrix tracker.** Read the key from `tracker.mapping` and resolve the schema with
+`ToolSearch` before calling — the server name is whatever the user registered, and the tool names are that MCP's own.
+
+**Every pushed body carries the marker**, `<!-- delivery-os:v1 <FEAT-ID> -->`. It is what lets a later pull tell our
+content from something typed in the tracker, and what maps an issue back to its local folder. A push that omits it
+produces an issue no pull can ever claim.
+
+**Mapping key missing (`null`)?** Report the stage as unsupported on this tracker and continue with the rest — never
+substitute a near-miss tool. `put_document: null` means no document store, not "find something close".
 
 ## 2. Route to the stage-specific flow
 

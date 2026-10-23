@@ -2,7 +2,7 @@
 
 **Purpose.** Scan the feature diff for security vulnerabilities. Build-time threshold: block on `Critical` only. High findings become warnings (they're re-checked at `/dev:commit` Stage 3 with strict blocking).
 
-**Runs after Stage 8 acceptance-map is COMPLETE.** State: `TESTING` (unchanged). MC: `inProgress`.
+**Runs after Stage 8 `## Acceptance` table is COMPLETE.** State: `agentExecuting` (unchanged). MC: `inProgress`.
 
 **On completion:** any Critical findings resolved; Highs / Mediums / Lows recorded for `/dev:commit`'s stricter pass.
 
@@ -10,7 +10,7 @@
 
 ### 9a. Preconditions
 
-- `dev/build-run.md` `stage-8.status: DONE` and `final_status: COMPLETE` (or `PARTIAL_DEFERRED` — deferred rows don't block security review)
+- `units/<repo>/status.md § ## Run history` `stage-8.status: DONE` and `final_status` is anything but `PARTIAL_FAILURES` — `COMPLETE`, `PARTIAL_DEFERRED` (deferred rows don't block security review) or `PARTIAL_HARNESS` (the harness is misconfigured, the code is not). §8e advances all three, so requiring `COMPLETE` here would strand two of them
 - Branch has commits — `git log <base>..HEAD` returns at least one commit
 
 If either fails → halt.
@@ -21,7 +21,7 @@ If either fails → halt.
 
 `/dev:build --no-security-review` skips this stage entirely. Only for prototyping / spike branches — the user takes responsibility.
 
-`/dev:commit` will ALWAYS re-run security review at strict threshold; this flag only affects build-time. Log to `build-run.md`:
+`/dev:commit` will ALWAYS re-run security review at strict threshold; this flag only affects build-time. Log to `status.md` § `## Run history`:
 
 ```yaml
 stage-9:
@@ -99,13 +99,13 @@ Filter findings by severity:
 | Medium | Note → record for `/dev:commit` |
 | Low / Info | Log only |
 
-If any Critical findings → §9g. Else record all findings to `dev/security-findings-build.md` and proceed to Stage 10.
+If any Critical findings → §9g. Else record all findings to `units/<repo>/findings.md § ## Security — build` and proceed to Stage 10.
 
 ---
 
 ### 9f. Record findings
 
-Write `dev/security-findings-build.md`:
+Write `units/<repo>/findings.md § ## Security — build`:
 
 ```yaml
 ---
@@ -117,7 +117,7 @@ subtask_number: <N>
 subtask_repo: <repo-slug>
 scan_run_at: <ISO>
 threshold: Critical-blocking-only         # build-time
-build_run_id: <build-run-timestamp>
+build_id: <build-timestamp>
 ---
 
 # Security review — build-time (Critical blocking only)
@@ -160,8 +160,8 @@ Per `/dev:build` §14 limits (3 focused / 1 broad for security):
 **Broad cycle:** re-run the WHOLE security review after 3 focused attempts didn't clear one finding. Only ONE broad cycle allowed at build-time.
 
 **Limits exceeded:**
-- Write `dev/escalation-<n>.md` — sensitive-data / vulnerability / permissions escalations are per Delivery-OS never-guess policy
-- Local state: `TESTING → BLOCKED`
+- Write `units/<repo>/status.md § ## Run history (a BLOCKED entry)` — sensitive-data / vulnerability / permissions escalations are per Delivery-OS never-guess policy
+- Local state: `agentExecuting → BLOCKED`
 - MC status: `blocked`
 - Halt.
 
@@ -191,7 +191,7 @@ stage-9:
         resolved: true
     broad_reruns_used: 0
     exit_state: CLEAN | ESCALATED
-    escalation_file: null | dev/escalation-<n>.md
+    escalation_file: null | units/<repo>/status.md § ## Run history (a BLOCKED entry)
 ```
 
 Zero-Critical runs skip §9g entirely and do NOT record `repair_loop_invocation:`. Absence on a Critical-free run is fine. Gate: critical > 0 (pre-repair) IMPLIES repair_loop_invocation MUST be present.
@@ -200,7 +200,7 @@ Zero-Critical runs skip §9g entirely and do NOT record `repair_loop_invocation:
 
 ### 9h. Progress log format
 
-Append to `dev/build-run.md`:
+Append to `units/<repo>/status.md § ## Run history`:
 
 ```yaml
 stage-9:
@@ -214,7 +214,7 @@ stage-9:
     medium:   1
     low:      1
   repair_attempts: 1
-  findings_file: dev/security-findings-build.md
+  findings_file: units/<repo>/findings.md § ## Security — build
   finished_at: 2026-08-31T15:21:44Z
 ```
 

@@ -1,5 +1,7 @@
 ## Stage: `scope` (implemented — uses scope-mcp)
 
+**On a non-Jetrix tracker** phases 1–3 below (manifest, download, apply) do not run — documents are local-only there, so there is nothing to fetch. Start at §5: materialize features via `mapping.child_issues` under **`tracker.container_ref`** (the list or epic the bind locked — not `project_ref`, which would sweep in every unrelated ticket in the project), then split each body per `delivery-os-conventions` §1.c instead of reading seven tab fields. The composer, the sync-state writes and §7's sub-task pass are unchanged.
+
 ### 2. Phase 1 — manifest (single MCP call)
 
 ```
@@ -15,7 +17,7 @@ Response:
   "ready": N,
   "docs": [
     {
-      "path": "ba/scope.md",
+      "path": "requirements/<slug>/scope.md",
       "documentId": "doc_abc123",
       "version": 3,
       "tags": ["scope"],
@@ -34,7 +36,7 @@ scope-mcp filters to docs whose `tags` intersect `{"scope", "scope-context"}` (b
 **About `path` in the response:** each doc's `path` is a *relative local path*, but the write root depends on the shape:
 
 - **`.jetrix/…` prefix** → **workspace-root-relative**. Write to `<workspace_root>/<path>`. Reserved for Solution-scoped singletons that don't belong under `<slug>/`. Currently only `connection-map.md` uses this shape (path = `.jetrix/connection-map.md`, tags include `connection-map`).
-- **Anything else** → **project-root-relative**. Write to `<project_root>/<path>`. All BA docs, registers, shared-context/, feature-index (e.g. `ba/scope.md`, `shared-context/glossary.md`, `features/feature-index.md`).
+- **Anything else** → **project-root-relative**. Write to `<project_root>/<path>`. All BA docs, registers, shared-context/ (e.g. `requirements/<slug>/scope.md`, `shared-context/glossary.md`).
 
 Path shape → write root. Do NOT interpret tags client-side; the manifest already applied the override. The apply script (`apply-scope-manifest.py`) does this routing automatically — you just pass both roots on the command line.
 
@@ -71,9 +73,9 @@ META=$(mktemp)
 # workspace_root vs project_root when moving out of staging.
 cat > "$CFG" <<'CURLCFG'
 url = "<signed_download_url_1>"
-output = "<STAGING_absolute>/ba/scope.md"
+output = "<STAGING_absolute>/requirements/<slug>/scope.md"
 url = "<signed_download_url_2>"
-output = "<STAGING_absolute>/ba/registers/data.md"
+output = "<STAGING_absolute>/shared-context/data.md"
 url = "<signed_download_url_3>"
 output = "<STAGING_absolute>/.jetrix/connection-map.md"
 # ...one url+output pair per needs-download doc
@@ -82,8 +84,8 @@ CURLCFG
 # --- Manifest sidecar: per-path metadata the apply script writes to sync-state ---
 cat > "$META" <<'METAEOF'
 {
-  "ba/scope.md":         {"documentId": "doc_abc123", "version": 3, "contentHash": "<40hex>"},
-  "ba/registers/data.md": {"documentId": "doc_def456", "version": 1, "contentHash": "<40hex>"}
+  "requirements/<slug>/scope.md":         {"documentId": "doc_abc123", "version": 3, "contentHash": "<40hex>"},
+  "shared-context/data.md": {"documentId": "doc_def456", "version": 1, "contentHash": "<40hex>"}
 }
 METAEOF
 
@@ -124,11 +126,10 @@ Why staging + atomic move: solves the earlier data-loss bug — `curl -o "$abs_p
 ```
 ✓ Pulled 12 scope-stage docs (Solution: LarkIQ).
 
-  ba/scope.md                       ← doc_abc123 (v3, updated)
-  ba/registers/data.md               ← doc_def456 (v1, first pull)
-  ba/registers/workflows.md           ← unchanged (local matches remote)
+  requirements/<slug>/scope.md                       ← doc_abc123 (v3, updated)
+  shared-context/data.md               ← doc_def456 (v1, first pull)
+  requirements/<slug>/registers/workflows.md           ← unchanged (local matches remote)
   shared-context/glossary.md               ← doc_ghi789 (v2, updated)
-  features/feature-index.md        ← doc_jkl012 (v1, first pull)
   ...
 
 Updated:  8    Unchanged:  4    Failed:  0
@@ -217,34 +218,41 @@ rm -f "$BUNDLE"
 ```yaml
 ---
 feature_id: <feature_id>              # from wire task.metadata.externalId
-initiative: <initiative>              # from wire task.metadata.externalInitiative
+requirement: <initiative>              # from wire task.metadata.externalInitiative
 slug: <slug>                          # from wire task.metadata.externalSlug
 list_name: <list_name>                # from wire task.list_name — omit key if empty; preserves List routing on re-push
 jetrix_task_id: <task_number>
 jetrix_task_object_id: <task_object_id>
-status: <status>                      # from wire task.status
+status: <status>                      # see the status rule below — never the wire value raw
 depends_on_features: [...]            # from wire task.metadata.dependsOnFeatureIds
 use_cases: [...]                      # from wire task.metadata.useCases
 generated_at: <today>
 ---
 ```
 
+**`status:` write rule — the wire value is not always ours.** On Jetrix it is: Mission Control’s enum
+**is** the shared vocabulary, so `task.status` is copied straight in. On any other tracker the wire carries
+that tool’s own wording (`"In Progress"`, `"To Do"`), which is not one of the seven and which no gate
+matches — a feature pulled that way stops being buildable. Invert `tracker.status_map` to get back to ours,
+taking the **least advanced** candidate where several of ours share one of theirs, and write `todo` for a
+status in no map value. Full rule: `delivery-os-conventions` §5.
+
 **`list_name:` write rule.** Only write the key to `feature.md` frontmatter (never to the other six files); other files derive their List placement from the sibling `feature.md`. Omit the key entirely when the wire `list_name` is empty (task-mcp couldn't resolve the List name) so subsequent push falls back to the mapped_scope-derived default — never write `list_name: ""` which would force an empty-named List.
 
 **Files NOT written on pull** — these are local-only in the BA authoring flow, never round-tripped through Jetrix:
 
-- **`workflow.md`** — its content is inside `feature.md`'s Description-tab body. A fresh teammate does not need it as a separate file; the original author's local copy is left untouched if it exists.
-- **`open-questions.md`** — its content is inside `dependencies.md`'s Dependencies-tab body (merged). Same reasoning.
-- **`implementation-plan.md`** — local BA scratchpad, never pushed. Not recreated.
+- **`feature.md` § `## Workflow`** — its content is inside `feature.md`'s Description-tab body. A fresh teammate does not need it as a separate file; the original author's local copy is left untouched if it exists.
+- **`dependencies.md` § `## Open questions`** — its content is inside `dependencies.md`'s Dependencies-tab body (merged). Same reasoning.
+- **`dependencies.md`** — carries the open questions, never pushed as its own doc.
 - **`status.md`** — local operational tracker; task status is on the MC Task itself. Not recreated.
 
-**When a local-only file already exists** (author's machine), pull **does not touch it** — the materializer only writes the seven files above, so `workflow.md`, `open-questions.md`, `implementation-plan.md`, `status.md` survive untouched. Fresh teammates simply don't have these four files — they can regenerate the rich author view by running `/ba:features` locally against the same scope.
+**When a local-only file already exists** (author's machine), pull **does not touch it** — the materializer only writes the seven files above, so `feature.md` § `## Workflow`, `dependencies.md` § `## Open questions`, `status.md` survives untouched. Fresh teammates simply don't have these four files — they can regenerate the rich author view by running `/ba:features` locally against the same scope.
 
 Sync-state is updated inside the materializer script — `.jetrix/cache/sync-state.json` gets one `tasks/<feature_id>` entry per feature with `taskNumber`, `taskObjectId`, `slug`, `contentHash` (sha256 of the concatenated file contents), `lastPulled`. Merge-safe: existing keys for other stages (scope docs, context units) are preserved.
 
 ### 7. Sub-task materialization (v2.1+)
 
-After Phase 3 finishes and every parent feature is on disk, walk the pulled features to fetch and materialize any sub-tasks. This is what reconstructs the `features/<slug>/subtask/<repo>/` tree on a cold clone.
+After Phase 3 finishes and every parent feature is on disk, walk the pulled features to fetch and materialize any sub-tasks. This is what reconstructs the `features/<slug>/units/<repo>/` tree on a cold clone.
 
 **Detection.** For each feature just written to disk whose `feature.md` frontmatter has `jetrix_task_object_id`, call `task-mcp.subtask_list(solution_id, parent_task_id=<jetrix_task_object_id>)`. Fires per feature — for a batch pull, parallelise across features (bounded, say 5 concurrent).
 
@@ -277,9 +285,9 @@ Response shape:
 }
 ```
 
-**Skip when empty.** A feature with `subtasks: []` is parent-alone — no local sub-task tree needed. Do not create empty `subtask/` folders.
+**Skip when empty.** A feature with `subtasks: []` is parent-alone — no local sub-task tree needed. Do not create empty `units/` folders.
 
-**Assembly + write via script.** Do NOT `Read` / `Write` sub-task files individually — invoke `materialize-subtasks.py`. It handles frontmatter (§v2.1 sub-task frontmatter — `doc_type`, identity fields, `composed_at`, `inputs_hash`), the write for `description.md` + `implementation.md` + `status.md` under `features/<parent_slug>/subtask/<subtaskRepo>/`, optional AC/TS tab files (only when MC has non-empty content), idempotency via content-hash, sync-state update, MC status → local 5-state mapping (`todo`/`readyForDev` → `PLANNED`, `inProgress` → `IN_PROGRESS`, etc.), and detached-subtask warnings (never deletes local folders that lack MC counterparts).
+**Assembly + write via script.** Do NOT `Read` / `Write` sub-task files individually — invoke `materialize-subtasks.py`. It handles frontmatter (§v2.1 sub-task frontmatter — `doc_type`, identity fields, `composed_at`, `inputs_hash`), the write for `description.md` + `implementation.md` + `status.md` under `features/<parent_slug>/units/<subtaskRepo>/`, optional AC/TS tab files (only when MC has non-empty content), idempotency via content-hash, sync-state update, MC status copied straight into `status` (the vocabulary is shared — there is no mapping step) plus the matching `phase`, and detached-subtask warnings (never deletes local folders that lack MC counterparts).
 
 Per parent feature:
 
@@ -309,17 +317,17 @@ rm -f "$BUNDLE"
 The script writes:
 
 ```
-features/<parent_slug>/subtask/<subtaskRepo>/
+features/<parent_slug>/units/<subtaskRepo>/
 ├── description.md          # Description tab, with §v2.1 frontmatter
 ├── implementation.md       # Implementation tab, with §v2.1 frontmatter
-├── status.md               # current_state / owner_lock / branch
+├── status.md               # status / owner_lock / branch
 ├── acceptance-criteria.md  # (only when MC's tab is non-empty)
 └── test-scenarios.md       # (only when MC's tab is non-empty)
 ```
 
-Sync-state entries per sub-task under `subtasks/<subtask_object_id>` with `contentHash`, `implementationHash`, `taskNumber`, `parentTaskObjectId`, `subtaskRepo`, `subtaskNumber`, `lastPulled`. Merge-safe.
+Sync-state entries per sub-task under `subtasks/<subtask_object_id>` with `contentHash`, `implementationHash`, `taskNumber`, `parentTaskObjectId`, `unitRepo`, `subtaskNumber`, `lastPulled`. Merge-safe.
 
-**Cleanup for detached sub-tasks** is handled inside the script: a local `subtask/<repo>/` folder without a matching MC counterpart in this pull triggers a warning, never a delete — avoids accidental data loss if MC's list is stale.
+**Cleanup for detached sub-tasks** is handled inside the script: a local `units/<repo>/` folder without a matching MC counterpart in this pull triggers a warning, never a delete — avoids accidental data loss if MC's list is stale.
 
 ### 8. Report
 
@@ -338,4 +346,16 @@ Fixed cost per combined pull, regardless of doc or feature count:
 5. `Bash <materialize-features.py>` — feature folder writes + sync-state update
 
 Five tool calls total. Never scales with file or feature count — a 5-feature/5-doc pull and a 50-feature/50-doc pull both cost five prompts.
+
+Close with one next step, chosen from what the workspace now holds:
+
+| State after the pull | Next |
+|---|---|
+| Features landed, none planned | `/dev:plan requirement=<slug>` — plans the batch |
+| Features landed, repos not mapped | `/tl:code-map` first — `/dev:plan` would raise it as a `PB-###` anyway |
+| Scope docs only, no features yet | `/ba:features requirement=<slug>` |
+
+**Say what did not come down, in one line.** Off Jetrix the scope documents are local-only, so the pull
+fetched features alone — a reader who expects `scope.md` and finds none should be told why, not left to
+guess the pull failed.
 

@@ -10,6 +10,8 @@ Solution (not per feature/page/entity), so it belongs alongside
 Authored via the portal's Connections tab (**Build map** button); the plugin
 never writes it.
 
+**Jetrix only.** Every other tracker gets its connection map from `/jetrix:init` §13, which asks the user directly and writes the same file to the same path. If `tracker.provider` is anything but `jetrix`, report that the local file is already authoritative and stop — do not overwrite a human's answers with a fetch that cannot succeed.
+
 Two-phase, direct-from-GCS — bytes stream from GCS to disk via `curl`,
 never through the MCP.
 
@@ -115,3 +117,6 @@ or, on soft-fail:
 ```
 · No connection-map yet — portal → Connections tab → Build map.
 ```
+
+This stage is wiring, not work: on success say where the file landed and stop. The only next step worth
+printing is when the map is what something else was waiting on — name that command, nothing else.

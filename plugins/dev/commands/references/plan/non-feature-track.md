@@ -36,7 +36,7 @@ No code-context for the area → do not fall back to grepping the whole repo. Mi
 | `story` | Acceptance Criteria non-empty | Acceptance Criteria |
 | `task` · `epic` | Acceptance Criteria non-empty | Acceptance Criteria |
 
-Missing a required input → do **not** invent it. Write a `PB-###` blocker into `tasks/<slug>/dev/plan-blockers.md` naming the empty tab, set the target `BLOCKED_ON_PLAN`, and continue the batch. `/dev:resolve --plan` walks it exactly as it does for features.
+Missing a required input → do **not** invent it. Write a `PB-###` blocker into `tasks/<slug>/units/<repo>/plan-blockers.md` naming the empty tab, set the target `blocked`, and continue the batch. `/dev:resolve --plan` walks it exactly as it does for features.
 
 **Where the planned content is written — the ticket file is the push source of truth.**
 
@@ -60,7 +60,7 @@ Write-back rules for `tasks/<slug>.md`:
 
 **How `implementation.md` is composed, and where it lands.**
 
-**First write the analysis scratchpad — compose refuses without it.** `tl-feature-compose` treats a missing scratchpad as a hard precondition failure, because §1, §2, §7 and §8 are built from it; without one the run either stops before composing or produces free-form prose instead of the frame. A filed ticket has no Stage 2 of its own, so produce the scratchpad here, at `tasks/<slug>/dev/analysis.md`, in the shape the skill's input contract specifies:
+**First write the analysis scratchpad — compose refuses without it.** `tl-feature-compose` treats a missing scratchpad as a hard precondition failure, because §1, §2, §7 and §8 are built from it; without one the run either stops before composing or produces free-form prose instead of the frame. A filed ticket has no Stage 2 of its own, so produce the scratchpad here, at `tasks/<slug>/units/<repo>/analysis.md`, in the shape the skill's input contract specifies:
 
 ```yaml
 ---
@@ -68,7 +68,8 @@ doc_type: analysis-scratchpad
 schema_version: 1.0
 produced_by: dev
 feature_id: <the ticket's feature_id, e.g. TASK-11>
-task_number: 11
+unit_number: 11
+unit_repo: <repo>
 task_type: bug
 generated_at: <ISO>
 ---
@@ -91,7 +92,7 @@ risks_and_rollback:    # → §7
 
 Fill it from the graph-first read above — the units you opened, the files they cite, what the change touches. `N/A` is the right answer for most dimensions on a small fix; write it rather than omitting the key.
 
-Then compose with **`tl-feature-compose` in implementation mode — the same §1–§8 frame a feature gets**, against that scratchpad plus the ticket's tabs and the code-context units. Write the result to `tasks/<slug>/dev/implementation.md`. `/dev:build` reads it from there.
+Then compose with **`tl-feature-compose` in implementation mode — the same §1–§8 frame a feature gets**, against that scratchpad plus the ticket's tabs and the code-context units. Write the result to `tasks/<slug>/units/<repo>/implementation.md`. `/dev:build` reads it from there.
 
 **If compose still refuses, that is a real halt — do not hand-write the plan instead.** A prose substitute looks like progress and silently drops the file targets, rollback lever, and `Satisfies` links the build depends on. Report the refusal and why.
 
@@ -114,7 +115,7 @@ A section that genuinely doesn't apply is **one line — `None.`** — never a p
 
 **Then write it into the ticket under a `## Implementation` heading, for every type.** Every task type carries an Implementation tab, so a bug's plan is as visible on the board as a feature's. There is no type for which the plan stays hidden, and no separate command to publish it — the same `/dev:plan` run that composed it puts it in the ticket file.
 
-The ticket's `## Implementation` section and `dev/implementation.md` carry **the same content, paths included**. The Implementation tab is a build spec — `conventions` §6b exempts it from the reader-facing strip, and `tl-feature-compose` Rule 1 *requires* concrete paths in §1's Files column, §4, §5 and §6. Only §8 Shared contract stays path-free.
+The ticket's `## Implementation` section and `units/<repo>/implementation.md` carry **the same content, paths included**. The Implementation tab is a build spec — `conventions` §6b exempts it from the reader-facing strip, and `tl-feature-compose` Rule 1 *requires* concrete paths in §1's Files column, §4, §5 and §6. Only §8 Shared contract stays path-free.
 
 The reader-facing strip applies to Description, Steps to Reproduce, Actual Result and Expected Result — not here. A build sequence that says "give the sign-in page a flag" without naming `Modified: src/components/Home.jsx` is not buildable and not reviewable; that is the failure mode this exemption exists to prevent.
 
@@ -138,10 +139,10 @@ The analysis usually learns something worth recording — root cause, the file t
 
   | Never on a tab | Where it goes instead |
   |---|---|
-  | file paths, line numbers | `dev/analysis.md`, `dev/implementation.md` |
-  | unit ids (`PAGE-…`, `EP-…`, `ENT-…`) | `dev/analysis.md` |
-  | blocker / decision ids (`PB-###`, `DEC-###`) | `dev/plan-blockers.md`, decision log |
-  | finding ids, framework and file names | `dev/analysis.md` |
+  | file paths, line numbers | `units/<repo>/analysis.md`, `units/<repo>/implementation.md` |
+  | unit ids (`PAGE-…`, `EP-…`, `ENT-…`) | `units/<repo>/analysis.md` |
+  | blocker / decision ids (`PB-###`, `DEC-###`) | `units/<repo>/plan-blockers.md`, decision log |
+  | finding ids, framework and file names | `units/<repo>/analysis.md` |
 
   Describe what a person sees and what will change:
 
@@ -155,18 +156,18 @@ The analysis usually learns something worth recording — root cause, the file t
   that needs a human's nod, such as removing a deliberate visual design.>
   ```
 
-  `/dev:build` gets its precision from `dev/implementation.md`, which keeps every path and id. The ticket carries the decision; the plan carries the co-ordinates.
+  `/dev:build` gets its precision from `units/<repo>/implementation.md`, which keeps every path and id. The ticket carries the decision; the plan carries the co-ordinates.
 
 - **An unrelated defect found while investigating is not an edit to this ticket.** Report it in the run summary so the user can file it separately. Appending it to a Description makes it invisible to triage and confusing to whoever reads this ticket.
 
-- **Only record what the code supports.** An unsupported guess belongs in `dev/analysis.md`, not on the ticket where it reads as established fact to everyone else.
+- **Only record what the code supports.** An unsupported guess belongs in `units/<repo>/analysis.md`, not on the ticket where it reads as established fact to everyone else.
 - **A contradiction is a blocker, not an edit.** If the analysis disagrees with the ticket, do not rewrite the ticket to match your reading — mint the `PB-###` per `blocker-detection.md` §5.2a and let the user settle it. Sharpening wording is fine; changing the claim is not.
 - **`## Actual Result` stays as filed**, always. It is the observation, not a conclusion.
 
 **Publish it — `/dev:plan` does this itself, as the last step.** A filed ticket is not left half-planned on disk waiting for a second command; the plan is on the board when the run finishes, exactly as it is for a feature. Run the existing task push against this one file:
 
 ```
-/jetrix:push task <task-number>
+/jetrix:push task 230
 ```
 
 **Report it so the user knows it is already done.** The whole point of publishing inside the run is that there is nothing left for them to do — say that plainly and give them the link, rather than listing what changed and leaving them to wonder whether it reached the board. Read the URL from the push response's `view_url` (`plan.md` §7 Rule 7.0 — never construct it locally):

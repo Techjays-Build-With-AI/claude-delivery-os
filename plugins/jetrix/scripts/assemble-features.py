@@ -419,20 +419,18 @@ def _assemble_subtask(
     parent_title = str(parent_fm.get("title") or "").strip() or parent_slug
     title = str(sub_fm.get("title") or "").strip() or f"{parent_title} — {subtask_repo_fm}"
 
-    # Status: derive from local status.md's current_state, else default per
-    # /dev:plan's PLANNED convention (maps to MC's "todo" until /dev:build starts).
+    # Status: read local status.md's `status` and send it verbatim -- it is
+    # already MC's vocabulary (delivery-os-conventions §5), so there is no
+    # translation step. `phase` is local and is never pushed.
     status = "todo"
     status_md = subtask_dir / "status.md"
     if status_md.exists():
         _, status_body = split_frontmatter(status_md.read_text(encoding='utf-8'))
-        m = re.search(r"^current_state:\s*(\S+)", status_body, re.MULTILINE)
-        if m:
-            local_state = m.group(1).strip().upper()
-            if local_state == "BLOCKED":
-                status = "blocked"
-            # PLANNED / IN_PROGRESS / REVIEW / DONE → "todo" (parent's status
-            # field carries the real workflow state; sub-task's status field
-            # is only used to mark blocks that halt Stage 2 pushes).
+        m = re.search(r"^status:\s*(\S+)", status_body, re.MULTILINE)
+        if m and m.group(1).strip() == "blocked":
+            status = "blocked"
+            # Every other status rides on the parent task; a sub-task's own
+            # status field is only used to mark a block that halts Stage 2.
 
     payload = {
         "subtask_object_id": sub_fm.get("jetrix_subtask_object_id") or None,

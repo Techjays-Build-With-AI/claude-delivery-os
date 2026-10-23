@@ -1,6 +1,8 @@
 # Report Template — review data object + `spec-review.md`
 
-The review is produced once as a structured **data object**, then rendered: the `spec-review-<timestamp>.json` sidecar (the data object verbatim), the interactive `spec-review.html` (generated from that sidecar with `assets/inject.js` — see §2), and the Markdown `spec-review.md` (the structure below). Build the data object first; all renders derive from it so they can't drift.
+The review is produced once as a structured **data object**, then rendered into two files: the interactive `spec-review.html` (injected with `assets/inject.js` — see §2) and the Markdown `spec-review.md` (the structure below). Build the data object first; both renders derive from it so they can't drift.
+
+**There is no `.json` sidecar.** The scratch file is injection input and is **not** an output: the data survives inside the HTML at `<script id="review-data">`, which is where the resolution loop reads it back.
 
 Use the controlled severities (`Blocker` · `Major` · `Minor` · `Nit`) and the `FND-###` ID convention (zero-padded, append-only) from `delivery-os-conventions`. Drop the Applied-AI areas (or mark `score: "N/A"`) when the system has no LLM.
 
@@ -62,8 +64,8 @@ This is the JSON injected into `assets/report.html` at the `__REVIEW_DATA__` tok
 
 Field rules:
 - `reviewDate` is the human-readable run time (date, plus time of day so two same-day runs are distinguishable) — it's shown in the report header/footer and should match the `<timestamp>` in the filename.
-- `reviewId` is the filename `<timestamp>` (`YYYY-MM-DD-HHMMSS`) — the join key the resolution loop uses to match a responses file back to its review. The HTML "Export responses" button reads it to name its download. `round` starts at 1 for the initial review; `/tl:resolve` increments it. `priorReview` is the `reviewId` of the report this round resolves (null for round 1). See `resolution-loop.md`.
-- The per-finding **resolution fields** (`status`, `authorResponse`, `adjudication`, `followUps`, `resolvedOn`, `decisionId`) start at `Open`/null in round 1 and are filled by `/tl:resolve` in later rounds. `status` uses the controlled values in `resolution-loop.md`; `followUps` is a list of verification questions when `status` is `Needs-verification`.
+- `reviewId` is the filename `<timestamp>` (`YYYY-MM-DD-HHMMSS`) — the join key the resolution loop uses to match a responses file back to its review. The HTML "Export responses" button reads it to name its download. `round` starts at 1 for the initial review; `/dev:review` increments it. `priorReview` is the `reviewId` of the report this round resolves (null for round 1). See `resolution-loop.md`.
+- The per-finding **resolution fields** (`status`, `authorResponse`, `adjudication`, `followUps`, `resolvedOn`, `decisionId`) start at `Open`/null in round 1 and are filled by `/dev:review` in later rounds. `status` uses the controlled values in `resolution-loop.md`; `followUps` is a list of verification questions when `status` is `Needs-verification`.
 - `score` is a **number 0–10**, or the string `"N/A"` for non-applicable areas (the HTML draws no bar and excludes it visually). Don't include N/A areas in the overall average.
 - `band` is the band label for the score (`Excellent`/`Good`/`Adequate`/`Weak`/`Stub`/`Absent`/`N/A`).
 - `group` drives the section dividers in the scorecard — use the four group names: `Architecture & Design`, `Engineering Contracts`, `Applied AI / LLM Engineering`, `Delivery & Operations`. Keep areas in order so each group's rows are contiguous.
@@ -73,15 +75,15 @@ Field rules:
 
 ## 2. Injecting into the HTML
 
-**Write `spec-review-<timestamp>.json` first**, then build the HTML from it with the bundled script — never hand-assemble the HTML. The report contains non-ASCII glyphs (`§`, `—`, `→`) both in the template chrome and in your findings; pasting the assembled HTML through a shell or editor on Windows double-encodes them into mojibake (`§`→`Â§`, `—`→`â€"`) even though `<meta charset="utf-8">` is present. The script sidesteps this by reading and writing UTF-8 explicitly:
+**Write the data object to a scratch file**, then build the HTML from it with the bundled script — never hand-assemble the HTML. The report contains non-ASCII glyphs (`§`, `—`, `→`) both in the template chrome and in your findings; pasting the assembled HTML through a shell or editor on Windows double-encodes them into mojibake (`§`→`Â§`, `—`→`â€"`) even though `<meta charset="utf-8">` is present. The script sidesteps this by reading and writing UTF-8 explicitly:
 
 ```
-node assets/inject.js assets/report.html spec-review-<timestamp>.json __REVIEW_DATA__ spec-review-<timestamp>.html
+node assets/inject.js assets/report.html <scratch>/spec-review-data.json __REVIEW_DATA__ spec-review-<timestamp>.html
 ```
 
 `inject.js` replaces the literal token `__REVIEW_DATA__` (between `<script id="review-data" type="application/json">` and `</script>`) with the JSON, touches nothing else, validates the JSON (a trailing comma or unescaped quote would make the page render its empty-state notice), and aborts if it detects mojibake. If Node is unavailable, do the replacement manually but save the output as **UTF-8 without a BOM** and verify the file shows `§`/`—`, not `Â§`/`â€"`, before moving on.
 
-The `spec-review-<timestamp>.json` sidecar is also the machine-readable state the resolution loop reads: `/tl:resolve` loads it (matched by `reviewId`) to carry findings forward without re-parsing HTML or prose.
+The machine-readable state the resolution loop reads is the `<script id="review-data">` block inside the HTML: `/dev:review` reads it (matched by `reviewId`) to carry findings forward without re-parsing prose, and without a second copy on disk to keep in sync.
 
 ---
 
@@ -91,7 +93,7 @@ Assemble the Markdown in this exact structure. Keep it skimmable: a decision-mak
 
 ---
 
-````markdown
+```markdown
 ---
 doc_type: spec-review
 schema_version: 1.1
@@ -155,7 +157,7 @@ document_version: "<version/date of the reviewed doc, or 'unversioned'>"
 
 ## Findings register
 
-> Sorted by severity (Blockers first). Every deducted point traces to a finding here; every finding has a suggested fix. `Area` is the area code (OVR/ARC/FLW/DAT/API/LIB/OBS/EVL/FBK/CMP/INF/CICD/CST). `Status` is the lifecycle state (`Open` in round 1; updated by `/tl:resolve`).
+> Sorted by severity (Blockers first). Every deducted point traces to a finding here; every finding has a suggested fix. `Area` is the area code (OVR/ARC/FLW/DAT/API/LIB/OBS/EVL/FBK/CMP/INF/CICD/CST). `Status` is the lifecycle state (`Open` in round 1; updated by `/dev:review`).
 
 | ID | Sev. | Status | Area | Finding | Suggested fix |
 |----|------|--------|------|---------|---------------|
@@ -185,7 +187,7 @@ document_version: "<version/date of the reviewed doc, or 'unversioned'>"
 1. <highest-leverage fix, usually the Blockers>
 2. <…>
 3. <…>
-````
+```
 
 ---
 

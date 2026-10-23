@@ -7,6 +7,89 @@ description: Author and maintain qa/quality-gates.md — the machine-readable qu
 
 You own the one file that turns "we have some tests" into "here is exactly what verified means here": `qa/quality-gates.md`. It is written for machines and humans both — the dev readiness gate reads it to confirm a harness exists, and `dev-validation` reads it to know which checks are required, the command for each, and the bar each must clear. Keep it accurate and it makes the whole delivery loop's verification concrete; let it drift and the loop verifies against a lie.
 
+
+## The gates file is keyed by repo — and this is a correctness fix, not tidiness
+
+`qa/quality-gates.md` is **one file with a `## <repo>` section per repo**, including on a single-repo
+workspace. Before this it was one file written once per repo, so:
+
+```
+/qa:setup repo=backend    → quality-gates.md   pytest · coverage_floor 70
+/qa:setup repo=frontend   → quality-gates.md   OVERWRITTEN — vitest · 60
+
+/dev:build Subtask-7 (backend)
+  Stage 4 reads it → finds vitest
+  Stage 7 runs `npm test` in the Python repo
+```
+
+**Write only your own section.** `repo=frontend` rewrites `## frontend` and **cannot touch `## backend`** —
+read the file, replace that one section, write it back. Never regenerate the whole file from one repo's audit.
+
+Frontmatter is a **map keyed by repo**, never singular keys:
+
+```yaml
+repos:
+  backend:   { harness_status: Active, baseline_status: Met, coverage_floor: 70, source_audit: 2026-10-16-142203 }
+  frontend:  { harness_status: Stack-Inferred, coverage_floor: 60 }
+```
+
+Each `## <repo>` section holds four sub-sections:
+
+| | |
+|---|---|
+| `## Gates` | one row per gate — id, Required / Required* / Optional, the **exact command**, the threshold, current Status |
+| `## Green smoke` | the documented sequence that proves the harness runs end to end |
+| `## Conventions` | how **this repo** writes tests — read by `dev-stack-adaptive-implementation`, which until now wrote tests with no contract telling it the repo's idiom |
+| `## History` | dated `/qa:health` results and drift |
+
+**A consumer resolves the section from the unit it is working on** — `units/backend/` →
+`quality-gates.md § backend`. A single-repo workspace has one section, so there is no special case and no
+branch in the consumer.
+
+**`repo=` is required wherever more than one section exists.** Guessing which repo an audit or a setup belongs
+to is how the collision happened in the first place.
+
+## The gates file is keyed by repo — and this is a correctness fix, not tidiness
+
+`qa/quality-gates.md` is **one file with a `## <repo>` section per repo**, including on a single-repo
+workspace. Before this it was one file written once per repo, so:
+
+```
+/qa:setup repo=backend    → quality-gates.md   pytest · coverage_floor 70
+/qa:setup repo=frontend   → quality-gates.md   OVERWRITTEN — vitest · 60
+
+/dev:build Subtask-7 (backend)
+  Stage 4 reads it → finds vitest
+  Stage 7 runs `npm test` in the Python repo
+```
+
+**Write only your own section.** `repo=frontend` rewrites `## frontend` and **cannot touch `## backend`** —
+read the file, replace that one section, write it back. Never regenerate the whole file from one repo's audit.
+
+Frontmatter is a **map keyed by repo**, never singular keys:
+
+```yaml
+repos:
+  backend:   { harness_status: Active, baseline_status: Met, coverage_floor: 70, source_audit: 2026-10-16-142203 }
+  frontend:  { harness_status: Stack-Inferred, coverage_floor: 60 }
+```
+
+Each `## <repo>` section holds four sub-sections:
+
+| | |
+|---|---|
+| `## Gates` | one row per gate — id, Required / Required* / Optional, the **exact command**, the threshold, current Status |
+| `## Green smoke` | the documented sequence that proves the harness runs end to end |
+| `## Conventions` | how **this repo** writes tests — read by `dev-stack-adaptive-implementation`, which until now wrote tests with no contract telling it the repo's idiom |
+| `## History` | dated `/qa:health` results and drift |
+
+**A consumer resolves the section from the unit it is working on** — `units/backend/` →
+`quality-gates.md § backend`. A single-repo workspace has one section, so there is no special case and no
+branch in the consumer.
+
+**`repo=` is required wherever more than one section exists.** Guessing which repo an audit or a setup belongs
+to is how the collision happened in the first place.
+
 ## Operating contract
 
 Read **`delivery-os-conventions`** if it isn't in context. Your input is the proven harness (the commands and thresholds `qa-test-setup` verified green) and the repo's tooling. Your output is `qa/quality-gates.md` (`doc_type: quality-gates`, `produced_by: qa`), created if absent. Follow the exact schema in **`references/quality-gate-contract.md`** so consumers can parse it. **`qa/…` is relative to the workspace root, the `.jetrix/` folder.** A workspace exists when `.jetrix/project.json` is present at or above the current directory — test for that file rather than judging it. Only when it exists nowhere may you write beside the repo, and then name the absolute path you used. This file is the contract `/dev:build` and `/qa:health` read by a fixed path; a second copy outside `.jetrix/` means they read one while the last run wrote the other.
@@ -28,7 +111,7 @@ Read **`delivery-os-conventions`** if it isn't in context. Your input is the pro
 
    `Blocked` is not `Broken`: nothing was measured, so nothing failed. Never record `Active` for a gate that did not run.
 
-   **Carry a build's `harness_config_remedy` through.** When the failing gate has one recorded in `dev/implementation-log.md` (Stage 8), reproduce it in the health report instead of restating the symptom — the reader needs the named file and change, not a second description of the red gate.
+   **Carry a build's `harness_config_remedy` through.** When the failing gate has one recorded in `units/<repo>/status.md § ## Run history` (Stage 8), reproduce it in the health report instead of restating the symptom — the reader needs the named file and change, not a second description of the red gate.
 
    **State the working tree.** If it is dirty, say so and scope the results to the tree measured, never to committed state.
 

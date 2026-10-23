@@ -1,6 +1,6 @@
 # Finding Resolution Loop
 
-A review doesn't end when the report is written — each finding is an **open item** the author has to answer. This file defines how those items get closed: the finding lifecycle, how the author's responses come back, how the agent **adjudicates** each one (accept, push back, or ask for more), how findings close and re-score, and how the closed decisions are documented. Read this for `/tl:resolve`; read `review-rubric.md` for the original scoring.
+A review doesn't end when the report is written — each finding is an **open item** the author has to answer. This file defines how those items get closed: the finding lifecycle, how the author's responses come back, how the agent **adjudicates** each one (accept, push back, or ask for more), how findings close and re-score, and how the closed decisions are documented. Read this for `/dev:review`; read `review-rubric.md` for the original scoring.
 
 The whole point is **convergence with a paper trail**: open → responded → (verify ⟳) → resolved, with the rationale recorded so a reader six weeks later knows *why* a Blocker was closed, not just that it was.
 
@@ -23,11 +23,11 @@ Every `FND-###` carries a `status` (controlled values):
 
 ## 2. Round model — stable IDs carry findings forward
 
-- **Round 1** is the initial `/tl:review`: all findings `Open`.
-- Each `/tl:resolve` is the **next round**: a new timestamped report whose `priorReview` points back to the report being resolved. Findings carry forward **by their stable `FND-###` ID** (append-only, per `delivery-os-conventions`), so FND-018 in round 2 is the same item as FND-018 in round 1 — only its status and resolution thread change.
-- The `<timestamp>` (the `reviewId`) is the **join key**: a responses file names the review it came from, and `/tl:resolve` matches it to that review's `.json` state. New findings discovered during resolution get fresh IDs continuing the sequence.
+- **Round 1** is the initial `/dev:review`: all findings `Open`.
+- Each `/dev:review` is the **next round**: a new timestamped report whose `priorReview` points back to the report being resolved. Findings carry forward **by their stable `FND-###` ID** (append-only, per `delivery-os-conventions`), so FND-018 in round 2 is the same item as FND-018 in round 1 — only its status and resolution thread change.
+- The `<timestamp>` (the `reviewId`) is the **join key**: a responses file names the review it came from, and `/dev:review` matches it to that review's `.json` state. New findings discovered during resolution get fresh IDs continuing the sequence.
 
-## 3. The responses file (input to `/tl:resolve`)
+## 3. The responses file (input to `/dev:review`)
 
 The interactive HTML report's **"Export responses"** button generates this Markdown and downloads it pre-named `spec-review-<reviewId>-responses.md`. The author can also hand-write or edit it. Format:
 
@@ -67,7 +67,7 @@ For every finding with a non-empty response, decide its new status. **Be fair bu
 
 Write a short **adjudication rationale** for every decision — one or two sentences on *why* this status. This is the audit trail.
 
-Where a resolution implies the **spec should change** (it usually does — the answer ought to live in the document, not just the review), give the **concrete spec edit** to make. "Add to §10: 'Azure OpenAI processes data in West Europe under the enterprise DPA; modified abuse monitoring is approved (zero retention); legal basis for vendor personal data is contract.'" Baking the answer into the spec is what actually closes the gap at the source — a later `/tl:review` of the updated spec should then find nothing.
+Where a resolution implies the **spec should change** (it usually does — the answer ought to live in the document, not just the review), give the **concrete spec edit** to make. "Add to §10: 'Azure OpenAI processes data in West Europe under the enterprise DPA; modified abuse monitoring is approved (zero retention); legal basis for vendor personal data is contract.'" Baking the answer into the spec is what actually closes the gap at the source — a later `/dev:review` of the updated spec should then find nothing.
 
 ## 5. Re-score and recompute the verdict
 
@@ -88,4 +88,4 @@ Use the `DEC-###` id format from `delivery-os-conventions` (append-only). Record
 
 ## 7. Output of a resolve round
 
-`/tl:resolve` writes a **new timestamped review round** — `.html` / `.md` / `.json` (render the `.html` the same UTF-8-safe way as a fresh review: write the `.json` sidecar first, then `node assets/inject.js assets/report.html <round>.json __REVIEW_DATA__ <round>.html` — never hand-assemble the HTML) — carrying every finding forward with its updated status and resolution thread (responses, adjudication, follow-up questions, decisionId), the recomputed scores and verdict, and any new `DEC` rows. Then summarize in chat: how many resolved / accepted-risk / awaiting-verification (with the open questions) / still open, and the score+verdict movement. The loop repeats — export responses from the new report, resolve again — until no open items remain.
+`/dev:review` writes a **new timestamped review round** — `.html` / `.md` (render the `.html` the same UTF-8-safe way as a fresh review: write the data object to a scratch file, then `node assets/inject.js assets/report.html <scratch>/round.json __REVIEW_DATA__ <round>.html` — never hand-assemble the HTML) — carrying every finding forward with its updated status and resolution thread (responses, adjudication, follow-up questions, decisionId), the recomputed scores and verdict, and any new `DEC` rows. Then summarize in chat: how many resolved / accepted-risk / awaiting-verification (with the open questions) / still open, and the score+verdict movement. The loop repeats — export responses from the new report, resolve again — until no open items remain.

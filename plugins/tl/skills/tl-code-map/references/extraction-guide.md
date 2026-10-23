@@ -1,6 +1,6 @@
 # Extraction guide — reading a codebase into the code-context tree
 
-How to find each layer in a real repository, how to derive the business domains that organise the tree, how to read validation and data access out of a handler, how to infer the links between units, how to mark confidence, and how to stay interoperable with `tl-feature-planning` so a later `/tl:plan` reuses what you mapped. Read `references/code-context-templates.md` for the file schemas; this guide is about getting the facts **out of the code** honestly.
+How to find each layer in a real repository, how to derive the business domains that organise the tree, how to read validation and data access out of a handler, how to infer the links between units, how to mark confidence, and how to stay interoperable with `tl-feature-planning` so a later `tl-feature-planning` (internal) reuses what you mapped. Read `references/code-context-templates.md` for the file schemas; this guide is about getting the facts **out of the code** honestly.
 
 The north star: **the unit files you write from code must be indistinguishable in shape from the ones forward planning writes** — same IDs, same match keys, same links — so the two graphs are one graph. The additions are `origin: reverse-mapped`, a code citation, a per-link confidence, and the richer endpoint and database-object sections.
 
@@ -8,7 +8,7 @@ The north star: **the unit files you write from code must be indistinguishable i
 
 ## 0. Where the output goes
 
-`<repo>/context/code-context/` — a `context/` folder at the root of the mapped repository, with `code-context/` inside it, committed with the code. Not the workspace, and **not** inside `.jetrix/` — that folder is gitignored, so a tree written there would never reach a teammate's clone. When several repos are mapped from one workspace, each gets its own tree, and `<workspace>/.jetrix/tl/code-map-registry.md` points at all of them. Two consequences for extraction:
+`<repo>/context/code-context/` — a `context/` folder at the root of the mapped repository, with `code-context/` inside it, committed with the code. Not the workspace, and **not** inside `.jetrix/` — that folder is gitignored, so a tree written there would never reach a teammate's clone. When several repos are mapped from one workspace, each gets its own tree, and `<workspace>/.jetrix/code-map-registry.md` points at all of them. Two consequences for extraction:
 
 - **A repo is mapped as a whole system in its own right.** Its `code-context-index.md` says what the repo is and which layers it has; a backend-only repo says "frontend lives in `<other-repo>`" rather than leaving the layer silently absent.
 - **The tree will be read in review.** Write for a human reviewer as well as an agent — and never write a secret, connection string, credential, or customer data row into it.
@@ -17,7 +17,7 @@ The north star: **the unit files you write from code must be indistinguishable i
 
 ## 1. Interop rule — match keys must line up
 
-`/tl:plan` reuses a unit when its match key already exists. Mint your units on the **same keys** it matches on, or reuse fails and you get duplicates:
+`tl-feature-planning` (internal) reuses a unit when its match key already exists. Mint your units on the **same keys** it matches on, or reuse fails and you get duplicates:
 
 | Layer | Match key (must match forward planning) | Read it from |
 |---|---|---|
@@ -96,7 +96,7 @@ Record the table it fires on, the **timing and events** (`BEFORE/AFTER INSERT/UP
 Every database object file carries one. It answers *why the business has this object*: what it means, what depends on it, what invariant it protects, what it is **not** for. Derive it from how the object is used across endpoints, procedures and triggers — a table read by one endpoint and written by a nightly job is a different animal from one on every request path. This is interpretation, so keep it grounded: if you can't ground a claim in a call site or a constraint, don't make it.
 
 ### DATA-### linkage
-If the workspace has a BA `ba/registers/data.md`, link the `DATA-###` the object realises. Brownfield-only projects usually have none — that's fine and expected; write `—` and note why. Views, procedures, functions and triggers rarely have a business-register counterpart.
+If the workspace has a BA `shared-context/data.md`, link the `DATA-###` the object realises. Brownfield-only projects usually have none — that's fine and expected; write `—` and note why. Views, procedures, functions and triggers rarely have a business-register counterpart.
 
 ---
 
@@ -212,7 +212,7 @@ mapped_from_commit: a1b2c3d   # the commit the repo was at when mapped (omit if 
 map_confidence: Confirmed     # overall confidence for this unit
 ```
 
-Forward planning ignores `origin`; it just sees a normal unit to reuse and link a feature to. When `/tl:plan` later links a feature, it adds the `FEAT-…` to the unit and index as usual — leave the markers in place as provenance.
+Forward planning ignores `origin`; it just sees a normal unit to reuse and link a feature to. When `tl-feature-planning` (internal) later links a feature, it adds the `FEAT-…` to the unit and index as usual — leave the markers in place as provenance.
 
 ---
 
@@ -324,7 +324,7 @@ Copy all three sub-fields into the endpoint's `## Auth` `Server prerequisites` a
 
 **Purpose.** The endpoint unit's `## Config prerequisites` section is READ BY:
 - `dev-stack-adaptive-implementation` Rule 7.v to pre-verify env vars before Stage 7's integration tests start the backend
-- Stage 11 (local-runbook §3) to populate the developer-facing setup guide
+- Stage 11 (`pr-summary.md` § `## How to verify` §3) to populate the developer-facing setup guide
 
 Without this section, the "backend won't start because `FIREBASE_SERVICE_ACCOUNT` is missing" failure only surfaces when the developer runs the feature locally — which is exactly the class of bug v2.3.23 was written to catch.
 

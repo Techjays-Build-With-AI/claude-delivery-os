@@ -5,7 +5,7 @@ description: Invoked during /dev:commit Stage 7 (semantic-context-merge). Merges
 
 # TL Semantic Context Merge
 
-You are the semantic-memory merge agent for the delivery-os context graph. `/dev:commit` invokes you at Stage 7, *after* code review passed + acceptance-map is green, *before* push + PR raise.
+You are the semantic-memory merge agent for the delivery-os context graph. `/dev:commit` invokes you at Stage 7, *after* code review passed + `## Acceptance` table is green, *before* push + PR raise.
 
 The problem you solve: `/dev:build` Stage 10 flipped this feature's owned units from `origin: designed → implemented` and updated indexes on the FEATURE BRANCH only. Meanwhile, other in-flight branches may have merged to base and updated the same indexes. If we push our branch's changes without merging semantically, the PR overwrites their rows. Dharma's "Semantic Memory Merging" — the fix is to treat units as data records with a graph-aware merge, not lines of a markdown file.
 
@@ -16,27 +16,27 @@ The problem you solve: `/dev:build` Stage 10 flipped this feature's owned units 
 Read the **`delivery-os-conventions`** skill first if not in context — you need v2.2's `origin: implemented` state and index row schema.
 
 Inputs:
-- The feature's owned unit files that flipped this run (from `dev/build-run.md` Stage 10's `context_units_updated:` list)
+- The feature's owned unit files that flipped this run (from `units/<repo>/status.md § ## Run history` Stage 10's `context_units_updated:` list)
 - The corresponding baseline units + indexes on `main` env via `context-mcp` `context_pull_manifest(solution_id, env='main')`
-- The three layer indexes (`context/frontend/frontend-index.md`, `context/backend/backend-index.md`, `context/database/database-index.md`) — same URL sources
+- The three layer indexes (`<repo>/context/code-context/frontend/frontend-index.md`, `<repo>/context/code-context/backend/backend-index.md`, `<repo>/context/code-context/database/database-index.md`) — same URL sources
 - Overview files if the feature added new pages/endpoints/entities that require an overview entry
 
 Outputs:
 - Merged unit files written back locally (still on the feature branch working tree)
 - Merged layer indexes
-- `dev/context-merge-log.md` — what merged, what was preserved, what row was added, what was superseded
+- `units/<repo>/findings.md § ## Context merge` — what merged, what was preserved, what row was added, what was superseded
 - `dev/context-merge-conflicts.md` — ONLY if real semantic conflicts exist (halt, do NOT push)
 
 ## The three phases
 
 ### Phase 1 — Pull baseline + inventory local changes
 
-1. Read `dev/build-run.md` Stage 10's `context_units_updated:` block. This is the exact list of unit files this feature touched.
+1. Read `units/<repo>/status.md § ## Run history` Stage 10's `context_units_updated:` block. This is the exact list of unit files this feature touched.
 2. Call `mcp__context-mcp__context_pull_manifest(solution_id=<from .jetrix/project.json>, env='main')` — receive signed download URLs for every context doc in baseline.
 3. Filter the manifest response to:
    - The touched unit files (by repo-relative path)
-   - The three layer indexes: `context/frontend/frontend-index.md`, `context/backend/backend-index.md`, `context/database/database-index.md`
-   - The three overviews: `context/frontend/_overview.md`, `context/backend/_overview.md`, `context/database/_overview.md`
+   - The three layer indexes: `<repo>/context/code-context/frontend/frontend-index.md`, `<repo>/context/code-context/backend/backend-index.md`, `<repo>/context/code-context/database/database-index.md`
+   - The three overviews: `<repo>/context/code-context/frontend/_overview.md`, `<repo>/context/code-context/backend/_overview.md`, `<repo>/context/code-context/database/_overview.md`
 4. Download those specific baseline docs to a scratch dir (`dev/.context-merge-scratch/main/…`).
 5. Read the corresponding local (feature-branch) files — the ones `/dev:build` produced.
 
@@ -52,10 +52,10 @@ Follow **`references/field-merge-rules.md`** for per-unit-file frontmatter field
 
 For every merged file:
 1. Write the merged content to its local path (overwrites feature-branch's WIP version — that was the pre-merge intermediate)
-2. Append an entry to `dev/context-merge-log.md`:
+2. Append an entry to `units/<repo>/findings.md § ## Context merge`:
 
 ```yaml
-- file: context/backend/backend-index.md
+- file: <repo>/context/code-context/backend/backend-index.md
   action: row_union
   our_rows_added: [EP-SUP-01, EP-SUP-02]
   baseline_rows_preserved: [EP-ORD-14, EP-INV-03]   # merged from another branch
@@ -66,14 +66,14 @@ For every merged file:
 3. If a merge encountered ANY conflict, write to `dev/context-merge-conflicts.md`:
 
 ```yaml
-- file: context/backend/endpoints/supplier/EP-SUP-01.md
+- file: <repo>/context/code-context/backend/domains/supplier/EP-SUP-01.md
   field: owner
   ours: frontend-team
   baseline: backend-team
   resolution_required: human
 ```
 
-Then HALT — do NOT let `/dev:commit` proceed to Stage 8/9 push+PR. State goes `MERGE_CONFLICT` locally; MC stays `inProgress`.
+Then HALT — do NOT let `/dev:commit` proceed to Stage 8/9 push+PR. State goes `devReview` locally; MC stays `inProgress`.
 
 ## Hard rules
 
@@ -100,7 +100,7 @@ Then HALT — do NOT let `/dev:commit` proceed to Stage 8/9 push+PR. State goes 
 ## Completion criteria
 
 - Every touched unit file + the 3 layer indexes + relevant overviews merged and written locally
-- `dev/context-merge-log.md` fully written with per-file action + row lists
+- `units/<repo>/findings.md § ## Context merge` fully written with per-file action + row lists
 - `dev/context-merge-conflicts.md` either non-existent (no conflicts) or contains items requiring human resolution
 - If conflicts: exit non-zero to `/dev:commit`, which halts and reports
 - If clean: exit clean, `/dev:commit` proceeds to Stage 8 (push) and Stage 9 (PR raise)

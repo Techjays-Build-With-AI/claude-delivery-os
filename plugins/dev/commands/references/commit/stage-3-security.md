@@ -4,7 +4,7 @@
 
 **Runs after Stage 2 (base branch selected).** State: `IN_PROGRESS → REVIEW` (local); MC: `devReview`. On any Critical/High finding the fix loop kicks in — never push a branch with unresolved commit-time-severity security findings.
 
-**On completion:** `dev/security-findings-commit.md` written; zero Critical + zero High; the deferred build-time High findings from `/dev:build`'s Stage 9 are now addressed OR the fix loop will address them.
+**On completion:** `units/<repo>/findings.md § ## Security — commit` written; zero Critical + zero High; the deferred build-time High findings from `/dev:build`'s Stage 9 are now addressed OR the fix loop will address them.
 
 ---
 
@@ -12,7 +12,7 @@
 
 - Stage 2 confirmed base branch (`develop` from `.jetrix/project.json` `env_branches.dev`, unless overridden)
 - Branch is up to date locally with base (verified via `git fetch <remote>` + `git log HEAD..<remote>/<base>` = empty; if not, halt with "rebase against <base> and re-run")
-- Feature diff is deterministic: `git diff <base>...HEAD` returns the expected file list from `build-run.md` Stage 10's `context_units_updated:` + source-file commits
+- Feature diff is deterministic: `git diff <base>...HEAD` returns the expected file list from `status.md` § `## Run history` Stage 10's `context_units_updated:` + source-file commits
 
 ---
 
@@ -44,7 +44,7 @@ If the `security-review` skill's invocation config supports a severity-threshold
 
 ### 3c. Findings file
 
-Write findings to `dev/security-findings-commit.md`:
+Write findings to `units/<repo>/findings.md § ## Security — commit`:
 
 ```yaml
 ---
@@ -83,11 +83,11 @@ The findings file is the ONLY source of truth for what blocks vs warns. `/dev:co
 
 ### 3d. Deferred High-severity from `/dev:build`
 
-Read `dev/security-findings-build.md` (from `/dev:build` Stage 9). Any `Severity: High` items in there were deferred at build time (Critical-only gate). At commit time they now block.
+Read `units/<repo>/findings.md § ## Security — build` (from `/dev:build` Stage 9). Any `Severity: High` items in there were deferred at build time (Critical-only gate). At commit time they now block.
 
 Cross-reference with commit-time findings:
 - If a build-deferred High is STILL present in the commit-time findings → block on it (routed via Stage 6 fix loop).
-- If a build-deferred High was fixed in dev iteration between `/dev:build` and `/dev:commit` → no longer appears in commit-time scan; log to `commit-run.md` as `build_deferred_high_resolved: [SR-B-001]`.
+- If a build-deferred High was fixed in dev iteration between `/dev:build` and `/dev:commit` → no longer appears in commit-time scan; log to `status.md` § `## Run history` as `build_deferred_high_resolved: [SR-B-001]`.
 
 ---
 
@@ -95,14 +95,14 @@ Cross-reference with commit-time findings:
 
 **Zero Critical + Zero High** → mark Stage 3 done. Log warnings for reviewer visibility. Advance to Stage 4.
 
-**One or more Critical/High** → invoke the fix loop per `stage-6-fix-loop.md` §6a.i (v2.3.27). The fix loop is **MANDATORY and VERIFIABLE** — this stage MUST invoke `dev-stack-adaptive-implementation` in fix-mode via the Skill / Agent tool and record a `stage-3.fix_loop_invocation:` block in `commit-run.md` with `invoked_at`, `subagent_id`, `origin_findings`, `fix_attempts[]`, `broad_reruns_used`, `exit_state`. Applying the fix inline "because it's a small change" without recording the invocation trace is a spec violation and Stage 8 §8a will refuse to push. After fix loop, Stage 3 re-runs from the top (order matters — a security fix may break a test).
+**One or more Critical/High** → invoke the fix loop per `stage-6-fix-loop.md` §6a.i (v2.3.27). The fix loop is **MANDATORY and VERIFIABLE** — this stage MUST invoke `dev-stack-adaptive-implementation` in fix-mode via the Skill / Agent tool and record a `stage-3.fix_loop_invocation:` block in `status.md` § `## Run history` with `invoked_at`, `subagent_id`, `origin_findings`, `fix_attempts[]`, `broad_reruns_used`, `exit_state`. Applying the fix inline "because it's a small change" without recording the invocation trace is a spec violation and Stage 8 §8a will refuse to push. After fix loop, Stage 3 re-runs from the top (order matters — a security fix may break a test).
 
 ---
 
 ### 3f. Skips
 
 - `--no-security-review` flag is NOT accepted at commit-time. Rejected with: "Security review at commit-time is mandatory. Use /dev:commit --skip-security only with `SECURITY_REVIEW_OVERRIDE` env var + a documented reason (audit)."
-- If the override is used, the reason is recorded in `commit-run.md` `stage-3.override_reason:` and surfaced in the PR body under "⚠ Security review overridden".
+- If the override is used, the reason is recorded in `status.md` § `## Run history` `stage-3.override_reason:` and surfaced in the PR body under "⚠ Security review overridden".
 
 Overriding requires operator-level intent — not a normal dev-loop escape hatch.
 
@@ -110,7 +110,7 @@ Overriding requires operator-level intent — not a normal dev-loop escape hatch
 
 ### 3g. Progress log
 
-Append to `dev/commit-run.md`:
+Append to `units/<repo>/status.md § ## Run history`:
 
 ```yaml
 stage-3:
@@ -126,7 +126,7 @@ stage-3:
     low: 1
     info: 0
   build_deferred_high_resolved: [SR-B-001, SR-B-002]
-  findings_file: dev/security-findings-commit.md
+  findings_file: units/<repo>/findings.md § ## Security — commit
 ```
 
 ---

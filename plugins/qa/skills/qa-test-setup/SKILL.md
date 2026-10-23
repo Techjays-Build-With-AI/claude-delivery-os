@@ -9,13 +9,13 @@ You stand up the test infrastructure the audit recommended and the human approve
 
 ## Operating contract
 
-Read **`delivery-os-conventions`** if it isn't in context. Your inputs: the **approvals file** (`test-audit-<auditId>-approvals.md`) and, via its `source_audit`, the full `test-audit-<auditId>.json`; the **product repository** and its tooling; and `shared-context/{architecture.md, technology-stack.md, coding-standards.md}` where present. Your outputs live in `qa/`:
+Read **`delivery-os-conventions`** if it isn't in context. Your inputs: the **approvals file** (`<repo>-audit-<auditId>-approvals.md`) and, via its `source_audit` + `repo`, the full audit object inside `<repo>-audit-<auditId>.html` at `<script id="audit-data">`; the **product repository** and its tooling; and `shared-context/{architecture.md, technology-stack.md, coding-standards.md}` where present. Your outputs live in `qa/`:
 
 ```text
 qa/
-  test-setup-plan.md     # the ordered implementation plan (produced_by: qa)
+  <repo>-setup.md § ## Plan          # the ordered implementation plan (produced_by: qa)
   quality-gates.md       # the machine-readable quality-gate contract (finalized by qa-quality-gates)
-  setup-log.md           # per-step / verification / failure / next-action log
+  <repo>-setup.md § ## Run history   # per-step / verification / failure / next-action log
   decisions.md           # setup decisions (also appended as DEC-### to shared-context/decision-log.md)
   escalation-<n>.md       # structured note when a strategy decision or blocker stops you
 ```
@@ -25,17 +25,17 @@ Create `qa/` if absent. **These paths are relative to the workspace root, the `.
 ## `/qa:plan` — approved recommendations → plan
 
 1. **Load approvals.** Read the approvals file, take `source_audit`, and reload the audit JSON so you have each `QAF-###`'s full detail. Plan **only** the `Adopt` rows. Note `Defer` rows as "future" and ignore `Skip`.
-2. **Write `qa/test-setup-plan.md`** (schema in `references/setup-guide.md`): ordered setup steps, the frameworks/tools to install (honouring the human's chosen option per finding), config files to add, CI changes, fixtures/mocks to introduce, coverage thresholds to set, and the smoke tests that will prove each piece runs. Order it cheap-to-stand-up-first (runner → lint/format/type → coverage → CI → fixtures/mocks → e2e), so the harness is runnable as early as possible.
+2. **Write `qa/<repo>-setup.md` § `## Plan`** (schema in `references/setup-guide.md`): ordered setup steps, the frameworks/tools to install (honouring the human's chosen option per finding), config files to add, CI changes, fixtures/mocks to introduce, coverage thresholds to set, and the smoke tests that will prove each piece runs. Order it cheap-to-stand-up-first (runner → lint/format/type → coverage → CI → fixtures/mocks → e2e), so the harness is runnable as early as possible.
 3. **Draft the quality gates.** Produce a first `qa/quality-gates.md` (via `qa-quality-gates`) capturing which checks will be required vs optional and their thresholds — marked `Draft` until `/qa:setup` proves them.
 4. **Where the human deferred a choice**, don't invent it: leave it out and note it as an open decision. Return the plan summary and the draft gates.
 
 ## `/qa:setup` — build the harness, prove it green
 
-1. **Isolate.** Work in a branch/worktree (`qa/test-setup-<n>`, off the integration branch). Confirm the working tree is clean first. Never commit setup changes directly to `main`/`master`/`production`.
-2. **Implement the plan step by step** (`references/setup-guide.md`): install and configure each framework, add its config, wire it into package scripts and CI, add fixtures/factories and mocking utilities, set (and enforce) coverage thresholds, scaffold the e2e harness (base config + a page-object/fixtures skeleton), and write the short testing-conventions doc. Add **example/smoke** tests only — enough to prove each layer runs. **Do not** write tests for any specific feature's business logic.
-3. **Verify (implement→verify loop).** After each meaningful piece, run its command and confirm it passes; at the end run the full smoke suite (install → lint → format-check → type-check → unit → coverage-threshold → build → e2e-smoke where applicable) and confirm it is **green**. Record every attempt in `qa/setup-log.md`. Honour the limits below.
+1. **Isolate.** Work in a branch/worktree (`qa/test-setup-<n>`). **Ask which branch to cut it from first** — recommend `apps[].env_branches.dev`, let the user change it, never default silently. Confirm the working tree is clean before branching. Never commit setup changes directly to `main`/`master`/`production`.
+2. **Implement the plan step by step** (`references/setup-guide.md`): install and configure each framework, add its config, wire it into package scripts and CI, add fixtures/factories and mocking utilities, set (and enforce) coverage thresholds, scaffold the e2e harness (base config + a page-object/fixtures skeleton), and write the repo's `## Conventions` into `quality-gates.md § <repo>`. Add **example/smoke** tests only — enough to prove each layer runs. **Do not** write tests for any specific feature's business logic.
+3. **Verify (implement→verify loop).** After each meaningful piece, run its command and confirm it passes; at the end run the full smoke suite (install → lint → format-check → type-check → unit → coverage-threshold → build → e2e-smoke where applicable) and confirm it is **green**. Record every attempt in `qa/<repo>-setup.md` § `## Run history`. Honour the limits below.
 4. **Finalize the gates.** Hand off to `qa-quality-gates` to promote `qa/quality-gates.md` from `Draft` to `Active`, filling in the exact commands and thresholds now proven to run. Log setup decisions as `DEC-###`.
-5. **Publish.** Commit the harness on the setup branch, push it, and raise a PR — same four-step ladder `/dev:commit` uses (`gh pr create` → `git credential fill` against the REST API → `gh auth login --with-token` → print a `compare/<base>...<branch>` URL with title and body pre-filled). A harness that never leaves the machine is not a harness: a teammate's clone has no gates, so `/dev:build` Stage 4 bootstraps a *different* one and the two diverge silently.
+5. **Publish.** First check each threshold against its measured value and correct any that the repo can never clear — a coverage floor above measured coverage is the one that bites (`setup-guide.md` §3a). Then commit the harness on the setup branch, push it, and raise a PR — **whether or not the sequence ended green**; a still-red run publishes as `harness_status: Blocked` with the failing command named, never as `Active` — same four-step ladder `/dev:commit` uses (`gh pr create` → `git credential fill` against the REST API → `gh auth login --with-token` → print a `compare/<base>...<branch>` URL with title and body pre-filled). A harness that never leaves the machine is not a harness: a teammate's clone has no gates, so `/dev:build` Stage 4 bootstraps a *different* one and the two diverge silently.
 
 6. **Hand off.** **Never merge** — the coverage floor starts gating everyone's PRs the moment it lands, so that stays a human call. Return what was stood up, the green smoke result, the `DEC-###` logged, the PR URL, and that the dev loop can now verify against `qa/quality-gates.md`.
 
@@ -47,7 +47,7 @@ Create `qa/` if absent. **These paths are relative to the workspace root, the `.
 - **Never green-by-weakening.** You may not disable, `.skip`, delete, or loosen a check or threshold to pass. If the repo can't meet an approved gate, that's an escalation with the trade-off named.
 - **Never touch product/business logic**, commit secrets, provision live infra, merge, or deploy.
 
-Record every attempt in `setup-log.md`; escalate with a structured `qa/escalations/escalation-<n>.md` (what was attempted, the precise blocker, its impact on which gate, the decision needed with options and a recommendation, and what can proceed in parallel).
+Record every attempt in `<repo>-setup.md` § `## Run history`; escalate in the same section — `qa/<repo>-setup.md` § `## Run history` (what was attempted, the precise blocker, its impact on which gate, the decision needed with options and a recommendation, and what can proceed in parallel).
 
 ## Return value
 

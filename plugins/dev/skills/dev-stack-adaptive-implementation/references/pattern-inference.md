@@ -154,7 +154,7 @@ Grep a few files for identifier casing per kind:
 
 ## 4. What to write down
 
-Append to `dev/implementation-log.md`:
+Append to `units/<repo>/status.md § ## Run history`:
 
 ```yaml
 inferred_patterns:

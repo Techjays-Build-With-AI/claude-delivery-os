@@ -17,7 +17,7 @@ They generate a polished **.pptx deck in the Techjays house style** — editoria
 
 - **`/doc:proposal`** is the proposal-shaped entry point (cover → executive summary → solution → timeline → investment → closing, plus appendix). **`/doc:deck`** is the general entry point for any deck — a proposal, report, or status update — and shapes the core/appendix split to `kind`.
 - **Co-branded to the client.** Supply a client logo file and it goes onto the cover lockup beside the Techjays mark. This environment can't download logos from the web, so the agent takes the logo from a file you provide or extracts it from a prior client PDF/deck (crop tight, drop the background to transparent, use a dark/brand-coloured version so it doesn't vanish on white pages).
-- **Auto-drafted from the BA scope.** When a Delivery OS workspace exists, it drafts the problem statement, solution workflow, and value numbers from `ba/scope.md` and `shared-context/` — using the client's *real* numbers. It never fabricates a metric; unknowns become clearly marked `[[NEEDS: …]]` placeholders listed back to you.
+- **Auto-drafted from the BA scope.** When a Delivery OS workspace exists, it drafts the problem statement, solution workflow, and value numbers from `requirements/<slug>/scope.md` and `shared-context/` — using the client's *real* numbers. It never fabricates a metric; unknowns become clearly marked `[[NEEDS: …]]` placeholders listed back to you.
 - **Core / appendix discipline.** Core slides carry a single idea each; the moment one fills with bullets, the detail moves to an appendix slide with a one-line summary left behind. Timelines show as a proper **Gantt** in the appendix.
 - **Custom rules.** Anything extra you pass in quotes is layered on top: "add a security & compliance appendix slide", "use the lean core form", "emphasize the migration story", brand-color overrides, specific pricing. A custom rule that would break a non-negotiable voice or house-style rule is flagged rather than silently applied.
 
@@ -63,7 +63,7 @@ A **magic board** is a self-contained, Miro-style **infinite-canvas HTML** file:
 ```
 
 - **`topic="…"`** — what the board is about. **`kind=…`** — the arc: `workflow` (default), `journey`, `system`, `concept`, `strategy`, or `roadmap`.
-- The agent finds the narrative spine, clusters cards into 3–6 left-to-right "parts", designs each card to its content (diagrams, two-column step cards, a wow card, a closer), places them without overlap, and wires the tour. When a workspace exists it drafts from `ba/scope.md`, `ba/registers/workflows.md`, and `shared-context/`.
+- The agent finds the narrative spine, clusters cards into 3–6 left-to-right "parts", designs each card to its content (diagrams, two-column step cards, a wow card, a closer), places them without overlap, and wires the tour. When a workspace exists it drafts from `requirements/<slug>/scope.md`, `requirements/<slug>/registers/workflows.md`, and `shared-context/`.
 - **Presenting:** open the `.html`, use the on-screen next/prev or arrow keys to walk the tour, drag to pan, scroll to zoom, press `O` for the overview.
 - The pan/zoom/tour **engine** (`assets/board-engine.js`) is the one fixed piece; everything visual is designed per the skill's house style (warm editorial, five cluster accents, honesty chips), which you can reskin to the client's brand.
 
@@ -86,7 +86,7 @@ An **interactive workflow document** that walks a client through the scope of a 
 
 ## How it fits Delivery OS
 
-The Doc agent is a **consumer**: it reads `ba/scope.md` and `shared-context/` (produced by `/ba:scope`) and writes to `doc/`. So the pipeline is `/ba:scope` (build the scope) → `/ba:review` (harden it) → `/doc:proposal` (turn it into a client-ready deck). It works standalone too — without a workspace it uses what you pass and marks missing client numbers as placeholders.
+The Doc agent is a **consumer**: it reads `requirements/<slug>/scope.md` and `shared-context/` (produced by `/ba:scope`) and writes to `doc/`. So the pipeline is `/ba:scope` (build the scope) → `/ba:review` (harden it) → `/doc:proposal` (turn it into a client-ready deck). It works standalone too — without a workspace it uses what you pass and marks missing client numbers as placeholders.
 
 See the bundled `skills/doc-deck/references/design-system.md` for the full visual spec, the `pptx` skill for build/validation tooling, and the shared [`delivery-os-conventions`](../delivery-os-core/skills/delivery-os-conventions/SKILL.md) contract.
 

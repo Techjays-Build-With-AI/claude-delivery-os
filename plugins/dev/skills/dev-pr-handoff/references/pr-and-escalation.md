@@ -4,7 +4,7 @@ How to fill the two handoff outputs well. Schemas are in the delivery loop's `re
 
 ---
 
-## PR summary (`dev/pr-summary.md`)
+## PR summary (`units/<repo>/pr-summary.md`)
 
 A reviewer should be able to approve from this without reverse-engineering the diff.
 
@@ -13,7 +13,7 @@ A reviewer should be able to approve from this without reverse-engineering the d
 - **Technical Approach** — the key design choices and why; link the `DEC-###` decisions. Note where you followed an existing pattern.
 - **Affected Pages / APIs / Services** — cite the TL units (`PAGE-<AREA>-NN`, `EP-<AREA>-NN`, `ENT-<AREA>-NN`) so the reviewer can trace to the design.
 - **Tests Run** — the suites executed and their result; link the run in `implementation-log.md`.
-- **Acceptance Criteria Status** — inline or link the `acceptance-map.md` table. Every mandatory criterion must be `Passed` or human-`Waived`; a `Waived` row names who waived it.
+- **Acceptance Criteria Status** — inline or link the `status.md` § `## Acceptance` table. Every mandatory criterion must be `Passed` or human-`Waived`; a `Waived` row names who waived it.
 - **Risks / Rollout Considerations** — migration order, feature-flag state, backward-compatibility notes, data backfill, anything to watch on deploy. Include the rollback path.
 - **Open Follow-up Items** — known limitations, deferred edge cases, tech debt taken on — as explicit follow-ups, not surprises.
 - **Reviewer Instructions** — where to focus review, how to run/verify locally, any manual check the reviewer should do.
@@ -23,7 +23,7 @@ A reviewer should be able to approve from this without reverse-engineering the d
 
 ---
 
-## Escalation (`dev/escalation-<n>.md`)
+## Escalation (`units/<repo>/status.md § ## Run history (a BLOCKED entry)`)
 
 A decision-maker should be able to decide from this in one read, without a back-and-forth.
 

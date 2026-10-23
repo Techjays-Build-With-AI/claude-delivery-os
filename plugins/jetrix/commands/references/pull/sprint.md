@@ -2,6 +2,8 @@
 
 Materializes every feature folder currently in a sprint. `<ref>` accepts:
 
+**On a non-Jetrix tracker** sprints are not universal — Jira has them, other tools call the grouping something else or have none. If `/jetrix:init` §4 recorded no sprint key in `tracker.mapping`, say so and point at `/jetrix:pull list <ref>`. Never guess a filter param.
+
 - A **sprint number** (integer like `3`) — routed to `sprint_number=3`; task-mcp resolves it to `sprintId` server-side via the solution's sprint list
 - A **MongoDB `_id`** (24-char hex) — routed to `sprint_id`
 
@@ -48,6 +50,17 @@ Report:
 ```
 
 Use this stage for **sprint kickoff** — team members pull just this week's work rather than the whole solution.
+
+Close with the obvious first move, not a list of every task pulled:
+
+```
+✓ Pulled sprint 14 — 9 tasks into features/ and tasks/
+
+  Next: /dev:plan list=<sprint list>   plans the whole sprint in one run
+```
+
+Name the single highest-priority unplanned task instead when only one is actionable — a sprint where eight of
+nine are already planned does not need a fan-out.
 
 ---
 

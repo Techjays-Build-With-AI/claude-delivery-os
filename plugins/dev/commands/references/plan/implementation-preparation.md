@@ -14,16 +14,21 @@
 
 Before Stage 4 runs on this task:
 
-1. Stage 1 finished with `stage_1.status: DONE` in this feature's `dev/plan-run.md`.
+1. Stage 1 finished with `stage_1.status: DONE` in this feature's `units/<repo>/status.md § ## Run history`.
 2. Stage 2 finished with `stage_2.tasks.<this-task>.scratchpad_written` naming a file that exists:
-   - Parent-alone: `features/<slug>/dev/analysis.md`
-   - Sub-task: `features/<slug>/dev/<repo>-analysis.md`
-3. The scratchpad has `doc_type: analysis-scratchpad` in frontmatter + non-empty `build_sequence`, `impact_matrix`, `test_strategy`, `risks_and_rollback` blocks.
-4. Stage 3 finished with `stage_3.tasks.<this-task>.state_set: PROCEED_TO_STAGE_4` (blockers cleared or absent). If `dev/<repo>-plan-blockers.md` exists, its frontmatter `status:` must be `RESOLVED`.
-5. The consolidated user checkpoint (§4 of `plan.md`) said `Y` for this feature.
-6. `stage-1-results.split_decision.repos_touched` + `task_type` present in `plan-run.md`.
+   - Parent-alone: `features/<slug>/units/<repo>/analysis.md`
+   - Sub-task: `features/<slug>/units/<repo>/analysis.md`
+3. The scratchpad has `doc_type: analysis-scratchpad` in frontmatter + non-empty `build_sequence`, `impact_matrix` and `risks_and_rollback` blocks.
 
-**If any precondition fails → abort THIS task's Stage 4 with a `stage_4_precondition_failed` error naming exactly which precondition + which file** (do NOT halt the batch, do NOT write a partial `implementation.md`, do NOT push to MC). Log to `plan-run.md` under `stage_4.tasks.<this-task>.status: HALTED` with reason.
+   **`test_strategy` is NOT required and must not be checked for.** It was removed from the scratchpad in
+   v2.3.16 — plan-time coverage now lives in `§1 Satisfies` plus the tier pool in `quality-gates.md § <repo>`,
+   and build-time evidence in `status.md § ## Acceptance`. Requiring it here halted every run that reached
+   this stage, because nothing had written it since.
+4. Stage 3 finished with `stage_3.tasks.<this-task>.state_set: PROCEED_TO_STAGE_4` (blockers cleared or absent). If `units/<repo>/plan-blockers.md` exists, its frontmatter `status:` must be `RESOLVED`.
+5. The consolidated user checkpoint (§4 of `plan.md`) said `Y` for this feature.
+6. `stage-1-results.split_decision.repos_touched` + `task_type` present in `status.md` § `## Run history`.
+
+**If any precondition fails → abort THIS task's Stage 4 with a `stage_4_precondition_failed` error naming exactly which precondition + which file** (do NOT halt the batch, do NOT write a partial `implementation.md`, do NOT push to MC). Log to `status.md` § `## Run history` under `stage_4.tasks.<this-task>.status: HALTED` with reason.
 
 ---
 
@@ -41,8 +46,8 @@ Deterministic. Same rule stated in the plan document and the `delivery-os-conven
 | `--no-split` flag on the invocation | Force parent alone | User override |
 
 Write rule + reasoning to:
-- `features/<slug>/subtask/task-decision.md` **when split**
-- `features/<slug>/dev/task-decision.md` **when parent-alone**
+- `features/<slug>/units/task-decision.md` **when split**
+- `features/<slug>/status.md § ## Run history` **when parent-alone**
 
 Format:
 
@@ -69,9 +74,9 @@ decided_at: 2026-08-29T14:31:12Z
 ## Planned sub-tasks
 | # | Repo     | Local path                                       | Owned units                           |
 |---|----------|--------------------------------------------------|---------------------------------------|
-| 1 | backend  | features/supplier-onboarding/subtask/backend/    | EP-SUP-01, EP-SUP-02, ENT-SUP-01      |
-| 2 | frontend | features/supplier-onboarding/subtask/frontend/   | PAGE-SUP-01, PAGE-SUP-02              |
-| 3 | mobile   | features/supplier-onboarding/subtask/mobile/     | PAGE-SUP-M01                          |
+| 1 | backend  | features/supplier-onboarding/units/backend/    | EP-SUP-01, EP-SUP-02, ENT-SUP-01      |
+| 2 | frontend | features/supplier-onboarding/units/frontend/   | PAGE-SUP-01, PAGE-SUP-02              |
+| 3 | mobile   | features/supplier-onboarding/units/mobile/     | PAGE-SUP-M01                          |
 
 ## Overrides
 None. (This file records any `--split`/`--no-split` used.)
@@ -90,12 +95,12 @@ None. (This file records any `--split`/`--no-split` used.)
 
 Each subagent writes to disk directly:
 
-- `.jetrix/features/<slug>/subtask/<repo>/description.md`
-- `.jetrix/features/<slug>/subtask/<repo>/implementation.md`
+- `.jetrix/features/<slug>/units/<repo>/description.md`
+- `.jetrix/features/<slug>/units/<repo>/implementation.md`
 
 Frontmatter shape per the skill's `references/implementation-plan-template.md` §description and §implementation. Sub-task implementation frontmatter includes `capabilities:` (controlled vocab per Rule 11.15). `inputs_hash` = sha256 over the sub-task's own inputs (parent files + this sub-task's owned unit bodies) — different from parent's hash.
 
-**Also write** `.jetrix/features/<slug>/subtask/<repo>/status.md`:
+**Also write** `.jetrix/features/<slug>/units/<repo>/status.md`:
 
 ```yaml
 ---
@@ -111,7 +116,8 @@ jetrix_subtask_object_id: null            # filled by MC push (§4e)
 jetrix_subtask_number: null               # filled by MC push (§4e)
 composed_at: 2026-08-29T14:31:47Z
 ---
-current_state: PLANNED
+status: readyForDev
+phase: planned
 owner_lock: null
 branch: null
 ```
@@ -155,7 +161,7 @@ Sub-task files on disk are ALWAYS preserved regardless of where the halt occurs 
 
 ### 4d. Compose branch B — parent alone
 
-**Single tl-agent subagent** running `tl-feature-compose` in **`implementation` mode** on the parent. Reads BOTH the TL context units AND `dev/analysis.md` scratchpad. Output → `.jetrix/features/<slug>/implementation.md` with `compose_mode: implementation` + `capabilities:` in frontmatter (v2.3 — parent-alone Implementation now writes to `implementation.md` at feature root, not `tl-plan.md`). Writes ALL 9 sections (§1–§9, stack-agnostic per v2.3.11) in one pass. Verify runbook is produced separately by /dev:build Stage 11 as `dev/local-runbook.md` — implementation.md is plan-only.
+**Single tl-agent subagent** running `tl-feature-compose` in **`implementation` mode** on the parent. Reads BOTH the TL context units AND `units/<repo>/analysis.md` scratchpad. Output → `.jetrix/features/<slug>/implementation.md` with `compose_mode: implementation` + `capabilities:` in frontmatter (v2.3 — parent-alone Implementation now writes to `implementation.md` at feature root, not `tl-plan.md`). Writes ALL 9 sections (§1–§9, stack-agnostic per v2.3.11) in one pass. Verify runbook is produced separately by /dev:build Stage 11 as `units/<repo>/pr-summary.md § ## How to verify` — implementation.md is plan-only.
 
 Skip §4e's `subtask_upsert_bundle` call — there are no sub-tasks. Proceed directly to §4f (parent Implementation push).
 
@@ -208,12 +214,12 @@ task-mcp.subtask_upsert_bundle(
 | `metadata.externalId` | Forwarded to MC (whitelisted) | Read from MC |
 | `metadata.parentExternalId` | **Silently dropped before forwarding** — parent link is via URL path | Re-derived from parent's `metadata.externalId` (one MC lookup per listing) |
 | `metadata.subtaskNumber` | **Silently dropped before forwarding** — subtask sequence is preserved by POST order (MC's monotonic `taskNumber`) | Re-derived as `index+1` after `taskNumber`-ascending sort |
-| `metadata.subtaskRepo` | **Mapped to `metadata.externalSlug`** (whitelisted; 255-char cap fits repo slug) | Reversed: `externalSlug` → `subtaskRepo` on the response |
+| `metadata.subtaskRepo` | **Mapped to `metadata.externalSlug`** (whitelisted; 255-char cap fits repo slug) | Reversed: `externalSlug` → `unitRepo` on the response |
 | `metadata.source: "ai"` | Forwarded (whitelisted) | Read |
 | `metadata.aiGenerated: True` | Forwarded (whitelisted) | Read |
 
 **Do NOT:**
-- Manually omit `parentExternalId` / `subtaskNumber` / `subtaskRepo` from the metadata block because the tool schema marks them optional. **They ARE optional at the schema level for backward-compat and future-proofing, but the plugin should ALWAYS send them.** Omitting `subtaskRepo` in particular breaks the read-side derivation because `externalSlug` won't be set.
+- Manually omit `parentExternalId` / `subtaskNumber` / `unitRepo` from the metadata block because the tool schema marks them optional. **They ARE optional at the schema level for backward-compat and future-proofing, but the plugin should ALWAYS send them.** Omitting `unitRepo` in particular breaks the read-side derivation because `externalSlug` won't be set.
 - Try to hand-craft an "MC-compliant" body that skips these fields. The translation is task-mcp's job, and it's already correct.
 - Re-derive from tool schema hints. The schema is intentionally permissive; the caller convention is prescriptive.
 
@@ -296,8 +302,8 @@ task-mcp.feature_update_implementation(
    - Parent Implementation tab → `task-mcp.get_task_by_id_or_number(...)` and read `implementationDetails`
 2. **Compute SHA-256 of both:** the LOCAL string sent + the SERVER-returned string, both normalized (strip trailing whitespace, CRLF → LF, ensure UTF-8).
 3. **Compare hashes:**
-   - **Match** → proceed. Record BOTH `local_hash` and `server_hash` (identical) in `sync-state.json` under this task's `implementation_details_hash` field. Log `readback: ok` to `plan-run.md`.
-   - **Mismatch on attempt 1 (v2.3.18 bounded retry)** → do NOT record any hash yet. Log `readback: mismatch, attempt 1` to `plan-run.md`. Print a one-line notice:
+   - **Match** → proceed. Record BOTH `local_hash` and `server_hash` (identical) in `sync-state.json` under this task's `implementation_details_hash` field. Log `readback: ok` to `status.md` § `## Run history`.
+   - **Mismatch on attempt 1 (v2.3.18 bounded retry)** → do NOT record any hash yet. Log `readback: mismatch, attempt 1` to `status.md` § `## Run history`. Print a one-line notice:
 
      ```
      ⚠ Read-back mismatch on <task-ref>[.<tab>] (attempt 1/2)
@@ -306,7 +312,7 @@ task-mcp.feature_update_implementation(
 
      Immediately re-invoke the SAME push call with the SAME payload for the specific failed tab only (do not re-push the tabs that already verified). Then re-read and re-compare.
 
-     - **Match on attempt 2** → record both hashes with `readback: ok (on retry)` in `plan-run.md`. This is the normal recovery path for the known transient failure class.
+     - **Match on attempt 2** → record both hashes with `readback: ok (on retry)` in `status.md` § `## Run history`. This is the normal recovery path for the known transient failure class.
      - **Mismatch on attempt 2** → HALT. This is a real problem — either a persistent bug in task-mcp / MC, or a schema issue. Do NOT record any hash in sync-state. Print the big warning:
 
        ```
@@ -375,9 +381,9 @@ Skips §4e and §4f entirely. Composes locally (§4c or §4d) and writes files t
 ✓ [dry-run] Composed 3 sub-tasks + parent rollup locally.
   Nothing pushed to MC.
   Review:
-    features/supplier-onboarding/subtask/backend/description.md
-    features/supplier-onboarding/subtask/backend/implementation.md
-    features/supplier-onboarding/subtask/frontend/description.md
+    features/supplier-onboarding/units/backend/description.md
+    features/supplier-onboarding/units/backend/implementation.md
+    features/supplier-onboarding/units/frontend/description.md
     ...
     features/supplier-onboarding/tl-plan.md    (rollup)
 
@@ -388,7 +394,7 @@ Skips §4e and §4f entirely. Composes locally (§4c or §4d) and writes files t
 
 ---
 
-### 2i. Failure handling — per-feature isolation
+### 4i. Failure handling — per-feature isolation
 
 Same isolation model as Stage 1:
 
@@ -399,7 +405,7 @@ Same isolation model as Stage 1:
 
 ---
 
-### Progress log format (`dev/plan-run.md`, per feature)
+### Progress log format (`units/<repo>/status.md § ## Run history`, per feature)
 
 ```yaml
 stage-2:

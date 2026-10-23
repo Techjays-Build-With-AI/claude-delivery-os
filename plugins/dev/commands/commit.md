@@ -1,15 +1,15 @@
 ---
-description: Commit a built task through the full 10-stage commit loop — strict security review (Critical + High blocking, vs /dev:build's Critical-only), dynamic code review via dev-stack-adaptive-code-review (Blocker + Major blocking), final acceptance-map re-verification (regression + last-sub-task E2E), bounded fix loop, semantic-context-merge against baseline via tl-semantic-context-merge (unit-level merge, not text-level), push branch, raise PR with dev/pr-summary.md, print terminal summary. State transitions to REVIEW locally + devReview in MC on start; stays there on success (PR-merge webhook flips to DONE / done — future). Sub-task commits work in the sub-task's repo only. Refuses to run without a completed /dev:build.
-argument-hint: "<task-number | Task-N | slug | features/<slug> | tasks/<slug>.md | FEAT-<AREA>-NN | (blank = task that finished /dev:build most recently)> [initiative=<name>] [--resume] [--skip-security] [--force-context-merge=ours] [--force-push]"
+description: Commit a built task through the full 10-stage commit loop — strict security review (Critical + High blocking, vs /dev:build's Critical-only), dynamic code review via dev-stack-adaptive-code-review (Blocker + Major blocking), final `## Acceptance` table re-verification (regression + last-sub-task E2E), bounded fix loop, semantic-context-merge against baseline via tl-semantic-context-merge (unit-level merge, not text-level), push branch, raise PR with units/<repo>/pr-summary.md, print terminal summary. Flips status to devReview (phase pr-open) on start and stays there on success; the PR-merge webhook flips it to done. Sub-task commits work in the sub-task's repo only. Refuses to run without a completed /dev:build.
+argument-hint: "<task-number | Task-N | slug | features/<slug> | tasks/<slug>.md | FEAT-<AREA>-NN | list=<name> | requirement=<slug> | --all | (blank = every task /dev:build finished)> [requirement=<slug>] [--concurrency=N] [--resume] [--skip-security] [--force-context-merge=ours] [--force-push]"
 ---
 
 # /dev:commit
 
 You are the entry point for the 10-stage commit loop. **Orchestrator only** — parses args, resolves identity, verifies `/dev:build` completed, then routes each stage to its reference file under `plugins/dev/commands/references/commit/`. Do NOT paraphrase the stage files' instructions — `Read` them and execute verbatim.
 
-Read the **`delivery-os-conventions`** skill first if it's not in context — the v2.2 loop-control state model + MC status mapping. Then read the task's `dev/build-run.md`.
+Read the **`delivery-os-conventions`** skill first if it's not in context — the v2.2 loop-control state model + MC status mapping. Then read the task's `units/<repo>/status.md § ## Run history`.
 
-**The single invariant:** `/dev:commit` runs on a completed `/dev:build` or refuses. Local state must be `IN_PROGRESS` (build-complete state) when this command starts.
+**The single invariant:** `/dev:commit` runs on a completed `/dev:build` or refuses. `status` must be `inProgress` **and** `phase` must be `built` when this command starts — `agentExecuting` means a build is still running.
 
 ---
 
@@ -17,42 +17,80 @@ Read the **`delivery-os-conventions`** skill first if it's not in context — th
 
 `$ARGUMENTS` may contain:
 
-**Task target** (required, unless blank for "most recently built"):
+**Task target** (required, unless blank for "every built task"):
 - **Task number** — `11` (bare) or `Task-11` / `Feature-11` / `Subtask-11`. A bare integer is accepted wherever a target is, and means `Task-<n>`. This is the normal form — it is what Mission Control shows, and it needs no knowledge of where anything sits on disk.
 - Local feature slug: `supplier-onboarding`
 - Local feature folder: `features/supplier-onboarding`
-- Sub-task folder: `features/supplier-onboarding/subtask/backend`
-- **Non-feature ticket**: `tasks/<slug>.md` — run state lives at `tasks/<slug>/dev/` (`build-run.md`, `status.md`). Every stage is unchanged: same security review, same code review, same acceptance re-verify, same PR. Only the path to the run files differs.
+- Sub-task folder: `features/supplier-onboarding/units/backend`
+- **Non-feature ticket**: `tasks/<slug>.md` — run state lives at `tasks/<slug>/dev/` (`status.md` § `## Run history`, `status.md`). Every stage is unchanged: same security review, same code review, same acceptance re-verify, same PR. Only the path to the run files differs.
 - Internal id: `FEAT-<AREA>-NN`
-- Blank: pick most recent task whose `status.md` has `ready_for_dev_commit: true`
+- Blank: **every task `/dev:build` has finished** — `status: inProgress` · `phase: built` · `ready_for_dev_commit: true`, across `features/*/units/<repo>/status.md` and `tasks/*/units/<repo>/status.md`. Same default as `/dev:plan` and `/dev:build`: blank means the whole set, a target means that one thing.
+- `list=<name>` / `requirement=<slug>` / `--all` — resolved as `/dev:plan` §2a resolves them, then filtered to the gate above.
 
 **Flags:**
-- `initiative=<name>` — scope selection
-- `--resume` — continue from last completed stage per `dev/commit-run.md`
+- `requirement=<slug>` — scope the target set to one requirement
+- `--concurrency=N` — how many tasks commit at once. Default `5`, matching `/dev:plan` and `/dev:build`.
+- `--resume` — continue from last completed stage per `units/<repo>/status.md § ## Run history`
 - `--skip-security` — bypass Stage 3 (requires `SECURITY_REVIEW_OVERRIDE` env + audited reason)
 - `--force-context-merge=ours` — auto-resolve Stage 7 conflicts to our-side (emergency)
 - `--force-push` — allow `git push --force-with-lease` (rare)
 
+## 1a. Batch semantics
+
+A resolved set of more than one task runs the same ten stages per task, independently.
+
+- **One worker per task**, bounded by `--concurrency=N` (default 5). Each task owns its own repo
+  checkout, its own branch, and its own `## Run history`, so workers do not contend.
+- **One task's failure never halts the batch.** A blocked security finding, a failed acceptance
+  re-verify or a merge conflict stops THAT task at its stage; siblings run on. Failures report
+  together at the end, each naming its stage and what the human has to decide.
+- **One PR per task**, exactly as a single-target run raises one. A batch of N tasks raises N pull
+  requests — say so in the run summary, with every PR URL, so the set is reviewable as a set.
+- **`--resume` applies per task**, read from each task's own `## Run history`.
+
+**Every question is asked once, before the batch fans out.** `/dev:build` earns its
+background-agent property by never prompting mid-run; a batch of commits has to earn the same one,
+because N workers each stopping to ask would interleave their prompts and block the set. So Stage 2's
+base-branch confirmation, the `PARTIAL_HARNESS` confirmation from §2, and the `gh` auth check from
+Stage 8 all move **ahead** of fan-out, into one consolidated checkpoint:
+
+1. Resolve the set, then group it **by repo** — a base branch is a property of a repo, not of a task,
+   so a 19-task batch spanning 3 repos asks three base questions, not nineteen. Each repo's
+   recommended default is still its tasks' `status.md` `base_branch:`, the value `/dev:plan`
+   confirmed. Where tasks in one repo disagree on `base_branch:`, that is a real conflict — show both
+   and make the user pick; never silently take one.
+2. Read every task's `stage-8.final_status` from its `## Run history` **before** starting any of them, and
+   put all the `PARTIAL_HARNESS` ones in a single confirmation naming each task and its red gate.
+   A task the user declines is dropped from the set, not failed.
+3. Check `gh` auth once for the whole run.
+4. Write the answers into each task's `status.md` — `stage-2.base_confirmed_by_user: true` plus the
+   chosen base — so Stage 8a's precondition finds what it requires per task.
+
+**After this checkpoint no worker prompts.** A decision a worker discovers mid-run that would need
+the user is not a prompt: it halts that task with a `BLOCKED` entry naming the decision, and the
+batch reports it at the end alongside the other halts. A single-target run keeps asking inline
+exactly as it does today — there is nothing to consolidate.
+
 ## 2. Stage 0 — Identity resolution + branch verification (hard gate)
 
-Same 4-way resolution as `/dev:plan` Stage 0 / `/dev:build` Stage 0 — see `plugins/dev/commands/plan.md` §2a. Determine `task_kind` (parent-alone or sub-task) and canonical `(feature_id, task_object_id, task_number, task_folder)`.
+Same resolution as `/dev:plan` Stage 0 / `/dev:build` Stage 0 — see `plugins/dev/commands/plan.md` §2a, including the multi-target forms. Determine `task_kind` (parent-alone or sub-task) and canonical `(feature_id, task_object_id, task_number, task_folder)` **per task in the resolved set**.
 
 **Verify `/dev:build` completed.** Check `status.md`:
-- `current_state: IN_PROGRESS`
+- `status: inProgress` · `phase: built`
 - `ready_for_dev_commit: true`
 - `branch:` field non-empty
 
-Any missing → halt with "run /dev:build first" message.
+Any missing → this task is not built. **Single target:** halt with the "run /dev:build first" message. **Batch:** skip it, keep its reason, and report it with the other skips at the end — one unbuilt task must never stop the tasks that are ready.
 
-**Read the build verdict** from `dev/build-run.md`. `IN_PROGRESS` alone does not distinguish a clean build from one that advanced carrying a red Required gate:
+**Read the build verdict** from `units/<repo>/status.md § ## Run history` — the field is `stage-8.final_status`, **not** `stage-8.status`, which only ever holds `DONE` or `BLOCKED` and would match none of the rows below. `IN_PROGRESS` alone does not distinguish a clean build from one that advanced carrying a red Required gate:
 
-| `stage-8.status` | Action |
+| `stage-8.final_status` | Action |
 |---|---|
 | `COMPLETE` · `PARTIAL_DEFERRED` | proceed |
 | `PARTIAL_HARNESS` | a Required gate is red for a **harness** reason, not a defect. Proceed only after `AskUserQuestion` confirms, and carry the `harness_config_remedy` and flaky rows into Stage 5 (§5b.i) and the PR body. Never report this run as green |
 | `PARTIAL_FAILURES` | **halt** — an unfixed defect. Name the red rows; `/dev:build` should not have advanced |
 
-**Read `tests_only`** from the same file. When `true`, build Stages 9–11 were skipped by design: expect no `context/code-context/**` changes and no `dev/local-runbook.md`, and never treat their absence as a missed stage.
+**Read `tests_only`** from the same file. When `true`, build Stages 9–11 were skipped by design: expect no `context/code-context/**` changes and no `units/<repo>/pr-summary.md § ## How to verify`, and never treat their absence as a missed stage.
 
 **`tests_only: true` scopes the review to what actually changed.** A run that may not edit product code has produced no product-code diff, so reviewing the whole branch at feature grade costs a long run and reports findings this commit did not introduce. Scope each stage to **the files this commit adds or modifies**:
 
@@ -72,20 +110,23 @@ Any missing → halt with "run /dev:build first" message.
 ## 3. Stage 1 — Acquire lock + flip status
 
 - Write owner into `status.md` (agent id)
-- Local: `IN_PROGRESS → REVIEW` (broadcast)
+- status `devReview` · phase `pr-open` (broadcast)
 - MC: `inProgress → devReview` via `task-mcp.update_task_status`
-- Read parent BA files (`feature.md`, `workflow.md`, `acceptance-criteria.md`, `business-rules.md`, `nfrs.md`, `test-scenarios.md`, `dependencies.md`) — validation contract; passed to Stages 4 + 5
-- Read `dev/build-run.md` (Stage 10's `context_units_updated:` list, Stage 9's build-time security findings)
-- Read `dev/acceptance-map.md` (build-time results, feeds Stage 5)
-- Read `dev/implementation-log.md` (detected_stack + inferred_patterns, feeds Stage 4)
-- Record start in `dev/commit-run.md`
+- Read parent BA files (`feature.md`, `acceptance-criteria.md`, `business-rules.md`, `nfrs.md`, `test-scenarios.md`, `dependencies.md`) — validation contract; passed to Stages 4 + 5
+- Read `units/<repo>/status.md § ## Run history` (Stage 10's `context_units_updated:` list, Stage 9's build-time security findings)
+- Read `units/<repo>/status.md § ## Acceptance` (build-time results, feeds Stage 5)
+- Read `units/<repo>/status.md § ## Run history` (detected_stack + inferred_patterns, feeds Stage 4)
+- Record start in `units/<repo>/status.md § ## Run history`
 
 ## 4. Stage 2 — Base branch selection + pull (v2.3.25 — user confirmation required; base branch pulled locally before Stage 7)
 
-**Step 1 — Resolve default from `.jetrix/project.json`:**
+**Step 1 — Take the default from the plan, not from scratch:**
 
-- Sub-task with `<repo>` frontmatter → find matching `apps[].name`; use `env_branches.dev` (default: `develop`)
-- Parent-alone → primary product repo's `env_branches.dev`
+- **`status.md` `base_branch:`** — the value the user confirmed at `/dev:plan`'s checkpoint, and the branch
+  this work was actually cut from. It is the recommended option.
+- **Missing** (a plan predating that field) → fall back to `apps[].env_branches.dev` for the sub-task's repo,
+  or the primary product repo's for a parent-alone run, and say in the prompt that it came from
+  `project.json` rather than from a confirmed plan.
 
 **Step 2 — Confirm with the user via `AskUserQuestion` (v2.3.25 — no more silent defaulting):**
 
@@ -98,7 +139,9 @@ Which branch is this PR merging INTO?
   [other]                                                      — user types the exact branch name
 ```
 
-Rationale: silent defaulting hid mistakes when a repo's `env_branches.dev` was stale or pointed at a branch the user didn't actually intend. Asking once per `/dev:commit` invocation surfaces the decision.
+Rationale: silent defaulting hid mistakes when a repo's `env_branches.dev` was stale or pointed at a branch the user didn't actually intend. Asking once surfaces the decision.
+
+**In a batch this question has already been answered** — §1a's pre-flight asks it per repo before fan-out and writes the result into each task's `status.md`. A worker that finds `stage-2.base_confirmed_by_user: true` already set uses that base and does not ask again. Only a single-target run reaches the prompt above.
 
 If user picks `main` / `master` / `production` OR the branch is under branch-protection → refuse UNLESS user passes `--allow-protected-base` on the same run. Standard commit flow always targets a mutable dev branch.
 
@@ -114,10 +157,10 @@ Stage 7's semantic context merge needs the base branch's context units on disk t
 
 Verify:
 - `git log HEAD..<remote>/<base>` — must be empty (this feature branch is descendant of base). If NOT empty → halt: "rebase your feature branch against <base> and re-run: `git rebase <remote>/<base>`".
-- `git rev-parse <remote>/<base>` — record base's tip SHA to `commit-run.md`.
+- `git rev-parse <remote>/<base>` — record base's tip SHA to `status.md` § `## Run history`.
 - Base build green check (best-effort: read last CI status via `gh` if available); non-green is a WARN, not a halt.
 
-Log to `commit-run.md`:
+Log to `status.md` § `## Run history`:
 
 ```yaml
 stage-2:
@@ -139,7 +182,7 @@ A stage's tool may **refuse to start** rather than return findings — `security
 
 Do **not** halt, and do **not** silently skip. For each stage whose tool refuses:
 
-1. **Record the refusal verbatim** in `commit-run.md` under that stage — the exact error text, not a paraphrase:
+1. **Record the refusal verbatim** in `status.md` § `## Run history` under that stage — the exact error text, not a paraphrase:
    ```yaml
    stage-3:
      tool: security-review
@@ -148,7 +191,7 @@ Do **not** halt, and do **not** silently skip. For each stage whose tool refuses
      method: manual            # the stage's own criteria, applied by hand
    ```
 2. **Do the check by hand** against that stage's own criteria and threshold, and record the result in the stage's normal fields. A manual pass is a real pass — it is the *evidence trail* that differs, not the bar.
-3. **Say so in the PR body.** A reviewer must be able to see which checks were tool-run and which were manual without opening `commit-run.md`.
+3. **Say so in the PR body.** A reviewer must be able to see which checks were tool-run and which were manual without opening `status.md` § `## Run history`.
 4. **Never record a tool run that did not happen.** `tool_status: not-invocable` with `method: manual` is honest; omitting the field and filling in the findings as though the tool produced them is a spec violation and worse than halting.
 
 Where the refusal is fixable, name the fix in the summary rather than only reporting it — for `security-review`, that is running `/dev:commit` from inside the repository rather than from a parent folder.
@@ -161,9 +204,9 @@ Where the refusal is fixable, name the fix in the summary rather than only repor
 
 **Read** `plugins/dev/commands/references/commit/stage-4-code-review.md` and execute verbatim. Invokes `dev-stack-adaptive-code-review` skill. Blocker+Major findings route to Stage 6 fix loop.
 
-### Stage 5 — Final acceptance-map verification
+### Stage 5 — Final `## Acceptance` table verification
 
-**Read** `plugins/dev/commands/references/commit/stage-5-acceptance.md` and execute verbatim. Re-runs every acceptance-map row's test; deferred-to-e2e resolves if this is the last sub-task landing. Regression routes to Stage 6 fix loop.
+**Read** `plugins/dev/commands/references/commit/stage-5-acceptance.md` and execute verbatim. Re-runs every `## Acceptance` table row's test; deferred-to-e2e resolves if this is the last sub-task landing. Regression routes to Stage 6 fix loop.
 
 ### Stage 6 — Bounded fix loop
 
@@ -173,7 +216,7 @@ Where the refusal is fixable, name the fix in the summary rather than only repor
 
 **Read** `plugins/dev/commands/references/commit/stage-7-semantic-merge.md` and execute verbatim. Delegates to `tl-semantic-context-merge` skill. Halts cleanly on conflict with `dev/context-merge-conflicts.md` for human resolution.
 
-**Rule (v2.3.25):** this stage MUST invoke `tl-semantic-context-merge` skill via the Skill tool with observable trace. The skill invocation is verified in `commit-run.md` as:
+**Rule (v2.3.25):** this stage MUST invoke `tl-semantic-context-merge` skill via the Skill tool with observable trace. The skill invocation is verified in `status.md` § `## Run history` as:
 
 ```yaml
 stage-7:
@@ -192,7 +235,7 @@ stage-7:
 
 **"I reasoned it would be a no-op and skipped" is NOT permitted (v2.3.25 — user-reported gap).** Even if the skill reports zero-changes, it MUST run and record its no-op result. The skill's own log is the evidence of execution; internal reasoning is not.
 
-Stage 8's precondition (§8a below in `stage-8-9-push-pr.md`) verifies this block exists in `commit-run.md`. If missing → Stage 8 HALTS with `blocker: stage-7-not-executed`.
+Stage 8's precondition (§8a below in `stage-8-9-push-pr.md`) verifies this block exists in `status.md` § `## Run history`. If missing → Stage 8 HALTS with `blocker: stage-7-not-executed`.
 
 ### Stage 7.5 — Gather working-tree changes + structure commit(s) (v2.3.20 — REQUIRED)
 
@@ -204,7 +247,7 @@ Stage 8's precondition (§8a below in `stage-8-9-push-pr.md`) verifies this bloc
    - `src/*` — source code changes (Stages 5-6 output)
    - `tests/*` — test code changes (Stages 5-6 output)
    - `context/code-context/*` — context-unit updates (Stage 10 output)
-   - `dev/local-runbook.md` — runbook (Stage 11 output — LOCAL only, NEVER pushed to remote; excluded from commit)
+   - `units/<repo>/pr-summary.md § ## How to verify` — runbook (Stage 11 output — LOCAL only, NEVER pushed to remote; excluded from commit)
    - Other — surface as a warning, ask which category (source / test / context / dev-only-do-not-commit)
 
 2. **Structure commit(s) — default: ONE well-formed commit for the whole task's diff.** Message follows the convention:
@@ -214,20 +257,20 @@ Stage 8's precondition (§8a below in `stage-8-9-push-pr.md`) verifies this bloc
 
    Sub-task: <task-ref, e.g. FEAT-HCAL-01-1 backend>
    §1 Build sequence steps: <N> steps landed
-   Tests: <M> tier(s), <acceptance-map row count> parent AC/BR/TS covered
+   Tests: <M> tier(s), <`status.md` § `## Acceptance` row count> parent AC/BR/TS covered
 
    Refs: <parent's business-rules that this sub-task enforced, comma-separated>
    ```
 
 3. **Alternative: `--structured` flag** for multi-commit convention (docs / feat / refactor / test / chore — one per category above). Same author identity, same head-of-branch commit for the PR.
 
-4. **Never commits `dev/local-runbook.md`** — LOCAL developer artefact only.
+4. **Never commits `units/<repo>/pr-summary.md § ## How to verify`** — LOCAL developer artefact only.
 
 5. **Never commits secrets** — final `grep` for `.env*`, `*credentials*`, `*secret*`, `*token*`, `*.pem`, `*.key` file patterns; if any found in the stage-worthy set, HALT with `blocker: secrets-in-staged-set` — do NOT auto-add to a gitignore, halt for human review.
 
 6. **Commit stays on branch** — do NOT rebase, do NOT push in this stage. Stage 8 pushes.
 
-If the working tree has nothing to commit (someone already committed manually mid-flow) → skip this stage cleanly, log to `dev/<repo>-commit-run.md`, continue to Stage 8.
+If the working tree has nothing to commit (someone already committed manually mid-flow) → skip this stage cleanly, log to `units/<repo>/status.md § ## Run history`, continue to Stage 8.
 
 ### Stage 8 — Push the branch
 
@@ -235,7 +278,7 @@ If the working tree has nothing to commit (someone already committed manually mi
 
 ### Stage 9 — Raise the PR
 
-**Read** `plugins/dev/commands/references/commit/stage-8-9-push-pr.md` §Stage 9 and execute verbatim. PR body = `dev/pr-summary.md`.
+**Read** `plugins/dev/commands/references/commit/stage-8-9-push-pr.md` §Stage 9 and execute verbatim. PR body = `units/<repo>/pr-summary.md`.
 
 ## 6. Stage 10 — Report summary
 
@@ -257,23 +300,27 @@ Context merge: 3 units merged clean · 4 base units carried forward · 0 conflic
 Push:          ✓ 9 commits pushed to origin
 PR:            ✓ opened by /dev:commit
 
-Local state:   REVIEW           (awaiting human review)
-MC status:     devReview        (flips to done on PR-merge webhook — future)
+Status:        devReview        (flips to done on PR-merge webhook — future)
 
-Local runbook: features/supplier-onboarding/subtask/backend/dev/local-runbook.md
+Local runbook: features/supplier-onboarding/units/backend/pr-summary.md § ## How to verify
 PR summary:    features/supplier-onboarding/dev/backend-pr-summary.md
 
 Next:
   1. Reviewer reviews PR-247   (link above)
-  2. Track task progress on MC (sub-task link above)
+  2. Reviewer left comments?  /dev:fix-review FEAT-SUP-001-1 pr=<link>
+     folds them back through the commit stages — do not hand-patch the branch
   3. On merge, MC status flips to `done` automatically (webhook — v2.3)
 ```
+
+**Step 2 is not optional boilerplate.** Of the three lines, it is the only one with work in it, and a
+reviewer comment fixed by hand skips the security review, the acceptance re-verify and the context merge
+that `/dev:commit` just ran. Name it every time, with the task id already filled in.
 
 **Navigation URL sources (v2.3.17 — task-mcp is the URL source of truth):**
 
 - **MC parent** — call `task-mcp.get_task_by_id_or_number(solution_id, feature.md `jetrix_task_object_id`)`; use `.view_url` from the response. task-mcp constructs the URL server-side using its own `mission_control_ui_url` env var.
-- **MC sub-task** — same pattern: `get_task_by_id_or_number(solution_id, subtask/<repo>/status.md `jetrix_subtask_object_id`)`; use `.view_url`.
-- **PR** — from `dev/<repo>-commit-run.md` stage-9's `pr_url` (written by Stage 9)
+- **MC sub-task** — same pattern: `get_task_by_id_or_number(solution_id, units/<repo>/status.md `jetrix_subtask_object_id`)`; use `.view_url`.
+- **PR** — from `units/<repo>/status.md § ## Run history` stage-9's `pr_url` (written by Stage 9)
 
 Do NOT construct MC URLs locally from `.jetrix/project.json` `mission_control_ui_url` — task-mcp's own env var is the source of truth and the two may drift. task-mcp's returned `view_url` is guaranteed correct.
 
@@ -283,11 +330,11 @@ No file writes at Stage 10 — pr-summary + commit-run + delivery-status are alr
 
 ## 7. Failure surfaces
 
-- **Any stage BLOCKED** (Stage 6 bounds exceeded) → local `BLOCKED`, MC `blocked`, `dev/escalation-<n>.md`, halt
-- **Stage 7 semantic-merge conflict** → local `MERGE_CONFLICT`, MC stays `devReview`, `dev/context-merge-conflicts.md`, halt
-- **Stage 8 push rejected** → local `REVIEW` (unchanged), MC stays `devReview`, halt with git error verbatim
-- **Stage 9 PR creation failed** → local `REVIEW` (unchanged), MC stays `devReview`, halt with `gh` error verbatim
-- **`/dev:commit` on task at `PLANNED` or `IN_PLANNING`** → refuse (§2 hard gate). Route to `/dev:build`
+- **Any stage BLOCKED** (Stage 6 bounds exceeded) → local `BLOCKED`, MC `blocked`, `units/<repo>/status.md § ## Run history (a BLOCKED entry)`, halt
+- **Stage 7 semantic-merge conflict** → status `devReview` (phase `merge-conflict`), `dev/context-merge-conflicts.md`, halt
+- **Stage 8 push rejected** → status stays `devReview` (phase `pr-open`), halt with git error verbatim
+- **Stage 9 PR creation failed** → status stays `devReview` (phase `pr-open`), halt with `gh` error verbatim
+- **`/dev:commit` on task at `readyForDev` or `agentExecuting`** → refuse (§2 hard gate). Route to `/dev:build`; on `agentExecuting` say a build is already running rather than inviting a second one
 
 ## 8. Guardrails
 
@@ -300,4 +347,4 @@ No file writes at Stage 10 — pr-summary + commit-run + delivery-status are alr
 - Never modify secrets or `.env` files
 - Never rebase automatically — halt and instruct if branch is behind base
 - Every material design choice → `DEC-###` in `dev/decisions.md`
-- Never move MC status to `blocked` for a Stage 7 conflict — that's `MERGE_CONFLICT` (local only) awaiting human input
+- Never move MC status to `blocked` for a Stage 7 conflict — that's `devReview` (local only) awaiting human input

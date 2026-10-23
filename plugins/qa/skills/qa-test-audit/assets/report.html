@@ -48,6 +48,34 @@
     font-size:13px; font-weight:650; text-transform:uppercase; letter-spacing:.07em;
     color:var(--muted); margin:36px 0 14px;
   }
+  nav.tabs { display:flex; gap:2px; border-bottom:1px solid #d0d7de; margin:18px 0 0; }
+  nav.tabs button { appearance:none; background:none; border:0; border-bottom:2px solid transparent;
+    padding:10px 15px; font:inherit; font-size:14px; font-weight:600; color:#636c76; cursor:pointer;
+    display:flex; align-items:center; gap:7px; }
+  nav.tabs button[aria-selected="true"] { color:#0969da; border-bottom-color:#0969da; }
+  nav.tabs .tc { font-size:11px; font-weight:700; padding:1px 6px; border-radius:999px;
+    background:#f6f8fa; border:1px solid #d0d7de; color:#636c76; }
+  nav.tabs button[aria-selected="true"] .tc { background:#0969da; color:#fff; border-color:#0969da; }
+  nav.tabs .tc.warn { background:#bf8700; color:#fff; border-color:#bf8700; }
+  section.panel[hidden] { display:none; }
+  section.panel { padding-top:16px; }
+  #evidence td.exit0 { color:#1a7f37; font-weight:700; }
+  #evidence td.exitN { color:#cf222e; font-weight:700; }
+  #evidence td.cmd { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12.5px; }
+  .nmnote { color:#8a5205; background:#fbefdb; border:1px solid #e4cc9a; border-radius:7px;
+    padding:10px 13px; font-size:13.5px; margin-top:12px; }
+  .save-toast { position:fixed; right:20px; bottom:20px; z-index:90; max-width:440px; background:#fff;
+    color:#1f2328; border:1px solid #d0d7de; border-left:4px solid #1a7f37; border-radius:12px;
+    box-shadow:0 14px 40px rgba(0,0,0,.22); padding:16px 18px;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
+  .save-toast.warn { border-left-color:#bf8700; }
+  .save-toast .st-head { font-weight:700; font-size:15px; margin-bottom:8px; }
+  .save-toast .st-path, .save-toast .st-cmd { background:#f6f8fa; border:1px solid #d0d7de; border-radius:7px;
+    padding:7px 9px; font-size:12.5px; word-break:break-all;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
+  .save-toast .st-sub { font-size:12.5px; color:#636c76; margin:9px 0 5px; }
+  .save-toast .st-ok { margin-top:13px; float:right; font:inherit; font-size:13px; padding:5px 13px;
+    border-radius:7px; border:1px solid #0969da; background:#0969da; color:#fff; cursor:pointer; }
   table {
     width:100%; border-collapse:separate; border-spacing:0; background:var(--surface);
     border:1px solid var(--border); border-radius:var(--radius); overflow:hidden;
@@ -118,6 +146,23 @@
     h1 { font-size:24px; }
     .score { font-size:44px; }
   }
+  .save-toast { position: fixed; right: 20px; bottom: 20px; z-index: 90; max-width: 440px;
+    background: #fff; color: #1f2328; border: 1px solid #d0d7de; border-left: 4px solid #1a7f37;
+    border-radius: 12px; box-shadow: 0 14px 40px rgba(0,0,0,.22); padding: 16px 18px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  .save-toast.warn { border-left-color: #bf8700; }
+  .save-toast .st-head { font-weight: 700; font-size: 15px; margin-bottom: 8px; }
+  .save-toast .st-path, .save-toast .st-cmd { background: #f6f8fa; border: 1px solid #d0d7de;
+    border-radius: 7px; padding: 7px 9px; font-size: 12.5px; word-break: break-all;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .save-toast .st-sub { font-size: 12.5px; color: #636c76; margin: 9px 0 5px; }
+  .save-toast .st-ok { margin-top: 13px; float: right; font: inherit; font-size: 13px;
+    padding: 5px 13px; border-radius: 7px; border: 1px solid #0969da;
+    background: #0969da; color: #fff; cursor: pointer; }
+  @media (prefers-color-scheme: dark) {
+    .save-toast { background: #161b22; color: #e6edf3; border-color: #30363d; }
+    .save-toast .st-path, .save-toast .st-cmd { background: #21262d; border-color: #30363d; }
+  }
 </style>
 </head>
 <body>
@@ -135,24 +180,164 @@
     </div>
   </div>
 
-  <h2>Scorecard</h2>
-  <table id="scorecard"><thead><tr><th>Area</th><th>Score</th><th>Note</th></tr></thead><tbody></tbody></table>
+  <nav class="tabs" id="tabs" role="tablist"></nav>
 
-  <h2>Findings &amp; recommendations</h2>
-  <div id="findings"></div>
+  <section class="panel" data-panel="scorecard" role="tabpanel">
+    <table id="scorecard"><thead><tr><th>Area</th><th>Score</th><th>Note</th></tr></thead><tbody></tbody></table>
+    <div id="nm-note"></div>
+  </section>
+
+  <section class="panel" data-panel="findings" role="tabpanel" hidden>
+    <div id="findings"></div>
+  </section>
+
+  <section class="panel" data-panel="evidence" role="tabpanel" hidden>
+    <p class="hint">Every command this audit ran, and what it returned. A scored area with no command here was
+      <b>not measured</b> &mdash; it did not quietly take a number.</p>
+    <table id="evidence"><thead><tr>
+      <th>Area</th><th>Command</th><th>Exit</th><th>Result</th>
+    </tr></thead><tbody></tbody></table>
+  </section>
 
   <div class="exportbar">
-    <button onclick="exportApprovals()">Export approvals ↓</button>
+    <button onclick="exportApprovals()">Save approvals</button>
     <span class="count" id="count"></span>
     <span class="hint">Set Adopt / Skip / Defer per finding, then export the approvals file and run <code>/qa:plan</code>.</span>
   </div>
 </div>
 
+<!-- The audit JSON lives here, addressable, so /qa:plan can read the round
+     back out of the page. Without an id it was spliced inline and unreachable,
+     which is why a separate .json sidecar had to be written and kept in sync. -->
+<script id="audit-data" type="application/json">__AUDIT_DATA__</script>
 <script>
-const DATA = __AUDIT_DATA__;
+const DATA = (() => {
+  try {
+    const d = JSON.parse(document.getElementById("audit-data").textContent);
+    if (d && typeof d === "object") return d;
+  } catch (e) { /* falls through to the empty state below */ }
+  return null;
+})();
+
+// A report whose data never injected should say so. Returning a part-filled
+// object instead meant the next line hit undefined.toFixed() and the page died
+// with a blank screen -- the one failure a reader cannot diagnose.
+if (!DATA) {
+  document.body.innerHTML =
+    '<div style="max-width:40rem;margin:4rem auto;font:15px/1.6 system-ui;color:#ddd">' +
+    '<h2 style="font-size:1.1rem">This report has no data.</h2>' +
+    '<p>The QA agent injects the audit JSON into the <code>#audit-data</code> block ' +
+    'when it renders the page. This copy was saved before that happened, or the ' +
+    'injection failed.</p><p>Re-run <code>/qa:audit</code> to produce a complete one.</p></div>';
+  throw new Error("audit data missing");
+}
 const findingState = {};
 
+function renderEvidence() {
+  const rows = DATA.evidence || [];
+  const tb = document.querySelector('#evidence tbody');
+  if (!rows.length) {
+    const tr = document.createElement('tr');
+    const td = document.createElement('td');
+    td.colSpan = 4;
+    td.textContent = 'No commands recorded. Every score in this report is therefore unevidenced \u2014 ' +
+      'treat each one as not-measured.';
+    tr.appendChild(td); tb.appendChild(tr);
+    return;
+  }
+  for (const e of rows) {
+    const tr = document.createElement('tr');
+    const cells = [e.area || '', e.command || '',
+                   e.exit == null ? '\u2014' : String(e.exit), e.result || ''];
+    cells.forEach(function (v, i) {
+      const td = document.createElement('td');
+      if (i === 1) td.className = 'cmd';
+      if (i === 2) td.className = e.exit === 0 ? 'exit0' : 'exitN';
+      td.textContent = v;
+      tr.appendChild(td);
+    });
+    tb.appendChild(tr);
+  }
+}
+
+// The check the feedback sheet was written about: a scored area with no
+// command behind it. 8/10 for a runner that never ran, while 7 tests failed.
+function unevidencedAreas() {
+  const ran = new Set((DATA.evidence || []).map(function (e) {
+    return String(e.area || '').toLowerCase();
+  }));
+  return (DATA.scorecard || [])
+    .filter(function (a) { return a.score != null && !ran.has(String(a.area || '').toLowerCase()); })
+    .map(function (a) { return a.area; });
+}
+
+function renderTabs() {
+  const nav = document.getElementById('tabs');
+  const panels = {};
+  document.querySelectorAll('section.panel').forEach(function (p) {
+    panels[p.getAttribute('data-panel')] = p;
+  });
+  const unev = unevidencedAreas();
+  const TABS = [
+    { k: 'scorecard', label: 'Scorecard' },
+    { k: 'findings',  label: 'Findings',  n: (DATA.findings || []).length },
+    { k: 'evidence',  label: 'Evidence',  n: (DATA.evidence || []).length, warn: unev.length > 0 }
+  ];
+  function select(k) {
+    Object.keys(panels).forEach(function (x) { panels[x].hidden = x !== k; });
+    nav.querySelectorAll('button').forEach(function (b) {
+      b.setAttribute('aria-selected', b.getAttribute('data-tab') === k ? 'true' : 'false');
+    });
+  }
+  TABS.forEach(function (t) {
+    const b = document.createElement('button');
+    b.setAttribute('data-tab', t.k);
+    b.setAttribute('role', 'tab');
+    b.setAttribute('aria-selected', 'false');
+    const sp = document.createElement('span'); sp.textContent = t.label; b.appendChild(sp);
+    if (t.n != null) {
+      const c = document.createElement('span');
+      c.className = 'tc' + (t.warn ? ' warn' : '');
+      c.textContent = String(t.n);
+      b.appendChild(c);
+    }
+    b.onclick = function () { select(t.k); };
+    nav.appendChild(b);
+  });
+  select('scorecard');
+
+  // Say it on the Scorecard too. Someone reading a score should not have to
+  // open Evidence to discover it was never measured.
+  const note = document.getElementById('nm-note');
+  if (unev.length) {
+    const d = document.createElement('div');
+    d.className = 'nmnote';
+    d.textContent = '\u26A0 ' + unev.length + ' scored area(s) have no command in Evidence: ' +
+      unev.join(', ') + '. A score with nothing behind it should read not-measured.';
+    note.appendChild(d);
+  }
+}
+
+function saveToast(ok, heading, pathLine, cmd) {
+  document.querySelectorAll('.save-toast').forEach(function (n) { n.remove(); });
+  const box = document.createElement('div');
+  box.className = 'save-toast' + (ok ? '' : ' warn');
+  const h = document.createElement('div'); h.className = 'st-head';
+  h.textContent = (ok ? '\u2713 ' : '! ') + heading; box.appendChild(h);
+  const p = document.createElement('div'); p.className = 'st-path';
+  p.textContent = pathLine; box.appendChild(p);
+  const s2 = document.createElement('div'); s2.className = 'st-sub';
+  s2.textContent = 'You can run it now:'; box.appendChild(s2);
+  const c = document.createElement('div'); c.className = 'st-cmd';
+  c.textContent = cmd; box.appendChild(c);
+  const b = document.createElement('button'); b.className = 'st-ok'; b.textContent = 'Got it';
+  b.onclick = function () { box.remove(); }; box.appendChild(b);
+  document.body.appendChild(box);
+}
+
 function init() {
+  renderEvidence();
+  renderTabs();
   document.getElementById('meta').textContent =
     `Audit ${DATA.auditId} · ${DATA.repo} · round ${DATA.round} · ${DATA.generatedAt}`;
   document.getElementById('scoreVal').innerHTML = `${DATA.readinessScore.toFixed(1)}<small>/10</small>`;
@@ -220,21 +405,267 @@ function updateCount() {
   const d = vals.filter(v => v.decision === 'Defer').length;
   document.getElementById('count').textContent = `${a} adopt · ${d} defer · ${s} skip`;
 }
+
+// ---- saving -------------------------------------------------------------
+// fetch("/save") only reaches the instance that served this page. When a later
+// run started a second server, or this one's run has ended, that instance can
+// be gone while another is alive on a different port over the same folder --
+// and the save was possible the whole time. So: own origin first, then every
+// loopback port in range, and only then a download.
+var SAVE_FOLDER = "qa/reviews";   // the folder this report belongs to
+var PORT_LO = 4100, PORT_HI = 4120;
+
+// The absolute folder this report belongs to, written in at render time. The
+// server writes where the page says, so it stops mattering which folder the
+// server was started on -- which is what removes the port/folder matching.
+var SAVE_DIR = (typeof data !== "undefined" && data && data.saveDir) || null;
+
+// Only a fallback, for a page opened from something that is not the review
+// server: its own range, plus the dev servers people actually have running.
+var SCAN_PORTS = (function () {
+  var p = [];
+  for (var i = PORT_LO; i <= PORT_HI; i++) p.push(i);
+  return p.concat([5500, 5501, 3000, 8080, 8765]);
+})();
+
+var SAVE_BASE = null;          // resolved at load: "" = own origin, "http://..." = another port, null = none
+
+function postSave(base, name, body) {
+  return fetch(base + "/save", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ filename: name, content: body, dir: SAVE_DIR })
+  }).then(function (r) { return r.json(); })
+    .then(function (res) {
+      if (!res || !res.ok) throw new Error((res && res.error) || "refused");
+      return res;
+    });
+}
+
+// Any serve-review instance will do -- the destination travels with the save,
+// so matching a server to a folder is no longer necessary.
+var SAVE_BASE_ROOT = null;   // the folder the chosen instance serves
+
+function samePath(a, b) {
+  var n = function (p) {
+    // Windows hands us one separator, the URL another; compare on one form.
+    var s = String(p || "").split(String.fromCharCode(92)).join("/");
+    while (s.length && s.charAt(s.length - 1) === "/") s = s.slice(0, -1);
+    return s.toLowerCase();
+  };
+  return n(a) === n(b);
+}
+
+// Returns the instance, not just its address: which folder it serves decides
+// whether this page can hop onto it.
+function servesOurFolder(base) {
+  return fetch(base + "/__whoami")
+    .then(function (r) { return r.json(); })
+    .then(function (j) {
+      if (!j || j.app !== "serve-review") return null;
+      // Belt and braces: if the render did not write saveDir, and this server
+      // is the one serving THIS page, then its own root is the folder the
+      // report sits in. Removes the last dependency on a field being
+      // populated upstream.
+      if (!SAVE_DIR && base === "" && j.root) SAVE_DIR = j.root;
+      return { base: base, root: j.root || "" };
+    })
+    .catch(function () { return null; });
+}
+
+// Runs once, at load. Leaves SAVE_BASE holding whatever can take a write.
+// Any instance can take the save, because the destination travels with it --
+// but keep looking for the one serving THIS folder, since only that one can
+// also serve this page if we end up hopping. First exact match wins; any
+// instance is kept as the fallback.
+function resolveSaveBase() {
+  return servesOurFolder("").then(function (own) {
+    if (own) return own;
+    var ports = SCAN_PORTS.filter(function (p) { return String(p) !== location.port; });
+    return ports.reduce(function (chain, p) {
+      return chain.then(function (acc) {
+        if (acc && acc.exact) return acc;
+        return servesOurFolder("http://127.0.0.1:" + p).then(function (hit) {
+          if (!hit) return acc;
+          hit.exact = !!SAVE_DIR && samePath(hit.root, SAVE_DIR);
+          return hit.exact ? hit : (acc || hit);
+        });
+      });
+    }, Promise.resolve(null));
+  }).then(function (hit) {
+    SAVE_BASE = hit ? hit.base : null;
+    SAVE_BASE_ROOT = hit ? hit.root : null;
+    return SAVE_BASE;
+  });
+}
+
+// A browser cannot write to an arbitrary path unasked -- that is a security
+// boundary, not a gap in this page. It CAN write where the user points it, and
+// the dialog opens on the file name we suggest, so the answers land in the
+// review folder instead of in Downloads.
+// A cancelled dialog is a decision, not a failure: no file, no fallback.
+function isCancel(e) {
+  return e && (e.name === "AbortError" || /abort/i.test(String(e.message || "")));
+}
+
+function saveViaPicker(name, body) {
+  if (!window.showSaveFilePicker) return Promise.reject(new Error("no picker"));
+  return window.showSaveFilePicker({
+    suggestedName: name,
+    types: [{ description: "Markdown", accept: { "text/markdown": [".md"] } }]
+  }).then(function (handle) {
+    return handle.createWritable().then(function (w) {
+      return Promise.resolve(w.write(body))
+        .then(function () { return w.close(); })
+        .then(function () { return { ok: true, path: handle.name, viaPicker: true }; });
+    });
+  });
+}
+
+// Resolve once, memoised, and never depend on something else having run at
+// load: when that call went missing, SAVE_BASE stayed null and every save fell
+// to the picker even on the review server's own origin.
+var SAVE_BASE_READY = null;
+function saveBaseReady() {
+  // Keep a hit, never a miss. Memoising null meant a server started AFTER the
+  // page loaded could never be found: the first probe failed, the answer stuck,
+  // and Save kept opening the picker long after /save was reachable.
+  if (!SAVE_BASE_READY) {
+    SAVE_BASE_READY = resolveSaveBase().then(function (base) {
+      if (base === null) SAVE_BASE_READY = null;
+      return base;
+    });
+  }
+  return SAVE_BASE_READY;
+}
+
+// Called from the click handler. The base is normally already resolved, so
+// this settles in a microtask and Chrome's transient activation survives --
+// which is what lets the picker open on the one path that still needs it.
+function saveAnywhere(name, body) {
+  return saveBaseReady().then(function (base) {
+    if (base === null) return saveViaPicker(name, body);   // nothing serving
+    return postSave(base, name, body).catch(function () {
+      return saveViaPicker(name, body);                    // server died since
+    });
+  });
+}
+
+// ---- get onto the origin that can actually save ------------------------
+// Same report either way; the only difference is whether Save can reach /save.
+// Opened from Live Server (:5501) or off disk, hop to the review server now --
+// at load, before anything is typed, so nothing can be lost. We already know
+// the folder and the server already serves it; asking the user to find a path
+// we hold is the page asking them to do its job.
+function hopToServer() {
+  if (/[?&]nohop=1/.test(location.search)) return Promise.resolve(false);
+  var here = location.pathname.split("/").pop();
+  if (!here) return Promise.resolve(false);
+  return saveBaseReady().then(function (base) {
+    if (base === null) return false;          // nothing is serving: stay put
+    if (base === "") return false;            // already on the review server
+    // Only hop onto the instance that serves THIS folder. Another instance can
+    // still take the save, but it has never heard of this file and would answer
+    // the hop with a 404.
+    if (!samePath(SAVE_BASE_ROOT, SAVE_DIR)) return false;
+    location.replace(base + "/" + here + "?nohop=1");
+    return true;
+  });
+}
+
+// Shown only when the hop found nothing to hop to.
+function showSaveBanner() {
+  if (SAVE_BASE !== null) return;
+  var cmd = "node <delivery-os>/scripts/serve-review.js .jetrix/" + SAVE_FOLDER;
+  var bar = document.createElement("div");
+  bar.setAttribute("style",
+    "position:sticky;top:0;z-index:9999;padding:10px 16px;" +
+    "background:#3a2a12;color:#f3d9a4;border-bottom:1px solid #6b4e1f;" +
+    "font:13px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace");
+  bar.innerHTML =
+    "<b>No review server is running, so Save cannot write to the folder.</b> " +
+    "Start it and reload \u2014 then Save goes straight to disk, no dialog. " +
+    "Without it you get a file dialog instead.<br>" +
+    "<code style=\"display:inline-block;margin-top:6px;padding:4px 8px;" +
+    "background:#000;border-radius:3px\"></code>";
+  bar.querySelector("code").textContent = cmd;
+  document.body.insertBefore(bar, document.body.firstChild);
+}
+
+
 function exportApprovals() {
   let out = `---\ndoc_type: test-audit-approvals\nschema_version: 1.1\nproduced_by: qa\n`;
-  out += `source_audit: ${DATA.auditId}\ngenerated_at: ${DATA.generatedAt}\n---\n\n`;
+  out += `source_audit: ${DATA.auditId}\nrepo: ${DATA.repo}\ngenerated_at: ${DATA.generatedAt}\n---\n\n`;
   (DATA.findings||[]).forEach(f => {
     const st = findingState[f.id];
     const opt = st.decision === 'Skip' ? '—' : (f.recommendedOption || '—');
     out += `${f.id} · ${st.decision} · ${opt}${st.note ? ' · (note: ' + st.note + ')' : ''}\n`;
   });
-  const blob = new Blob([out], { type: 'text/markdown' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url; link.download = `test-audit-${DATA.auditId}-approvals.md`;
-  link.click(); URL.revokeObjectURL(url);
+  // The repo leads the name. Auditing a server and a client on the same day
+  // produced two files separable only by timestamp -- unreadable at a glance.
+  // Slugify: DATA.repo may be a path, and a slash would break the filename.
+  const repoSlug = String(DATA.repo || 'repo')
+    .replace(/[\\/]+$/, '').split(/[\\/]/).pop()
+    .replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '') || 'repo';
+  const name = `${repoSlug}-audit-${DATA.auditId}-approvals.md`;
+
+  // Served by serve-review.js -> it writes into qa/reviews/ and tells us where.
+  // Opened from file:// -> no server to ask, so fall back to a download and
+  // say so, rather than claiming a save that did not happen.
+  saveAnywhere(name, out)
+    .then(res => {
+      if (res.viaPicker) {
+        saveToast(true, 'Saved',
+          'Your answers for ' + repoSlug + ' were written as ' + res.path
+            + ' \u2014 wherever you chose. Point /qa:plan at that path.',
+          '/qa:plan <where you saved it>/' + res.path);
+      } else {
+        saveToast(true, 'Saved to your workspace',
+          'Your answers for ' + repoSlug + ' are on disk at  ' + res.path,
+          '/qa:plan ' + res.path);
+      }
+    })
+    .catch((e) => {
+      if (isCancel(e)) return;              // backed out of the dialog
+      const url = URL.createObjectURL(new Blob([out], { type: 'text/markdown' }));
+      const link = document.createElement('a');
+      link.href = url; link.download = name;
+      link.click(); URL.revokeObjectURL(url);
+      // Two different causes, two different fixes. Opened from file:// there was
+      // never a server. Served but unreachable means it has stopped since -- the
+      // usual case when answers took a while -- and the fix is to restart it,
+      // not to go hunting in Downloads.
+      const neverServed = location.protocol === 'file:';
+      saveToast(false,
+        'Saved to Downloads, not your workspace',
+        neverServed
+          ? 'This page was opened straight from disk, so there was no server to save through. '
+            + 'Move ' + name + ' into .jetrix/qa/reviews/ and it is ready.'
+          : 'The save server has stopped, so your answers went to Downloads instead. '
+            + 'They are not lost. Restart it and they will save normally next time \u2014 '
+            + 'or just move ' + name + ' into .jetrix/qa/reviews/.',
+        '/qa:plan qa/reviews/' + name);
+    });
+}
+
+function saveToast(ok, heading, pathLine, cmd) {
+  document.querySelectorAll('.save-toast').forEach(n => n.remove());
+  const box = document.createElement('div');
+  box.className = 'save-toast';
+  box.innerHTML =
+    '<div class="st-head">' + (ok ? '\u2713 ' : '! ') + heading + '</div>' +
+    '<div class="st-path"></div>' +
+    '<div class="st-sub">' + (ok ? 'Next, run:' : 'Then run:') + '</div>' +
+    '<div class="st-cmd"></div>' +
+    '<button class="st-ok">Got it</button>';
+  box.querySelector('.st-path').textContent = pathLine;
+  box.querySelector('.st-cmd').textContent = cmd;
+  box.querySelector('.st-ok').onclick = () => box.remove();
+  if (!ok) box.classList.add('warn');
+  document.body.appendChild(box);
 }
 init();
+hopToServer().then(function (hopped) { if (!hopped) showSaveBanner(); });
 </script>
 </body>
 </html>

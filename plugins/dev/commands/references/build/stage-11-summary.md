@@ -1,8 +1,8 @@
-## Stage 11 — Report summary + `local-runbook.md`
+## Stage 11 — Report summary + `pr-summary.md` § `## How to verify`
 
-**Purpose.** Two artifacts. First: in-terminal summary so the developer knows what happened. Second: `dev/local-runbook.md` — a developer-facing setup + run guide for verifying locally (NOT the PR summary — that's `/dev:commit`'s job). The runbook lives at `dev/local-runbook.md` (v2.3.11) — implementation.md is plan-only and does not carry the verify runbook.
+**Purpose.** Two artifacts. First: in-terminal summary so the developer knows what happened. Second: `units/<repo>/pr-summary.md § ## How to verify` — a developer-facing setup + run guide for verifying locally (NOT the PR summary — that's `/dev:commit`'s job). The runbook lives at `units/<repo>/pr-summary.md § ## How to verify` (v2.3.11) — implementation.md is plan-only and does not carry the verify runbook.
 
-**Runs after Stage 10.** Final stage. State: `TESTING → IN_PROGRESS` (build phase done; local state stays IN_PROGRESS until `/dev:commit` flips to REVIEW). MC: `inProgress` (unchanged; `/dev:commit` sets `devReview`).
+**Runs after Stage 10.** Final stage. status `inProgress` · phase `built` (build phase done; local state stays inProgress until `/dev:commit` flips to devReview)
 
 **On completion:** developer has a clear, actionable summary of the build + the runbook they need to verify the feature manually.
 
@@ -10,7 +10,7 @@
 
 ### 11a. Preconditions
 
-- `dev/build-run.md` Stages 1-10 all `status: DONE`
+- `units/<repo>/status.md § ## Run history` Stages 1-10 all `status: DONE`
 - Branch has commits (from Stage 10's context update + earlier code commits)
 
 ---
@@ -48,7 +48,7 @@ Security review (build-time, Critical-blocking only):
   · High:      2 (deferred to /dev:commit's stricter gate)
   · Medium:    1
   · Low:       1
-  See: dev/security-findings-build.md
+  See: units/<repo>/findings.md § ## Security — build
 
 Acceptance map: 12/12 rows resolved
   · Pass locally:    12  (Unit + Integration + Component + Concurrency tiers per qa/quality-gates.md)
@@ -63,49 +63,48 @@ Code-context:
   · Indexes: backend-index.md, database-index.md updated
   · Commit: a1b2c3d
 
-Local state:   IN_PROGRESS  (build phase complete; awaiting /dev:commit)
-MC status:     inProgress   (will transition to devReview on /dev:commit)
+Status:        inProgress   (will transition to devReview on /dev:commit)
 MC parent:     https://mission-control.techjays.com/task/6a94fe0ebc48d4e7d1cab15b
 MC sub-task:   https://mission-control.techjays.com/task/6b72a1c48d4e7d1cab2c7
 
 Next steps:
-  1. Review dev/local-runbook.md — env vars + how to run manually
+  1. Review units/<repo>/pr-summary.md § ## How to verify — env vars + how to run manually
   2. Verify the feature locally (see runbook)
   3. When ready, run:  /dev:commit FEAT-SUP-001-1
 
 Navigation sources (v2.3.17 — task-mcp is the URL source of truth):
   · MC parent URL   ← task-mcp `get_task_by_id_or_number(solution_id, feature.md `jetrix_task_object_id`)` response `.view_url`
-  · MC sub-task URL ← task-mcp `get_task_by_id_or_number(solution_id, subtask/<repo>/status.md `jetrix_subtask_object_id`)` response `.view_url`
+  · MC sub-task URL ← task-mcp `get_task_by_id_or_number(solution_id, units/<repo>/status.md `jetrix_subtask_object_id`)` response `.view_url`
     /dev:build did NOT push (that was /dev:plan Stage 4), so read the URLs via task-mcp lookup, not by constructing locally.
     Never build the URL from `.jetrix/project.json` `mission_control_ui_url` directly — task-mcp's env var is the source of truth and may differ.
 
 Files written by this run:
-  - dev/build-run.md
-  - dev/implementation-log.md
-  - dev/acceptance-map.md
-  - dev/security-findings-build.md
-  - dev/local-runbook.md
+  - units/<repo>/status.md § ## Run history
+  - units/<repo>/status.md § ## Run history
+  - units/<repo>/status.md § ## Acceptance
+  - units/<repo>/findings.md § ## Security — build
+  - units/<repo>/pr-summary.md § ## How to verify
   - dev/decisions.md
 ```
 
 ---
 
-### 11c. Compose `dev/local-runbook.md` — developer-facing setup guide
+### 11c. Compose `units/<repo>/pr-summary.md § ## How to verify` — developer-facing setup guide
 
-**Not** the PR summary. `dev/local-runbook.md` is what the developer reads at their desk to verify the feature works on their machine. Persisted as a discrete file so implementation.md stays plan-only.
+**Not** the PR summary. `units/<repo>/pr-summary.md § ## How to verify` is what the developer reads at their desk to verify the feature works on their machine. Persisted as a discrete file so implementation.md stays plan-only.
 
 Frontmatter:
 
 ```yaml
 ---
-doc_type: local-runbook
+doc_type: `pr-summary.md` § `## How to verify`
 schema_version: 1.0
 produced_by: dev
 feature_id: FEAT-<AREA>-NN
 subtask_number: <N>            # OMIT for parent-alone
 subtask_repo: <repo-slug>
 generated_at: <ISO>
-build_run_id: <build-run-timestamp>
+build_id: <build-timestamp>
 ---
 ```
 
@@ -140,7 +139,7 @@ the supplier creation + validation endpoint; the frontend sub-task provides the 
 3. **Cross-reference with the repo's `.env.example`** — every var listed there is a documented required var for the service.
 4. Union all three sources → deduplicate → categorize per var:
 
-   | Category | Detection | Marker in local-runbook |
+   | Category | Detection | Marker in `pr-summary.md` § `## How to verify` |
    |---|---|---|
    | Required, from repo's `.env.example` with placeholder | Present in `.env.example` with `<placeholder>` value | `[SET REQUIRED — see <where to get>]` |
    | Required, verified at Stage 7 startup | Present in `external_services_started[].env_vars_verified` | `[SET REQUIRED — service won't start without it]` |
@@ -245,13 +244,13 @@ pnpm format:check        # Prettier
 
 Use the repo's real commands and package manager, not this example. **Give each runner its own line and its own test count** — a unit runner and a browser runner are separate commands with separate totals, and a reader handed one combined figure will run one command, see a smaller number, and assume the run was broken.
 
-Expected: all gates pass. `dev/acceptance-map.md` was built assuming these all pass.
+Expected: all gates pass. `units/<repo>/status.md § ## Acceptance` was built assuming these all pass.
 
 **CI:** name the workflow that already runs these gates (`.github/workflows/*.yml` or equivalent) and which of them it covers, so nobody re-wires what exists. Build never watches CI — so tell the reader to confirm the run is green on the PR rather than claiming it here. Where no workflow runs them, say so: local is then the only place they have ever passed.
 
 ## 9. Known follow-ups
 
-<From `[HELD]` markers in the plan, `deferred-to-e2e` rows in acceptance-map, and any Medium/Low security findings>
+<From `[HELD]` markers in the plan, `deferred-to-e2e` rows in `## Acceptance` table, and any Medium/Low security findings>
 
 - E2E: 4 ACs marked deferred-to-e2e — closed by the last sub-task to land (per parent Feature-4's rollup Sub-tasks table)
 - Security warnings deferred to /dev:commit's stricter gate: SR-B-001 (auth guard on POST /supplier), SR-B-002 (axios version pin)
@@ -278,12 +277,13 @@ Every section is filled from the actual build's data — no placeholders. If a s
 
 ### 11d. State transitions
 
-- Local state: `TESTING → IN_PROGRESS` (build phase done; `/dev:commit` will flip to `REVIEW`)
+- Local state: `agentExecuting → inProgress` (build phase done; `/dev:commit` will flip to `devReview`)
 - MC status: `inProgress` (unchanged — `/dev:commit` transitions to `devReview`)
 - Update `status.md`:
 
 ```yaml
-current_state: IN_PROGRESS
+status: inProgress
+phase: built
 owner_lock: <current agent id>
 branch: feature/FEAT-SUP-001-supplier-onboarding-backend
 build_completed_at: 2026-08-31T15:23:12Z
@@ -296,15 +296,15 @@ ready_for_dev_commit: true
 
 ### 11e. Progress log format
 
-Append to `dev/build-run.md`:
+Append to `units/<repo>/status.md § ## Run history`:
 
 ```yaml
 stage-11:
   status: DONE
   started_at: 2026-08-31T15:23:12Z
   summary_printed: true
-  local_runbook_written: dev/local-runbook.md
-  pr_summary_pre_generated: false                # /dev:commit generates dev/pr-summary.md
+  local_runbook_written: units/<repo>/pr-summary.md § ## How to verify
+  pr_summary_pre_generated: false                # /dev:commit generates units/<repo>/pr-summary.md
   finished_at: 2026-08-31T15:23:44Z
 ```
 
@@ -312,7 +312,7 @@ Also close the top-level frontmatter:
 
 ```yaml
 build_completed_at: 2026-08-31T15:23:44Z
-final_state: IN_PROGRESS
+final_state: inProgress
 next_command: /dev:commit <task-ref>
 ```
 
@@ -320,7 +320,7 @@ next_command: /dev:commit <task-ref>
 
 ### 11f. On `--resume`
 
-If `--resume` finds `stage-11.status: DONE`, print the same summary from `build-run.md` + `dev/local-runbook.md`'s existence, don't rebuild.
+If `--resume` finds `stage-11.status: DONE`, print the same summary from `status.md` § `## Run history` + `units/<repo>/pr-summary.md § ## How to verify`'s existence, don't rebuild.
 
 If Stage 11 was interrupted mid-write (rare — file writes are usually atomic), re-run.
 
@@ -328,7 +328,7 @@ If Stage 11 was interrupted mid-write (rare — file writes are usually atomic),
 
 ### Skills / agents invoked
 
-- Direct file writes (`dev/local-runbook.md`, `dev/build-run.md`, `status.md`)
+- Direct file writes (`units/<repo>/pr-summary.md § ## How to verify`, `units/<repo>/status.md § ## Run history`, `status.md`)
 - Direct stdout print for the terminal summary
 - No subagents
 

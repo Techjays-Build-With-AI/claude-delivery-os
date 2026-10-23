@@ -8,21 +8,74 @@
 
 Keep the frontmatter and the gate table stable; consumers key off them.
 
-## Frontmatter
+## One file, a section per repo
+
+`qa/quality-gates.md` is **one file whatever the repo count**, with a `## <repo>` section each — including on a
+single-repo workspace, so no consumer needs a special case.
+
+**This is a correctness fix.** It was one file written once per repo:
+
+```
+/qa:setup repo=backend    → quality-gates.md   pytest · coverage_floor 70
+/qa:setup repo=frontend   → quality-gates.md   OVERWRITTEN — vitest · 60
+
+/dev:build Subtask-7 (backend)
+  Stage 4 reads it → finds vitest
+  Stage 7 runs `npm test` in the Python repo
+```
+
+**A writer touches only its own section.** Read the file, replace `## <repo>`, write it back. Never regenerate
+the whole file from one repo's audit, and never fall back to another repo's section when yours is absent — a
+missing section means that repo has no harness, which is the bootstrap case, not a licence to borrow.
+
+## Frontmatter — a map keyed by repo
 
 ```yaml
 ---
 doc_type: quality-gates
-schema_version: 1.4
+schema_version: 2.0
 produced_by: qa
-harness_status: Active        # Active (proven green) | Stack-Inferred (tiers inferred from stack detection, not confirmed by audit) | Draft (planned, not yet proven) | Broken (a Required gate ran and failed) | Blocked (a Required gate could not run — missing service, env var or tool)
-baseline_status: Met          # Met | Unmet — every mandatory BL-## in baseline-profile.md is present AND enforced
-baseline_unmet: []            # list of unmet mandatory BL-## ids when baseline_status is Unmet, e.g. [BL-08, BL-09]
-coverage_floor: 70            # percent; the enforced minimum, or null if not enforced
-source_audit: 2026-07-05-143210
-generated_at: 2026-07-05
+generated_at: 2026-10-21
+repos:
+  backend:
+    harness_status: Active        # Active (proven green) | Stack-Inferred (inferred from stack
+                                  # detection, not confirmed by audit) | Draft (planned, not proven)
+                                  # | Broken (a Required gate ran and failed) | Blocked (a Required
+                                  # gate COULD NOT run — missing service, env var or tool)
+    baseline_status: Met          # Met | Unmet — every mandatory BL-## present AND enforced
+    baseline_unmet: []            # the unmet mandatory BL-## ids when Unmet, e.g. [BL-08, BL-09]
+    coverage_floor: 70            # percent; the enforced minimum, or null if not enforced
+    source_audit: 2026-10-16-142203
+  frontend:
+    harness_status: Stack-Inferred
+    baseline_status: Unmet
+    baseline_unmet: [BL-08]
+    coverage_floor: 60
+    source_audit: null
 ---
 ```
+
+**The key is the repo slug** — the same one in `cache/repolocation.json` and in `units/<repo>/`. That is what
+lets a consumer resolve its section from the unit it is working on without being told which.
+
+**`Broken` and `Blocked` are different and must not be collapsed.** `Broken` means a Required gate ran and
+failed — there is a real problem in the code. `Blocked` means it could not run at all, so **nothing was
+measured**; reporting that as a pass or a failure are both lies. The stamp names the missing prerequisite.
+
+## Section structure — inside each `## <repo>`
+
+| Sub-section | Holds | Read by |
+|---|---|---|
+| `## Gates` | one row per gate: id, Required / Required* / Optional, the **exact command**, threshold, current Status | `/dev:build` Stages 4/7/8 · `/dev:commit` Stage 5 |
+| `## Green smoke` | the documented sequence proving the harness runs end to end | `/qa:setup` · `/qa:health` |
+| `## Conventions` | how **this repo** writes tests — naming, fixtures, factories, what belongs in unit vs integration | `dev-stack-adaptive-implementation`, which wrote tests with no such contract before |
+| `## History` | dated `/qa:health` results and drift | a human asking when it last passed |
+
+**`## Conventions` finally has a consumer.** It was `testing-conventions.md`, which nothing read, while the
+skill that writes tests had nothing telling it the repo's idiom.
+
+**The exact command, not a description.** `poetry run pytest -q --cov=app --cov-fail-under=70` is runnable;
+"run the test suite with coverage" is not, and the gate exists to be executed.
 
 ## Baseline status — the mandatory floor
 
@@ -91,10 +144,10 @@ This is the mechanism that keeps an untestable concern visible. An async consume
 
 - Adding, tightening, or **loosening** a gate or threshold is a `DEC-###` decision in `shared-context/decision-log.md` with a rationale — never a silent edit. Lowering `coverage_floor` especially must be justified and human-approved.
 - A `Required*` gate whose **condition holds** but whose command is `Not-configured` is a **reportable gap**, never a silent pass. `/qa:audit` raises it as a `QAF-###`; `/qa:health` reports it; dev reports it as `tier-unavailable`. Deciding not to configure one is a `DEC-###` with a rationale, not an omission.
-- On any change, bump `generated_at`; if a required gate goes red, set `harness_status: Broken` and surface it (that's a dev readiness blocker until fixed).
-- `/qa:health` re-runs the Required gates and updates `Status` + `harness_status` from real results.
+- On any change, bump `generated_at`; if a required gate goes red, set that repo's `harness_status: Broken` and surface it (that's a dev readiness blocker until fixed).
+- `/qa:health repo=<repo>` re-runs that repo's Required gates and updates its `Status` + `harness_status` from real results, appending to its `## History`. It never touches another repo's section.
 
 ## How dev consumes this (informative)
 
-- **Readiness gate:** `harness_status: Active` (and the runner/coverage gates present) → harness exists, proceed. `Draft`/`Broken` or file absent → route to QA (`/qa:audit` → `/qa:setup`), analogous to the project-zero → bootstrap route.
-- **dev-validation:** run every `Required` gate's command, plus any `Optional` gate whose rule the feature triggers; map results into the feature's `acceptance-map.md`. The `coverage_floor` is the enforced minimum for the feature's changes. For an AI-bearing feature it also runs the TL's `EVAL-` verifiers (QG-011 or directly) and inspects them for reward hacking.
+- **Readiness gate:** the unit's own `repos.<repo>.harness_status: Active` (and the runner/coverage gates present) → harness exists, proceed. `Draft`/`Broken` or file absent → route to QA (`/qa:audit` → `/qa:setup`), analogous to the project-zero → bootstrap route.
+- **dev-validation:** run every `Required` gate's command, plus any `Optional` gate whose rule the feature triggers; map results into the feature's `status.md` § `## Acceptance`. The `coverage_floor` is the enforced minimum for the feature's changes. For an AI-bearing feature it also runs the TL's `EVAL-` verifiers (QG-011 or directly) and inspects them for reward hacking.

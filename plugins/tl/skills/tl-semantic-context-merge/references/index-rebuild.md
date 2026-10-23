@@ -1,6 +1,6 @@
 # Index-rebuild — row-union merge for layer indexes
 
-**Purpose.** How to merge the three layer indexes — `context/frontend/frontend-index.md`, `context/backend/backend-index.md`, `context/database/database-index.md` (filenames on disk; frontmatter doc_types are `page-index` / `endpoint-index` / `entity-index` respectively) — when both baseline (`main`) and our feature-branch copy have edits.
+**Purpose.** How to merge the three layer indexes — `<repo>/context/code-context/frontend/frontend-index.md`, `<repo>/context/code-context/backend/backend-index.md`, `<repo>/context/code-context/database/database-index.md` (filenames on disk; frontmatter doc_types are `page-index` / `endpoint-index` / `entity-index` respectively) — when both baseline (`main`) and our feature-branch copy have edits.
 
 Rule of thumb: **indexes are tables keyed by unit_id.** Merge is a row union with per-row field-level LWW.
 
@@ -93,10 +93,10 @@ Never leave stale `updated_at` on the merged index.
 
 ### Step 5 — Log the union outcome
 
-Append to `dev/context-merge-log.md`:
+Append to `units/<repo>/findings.md § ## Context merge`:
 
 ```yaml
-- file: context/backend/backend-index.md
+- file: <repo>/context/code-context/backend/backend-index.md
   action: row_union
   our_rows_added: [EP-SUP-02]
   baseline_rows_preserved: [EP-ORD-14]

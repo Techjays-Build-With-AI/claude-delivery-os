@@ -15,7 +15,7 @@ You assess how testable a repository is and hand the human a decision surface �
 
 Invoke the **qa-agent** subagent. Pass it this instruction:
 
-> Run a read-only test-readiness audit using the `qa-test-audit` skill — follow `references/audit-rubric.md` and `references/report-template.md`. Detect the stack and existing test tooling from the repo (manifests, scripts, CI config, test dirs); read `features/` / `ba/scope.md` and `context/project/` where present to know what must be testable. Score each applicable rubric area /10, mark inapplicable areas N/A, and record every gap as a stable `QAF-###` finding — severity (`Blocker`/`Major`/`Minor`/`Nit`), what's missing, why it matters to the dev delivery loop, a recommendation, a recommended option with a one-line rationale grounded in the detected stack, and an effort estimate. Compute the readiness score (average of applicable areas) and verdict (`Not testable`/`Major gaps`/`Workable`/`Solid`), letting any Blocker cap it. Build one structured audit object, read a run timestamp from the system clock, and write the `.json` sidecar first, then generate `qa/audits/test-audit-<timestamp>.html` from it with the bundled UTF-8-safe injector (`node assets/inject.js assets/report.html qa/audits/test-audit-<timestamp>.json __AUDIT_DATA__ qa/audits/test-audit-<timestamp>.html` — never hand-assemble the HTML, or non-ASCII glyphs like § and — double-encode into mojibake), plus the `.md`. Change no repository files. Return the score, verdict, scorecard, top `QAF-###` gaps, and links.
+> Run a read-only test-readiness audit using the `qa-test-audit` skill — follow `references/audit-rubric.md` and `references/report-template.md`. Detect the stack and existing test tooling from the repo (manifests, scripts, CI config, test dirs); read `features/` / `requirements/<slug>/scope.md` and `shared-context/` where present to know what must be testable. Score each applicable rubric area /10, mark inapplicable areas N/A, and record every gap as a stable `QAF-###` finding — severity (`Blocker`/`Major`/`Minor`/`Nit`), what's missing, why it matters to the dev delivery loop, a recommendation, a recommended option with a one-line rationale grounded in the detected stack, and an effort estimate. Compute the readiness score (average of applicable areas) and verdict (`Not testable`/`Major gaps`/`Workable`/`Solid`), letting any Blocker cap it. Build one structured audit object, read a run timestamp from the system clock, write it to a scratch file (**not** an output — it is injection input), then generate `qa/reviews/<repo>-audit-<timestamp>.html` from it with the bundled UTF-8-safe injector (`node assets/inject.js assets/report.html <scratch>/audit-data.json __AUDIT_DATA__ qa/reviews/<repo>-audit-<timestamp>.html` — never hand-assemble the HTML, or non-ASCII glyphs like § and — double-encode into mojibake), plus the `.md`. Change no repository files. Return the score, verdict, scorecard, top `QAF-###` gaps, and links.
 >
 > Repository: `<repo or current workspace>`
 
@@ -31,11 +31,22 @@ Stack: <detected stack · package manager · runner or "none">
 Blockers: <n>   Major: <n>   Minor: <n>
 Current coverage: <measured %, or "not instrumented">
 
-Report → qa/audits/test-audit-<ts>.html
+Report
+  http://127.0.0.1:<port>/<repo>-audit-<ts>.html     ← open in your browser
+  qa/reviews/<repo>-audit-<ts>.html                   ← the file itself
 
 Next:
-  1. Open the report, set Adopt / Skip / Defer per finding, Export approvals
-  2. /qa:plan qa/audits/test-audit-<ts>-approvals.md
+  1. Set Adopt / Skip / Defer per finding, click Save approvals — it writes
+     qa/reviews/<repo>-audit-<ts>-approvals.md
+  2. /qa:plan qa/reviews/<repo>-audit-<ts>-approvals.md
 ```
+
+**Start the server yourself as the last action of the run** — the same script the BA review uses, pointed at this folder:
+
+```bash
+node ${CLAUDE_PLUGIN_ROOT}/../delivery-os-core/scripts/serve-review.js .jetrix/qa/reviews
+```
+
+Read the port from its `DELIVERY_OS_SERVE_READY` line — `delivery-os-conventions` §1.e. Save approvals POSTs back to it, so the approvals file lands in `qa/reviews/` and `/qa:plan` can be run against the path the toast shows. Opened from `file://` instead, Save degrades to a download and the page says so; report the local path and carry on rather than failing the audit over it.
 
 **Report `Current coverage` as a measured number** whenever coverage tooling exists — run it and read the result; never estimate. This is the figure the human needs to set a reachable floor at `/qa:plan`: on an existing repo the floor is baselined to what the code passes **today** and ratcheted afterwards, not set to a greenfield default it cannot meet. Where no coverage tool is configured, say `not instrumented` rather than implying zero.

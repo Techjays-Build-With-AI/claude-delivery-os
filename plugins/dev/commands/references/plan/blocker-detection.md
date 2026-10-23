@@ -1,12 +1,12 @@
 ## Stage 3 — Blocker detection (v2.3 refactor — was Stage 3.5 sub-phase)
 
-**Purpose.** Surface every plan-time decision the user must make BEFORE Stage 4 (compose + push) runs. Because Stage 4 refuses to write `implementation.md` on open blockers, this stage gates the compose. Any unknown, ambiguous, or "figure-out-later" item detected here becomes a **`PB-###` Plan Blocker** written to `dev/<repo>-plan-blockers.md` (sub-task) or `dev/plan-blockers.md` (parent-alone) for user resolution.
+**Purpose.** Surface every plan-time decision the user must make BEFORE Stage 4 (compose + push) runs. Because Stage 4 refuses to write `implementation.md` on open blockers, this stage gates the compose. Any unknown, ambiguous, or "figure-out-later" item detected here becomes a **`PB-###` Plan Blocker** written to `units/<repo>/plan-blockers.md` (sub-task) or `units/<repo>/plan-blockers.md` (parent-alone) for user resolution.
 
-**v2.3 refactor note:** in v2.2 this ran AFTER a half-baked `implementation.md` was already composed + pushed to MC. In v2.3 this runs on the Stage 2 analysis scratchpad (`dev/<repo>-analysis.md`) BEFORE any `implementation.md` exists — so a blocker never leaves a partial file behind.
+**v2.3 refactor note:** in v2.2 this ran AFTER a half-baked `implementation.md` was already composed + pushed to MC. In v2.3 this runs on the Stage 2 analysis scratchpad (`units/<repo>/analysis.md`) BEFORE any `implementation.md` exists — so a blocker never leaves a partial file behind.
 
 **Runs per task** (parent-alone → once; split feature → once per sub-task, IDs prefixed with sub-task number: `PB-1-###`, `PB-2-###`).
 
-**On completion:** either NO blockers (task proceeds to Stage 4 compose+push) OR `plan-blockers.md` written and task set to `BLOCKED_ON_PLAN` (MC `blocked`), user resolves, re-runs `/dev:plan --resume`.
+**On completion:** either NO blockers (task proceeds to Stage 4 compose+push) OR `plan-blockers.md` written and task set to `blocked` (MC `blocked`), user resolves, re-runs `/dev:plan --resume`.
 
 ---
 
@@ -14,10 +14,16 @@
 
 Scan each source; every hit generates a candidate blocker. Deduplicate by target-file + issue; a single unknown can be surfaced by multiple sources.
 
-#### Source 1 — `dev/<repo>-analysis.md` scratchpad `[HELD]` markers + `TBD` / `unknown` entries (Stage 2 output)
+**Dedup across the batch, not just within a task.** Some findings are facts about the repository or the project, not about the feature that happened to trip over them — a base branch missing code that sits on another branch, an unmapped repo, an absent shared helper, a pending `DEC-###` merge. Asked per feature, one such fact becomes N identical questions; the user in front of them cannot tell it is the same decision each time.
 
-For parent-alone target: `features/<slug>/dev/analysis.md`.
-For sub-task target: `features/<slug>/dev/<repo>-analysis.md`.
+So before minting, classify: does the answer depend on **this feature**, or would it be identical for every feature in the batch? Batch-wide answers are minted **once**, against the first task that surfaced them, and every other affected task records `Blocked by <that PB>` and carries on. Ask it once, at the batch checkpoint, with the list of features it gates — never once per feature.
+
+**And check whether it is already decided.** A finding whose answer is written in a `DEC-###` in `shared-context/decision-log.md` is not an open question: cite the decision, record it as an assumption per §5.3.0, and do not ask.
+
+#### Source 1 — `units/<repo>/analysis.md` scratchpad `[HELD]` markers + `TBD` / `unknown` entries (Stage 2 output)
+
+For parent-alone target: `features/<slug>/units/<repo>/analysis.md`.
+For sub-task target: `features/<slug>/units/<repo>/analysis.md`.
 
 Also grep the corresponding TL brief (`features/<slug>/tl-plan.md`) for `[HELD]` markers that made it into TL's rollup but weren't reconciled by Stage 2 analysis.
 
@@ -33,9 +39,9 @@ NEEDS:                           # e.g. "NEEDS: exact endpoint URL"
 
 For each hit: extract the line's context (~30 chars either side) and the `##` section it lives under.
 
-#### Source 2 — BA `open-questions.md` "Blocks build" rows (v2.3.3 skip-resolved)
+#### Source 2 — BA `dependencies.md` § `## Open questions` "Blocks build" rows (v2.3.3 skip-resolved)
 
-Read `features/<slug>/open-questions.md`. Look at BOTH the frontmatter `open_questions:` YAML array AND body table rows. Match rows where the `impact` / `Impact` field (case-insensitive) starts with:
+Read `features/<slug>/dependencies.md` § `## Open questions`. Look at BOTH the frontmatter `open_questions:` YAML array AND body table rows. Match rows where the `impact` / `Impact` field (case-insensitive) starts with:
 
 - `Blocks build`
 - `Blocks implementation`
@@ -45,9 +51,9 @@ Read `features/<slug>/open-questions.md`. Look at BOTH the frontmatter `open_que
 
 Extract each unresolved matching row's `OQ-###` id, question text, and Impact.
 
-#### Source 3 — BA `ba/registers/integrations.md` unresolved entries
+#### Source 3 — BA `shared-context/integrations.md` unresolved entries
 
-Read `ba/registers/integrations.md`. Look for `INT-###` rows where ANY of these fields is missing / empty / `TBD` / `?`:
+Read `shared-context/integrations.md`. Look for `INT-###` rows where ANY of these fields is missing / empty / `TBD` / `?`:
 
 - `endpoint` (URL)
 - `auth` (auth mechanism)
@@ -67,14 +73,19 @@ Read `shared-context/system-landscape.md`. If this task's parent `feature.md` de
 
 Missing OR listed as `TBD` → blocker.
 
-#### Source 5 — `implementation.md §2 Impacted components` `unknown` entries
+#### Source 5 — `analysis.md` § `impact_matrix` `unknown` entries
+
+**Read `analysis.md`, not `implementation.md`.** Blocker detection runs at Stage 3, and `implementation.md`
+is composed at Stage 4 — it does not exist yet. The v2.3 stage reorder moved the compose after detection and
+left this input list behind, so the source read a file that had not been written and silently found nothing.
+The impact matrix it wants is a block of the Stage 2 scratchpad, which is where it has always actually lived.
 
 Read the impact analysis. In any of the 12 dimensions, entries marked `unknown` (not `N/A`) are blockers. `N/A` is a legitimate decision (dimension doesn't apply); `unknown` means we didn't figure it out.
 
-#### Source 6 — `comments.md` unresolved threads
+#### Source 6 — `discussion.md` § `## Comments` unresolved threads
 
-Read `comments.md` in the task's own folder (`features/<slug>/`,
-`features/<slug>/subtask/<repo>/`, or `tasks/<slug>/`). Pulled from Mission
+Read `discussion.md` § `## Comments` in the task's own folder (`features/<slug>/`,
+`features/<slug>/units/<repo>/`, or `tasks/<slug>/`). Pulled from Mission
 Control by `/dev:plan` §2c; absent when the task has no discussion, which is
 the normal case — skip silently.
 
@@ -102,8 +113,8 @@ For each ordered step in `implementation.md`, apply these questions. Any YES →
 
 | Question | Blocker if YES |
 |---|---|
-| Does this step call an external system whose contract isn't in `ba/registers/integrations.md`? | Yes — missing integration contract |
-| Does this step apply a business rule whose edge case isn't decided in `ba/registers/business-rules.md`? | Yes — unclear BR edge case |
+| Does this step call an external system whose contract isn't in `shared-context/integrations.md`? | Yes — missing integration contract |
+| Does this step apply a business rule whose edge case isn't decided in `requirements/<slug>/registers/business-rules.md`? | Yes — unclear BR edge case |
 | Does this step require a config value (env var, credential, URL) not documented in `shared-context/technology-stack.md`? | Yes — missing config |
 | Does this step have two or more implementations that would produce different observable behaviour? | Yes — undecided implementation choice |
 | Does this step reference a schema field whose type/nullability/constraint isn't unambiguous in the TL entity file OR BA data register? | Yes — ambiguous schema |
@@ -141,7 +152,41 @@ Never mint one of these off the ticket text alone — a mismatch claim is only a
 
 ### 5.3 Blocker minting
 
-For each detected issue that survives dedup:
+#### 5.3.0 First decide whether it is a blocker at all
+
+**A detected unknown is not automatically a blocker.** Without this test every `TBD` in an analysis
+scratchpad became a `PB-###`, and a 19-feature batch produced 46 of them — "which fields are
+mandatory at registration", "two calendar days or two working days", "wording of the 401 and 403
+messages". Those are answerable from the scope and the repo; handing all 46 back as questions turns
+planning into an interrogation and buries the few that genuinely need the client.
+
+BA already draws this line — its ledger carries `Accepted (assumed)` beside `Open`, and most rows
+end up assumed. Planning needs the same line.
+
+For each detected issue, in order:
+
+1. **Can it be settled from context you already hold?** The scope and its registers, an existing
+   convention in the repo, a prior `DEC-###`, or the ecosystem default for the stack. If step 3
+   below could draft a recommended option, you can almost always take that option instead of asking.
+2. **If yes, is it safe to assume?** It is NOT safe, and you mint a blocker regardless, when the
+   decision moves **money**, changes **who can see or do what**, alters a **stored schema** or an
+   **external contract**, or carries legal, compliance or data-retention weight. Those stay
+   blockers even when an obvious answer exists, because an obvious wrong answer is expensive.
+3. **If it is safe, record an assumption — do not mint.** Append an `ASM-###` to
+   `requirements/<slug>/ledger.md` (`kind: assumption`, `Status: Accepted (assumed)`) citing the
+   analysis line it came from, note it in `implementation.md`, and **list it in the plan summary**
+   under `Assumed (N)` with its one-line rationale. An assumption the user never sees is a guess;
+   an assumption they can read and overturn is a decision made on their behalf.
+
+Copy, wording, naming, file layout, library choice where the repo has no convention, and ordering
+that no acceptance criterion pins are **assume-by-default**. Permissions, pricing, retention,
+schema and third-party contracts are **blocker-by-default**.
+
+Only an issue that fails this test reaches the minting steps below.
+
+#### 5.3.1 Mint
+
+For each detected issue that survives dedup **and** §5.3.0:
 
 1. **Mint the next ID** for THIS task:
    - Parent-alone: `PB-001`, `PB-002`, ... (sequential per task, append-only across runs)
@@ -149,19 +194,19 @@ For each detected issue that survives dedup:
 2. **Determine the category** from §5.1/§5.2 (integration / auth / schema / config / BR-edge / dependency / etc.)
 3. **Find (or draft) options** with a recommendation:
    - For an integration missing a contract: recommend option 1 (use documented internal service if any exists in `system-landscape.md`)
-   - For an ambiguous BR: recommend option 1 (whichever reading matches `ba/registers/business-rules.md` most literally)
+   - For an ambiguous BR: recommend option 1 (whichever reading matches `requirements/<slug>/registers/business-rules.md` most literally)
    - For a config value: recommend option 1 (existing convention in the repo if any; else industry default)
    - Include a "Trade-off" line per option — never present options without stakes
 4. **Blocks:** list which AC / BR / TS / dev-plan step is blocked, so the user sees the downstream impact
 
 ---
 
-### 5.4 Writing `dev/plan-blockers.md`
+### 5.4 Writing `units/<repo>/plan-blockers.md`
 
 Write to:
-- Parent-alone: `features/<slug>/dev/plan-blockers.md`
-- Sub-task: `features/<slug>/dev/<repo>-plan-blockers.md` (repo-slug prefix — v2.3 flat dev/ convention)
-- Non-feature ticket: `tasks/<slug>/dev/plan-blockers.md` (never split, so never repo-prefixed)
+- Parent-alone: `features/<slug>/units/<repo>/plan-blockers.md`
+- Sub-task: `features/<slug>/units/<repo>/plan-blockers.md` (repo-slug prefix — v2.3 flat dev/ convention)
+- Non-feature ticket: `tasks/<slug>/units/<repo>/plan-blockers.md` (never split, so never repo-prefixed)
 
 **Frontmatter:**
 
@@ -219,16 +264,17 @@ After writing `plan-blockers.md` with `status: OPEN`:
 
 1. Update `status.md`:
    ```yaml
-   current_state: BLOCKED_ON_PLAN
-   blocker_file: dev/plan-blockers.md
+   status: blocked
+   phase: plan-blockers
+   blocker_file: units/<repo>/plan-blockers.md
    blocker_count: <N>
    ```
-2. Update `dev/plan-run.md` `stage-3` block:
+2. Update `units/<repo>/status.md § ## Run history` `stage-3` block:
    ```yaml
    stage-3:
      status: BLOCKED
      blockers_detected: <N>
-     blockers_file: dev/plan-blockers.md
+     blockers_file: units/<repo>/plan-blockers.md
      finished_at: <ISO>
    ```
 3. Push MC status → `blocked` via `task-mcp.update_task_status` (with a status_reason field if the schema supports it: `"blocked on plan-time decisions"`)
@@ -252,7 +298,7 @@ If Stage 3.5 finds an existing `plan-blockers.md`:
 - For each: is the `Resolution:` field non-empty AND not the placeholder text `_(fill in — ...)_`?
 - **All resolved** → set `status: RESOLVING`, hand off to `blocker-fold.md` reference
 - **Some unresolved** → halt with a targeted message listing the unresolved PBs; keep `status: OPEN`
-- **None exist / all `Applied at plan-fold:` already filled** → nothing to do; task already in `PLANNED`, continue to Stage 3.5's finalise sub-step
+- **None exist / all `Applied at plan-fold:` already filled** → nothing to do; task already in `readyForDev`, continue to Stage 3.5's finalise sub-step
 
 Fold logic lives in [`blocker-fold.md`](blocker-fold.md) — see that file for the per-category deterministic edit rules.
 
@@ -263,9 +309,9 @@ Fold logic lives in [`blocker-fold.md`](blocker-fold.md) — see that file for t
 Re-running `/dev:plan` (not `--resume`) on a task that already has `plan-blockers.md`:
 
 - **Do NOT wipe the file** — user's Resolutions are precious.
-- Re-run detection (§5.1 + §5.2). For each newly-detected issue, mint the next `PB-###` (append). For issues previously blocked that no longer appear (BA answered the question in `open-questions.md` etc.), leave the old PB in place with a note appended: `> Detected as resolved-upstream at <ISO>; leaving in file for audit.`
+- Re-run detection (§5.1 + §5.2). For each newly-detected issue, mint the next `PB-###` (append). For issues previously blocked that no longer appear (BA answered the question in `dependencies.md` § `## Open questions` etc.), leave the old PB in place with a note appended: `> Detected as resolved-upstream at <ISO>; leaving in file for audit.`
 - Update `last_updated:` frontmatter
-- If any new blockers were minted with unresolved Resolution → task stays `BLOCKED_ON_PLAN`
+- If any new blockers were minted with unresolved Resolution → task stays `blocked`
 
 ---
 

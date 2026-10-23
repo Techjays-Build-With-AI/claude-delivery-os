@@ -22,3 +22,13 @@ Invoke the **qa-agent** subagent. Pass it this instruction:
 ## 3. Surface the result
 
 Present the **gate status** (required vs optional, with current status and thresholds) and the **drift deltas** since the gates were set, with recommended actions. Link to `qa/quality-gates.md`. If a Required gate is red, lead with it — that's a dev readiness blocker until fixed.
+
+Close with the one step the result implies — **choose it, never print both**:
+
+| Result | Next |
+|---|---|
+| A Required gate is red | `/qa:plan qa/reviews/<repo>-audit-<ts>-approvals.md` if the fix is harness work, or the gate's own command if it is a real test failure. Say which, and name the gate. `/dev:build` refuses to start until it is green. |
+| Every Required gate green | `/dev:plan` — nothing blocks the loop. Blank plans every unplanned feature in the requirement; name a target only when the user asked for one. **Never narrow it to a subset yourself** (“start with the 4 release-1 features”) — which features to plan first is the user’s call, and the batch handles the ordering. |
+
+A drift you found but the human has not decided on is **not** a next step; it is a line in the deltas with
+the trade-off named. Never repair drift by lowering a threshold — that is a human `DEC-###`.

@@ -264,7 +264,7 @@ Also: how are env vars accessed in existing source? Grep a couple of source file
 
 ## 7. What to record
 
-Write to `dev/implementation-log.md` (or output to caller if the log doesn't exist yet):
+Write to `units/<repo>/status.md § ## Run history` (or output to caller if the log doesn't exist yet):
 
 ```yaml
 detected_stack:

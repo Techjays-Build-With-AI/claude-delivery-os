@@ -1,330 +1,296 @@
-# Dev context file templates
+# Unit file templates
 
-The exact schema for every file the dev agent writes. Build each from these so the `dev/` layer and the tracker stay uniform, traceable, and machine-parseable. Fill sections from the feature context, the TL graph, and the run; where a section has no supported content write the labelled placeholder (`None identified yet` / `TBD`) — never delete a heading, never invent content.
+Every file under `units/<repo>/`. These are written by one stage and read back by another, so the shape is a
+contract, not a style preference — `--resume` reads `status.md` to answer *where am I*, and the fix loop reads
+`findings.md` to answer *what is still open*.
 
-All dev files carry `produced_by: dev` and live under `features/<slug>/dev/`, except `feature-tracker.md`, which lives at `features/tracker.md`. Dates are ISO (`YYYY-MM-DD`), read from the system clock. Decisions logged here are **also** appended as `DEC-###` rows to `shared-context/decision-log.md`.
+**Three rules hold across all of them:**
 
-> **v2.3+ NOTE — Sections 1 and 2 below (`dev-plan`, `dev-impacted-components`) are RETIRED templates.** The v2.3 flat-3-file layout collapsed both into a single `implementation.md` authored by `tl-feature-compose` per the v2.3.15 9-section stack-agnostic frame. The current source of truth for implementation.md shape lives in `plugins/tl/skills/tl-feature-compose/SKILL.md` (Rules 1–15) and `plugins/tl/skills/tl-feature-compose/references/implementation-plan-template.md`. Sections 1 and 2 are kept for reference during migration from pre-v2.3 workspaces; new work should NOT produce these files.
+1. **Machine state lives in frontmatter; narrative lives in sections.** A stage that needs to know whether it may
+   run reads one YAML key, never a paragraph.
+2. **History is append-only.** Never rewrite an earlier entry — a run that failed and was retried is the record
+   that matters most when someone asks why the branch looks like that.
+3. **Never delete a row to make a table look clean.** A dropped acceptance row and a passing one are
+   indistinguishable afterwards, which is the failure these files exist to prevent.
 
 ---
 
-## 1. implementation.md (RETIRED — pre-v2.3 template only)
+## 1. `status.md` — state, history, proof
+
+The single state file. Three parts, and consumers read only the part they need.
 
 ```md
 ---
-doc_type: dev-plan
-schema_version: 1.1
-produced_by: dev
+doc_type: unit-status
+unit: backend                     # the repo slug; matches cache/repolocation.json
 feature_id: FEAT-SUP-001
-generated_at: YYYY-MM-DD
+status: inProgress                # the shared value — identical here, on Jetrix, on any tracker
+phase: built                      # local only, never pushed (conventions §5)
+branch: feature/FEAT-SUP-001-supplier-onboarding-backend
+base_branch: develop
+base_sha: 4f2c9a1
+owner_lock: dev-agent-2026-10-21T09:14:02Z
+ready_for_dev_build: true
+ready_for_dev_commit: false
+blocker_ids: []                   # PB-### still open
+status_pushed: true
+tests_only: false
+updated_at: 2026-10-21T11:02:17Z
 ---
 
-# Dev Plan: Supplier Onboarding
+## Run history
 
-## Implementation Goal
-One-paragraph statement of what "done" is, in acceptance-criteria terms.
+One entry per stage, appended. Newest last, so the file reads in the order things happened.
 
-## Ordered Implementation Steps
-1. … (each step cites the TL units and the acceptance criteria it satisfies)
+### 2026-10-21T09:14:02Z · /dev:plan · Stage 2 analysis
+- skill: tl-feature-planning
+- in:   feature.md · acceptance-criteria.md · EP-SUP-02 · ENT-SUP-01
+- out:  analysis.md (build_sequence 12 steps · impact_matrix 12/12 · risks 3)
+- 41s
 
-## Affected Files / Modules
-| Path | Change | Related TL unit |
-|---|---|---|
-| services/supplier/createSupplier.ts | new | EP-SUP-01 |
+### 2026-10-21T09:19:40Z · /dev:build · Stage 7 execute tests
+- cmd:  poetry run pytest -q
+- out:  273 passed · 28 skipped · exit 0
+- 2m04s
 
-## Required API Changes
-- … (reuse TL EP-<AREA>-NN contracts; note new/changed shapes)
+### 2026-10-21T10:48:11Z · /dev:build · Stage 8 verdict
+- final_status: COMPLETE     # COMPLETE · PARTIAL_DEFERRED · PARTIAL_HARNESS · PARTIAL_FAILURES
+- 12/12 §1 steps · 9/9 acceptance rows settled
 
-## Required Schema Changes
-- … (tables/columns/indexes, migration approach, rollback)
-
-## Test Strategy
-| Acceptance criterion | Test level | Evidence artifact |
-|---|---|---|
-
-## Rollback Considerations
-- …
-
-## Risks and Assumptions
-- … (include every non-critical readiness assumption carried forward)
-
-## Validation Criteria
-- … (the exact checks that constitute done)
-
-## Estimated Complexity
-Low | Medium | High — driver: …
-
-## Cross-Feature / Team Dependencies
-- …
+### 2026-10-21T11:02:17Z · BLOCKED
+- why:  PB-004 — the ERP sandbox rejects the test credential
+- what is unblocked: nothing in this unit; frontend is unaffected
+- next: /dev:resolve --plan Feature-4
 ```
 
+**Every entry carries a timestamp, the command, the stage, and what it produced.** An entry with no output is
+a stage that ran and did nothing, which is worth recording for exactly that reason.
+
+**A `BLOCKED` entry replaces the old `escalation-<n>.md`.** It names *why*, *what is still unblocked* (so the
+other units are not stopped by association), and the command that resolves it.
+
+```md
+## Acceptance
+
+One row per parent assertion. **Every parent AC, BR, NFR and test scenario gets a row** — including the ones
+that cannot be settled here.
+
+| Kind | ID | Assertion | Evidence | Result | Notes |
+|---|---|---|---|---|---|
+| AC | AC-03 | Rejects a duplicate supplier tag | `test_supplier.py::test_dup_tag` | ✅ pass | |
+| BR | BR-07 | One open record per normalised tag | `test_supplier.py::test_unique` | ✅ pass | |
+| AC | AC-08 | Coordinator sees the rejection reason | — | ⏸ deferred-to-e2e | needs the frontend unit |
+| NFR | NFR-02 | p95 under 400ms at 50 rps | load run, 310ms | ✅ pass | |
+| TS | TS-11 | ERP sync retries twice then alerts | — | verified: not-verified | ERP sandbox unavailable |
+```
+
+Results are controlled: `✅ pass` · `❌ fail` · `⏸ deferred-to-e2e` · `verified: manually` ·
+`verified: not-verified`.
+
+**`deferred-to-e2e` is a cross-unit row** — it closes only when every sibling unit is done, which is why the
+parent's `status.md` carries a per-unit table and the last unit to land resolves them.
+
+**`verified: not-verified` is not a failure and not a pass.** It says a check could not run. Scoring it either
+way is the lie these columns exist to prevent.
+
 ---
 
-## 2. implementation.md §2 Impacted components (RETIRED — pre-v2.3 template only)
+## 2. `findings.md` — fix-loop state, read and rewritten
+
+**Not an archive.** Build Stage 9 and commit Stages 3–5 write it; **Stage 6 reads it**, fixes each finding,
+re-runs the originating stage and rewrites this file. Stage 8 refuses to push without the resulting trace.
 
 ```md
 ---
-doc_type: dev-impacted-components
-schema_version: 1.1
-produced_by: dev
-feature_id: FEAT-SUP-001
-generated_at: YYYY-MM-DD
+doc_type: unit-findings
+unit: backend
+fix_loop_invocation: 2026-10-21T10:31:00Z
+open: 1
+fixed: 4
+escalated: 0
 ---
 
-# Impacted Components: Supplier Onboarding
+## Security — build
+*Critical-blocking only. Build does not stop for Medium.*
 
-| Dimension | Impact | Files / Units | Notes |
+### SEC-B-01 · Critical · open · attempts_used: 1/3
+Raw SQL interpolation in `suppliers/repo.py:142`.
+- found by: Stage 9 · 2026-10-21T10:22:00Z
+- fix: parameterise; re-run Stage 9
+- attempt 1 (10:31): parameterised, re-run clean — pending re-verify
+
+## Security — commit
+*Critical + High.*
+None.
+
+## Code review
+*7 dimensions × Blocker / Major / Minor / Nit.*
+
+### CR-04 · Minor · fixed · attempts_used: 1/3
+`list_suppliers` returns an unbounded page.
+- dimension: performance
+- fix: default `limit=50`, cap 500 · fixed 10:44
+
+## Context merge
+None — 3 units merged cleanly.
+```
+
+**Every finding carries `id · severity · origin stage · status · attempts_used`**, bounded at **3 focused fixes
+and 2 broad stage re-runs**. Status moves `open → fixed → escalated` and never skips.
+
+**Bounds exceeded → the run halts** and the reason goes in `status.md`'s `## Run history` as a `BLOCKED` entry.
+Each unit runs its own loop with its own bounds, which is why this file is per-unit.
+
+**A section with nothing in it says `None.`** An empty heading reads as "not run yet", and those are different.
+
+---
+
+## 3. `analysis.md` — the plan scratchpad
+
+Written by `/dev:plan` Stage 2. **Stage 4 compose refuses to run without it.**
+
+```md
+---
+doc_type: analysis-scratchpad
+unit: backend
+feature_id: FEAT-SUP-001
+---
+
+## build_sequence
+1. ENT-SUP-01 — add `normalised_tag`, unique partial index · satisfies BR-07
+2. EP-SUP-02 — POST /suppliers validates and rejects duplicates · satisfies AC-03, BR-07
+…
+
+## impact_matrix
+All twelve dimensions. **`N/A` is written explicitly, never omitted** — an absent row is indistinguishable from
+one nobody considered, and Source 5 of blocker detection reads this block for `unknown` entries.
+
+| Dimension | Impact |
+|---|---|
+| Data model | ENT-SUP-01 gains a column + index |
+| Auth | N/A — no permission surface changes |
+| External integrations | unknown — does the ERP push accept the new field? |
+
+## risks_and_rollback
+- The unique index fails to build if production already holds duplicates.
+  - cheapest: build `CONCURRENTLY`, backfill, then add the constraint
+  - full: drop the constraint, revert the migration
+```
+
+**Blocker resolutions fold back into this file**, not into the plan — the plan is composed from it, so changing
+the plan directly leaves the two disagreeing.
+
+---
+
+## 4. `pr-summary.md` — the PR body
+
+Passed to the PR as its body. **The residue, not the working notes**: the findings stay in `findings.md`;
+what reaches the reviewer is what survived.
+
+**This shape applies when the repo has no template of its own.** If it carries a
+`PULL_REQUEST_TEMPLATE`, that is the skeleton and this content fills it — see
+[`stage-8-9-push-pr.md`](../../../commands/references/commit/stage-8-9-push-pr.md) §9b.0, which also covers
+the rules that matter there: never tick a checkbox for the author, never delete an empty section, never drop
+content that their template has no home for.
+
+```md
+## What shipped
+Duplicate supplier tags are now rejected at write time rather than by a prior read.
+
+## Not blocking, worth knowing
+- 2 Medium security warnings — rate limiting on the public lookup (follow-up)
+- 3 Minor review notes — naming in `repo.py`
+
+## How to verify
+```bash
+cp .env.example .env          # ERP_BASE_URL may stay blank
+docker compose up -d postgres
+poetry run alembic upgrade head
+poetry run pytest -q
+```
+Then POST the same tag twice to `/suppliers` — the second returns 409 with the existing record's id.
+
+## Checked by hand
+NFR-02 (p95 under 400ms) — measured with a local load run, not by a gate.
+```
+
+**`## How to verify` is the old `local-runbook.md`.** It was excluded from every commit as a local artefact
+while containing exactly what a reviewer needs; folding it here sends it to the person who uses it.
+
+**Say what was checked manually.** A reviewer who assumes a tool verified something it did not is worse off
+than one told plainly.
+
+---
+
+## 5. `discussion.md` — pull-only
+
+Per task **and** per unit: a sub-task is a task, with its own thread. A clarification left on the backend
+sub-task is missed when only the parent is fetched.
+
+```md
+---
+doc_type: unit-discussion
+readonly: true                    # /jetrix:push refuses any file carrying this
+unresolved_count: 1
+---
+
+## Comments
+
+### 2026-10-20T14:02Z · Priya (Acme) · unresolved
+Does the duplicate check apply across archived suppliers too?
+  ↳ 2026-10-20T15:30Z · dev-agent
+    Currently active-only. Raised as PB-003.
+
+## Attachments
+| File | Size | Added | Local |
 |---|---|---|---|
-| Surfaces | … | PAGE-<AREA>-NN | |
-| Operations | … | EP-<AREA>-NN | |
-| Stored data | … | ENT-<AREA>-NN → DATA-### | data-loss risk? |
-| Authz | … | | |
-| Integrations | … | INT-### | contract available? |
-| Background jobs | N/A — <reason> | | |
-| Notifications | … | | |
-| Observability | … | | |
-| Existing tests | … | | |
-| Docs | … | | |
-| Flags | … | | |
-| Analytics | … | | |
+| erp-field-map.xlsx | 41 KB | 2026-10-18 | `attachments/1-erp-field-map.xlsx` |
 ```
+
+Threads nest by `parentCommentId`, soft-deleted entries are filtered, and `unresolved_count` is the number that
+matters — **unresolved threads become `PB-###` via blocker detection Source 6.**
 
 ---
 
-## 3. acceptance-map.md
+## 6. `plan-blockers.md` and `merge-conflicts.md` — conditional, you fill them
 
-The evidence table — a task cannot advance past `/dev:build` Stage 8 (build) or `/dev:commit` Stage 5 (commit re-verify) until every mandatory row is `Passed` or human-`Waived`.
+The only two files a **human** writes into. They exist only while something is genuinely undecided.
 
 ```md
 ---
-doc_type: dev-acceptance-map
-schema_version: 1.1
-produced_by: dev
-feature_id: FEAT-SUP-001
-generated_at: YYYY-MM-DD
+doc_type: plan-blockers
+status: OPEN                      # OPEN · RESOLVING · RESOLVED
 ---
 
-# Acceptance Criteria Validation: Supplier Onboarding
+## PB-003 · Does the duplicate check span archived suppliers?
+**Blocks:** EP-SUP-02 validation · BR-07 wording · AC-03's test
 
-| Acceptance Criterion | Validation Method | Result | Evidence |
-|---|---|---|---|
-| Supplier can submit onboarding form | End-to-end test | Passed | supplier-onboarding.spec.ts |
-| Duplicate tax ID is rejected | API integration test | Passed | supplier-api.test.ts |
-| Only admin can approve supplier | Permission test | Failed | approval-permissions.test.ts |
+| Option | Consequence |
+|---|---|
+| Active only | A re-registered supplier reuses a retired tag. Matches today's behaviour. |
+| All records | Retired tags are never reusable. Needs a migration over archived rows. |
 
-Result values: `Passed` · `Failed` · `Blocked` · `Waived` (human) · `Not Covered`.
+**Recommendation:** active only — it matches the stated rule and needs no migration.
+
+**Resolution:**
 ```
 
----
-
-## 4. implementation-log.md
-
-Append one dated entry per meaningful step or repair attempt — never overwrite history.
-
-```md
----
-doc_type: dev-implementation-log
-schema_version: 1.1
-produced_by: dev
-feature_id: FEAT-SUP-001
-generated_at: YYYY-MM-DD
----
-
-# Implementation Log: Supplier Onboarding
-
-## YYYY-MM-DD
-
-### Step
-Implemented supplier onboarding form and draft supplier creation API.
-
-### Files Changed
-- apps/web/src/pages/SupplierOnboarding.tsx
-- services/supplier-service/createSupplier.ts
-- services/supplier-service/createSupplier.test.ts
-
-### Validation
-- Unit tests: Passed
-- Type check: Passed
-- Lint: Passed
-- Integration test: Failed
-
-### Failure
-Duplicate tax ID validation does not return the expected API error code.
-
-### Repair Attempt
-1 of 3 — adjusted validation middleware error mapping.
-
-### Next Action
-Re-run supplier-api.test.ts, then the broad suite.
-```
+**A blocker answered in the conversation never produces a file.** This exists for the ones deferred, and the
+blank `Resolution:` field is the only thing `/dev:resolve` reads.
 
 ---
 
-## 5. status.md
+## What these replaced
 
-The fine-grained loop state and owner lock for this feature.
+| Was | Now |
+|---|---|
+| `plan-run.md` · `build-run.md` · `commit-run.md` · `implementation-log.md` · `.compare-url.txt` | `status.md` § `## Run history` |
+| `acceptance-map.md` | `status.md` § `## Acceptance` |
+| `escalation-<n>.md` | a `BLOCKED` entry in `## Run history` |
+| `security-findings-build.md` · `security-findings-commit.md` · `code-review-findings.md` · `context-merge-log.md` | `findings.md`, four sections |
+| `local-runbook.md` | `pr-summary.md` § `## How to verify` |
+| `comments.md` · `attachments.md` | `discussion.md`, two sections |
+| `traceability.md` | removed — a full schema with no writer and no reader |
 
-```md
----
-doc_type: dev-delivery-status
-schema_version: 1.1
-produced_by: dev
-feature_id: FEAT-SUP-001
-generated_at: YYYY-MM-DD
----
-
-# Delivery Status: Supplier Onboarding
-
-## Loop State
-IN_DEVELOPMENT
-
-## Owner (lock)
-dev-agent @ 2026-07-03T10:00
-
-## Branch / Worktree
-feature/FEAT-SUP-001-supplier-onboarding
-
-## Started
-YYYY-MM-DD
-
-## Last Updated
-YYYY-MM-DD
-
-## Validation Status
-Unit: Passed · Integration: Failed · Build: Passed · Security: Not run
-
-## Current Blocker
-None | <one-line summary + escalation-<n>.md link>
-
-## PR / Handoff
-None | dev/pr-summary.md | <PR link>
-
-## Next Action
-Fix duplicate tax ID error contract and re-validate.
-```
-
-Loop-state values and their BA/index mapping are in `loop-control.md`. Whenever this file changes state, mirror the mapped value into the feature's `status.md`, `feature-index.md`, and `features/tracker.md`.
-
----
-
-## 6. decisions.md
-
-```md
----
-doc_type: dev-decisions
-schema_version: 1.1
-produced_by: dev
-feature_id: FEAT-SUP-001
-generated_at: YYYY-MM-DD
----
-
-# Technical Decisions: Supplier Onboarding
-
-| DEC ID | Decision | Rationale | Confidence | Date |
-|---|---|---|---|---|
-| DEC-014 | Enforce tax-ID uniqueness at the DB level with a partial unique index | Prevents race duplicates the app check misses | Confirmed | YYYY-MM-DD |
-
-Every row is also appended to `shared-context/decision-log.md`. Confidence uses the shared vocabulary (`Confirmed` · `Likely` · `Assumed` · `Conflicting` · `Needs Clarification`).
-```
-
----
-
-## 7. pr-summary.md
-
-Written by `dev-pr-handoff`. Full field guide in that skill's `references/pr-and-escalation.md`; schema below.
-
-```md
----
-doc_type: dev-pr-summary
-schema_version: 1.1
-produced_by: dev
-feature_id: FEAT-SUP-001
-generated_at: YYYY-MM-DD
----
-
-# PR: Supplier Onboarding (FEAT-SUP-001)
-
-## Feature Purpose
-## Scope of Changes
-## Technical Approach
-## Affected Pages / APIs / Services
-## Tests Run
-## Acceptance Criteria Status
-(link or inline the acceptance-map table)
-## Risks / Rollout Considerations
-## Open Follow-up Items
-## Reviewer Instructions
-## Branch
-feature/FEAT-SUP-001-supplier-onboarding
-```
-
----
-
-## 8. escalation-<n>.md
-
-Written whenever the feature goes `BLOCKED`. `<n>` is a per-feature counter.
-
-```md
----
-doc_type: dev-escalation
-schema_version: 1.1
-produced_by: dev
-feature_id: FEAT-SUP-001
-generated_at: YYYY-MM-DD
----
-
-# Blocker Escalation
-
-## Feature
-FEAT-SUP-001 — Supplier Onboarding
-
-## Current State
-BLOCKED
-
-## What Was Attempted
-- Reviewed onboarding workflow.
-- Implemented supplier form submission endpoint.
-- Attempted integration with tax validation API.
-
-## Blocker
-Tax validation API contract is not available in the project context or repository.
-
-## Impact
-Supplier duplicate validation cannot be completed. Acceptance criterion "Duplicate tax ID is rejected" cannot be validated.
-
-## Decision Needed
-Confirm whether:
-1. Tax validation should use an existing internal service.
-2. A third-party service should be integrated.
-3. Validation should be temporarily handled through manual review.
-
-## Recommended Option
-Use the existing internal compliance validation service if available.
-
-## Work That Can Continue
-- Front-end onboarding form.
-- Draft supplier record creation.
-- Admin approval workflow.
-```
-
----
-
-## 9. feature-tracker.md
-
-`features/tracker.md` — the cross-feature delivery dashboard. One row per feature the dev agent has touched; update in place.
-
-```md
----
-doc_type: dev-feature-tracker
-schema_version: 1.1
-produced_by: dev
-status: Emerging
-generated_at: YYYY-MM-DD
----
-
-# Feature Delivery Tracker
-
-| Feature ID | Feature | Loop State | Owner | Started | Last Updated | Validation | Blocker | PR | Next Action |
-|---|---|---|---|---|---|---|---|---|---|
-| FEAT-SUP-001 | Supplier Onboarding | IN_DEVELOPMENT | dev-agent | 2026-07-03 | 2026-07-03 | Integration failing | None | — | Fix tax-ID error contract |
-```
+The state file already declared it held *run history* and an *acceptance status table*. Those two were never a
+merge opportunity; they were an existing overlap being written twice.

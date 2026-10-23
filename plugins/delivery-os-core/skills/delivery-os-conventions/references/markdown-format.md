@@ -26,7 +26,7 @@ Everything below was verified by rendering through that chain.
 | **Nested list** | `- parent` then 2-space-indented `  - child` |
 | **Checklist** | `- [x] done` / `- [ ] todo` → real checkboxes |
 | **Strikethrough** | `~~removed~~` |
-| **Code** | fence with a language — ` ```sql ` → syntax highlighted |
+| **Code** | fence with a language — ` ``sql ` → syntax highlighted |
 | **Footnote** | `Text[^1]` + `[^1]: the note` |
 | **Link** | bare URLs autolink; `[label](url)` for a caption |
 
@@ -67,7 +67,7 @@ Escape a literal pipe inside a cell as `\|`, and keep every cell on one physical
 
 ## Diagrams
 
-Fence as ` ```mermaid `, one node or edge per line. A flattened one-line diagram fails to parse and falls back to raw source.
+Fence as ` ``mermaid `, one node or edge per line. A flattened one-line diagram fails to parse and falls back to raw source.
 
 ## Not a problem — verified, don't spend effort here
 

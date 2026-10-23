@@ -1,25 +1,25 @@
 ## Stage 8 — Validate against parent AC + BR + TS + NFRs
 
-**Purpose.** Build the acceptance-map. Every parent-owned assertion (Acceptance Criteria, Business Rules, Test Scenarios, NFRs) gets a row that maps to a validation method, result, and evidence. This is the definition of "done at build-time" — green tests alone are not enough; the acceptance-map is.
+**Purpose.** Build the `## Acceptance` table. Every parent-owned assertion (Acceptance Criteria, Business Rules, Test Scenarios, NFRs) gets a row that maps to a validation method, result, and evidence. This is the definition of "done at build-time" — green tests alone are not enough; the `## Acceptance` table is.
 
-**Runs after Stage 7 tests pass.** State: `TESTING` (unchanged). MC: `inProgress`.
+**Runs after Stage 7 tests pass.** State: `agentExecuting` (unchanged). MC: `inProgress`.
 
-**On completion:** `dev/acceptance-map.md` contains one row per applicable AC/BR/TS/NFR, either `✅ pass` (with evidence) or `⏸ deferred-to-e2e` (cross-sub-task E2E, closed by last sub-task).
+**On completion:** `units/<repo>/status.md § ## Acceptance` contains one row per applicable AC/BR/TS/NFR, either `✅ pass` (with evidence) or `⏸ deferred-to-e2e` (cross-sub-task E2E, closed by last sub-task).
 
 ---
 
 ### 8a. Preconditions
 
-- `dev/build-run.md` `stage-7.status: DONE`
+- `units/<repo>/status.md § ## Run history` `stage-7.status: DONE`
 - All Required gates from `qa/quality-gates.md` passed (no `FAIL` results in `test_runs:`)
 
-If any Required gate is `FAIL` → jump to Stage 8's repair loop (§8f) BEFORE trying to build the acceptance-map.
+If any Required gate is `FAIL` → jump to Stage 8's repair loop (§8f) BEFORE trying to build the `## Acceptance` table.
 
 ---
 
 ### 8a0. When `/dev:build` ran with `--skip-qa`
 
-No tests were written, so there is no test evidence to map to. Build the acceptance-map anyway — every assertion still gets a row — but each row's evidence is what you inspected, not what executed:
+No tests were written, so there is no test evidence to map to. Build the `## Acceptance` table anyway — every assertion still gets a row — but each row's evidence is what you inspected, not what executed:
 
 ```
 | AC-1 | <assertion> | verified: manually | <what you read, and what it now says> |
@@ -55,7 +55,7 @@ A non-feature target is never split, so the sub-task scoping rule below does not
 
 ### 8c. Map each assertion to test evidence — WITH REAL-SERVICE VALIDATION (v2.3.23)
 
-For each map row, grep the test source files (`step_N.tests_written` from `dev/implementation-log.md`) for the assertion's ID.
+For each map row, grep the test source files (`step_N.tests_written` from `units/<repo>/status.md § ## Run history`) for the assertion's ID.
 
 **Match rules:**
 
@@ -109,7 +109,7 @@ An AC is `deferred-to-e2e` when:
 2. The AC spans multiple layers (e.g. "user submits form and sees success toast and record in list" — touches frontend + backend + DB)
 3. This sub-task doesn't own the LAYER that closes the AC's user-visible outcome
 
-**Rule for who closes:** the last sub-task to reach `REVIEW` locally (MC `devReview`) at `/dev:commit` time runs the E2E validation and closes the deferred ACs. Check the parent's rollup Sub-tasks table (from `tl-plan.md`) — the sub-tasks NOT-YET at `REVIEW`/`DONE` count; deferring lives in the acceptance-map. The E2E execution itself happens in `/dev:commit` Stage 5, not here at build-time Stage 8.
+**Rule for who closes:** the last sub-task to reach `devReview` locally (MC `devReview`) at `/dev:commit` time runs the E2E validation and closes the deferred ACs. Check the parent's rollup Sub-tasks table (from `tl-plan.md`) — the sub-tasks NOT-YET at `devReview`/`DONE` count; deferring lives in the `## Acceptance` table. The E2E execution itself happens in `/dev:commit` Stage 5, not here at build-time Stage 8.
 
 Row format:
 
@@ -119,20 +119,20 @@ Row format:
 
 ---
 
-### 8e. Assemble `dev/acceptance-map.md`
+### 8e. Assemble `units/<repo>/status.md § ## Acceptance`
 
 Frontmatter:
 
 ```yaml
 ---
-doc_type: acceptance-map
+doc_type: `## Acceptance` table
 schema_version: 1.0
 produced_by: dev
 feature_id: FEAT-<AREA>-NN
 subtask_number: <N>            # OMIT for parent-alone
 subtask_repo: <repo-slug>
 generated_at: <ISO>
-build_run_id: <build-run-timestamp>
+build_id: <build-timestamp>
 status: COMPLETE               # COMPLETE | PARTIAL_FAILURES | PARTIAL_DEFERRED
 ---
 ```
@@ -159,7 +159,7 @@ Body table:
 
 **Why the split.** A `defect` means the code is wrong — advancing would commit a known-broken state. A `flaky` or `harness-config` failure means the tests are right and the runner is not, and the remedy is a separate human change to the harness; blocking there strands good tests over a config default.
 
-Advancing is not the same as passing. A `PARTIAL_HARNESS` run must carry into the summary, the acceptance-map and the PR body:
+Advancing is not the same as passing. A `PARTIAL_HARNESS` run must carry into the summary, the `## Acceptance` table and the PR body:
 
 - every `flaky` row with **both** run results
 - every `harness_config_remedy` block, verbatim, with its `requires: human DEC-###`
@@ -189,16 +189,22 @@ Do all four, in order:
 
    **State the CI position.** Check the repo for a workflow (`.github/workflows/*.yml` or equivalent) and say which of these gates it already runs, so nobody re-wires what exists — then tell the reader to confirm the run is green on the PR rather than asserting it here. Build never watches CI. Where no workflow runs these gates, say that plainly: it means local is the only place they have ever passed.
 
-2. **Record `tests_only: true`** in `dev/build-run.md`, so `/dev:commit` can tell "skipped by design" from "never ran" — it reads this at its Stage 0.
+
+   **On a `--vulnerable` run the summary is the upgrade table instead**: per package old → new, the advisories it closes,
+   whether it was a major, and the suite result that proves nothing regressed. Then **findings
+   before and after** — and every finding left open with no safe upgrade, each with its exposure named.
+   A count that went down is not the same as a repo that is clean; the summary must not let those read alike.
+
+2. **Record `tests_only: true`** — or **`vulnerable: true`** — in `units/<repo>/status.md § ## Run history`, so `/dev:commit` can tell "skipped by design" from "never ran" — it reads this at its Stage 0.
 3. **Set local state — gated on §8e's status**, not unconditional:
 
    | Status | State | Why |
    |---|---|---|
-   | `COMPLETE` · `PARTIAL_DEFERRED` | `IN_PROGRESS` | clean run, advance |
-   | **`PARTIAL_HARNESS`** | `IN_PROGRESS` | tests are correct; the harness is misconfigured. Advance **carrying the remedy and flaky rows** into the summary and the PR body |
+   | `COMPLETE` · `PARTIAL_DEFERRED` | `inProgress` | clean run, advance |
+   | **`PARTIAL_HARNESS`** | `inProgress` | tests are correct; the harness is misconfigured. Advance **carrying the remedy and flaky rows** into the summary and the PR body |
    | **`PARTIAL_FAILURES`** | **leave as-is — do NOT advance** | an unfixed `defect` means the suite is red for a real reason. Halt, name the failing rows, and stop |
 
-   `/dev:commit` refuses to start on anything but `IN_PROGRESS`, so this step is what makes the work committable.
+   `/dev:commit` refuses to start on anything but `inProgress`, so this step is what makes the work committable.
 
 4. **Report the next step:**
 
@@ -208,7 +214,19 @@ Do all four, in order:
    | `PARTIAL_HARNESS` | the remedy first, as a `DEC-###`, then `/qa:health`, then `/dev:commit`. Say plainly that a Required gate is red |
    | `PARTIAL_FAILURES` | the failing rows and what to fix. Do not mention commit |
 
-`/dev:commit` reads `tests_only` and `stage-8.status` at its Stage 0 and routes accordingly. Its semantic context merge still runs: with no context-unit changes it records a zero-change result, which that stage defines as legitimate, not a skip.
+   **`/qa:health` matters more after `--vulnerable`, not less.** It is what rewrites the `BL-08` baseline to
+   the findings that remain — otherwise the gate still carries the old set and the next run re-reports
+   advisories this one already closed. Where every finding is now fixed it is also what flips
+   `baseline_status` back to `Met`.
+
+   | `--vulnerable` outcome | Next |
+   |---|---|
+   | All upgrades applied, suites green | `/qa:health repo=<slug>` — rebaseline — then `/dev:commit` |
+   | Some applied, some have no safe upgrade | same, **and name each one left open with its exposure.** `baseline_status` stays `Unmet` |
+   | A suite went red after an upgrade | the failing rows and the package that did it. Do not mention commit — and do not revert silently: say which bump broke what |
+   | A **major** is the only fix | stop before taking it. Name the breaking changes and let the human decide; a major is a product decision, not a build one |
+
+`/dev:commit` reads `tests_only` and `stage-8.final_status` at its Stage 0 and routes accordingly. Its semantic context merge still runs: with no context-unit changes it records a zero-change result, which that stage defines as legitimate, not a skip.
 
 ---
 
@@ -220,7 +238,7 @@ Per `/dev:build` §14 bounded limits:
 
 **Route by verdict first — only `defect` gets a repair attempt.**
 
-Read `verdict:` from the gate's `dev/implementation-log.md` block (set at Stage 7 §7f.i). Do not re-derive it.
+Read `verdict:` from the gate's `units/<repo>/status.md § ## Run history` block (set at Stage 7 §7f.i). Do not re-derive it.
 
 | Verdict | Action | Repair budget |
 |---|---|---|
@@ -231,7 +249,7 @@ Read `verdict:` from the gate's `dev/implementation-log.md` block (set at Stage 
 
 This is the rule that stops a moving target eating the budget. A failure whose cause is instrumentation or a default limit cannot be fixed by editing the test, so spending three attempts on it produces three wasted edits and a still-red gate.
 
-**Remedy block for `harness-config`** — write to `dev/implementation-log.md` and surface in the Stage 11 summary:
+**Remedy block for `harness-config`** — write to `units/<repo>/status.md § ## Run history` and surface in the Stage 11 summary:
 
 ```yaml
 harness_config_remedy:
@@ -265,8 +283,8 @@ Neither may read `pass`. When a run's only red rows are `flaky` or `harness-conf
 **Broad cycle:** re-run all of Stage 7 (all Required gates) after 3 focused attempts on a row hit their limit. Two broad cycles allowed.
 
 **Limits exceeded:**
-- Write `dev/escalation-<n>.md` with the failure chain (attempts, resulting states, remaining diagnosis)
-- Local state: `TESTING → BLOCKED`
+- Write `units/<repo>/status.md § ## Run history (a BLOCKED entry)` with the failure chain (attempts, resulting states, remaining diagnosis)
+- Local state: `agentExecuting → BLOCKED`
 - MC status: `blocked`
 - Halt. Report to user.
 
@@ -280,13 +298,13 @@ An assertion with no test in the code IS a bug in Stages 5-6. Two options:
 
 **Option B** (fallback): if writing the test can't be done (dependency doesn't exist, testing framework doesn't support the scenario), mark the row `❌ missing-test-cant-be-added` and escalate. The developer decides at PR review whether to accept the risk.
 
-**Never mark `✅ pass` without a test.** The acceptance-map is the contract.
+**Never mark `✅ pass` without a test.** The `## Acceptance` table is the contract.
 
 ---
 
 ### 8h. Progress log format
 
-Append to `dev/build-run.md`:
+Append to `units/<repo>/status.md § ## Run history`:
 
 ```yaml
 stage-8:
@@ -304,7 +322,7 @@ stage-8:
     fail:                1                    # became 0 after repair
   repair_attempts:  2                         # total attempts across all failures
   broad_cycles:     0
-  final_status: COMPLETE                      # COMPLETE | PARTIAL_FAILURES | PARTIAL_DEFERRED
+  final_status: COMPLETE                      # COMPLETE | PARTIAL_DEFERRED | PARTIAL_HARNESS | PARTIAL_FAILURES
   finished_at: 2026-08-31T15:18:57Z
 ```
 

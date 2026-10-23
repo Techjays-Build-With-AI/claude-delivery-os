@@ -4,13 +4,13 @@
 
 **Runs between Stage 7 (semantic context merge) and Stage 8 (push branch).** After all quality gates (Stages 3–6) pass and the semantic merge is clean.
 
-**On completion:** the branch has one (or, with `--structured`, several) clean commit(s) with structured messages; no untracked files in the source or test scope; secrets scan clean; `dev/local-runbook.md` explicitly EXCLUDED from the commit set.
+**On completion:** the branch has one (or, with `--structured`, several) clean commit(s) with structured messages; no untracked files in the source or test scope; secrets scan clean; `units/<repo>/pr-summary.md § ## How to verify` explicitly EXCLUDED from the commit set.
 
 ---
 
 ### 7.5a. Preconditions
 
-- Stages 3–7 all `status: DONE` in `dev/<repo>-commit-run.md`
+- Stages 3–7 all `status: DONE` in `units/<repo>/status.md § ## Run history`
 - `git status` in target repo is well-formed (branch checked out, no rebase in progress, no merge conflict)
 - Working tree HAS uncommitted changes (else skip cleanly per §7.5g)
 
@@ -36,12 +36,12 @@ Categorize every line:
 | `src/**` (and language equivalents: `lib/**`, `app/**`, `pkg/**`, `internal/**`) | `source` | YES |
 | `tests/**`, `**/*.test.*`, `**/*.spec.*`, `**/__tests__/**` | `test` | YES |
 | `context/code-context/**` | `context-unit` | YES |
-| `dev/local-runbook.md`, `dev/build-run.md`, `dev/*-commit-run.md`, `dev/implementation-log.md`, `dev/acceptance-map.md`, `dev/security-findings-*.md`, `dev/decisions.md`, `dev/escalation-*.md`, `dev/task-update-run.md` | `dev-local` | **NO** — LOCAL only |
+| `units/<repo>/pr-summary.md § ## How to verify`, `units/<repo>/status.md § ## Run history`, `dev/*-status.md § ## Run history`, `units/<repo>/status.md § ## Run history`, `units/<repo>/status.md § ## Acceptance`, `dev/security-findings-*.md`, `dev/decisions.md`, `dev/escalation-*.md`, `dev/task-update-run.md` | `dev-local` | **NO** — LOCAL only |
 | `.jetrix/**` | `workspace-local` | **NO** — workspace state, not repo state |
 | `qa/quality-gates.md`, `shared-context/*`, `ba/**`, `features/**` | `workspace-local` | **NO** — those are workspace files, live outside the target repo unless the target repo IS the workspace |
 | Other | `unknown` | ASK the user to categorize each (source / test / context / local-only-do-not-commit); halt if not answered within the run |
 
-If any `unknown` file is under a language directory the categorizer failed to detect (e.g. an unusual folder), log `stage-7-5-categorization-warning` to `dev/<repo>-commit-run.md` and default it to `source` after asking.
+If any `unknown` file is under a language directory the categorizer failed to detect (e.g. an unusual folder), log `stage-7-5-categorization-warning` to `units/<repo>/status.md § ## Run history` and default it to `source` after asking.
 
 ---
 
@@ -71,7 +71,7 @@ feat(<domain>): <one-line summary from parent's feature.md Objective>
 
 Sub-task: <task-ref>
 §1 Build sequence: <N> steps landed
-Tests: <acceptance-map row count> parent AC/BR/TS covered at <tier list>
+Tests: <`status.md` § `## Acceptance` row count> parent AC/BR/TS covered at <tier list>
 
 <optional body — DEC-### references from shared-context/decision-log.md landed this run>
 
@@ -104,7 +104,7 @@ git add \
 git commit -m "<message from §7.5d>"
 ```
 
-Never `git add -A` or `git add .` — always add specific paths from the categorized list. This is what keeps `dev/local-runbook.md` and other `dev-local` files out.
+Never `git add -A` or `git add .` — always add specific paths from the categorized list. This is what keeps `units/<repo>/pr-summary.md § ## How to verify` and other `dev-local` files out.
 
 **Structured-commit path (`--structured`):**
 
@@ -134,7 +134,7 @@ Expected state after this stage:
 - Working tree has ONLY `dev-local` and `workspace-local` files remaining as uncommitted (they were intentionally excluded)
 - `src/**`, `tests/**`, `context/code-context/**` all clean
 
-Log to `dev/<repo>-commit-run.md`:
+Log to `units/<repo>/status.md § ## Run history`:
 
 ```yaml
 stage-7-5:
@@ -147,8 +147,8 @@ stage-7-5:
       lines: +<M> -<K>
     - ...
   files_excluded:
-    - dev/local-runbook.md
-    - dev/build-run.md
+    - units/<repo>/pr-summary.md § ## How to verify
+    - units/<repo>/status.md § ## Run history
     - .jetrix/...
   secrets_scan: clean
   working_tree_after: clean (dev-local + workspace-local uncommitted, as expected)
@@ -189,7 +189,7 @@ State transitions on halt:
 ### 7.5i. On `--resume`
 
 If Stage 7.5 was interrupted:
-- Check `dev/<repo>-commit-run.md` for `stage-7-5.commits_made` — if any listed, those commits landed; do not duplicate
+- Check `units/<repo>/status.md § ## Run history` for `stage-7-5.commits_made` — if any listed, those commits landed; do not duplicate
 - Re-scan working tree for anything STILL uncommitted; if empty → skip cleanly
 - If additional changes remain → continue from the appropriate strategy step
 

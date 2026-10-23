@@ -2,9 +2,9 @@
 
 Two closely-coupled stages. Combined in one reference file because their state transitions and failure surfaces overlap.
 
-**Runs after Stage 7 (semantic merge clean).** State: `REVIEW` (unchanged); MC: `devReview` (unchanged). On successful push + PR raise, no further state changes.
+**Runs after Stage 7 (semantic merge clean).** State: `devReview` (unchanged); MC: `devReview` (unchanged). On successful push + PR raise, no further state changes.
 
-**On completion:** feature branch is on origin; PR is open; PR body is `dev/pr-summary.md`; MC status is still `devReview` (waiting on human review).
+**On completion:** feature branch is on origin; PR is open; PR body is `units/<repo>/pr-summary.md`; MC status is still `devReview` (waiting on human review).
 
 ---
 
@@ -12,13 +12,13 @@ Two closely-coupled stages. Combined in one reference file because their state t
 
 ### 8a. Preconditions (v2.3.25 — HARD gates that refuse push if any is missing)
 
-- **Stage 2 base-branch confirmed by user** — check `commit-run.md` `stage-2.base_confirmed_by_user: true`; missing → HALT with `blocker: stage-2-base-not-confirmed` (user must re-run so the branch prompt fires)
-- **Stage 2 base pulled locally** — check `commit-run.md` `stage-2.base_pulled_at` timestamp exists; missing → HALT with `blocker: base-branch-not-pulled` (Stage 7 can't merge against a base that isn't on disk)
-- **Stage 3 fix loop invoked if it had blocking findings (v2.3.27)** — read `commit-run.md` `stage-3.findings`. If BEFORE-loop counts (Critical > 0 OR High > 0) but no `stage-3.fix_loop_invocation.invoked_at` block exists → HALT with `blocker: stage-3-fix-loop-not-invoked`. Same class as stage-7 gap: findings surfaced, agent moved on without running Stage 6, review said "block" and nobody acted on it.
-- **Stage 4 fix loop invoked if it had blocking findings (v2.3.27)** — read `commit-run.md` `stage-4.findings`. If (Blocker > 0 OR Major > 0) but no `stage-4.fix_loop_invocation.invoked_at` → HALT with `blocker: stage-4-fix-loop-not-invoked`.
-- **Stage 5 fix loop invoked if it had blocking findings (v2.3.27)** — read `commit-run.md` `stage-5.rows_regressed` and `stage-5.rows_failed`. If either > 0 but no `stage-5.fix_loop_invocation.invoked_at` → HALT with `blocker: stage-5-fix-loop-not-invoked`.
-- **Stage 3/4/5 final findings ARE clean** — after any fix loop, current counts must be zero for their blocking severities (Stage 3: Critical + High; Stage 4: Blocker + Major; Stage 5: regression + fail). Non-zero → HALT with `blocker: stage-<n>-fix-loop-did-not-clear-findings` (means the fix loop ran but ended in ESCALATED state; check `dev/escalation-<n>.md`; user must resolve manually and re-run).
-- **Stage 7 semantic-merge INVOKED** — check `commit-run.md` `stage-7.tl_semantic_context_merge_invocation.invoked_at` is set and `invocation` is non-empty (a subagent id, or `inline` where the Skill tool returned none); `invoked_at` MISSING or NULL → HALT with `blocker: stage-7-not-executed` (this is the user-reported gap: agent skipped Stage 7 by "reasoning it was a no-op"; the skill invocation is the ONLY evidence of execution)
+- **Stage 2 base-branch confirmed by user** — check `status.md` § `## Run history` `stage-2.base_confirmed_by_user: true`; missing → HALT with `blocker: stage-2-base-not-confirmed` (user must re-run so the branch prompt fires)
+- **Stage 2 base pulled locally** — check `status.md` § `## Run history` `stage-2.base_pulled_at` timestamp exists; missing → HALT with `blocker: base-branch-not-pulled` (Stage 7 can't merge against a base that isn't on disk)
+- **Stage 3 fix loop invoked if it had blocking findings (v2.3.27)** — read `status.md` § `## Run history` `stage-3.findings`. If BEFORE-loop counts (Critical > 0 OR High > 0) but no `stage-3.fix_loop_invocation.invoked_at` block exists → HALT with `blocker: stage-3-fix-loop-not-invoked`. Same class as stage-7 gap: findings surfaced, agent moved on without running Stage 6, review said "block" and nobody acted on it.
+- **Stage 4 fix loop invoked if it had blocking findings (v2.3.27)** — read `status.md` § `## Run history` `stage-4.findings`. If (Blocker > 0 OR Major > 0) but no `stage-4.fix_loop_invocation.invoked_at` → HALT with `blocker: stage-4-fix-loop-not-invoked`.
+- **Stage 5 fix loop invoked if it had blocking findings (v2.3.27)** — read `status.md` § `## Run history` `stage-5.rows_regressed` and `stage-5.rows_failed`. If either > 0 but no `stage-5.fix_loop_invocation.invoked_at` → HALT with `blocker: stage-5-fix-loop-not-invoked`.
+- **Stage 3/4/5 final findings ARE clean** — after any fix loop, current counts must be zero for their blocking severities (Stage 3: Critical + High; Stage 4: Blocker + Major; Stage 5: regression + fail). Non-zero → HALT with `blocker: stage-<n>-fix-loop-did-not-clear-findings` (means the fix loop ran but ended in ESCALATED state; check `units/<repo>/status.md § ## Run history (a BLOCKED entry)`; user must resolve manually and re-run).
+- **Stage 7 semantic-merge INVOKED** — check `status.md` § `## Run history` `stage-7.tl_semantic_context_merge_invocation.invoked_at` is set and `invocation` is non-empty (a subagent id, or `inline` where the Skill tool returned none); `invoked_at` MISSING or NULL → HALT with `blocker: stage-7-not-executed` (this is the user-reported gap: agent skipped Stage 7 by "reasoning it was a no-op"; the skill invocation is the ONLY evidence of execution)
 - **Stage 7 merged base matches Stage 2 base** — check `stage-7.tl_semantic_context_merge_invocation.base_ref` sha matches `stage-2.base_remote_sha`; mismatch → HALT with `blocker: stage-7-merged-against-wrong-base` (means Stage 7 pulled its own base separately from Stage 2's; not allowed)
 - **Stage 7.5 commits landed** — check `stage-7-5.commits_made` list is non-empty (or `stage-7-5.status: SKIPPED` with reason `working tree has no source/test/context uncommitted changes`)
 - **Working tree clean** — `git status --porcelain` shows only allowed `dev-local` / `workspace-local` files (see Stage 7.5 §7.5b categorization)
@@ -61,7 +61,7 @@ Never retry silently more than once for network. Never skip hooks.
 
 ### 8d. Progress log
 
-Append to `dev/commit-run.md`:
+Append to `units/<repo>/status.md § ## Run history`:
 
 ```yaml
 stage-8:
@@ -82,14 +82,60 @@ stage-8:
 ### 9a. Preconditions
 
 - Stage 8 pushed successfully
-- `dev/pr-summary.md` exists (composed at the end of Stage 5 + augmented after Stages 6 + 7 with follow-up items + merge results)
+- `units/<repo>/pr-summary.md` exists (composed at the end of Stage 5 + augmented after Stages 6 + 7 with follow-up items + merge results)
 - A working PR-creation mechanism per §9c's ladder (v2.3.22 — no longer requires `gh`)
 
-### 9b. Compose `dev/pr-summary.md`
+### 9b.0. Use the repo's own PR template when it has one
 
-This is the PR-reviewer-facing doc. NOT the developer's local runbook (`local-runbook.md`).
+**Look before composing.** A team with a `PULL_REQUEST_TEMPLATE` has already decided what a PR in this repo
+says — their ticket field, their risk checklist, their deploy notes. Ignoring it produces a PR that reads as
+though nobody checked, and it is the first thing a reviewer notices.
+
+Check, in this order, and stop at the first hit:
+
+```
+.github/PULL_REQUEST_TEMPLATE.md      .github/pull_request_template.md
+PULL_REQUEST_TEMPLATE.md              pull_request_template.md
+docs/PULL_REQUEST_TEMPLATE.md         docs/pull_request_template.md
+.github/PULL_REQUEST_TEMPLATE/        ← a DIRECTORY: several named templates
+.gitlab/merge_request_templates/      ← GitLab
+```
+
+| Found | What to do |
+|---|---|
+| One template | **It is the skeleton.** Keep its headings, order, wording and comments; fill its sections from the content §9b describes |
+| A directory of them | **Ask which**, listing the filenames. Never pick — the names are the team's own routing (`bugfix.md`, `release.md`) and only they know which applies |
+| None | §9b's structure below, unchanged |
+
+**Rules when filling someone else's template, in the order they get broken:**
+
+**Never tick a checkbox on the author's behalf.** A checklist item is an assertion by a human — *"I have
+tested this"*, *"I updated the docs"*. Ticking it because a gate passed is signing someone else's name.
+Leave every box unticked, and under the list add one line naming the ones this run already has evidence for,
+with where it is: *"Tests pass — Stage 7, 14/14; coverage 72.4%."* The author ticks.
+
+**Never delete a section because there is nothing to put in it.** A heading they wrote with `N/A` under it
+is an answer; a heading that vanished looks like it was never considered. Same for their HTML comments —
+`<!-- link the issue -->` stays unless it has been satisfied.
+
+**Never drop our content because their template has no home for it.** Anything left over goes at the end
+under `## Additional detail`, not in the bin. A Medium security finding with no matching heading is still a
+Medium security finding.
+
+**Fill their placeholders, do not leave them.** `<!-- Jira ticket -->` becomes the real ticket link — the
+task's tracker URL is already in `status.md`. An unfilled placeholder is worse than our own structure,
+because it looks like the template defeated us.
+
+Record which template was used in `status.md` § `## Run history` as `pr_template:` — the repo-relative path,
+or `default` — so a reviewer asking "why does this PR look different" has the answer in the record.
+
+### 9b. Compose `units/<repo>/pr-summary.md`
+
+This is the PR-reviewer-facing doc. NOT the developer's local runbook (`pr-summary.md` § `## How to verify`).
 
 Structure:
+
+Used when the repo has no template of its own.
 
 ```markdown
 # <PR title>
@@ -176,7 +222,7 @@ Omit this section entirely when the build verdict was `COMPLETE` or `PARTIAL_DEF
 - Not this PR's concern: rate-limiting (parent NFR doesn't require; can add later)
 ```
 
-Every section is auto-populated from the actual commit-run's data. Never placeholders.
+Every section is auto-populated from the actual run's data. Never placeholders.
 
 ### 9c. Raise the PR — 4-step fallback ladder (v2.3.22)
 
@@ -195,7 +241,7 @@ OWNER=$(echo "$OWNER_REPO" | cut -d/ -f1)
 REPO=$(echo "$OWNER_REPO" | cut -d/ -f2)
 ```
 
-**Try each step in order. On success, log which step ran to `dev/commit-run.md` and proceed.**
+**Try each step in order. On success, log which step ran to `units/<repo>/status.md § ## Run history` and proceed.**
 
 **Step 1 — `gh` CLI (if installed + authed):**
 
@@ -205,7 +251,7 @@ if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
     --base <resolved-base-branch> \
     --head <feature-branch> \
     --title "<computed title>" \
-    --body-file dev/pr-summary.md
+    --body-file units/<repo>/pr-summary.md
   # Log: pr_method: gh_cli
 fi
 ```
@@ -216,24 +262,39 @@ Windows Git Credential Manager, macOS Keychain, and Linux libsecret all cache th
 
 ```bash
 if [ -z "$PR_METHOD" ]; then
-  CREDS=$(echo -e "protocol=https\nhost=github.com\n" | git credential fill 2>/dev/null)
-  TOKEN=$(echo "$CREDS" | grep '^password=' | cut -d= -f2)
+  CREDS=$(printf 'protocol=https\nhost=github.com\n\n' | git credential fill 2>/dev/null)
+  TOKEN=$(echo "$CREDS" | grep '^password=' | cut -d= -f2-)
   if [ -n "$TOKEN" ]; then
-    BODY=$(jq -Rs . < dev/pr-summary.md)
+    # node, not jq. jq is NOT a stated dependency of this plugin and is absent on a stock
+    # Windows box; node already is (scripts/lint-plugins.js, serve-review.js). While this
+    # step used jq, a machine without it produced an empty body, a malformed POST and a
+    # silent drop to Step 4: the user got a compare link and no reason why.
+    BODY=$(node -e "const fs=require('fs');process.stdout.write(JSON.stringify(fs.readFileSync(process.argv[1],'utf8')))" units/<repo>/pr-summary.md)
     RESPONSE=$(curl -s -X POST \
       -H "Authorization: Bearer $TOKEN" \
       -H "Accept: application/vnd.github+json" \
       -H "X-GitHub-Api-Version: 2022-11-28" \
       "https://api.github.com/repos/$OWNER/$REPO/pulls" \
       -d "{\"title\":\"<computed title>\",\"body\":$BODY,\"head\":\"<feature-branch>\",\"base\":\"<resolved-base-branch>\"}")
-    PR_URL=$(echo "$RESPONSE" | jq -r '.html_url // empty')
+    PR_URL=$(printf '%s' "$RESPONSE" | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{try{process.stdout.write(JSON.parse(d).html_url||'')}catch(e){}})")
     if [ -n "$PR_URL" ]; then
-      # Log: pr_method: git_credential_fill
+      PR_METHOD=git_credential_fill
       echo "PR opened: $PR_URL"
+    else
+      echo "[stage-9] API PR create failed: $(printf '%s' "$RESPONSE" | head -c 300)"
     fi
+  else
+    echo "[stage-9] no token in the git credential store; skipping the API step"
   fi
 fi
 ```
+
+**Every step that fails says why, before the next is tried.** The failure that produced this rule
+looked like a plugin bug and was a missing binary: `jq` absent, body empty, POST rejected, Step 4
+reached without a word. Record each attempted step and its reason under `stage-9.attempts` in
+`status.md` § `## Run history`, and name the missing tool in the terminal summary when one is the
+cause. Of `gh`, `jq`, `curl` and `node`, only **node** is guaranteed — never make a step depend on
+the others without a fallback.
 
 **Step 3 — Read token from `gh` config file (if `gh` was authed even though `gh` binary is missing):**
 
@@ -257,15 +318,48 @@ fi
 
 ```bash
 if [ -z "$PR_METHOD" ]; then
-  TITLE_ENC=$(printf '%s' "<computed title>" | jq -sRr @uri)
-  BODY_ENC=$(cat dev/pr-summary.md | jq -sRr @uri)
-  COMPARE_URL="https://github.com/$OWNER/$REPO/compare/<base>...<head>?expand=1&title=$TITLE_ENC&body=$BODY_ENC"
-  echo "PR-creation auth not available. Open this URL in your browser — the form will be pre-filled with title + body:"
+  TITLE_ENC=$(printf '%s' "<computed title>" | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>process.stdout.write(encodeURIComponent(d)))")
+  BODY_ENC=$(node -e "const fs=require('fs');process.stdout.write(encodeURIComponent(fs.readFileSync(process.argv[1],'utf8')))" units/<repo>/pr-summary.md)
+
+  # A URL is not a transport for a document. GitHub rejects a very long query
+  # string, and browsers truncate before that -- a real PR body of 18 KB encodes
+  # to ~50 KB and simply will not travel this way. Past the limit, send the user
+  # with a title only and tell them which file to paste, rather than handing over
+  # a URL that silently arrives with half a body or none.
+  if [ "${#BODY_ENC}" -lt 6000 ]; then
+    COMPARE_URL="https://github.com/$OWNER/$REPO/compare/<base>...<head>?expand=1&title=$TITLE_ENC&body=$BODY_ENC"
+    echo "Open this URL - the form is pre-filled with title and body:"
+  else
+    COMPARE_URL="https://github.com/$OWNER/$REPO/compare/<base>...<head>?expand=1&title=$TITLE_ENC"
+    echo "Open this URL. The body is ${#BODY_ENC} encoded chars - too long for a URL,"
+    echo "so the form carries the title only. Paste the description from:"
+    echo "  units/<repo>/pr-summary.md"
+  fi
   echo ""
   echo "  $COMPARE_URL"
   echo ""
-  echo "After you click Create pull request, paste the PR URL back if you want /dev:commit --resume to record it."
-  # Log: pr_method: web_url_fallback + compare_url in commit-run.md
+  echo "After you click Create pull request, re-run /dev:commit --resume <task> so pr_url is recorded."
+  # Log: pr_method: web_url_fallback + compare_url + body_inlined: true|false
+fi
+```
+
+**A PR with no description is the failure this step exists to avoid.** Whenever the body does not
+travel in the URL, the summary must name the file to paste and say the PR is not complete until it is
+— one line, not a footnote. The run that prompted this printed a compare link with no `body=` at all
+and a note buried in a paragraph; the PRs were created empty.yaml
+status: devReview
+phase: pr-pending          # NOT pr-open — nobody can review what was never opened
+pr_url:                    # stays empty until a PR exists
+pr_method: web_url_fallback
+compare_url: https://github.com/<owner>/<repo>/compare/...
+```
+
+This matters because the next command believes it. `/dev:fix-review` gates on `phase: pr-open` **and**
+a non-empty `pr_url:`; a run that wrote `pr-open` with no URL produced 36 sub-tasks whose next step
+could not execute — it passed the phase check and failed on the missing URL, after telling the user
+to run it. On `pr-pending` the next step is **"open the PR from the compare link, then re-run
+`/dev:commit --resume <task>` so `pr_url` is recorded"** — never `/dev:fix-review`, which has no
+comments to fetch because there is no PR to comment on.
   # State: /dev:commit exits successfully; user manually completes the PR in browser
 fi
 ```
@@ -273,7 +367,7 @@ fi
 **"PR already exists" handling** — if Step 1 or Steps 2/3 return a "PR already exists" error (`422 Unprocessable Entity` with `A pull request already exists for <head>`):
 
 ```bash
-# Step 1: gh pr edit <pr-number> --body-file dev/pr-summary.md
+# Step 1: gh pr edit <pr-number> --body-file units/<repo>/pr-summary.md
 # Steps 2/3 curl: PATCH /repos/$OWNER/$REPO/pulls/<pr-number> with body update
 ```
 
@@ -318,7 +412,7 @@ Use `AskUserQuestion` for the yes/no. On `y`: run the install, run `gh auth logi
 
 ### 9e. Progress log
 
-Append to `dev/commit-run.md`:
+Append to `units/<repo>/status.md § ## Run history`:
 
 ```yaml
 stage-9:
@@ -330,7 +424,7 @@ stage-9:
   pr_url: https://github.com/acme/acme-backend/pull/247   # empty when pr_method == web_url_fallback (compare_url instead)
   compare_url: https://github.com/.../compare/...      # only when pr_method == web_url_fallback
   pr_title: "Supplier Onboarding — backend"
-  pr_body_file: dev/pr-summary.md
+  pr_body_file: units/<repo>/pr-summary.md
   action: created | updated | pending_user_completion
 ```
 
@@ -349,8 +443,8 @@ If `stage-9.status: HALTED` due to a transient issue, retry after human addresse
 ### 9h. Never
 
 - Never mark MC status `done` here — that's the PR-merge webhook's job (out of scope for v2.2; noted for v2.3)
-- Never modify `local-runbook.md` here (that's `/dev:build` Stage 11's file)
-- Never include "how to run locally" in the PR body (that's `local-runbook.md`)
+- Never modify `pr-summary.md` § `## How to verify` here (that's `/dev:build` Stage 11's file)
+- Never include "how to run locally" in the PR body (that's `pr-summary.md` § `## How to verify`)
 - Never inline test-run outputs in the PR body — link to CI runs if the CI exposes them
 - Never `--force-push` unless the developer explicitly asked
 - Never `--no-verify` on push

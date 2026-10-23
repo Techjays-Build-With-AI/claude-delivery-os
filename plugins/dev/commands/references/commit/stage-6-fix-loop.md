@@ -4,15 +4,15 @@
 
 **Invoked by:** Stages 3 (security), 4 (code review), 5 (acceptance regression). NOT a standalone stage. Each entry into Stage 6 targets a specific set of findings.
 
-**On completion:** every finding that entered the loop is either resolved (fixed) or escalated (bounds exceeded → `dev/escalation-<n>.md` + halt).
+**On completion:** every finding that entered the loop is either resolved (fixed) or escalated (bounds exceeded → `units/<repo>/status.md § ## Run history (a BLOCKED entry)` + halt).
 
 ---
 
 ### 6a. Preconditions
 
 - One of Stages 3-5 produced findings that block at commit-time threshold
-- The findings file (`security-findings-commit.md`, `code-review-findings.md`, `acceptance-map.md`) has been written and is readable
-- Stack + inferred patterns are still available in `dev/implementation-log.md`
+- The findings file (`security-findings-commit.md`, `code-review-findings.md`, `status.md` § `## Acceptance`) has been written and is readable
+- Stack + inferred patterns are still available in `units/<repo>/status.md § ## Run history`
 
 ### 6a.i. Non-skippable execution (v2.3.27 — closes the "findings surfaced but agent didn't invoke fix loop" gap)
 
@@ -20,7 +20,7 @@
 
 Same class of "spec exists but subagent doesn't execute it" bug as v2.3.21 (compose mechanical fix pass) and v2.3.25 (Stage 7 semantic merge). Findings surface, the agent reports them, and the agent moves to Stage 8 push without invoking Stage 6. Push then lands broken code because the review said "block" and nobody acted on it.
 
-Every entry into Stage 6 — even trivial ones with a single Critical finding — records an invocation trace in `commit-run.md`. Recording format (Stage 8 §8a's precondition check reads this):
+Every entry into Stage 6 — even trivial ones with a single Critical finding — records an invocation trace in `status.md` § `## Run history`. Recording format (Stage 8 §8a's precondition check reads this):
 
 ```yaml
 stage-3:                       # or stage-4 / stage-5 depending on origin
@@ -45,7 +45,7 @@ stage-3:                       # or stage-4 / stage-5 depending on origin
         resolved: true
     broad_reruns_used: 1
     exit_state: CLEAN | ESCALATED
-    escalation_file: null | dev/escalation-<n>.md
+    escalation_file: null | units/<repo>/status.md § ## Run history (a BLOCKED entry)
 ```
 
 If a stage completes with BLOCKING findings resolved but no `fix_loop_invocation:` block written → Stage 8 refuses to push (see stage-8-9-push-pr.md §8a). No workaround. No "I checked and applied the fix inline" bypass.
@@ -75,7 +75,7 @@ For each blocking finding, invoke `dev-stack-adaptive-implementation` in fix-mod
 ```
 Prompt to skill:
   Fix mode.
-  Finding: <full finding entry from security-findings-commit.md OR code-review-findings.md OR acceptance-map.md row>
+  Finding: <full finding entry from security-findings-commit.md OR code-review-findings.md OR status.md § ## Acceptance row>
   Suggested fix: <fix_suggestion field if present, or "diagnose from failure_scenario">
   Constraint: minimal-surface change; do NOT expand scope; do NOT refactor unrelated code.
   Persist per-finding decision to dev/decisions.md as DEC-###.
@@ -122,7 +122,7 @@ Order matters: fixing a code-review Major may introduce a security concern; fixi
 
 If a per-finding attempt count reaches its bound OR a broad re-run count reaches its bound, escalate:
 
-1. Write `dev/escalation-<n>.md` (n = next sequential integer):
+1. Write `units/<repo>/status.md § ## Run history (a BLOCKED entry)` (n = next sequential integer):
 
 ```yaml
 ---
@@ -161,9 +161,9 @@ severity: bounds_exceeded
 3. Apply manually, run `/dev:commit --resume` to continue
 ```
 
-2. Local state: `REVIEW → BLOCKED`
+2. Local state: `devReview → BLOCKED`
 3. MC status: `devReview → blocked` via `task-mcp.update_task_status`
-4. `status.md`: `current_state: BLOCKED`, `blocked_reason: fix-loop-bounds-exceeded`, `escalation_file: dev/escalation-<n>.md`
+4. `status.md`: `status: blocked` · `phase: escalated`, `blocked_reason: fix-loop-bounds-exceeded`, `escalation_file: units/<repo>/status.md § ## Run history (a BLOCKED entry)`
 5. Halt. Print terminal message pointing at the escalation file.
 
 Never partial-push. Never continue past a bounds exceeded escalation.
@@ -172,7 +172,7 @@ Never partial-push. Never continue past a bounds exceeded escalation.
 
 ### 6g. Progress log
 
-Append to `dev/commit-run.md` for each fix-loop invocation:
+Append to `units/<repo>/status.md § ## Run history` for each fix-loop invocation:
 
 ```yaml
 stage-6-loop-<invocation-n>:

@@ -96,7 +96,7 @@ How many apps in this Solution?
 How many? [default 2]
 ```
 
-Then for each app run just the **metadata step** (matches `/jetrix:init` §7a). Repo linking + env branches happen in the Jetrix portal after — one clear place, no split-brain.
+Then for each app run just the **metadata step** (matches `/jetrix:init` §11). Repo linking + env branches happen in the Jetrix portal after — one clear place, no split-brain.
 
 ### 3a. App metadata
 
@@ -180,7 +180,7 @@ Now that the Solution + apps exist in Jetrix, re-run the standard init sequence:
 
 ## 5. Scaffold the delivery-os folder tree — inline `/delivery-os:init`
 
-Rather than telling the teammate to run a second command, invoke `/delivery-os:init` inline. That seeds the v2 role-centric tree under `.jetrix/`: `shared-context/` (with seeded templates), `ba/` (with `registers/`, `logs/`, `artifacts/`, `intake-runs/`, `reviews/`), `features/` (empty — per-feature bundles land here from `/ba:features`, and the per-feature `dev/` sub-tree lives under `features/<slug>/dev/`), `tl/` (with `reviews/`, `maturity/`, `code-map-registry.md`), `qa/` (with `audits/`, `health/`, `escalations/`, `quality-gates.md`), `doc/` (with `decks/`, `walkthroughs/`, `workflows/`, `boards/`), and `tasks/`. There is no top-level `dev/`, no `context/` under `.jetrix/`, and no `<solutionSlug>/` wrapper — everything sits at `.jetrix/` root. Seeding is idempotent; existing files are never overwritten.
+Rather than telling the teammate to run a second command, invoke `/delivery-os:init` inline. **Do not restate what it seeds here** — that spec lives in one place, and a second copy is how the two came to disagree. It writes three directories and four files: `cache/repolocation.json`, `cache/sync-state.json`, `shared-context/decision-log.md`, and the `project.json` already written above. Every other folder is created by the command that first writes into it, with content.
 
 ## 6. Final summary
 
@@ -209,15 +209,15 @@ Pending in portal (open Solution Explorer → each app → Integration tab):
      Do it whenever; next /jetrix:init <slug> picks up the changes.)
 
 Connection map:  · Not built yet — open portal → Connections tab → Build map.
-                   (Or, if you know the wiring already, we can add a
-                   /jetrix:build-map command later.)
+                   (Or skip it: /jetrix:init asks for the wiring directly
+                   when the portal has none.)
 
 Workspace layout:
   .jetrix/project.json
   .jetrix/connection-map.md       (if the portal built one)
   .jetrix/cache/                  (repolocation.json + sync-state.json)
   .jetrix/shared-context/         (seeded templates + baseline-profile)
-  .jetrix/ba/                     (intake.index seeded; registers/ logs/ artifacts/ intake-runs/ reviews/)
+  .jetrix/requirements/<slug>/     (created by /ba:scope, with contentuns/ reviews/)
   .jetrix/features/               (empty — per-feature bundles from /ba:features; dev/ lives under <slug>/)
   .jetrix/tl/                     (reviews/ maturity/ code-map-registry.md)
   .jetrix/qa/                     (audits/ health/ escalations/ + quality-gates placeholder)
