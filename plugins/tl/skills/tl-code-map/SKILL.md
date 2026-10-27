@@ -59,10 +59,31 @@ Three passes. Discovery enumerates cheaply; detail writes one unit at a time; **
 10. **Write the semantic indexes.** For each layer, write the index in two parts: a **`## Domain Map`** — a few lines per domain saying what the domain *is*, what kinds of operations or objects live in it, what it touches, and when to look elsewhere — and a **`## Units`** table with one row per unit whose `Summary` cell is **copied verbatim** from that unit's own `## Summary` line, so the two can never drift. The database index carries both views: domains in the Domain Map, and the unit tables grouped by **kind**. Then write the root `code-context-index.md` (layers, domains, coverage, confidence) and the `README.md` stating the index-first read protocol. Synthesise the Domain Map **from the units you actually wrote** — it is a summary of evidence, never a guess about what a domain probably contains.
 11. **Respect the index budget.** A layer index must stay readable in one pass. If its Units table passes ~150 rows or the file passes ~500 lines, keep the Domain Map and a roll-up in the layer index and split the per-unit rows into per-domain `<domain>-index.md` files. Never let an index degrade into a directory listing.
 12. **Update the workspace registry** (`<workspace>/.jetrix/code-map-registry.md`): this repo's path, layers, context root, commit, unit counts, index paths, area tokens, and any cross-repo link whose other end isn't mapped yet. **Single-repo run: write the file.** **Multi-repo run: do not write it** — concurrent mappers would clobber each other; **return** your registry row and pending-link rows to the caller, which merges them. This is what makes cross-repo links resolvable and as-built units reusable.
-13. **Run the integrity check.** Every forward link has its back-link; every endpoint has a caller or a declared trigger; no orphan object (or it's marked reference/seed); every unit has a `## Summary` and every index row mirrors it; every index has a Domain Map; shared units appear once with multiple back-links; nothing duplicated. Plus the **coverage check**: every `map-coverage.md` row is `mapped`, `skipped`-with-a-note, or `removed` — no silent `pending`.
-14. **Summarise in chat.** Units per layer and per kind (created vs reconciled), coverage (enumerated vs mapped vs skipped), the confidence spread, where the tree was written, integrity findings, and the next steps.
+13. **Reconcile against what is already there, before minting anything.** The integrity check
+    below walks links *between* units; this walks the link *to the code*, which is where units rot.
 
-15. **Author this repo's section of `shared-context/coding-standards.md` § `<repo>` when missing (v2.4).**
+    For every existing unit, resolve its `mapped_from` on disk:
+
+    - **Resolves** — refresh `mapped_from_commit` and move on.
+    - **Gone** — the file was renamed or deleted. **Match on this unit's own key before you
+      create anything**, using the same keys step 9 mints on: route path for a page, normalised
+      `METHOD + path` for an endpoint, object name for a database object. A renamed file whose unit
+      still carries the same key is the *same* unit that moved house, so update its `mapped_from`
+      rather than minting a second one. Only when nothing matches is the unit genuinely retired —
+      set `implementation_state: Retired` with the reason, and never delete it, because its id may
+      still be cited elsewhere.
+
+      Matching on the endpoint key alone would quietly leave pages and database objects
+      un-reconciled, and those rename at least as often.
+
+    Skipping this is what leaves two units for one endpoint after a rename: the old one still points
+    at a path that no longer exists, the new one looks fresh, and nothing says which to believe.
+    Report both counts — `units_refreshed` and `units_retired`.
+
+14. **Run the integrity check.** Every forward link has its back-link; every endpoint has a caller or a declared trigger; no orphan object (or it's marked reference/seed); every unit has a `## Summary` and every index row mirrors it; every index has a Domain Map; shared units appear once with multiple back-links; nothing duplicated. Plus the **coverage check**: every `map-coverage.md` row is `mapped`, `skipped`-with-a-note, or `removed` — no silent `pending`.
+15. **Summarise in chat.** Units per layer and per kind (created vs reconciled), coverage (enumerated vs mapped vs skipped), the confidence spread, where the tree was written, integrity findings, and the next steps.
+
+16. **Author this repo's section of `shared-context/coding-standards.md` § `<repo>` when missing (v2.4).**
 
     **One file, a `## <repo>` section each — and you write only your own.** `/tl:code-map` maps every repo in
     one run, one subagent per repo, and every one of them writes this file. Written whole, the Python repo's

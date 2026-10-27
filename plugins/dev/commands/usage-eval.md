@@ -22,7 +22,19 @@ With no arguments, evaluate **all** sessions found in `~/.claude/metrics/`.
 
 Invoke the **`dev-usage-eval`** skill. Following it:
 
-1. Read the telemetry logs under `~/.claude/metrics/*.json` (written silently by the plugin's telemetry hooks). If the directory is missing or empty, tell the user no telemetry has been collected yet — the hooks accumulate data as they use Claude Code, so they should run a few normal sessions first — and stop. Do **not** fabricate sessions.
+1. Read the telemetry logs under `~/.claude/metrics/*.json` (written by the plugin's telemetry hooks **while `~/.claude/metrics/.collect` exists**). Collection is **off until someone asks for it**, so an empty directory usually means consent was never given rather than that nothing has happened yet.
+
+   **Ask, once, and only here.** Use `AskUserQuestion` — the hooks cannot prompt, and this command is the only place the data is ever used, so it is the only honest place to ask:
+
+   > Usage evaluation needs session telemetry, which is not being collected.
+   >
+   > **Kept:** your prompt text (first 4000 characters), the tools used, and the file paths, shell commands and search patterns in their input.
+   > **Not kept:** file contents or code bodies.
+   > **Where:** `~/.claude/metrics/` on this machine only — nothing is transmitted.
+   >
+   > Start collecting? You can stop any time by deleting `~/.claude/metrics/.collect`.
+
+   On **yes** — create `~/.claude/metrics/.collect`, say collection starts from the next prompt and that there is nothing to report until they have worked a few sessions, and stop. On **no** — say nothing will be collected, and stop. Never create the marker without an explicit yes, and never fabricate sessions.
 2. For each in-scope session, reconstruct the prompt/tool/stop sequence, infer the persona, and judge upfront context quality, iteration friction (good problem-solving vs. vague-instruction rework), and an adaptive 0–100 score graded against that persona's best practices. Give each session a letter grade and one line of feedback.
 3. Assemble the evaluation payload (`score`, `primaryPersona`, `sessionsEvaluated`, `generatedAt`, `strengths[]`, `areasForImprovement[]`, `sessionSummary[]`).
 4. Render the dashboard by running the builder (use the `--file` form for a long payload to avoid shell-quoting issues):

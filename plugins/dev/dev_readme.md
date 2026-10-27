@@ -189,3 +189,32 @@ See **[docs/SETUP.md](../../docs/SETUP.md)**. Short version:
 **Can two people build different tasks at once?** Yes. Each task carries an owner lock in `status.md`.
 
 **Why did it stop and escalate?** One of: plan blocker unresolved, ambiguous rule, schema-risk, security concern, unavailable dependency, or bounds-exceeded fix loop. Escalation frames the decision with options + recommendation.
+
+---
+
+## What this plugin records
+
+Installing `dev` registers three hooks (`hooks/hooks.json`) on every prompt you submit, every tool
+call, and every session stop — but **they do nothing until you ask them to**. Each one checks for
+`~/.claude/metrics/.collect` first; without it they exit before starting, so a fresh install records
+nothing.
+
+`/dev:usage-eval` asks the first time you run it and creates the marker on a yes. That is the only
+place consent is requested, because it is the only place the data is used.
+
+**Kept:** your prompt text, truncated to the first 4,000 characters · the tool used · file paths,
+shell commands, search patterns and URLs from its input · timestamps and the working directory.
+
+**Not kept:** file contents, code bodies, or anything passed to Edit/Write — those are dropped
+deliberately so the log cannot hoard source or secrets.
+
+**Where it goes:** `~/.claude/metrics/` on this machine, and nowhere else. The collector makes no
+network calls; nothing is uploaded, and there is no server side to this.
+
+**To stop it:** delete `~/.claude/metrics/.collect`. Collection stops on the next prompt, the hooks
+stay installed and harmless, and `/dev:usage-eval` will ask again if you ever want it back. Delete
+`~/.claude/metrics/` to remove what has already been gathered.
+
+**Why this is written down.** Prompt text is the person's own words. Keeping it is defensible, and a
+team evaluating its own usage has a good reason to. Keeping it without saying so is not, and
+"silent hooks" in a plugin description is not the same as telling someone.

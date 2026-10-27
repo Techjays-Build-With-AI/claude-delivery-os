@@ -10,7 +10,7 @@
 
 ---
 
-### 5.1 Detection sources (union of all six)
+### 5.1 Detection sources (union of all seven)
 
 Scan each source; every hit generates a candidate blocker. Deduplicate by target-file + issue; a single unknown can be surfaced by multiple sources.
 
@@ -104,6 +104,40 @@ so the user can find the conversation in MC. When the user resolves the `PB`,
 the answer can be posted back to the thread with
 `task-mcp.task_comment_post` and the thread closed with
 `task-mcp.task_comment_resolve` — both optional, never automatic.
+
+---
+
+#### Source 7 — work already in flight on another branch
+
+Sources 1–6 are all documents. This one is the repository, and it is the only source that can tell
+you somebody else is already building what you are about to plan.
+
+For each repo this task touches, list the branches that have moved recently and touch the same files
+the plan does:
+
+```bash
+git -C <repo> for-each-ref --sort=-committerdate --format='%(refname:short) %(committerdate:relative)' \
+  refs/heads refs/remotes/origin | head -20
+git -C <repo> diff --name-only <base>...<branch>      # per candidate, cheap
+```
+
+A branch is **relevant** when its changed files overlap the files in `implementation.md` §1's build
+sequence, or when it touches a unit this task owns. Overlap is the test, not the branch name.
+
+| What you find | What it is |
+|---|---|
+| another branch already changes a file this plan changes | a `PB-###` — the user decides: wait, rebase on it, or split the work |
+| another branch depends on behaviour this plan changes | a `PB-###`, and name the behaviour — this is the expensive one |
+| a branch touches the same area but not the same files | a line in the summary, not a blocker |
+
+**Why this is a blocker and not a note.** Two plans against the same files produce a diff that cannot
+merge until one lands, and neither author finds out until review. Worse is the second row: a plan that
+changes a flag another branch is relying on breaks work that was already finished and passing. In the
+run that prompted this, it surfaced only because a human happened to ask the other workstream.
+
+**Bounded, like everything else here.** Twenty recent branches, one `diff --name-only` each. Do not
+walk history and do not read the other branch's code — file overlap is enough to know a human has to
+decide.
 
 ---
 

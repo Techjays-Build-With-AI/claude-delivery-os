@@ -49,7 +49,9 @@ library's utilities.
 
 ## 3. What the build summary must say
 
-One line, so a reviewer can check it rather than take it on trust:
+One line, so a reviewer can check it rather than take it on trust. The shape is
+`UI: <library> · tokens from <source> · reused <components> · new <components>`; the example below
+happens to be a web stack, and reads the same for a mobile or desktop one:
 
 ```
 UI: react-bootstrap · tokens from src/styles/_variables.scss · reused DataTable, FormField, EmptyState

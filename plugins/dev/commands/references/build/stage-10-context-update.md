@@ -55,7 +55,10 @@ implemented_by_commit: <HEAD SHA>           # ADD
 implemented_by_task: FEAT-SUP-001-1         # ADD (feature id + sub-task suffix if applicable)
 mapped_from: src/routes/supplier.ts         # ADD (canonical source file)
 mapped_from_line: 42                        # ADD (line of the export / entry point, if resolvable)
+mapped_from_commit: <sha>                   # ADD — `git log -1 --format=%H -- <that file>`
 ```
+
+**`mapped_from_commit` is the SOURCE FILE's commit, not the branch HEAD.** `implemented_by_commit` already records where the work landed; this records which version of the file the unit actually describes, and they are different questions. Take it from `git log -1 --format=%H -- <that file>`. Without it the unit cannot be checked for drift later — and a unit nobody can check is one that quietly goes wrong.
 
 **All four lifecycle fields move together, or none of them do.** `origin`, `status`,
 `implementation_state` and `design_confidence` describe one fact - this unit is built - and a reader
