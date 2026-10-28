@@ -20,6 +20,18 @@
 
 'use strict';
 
+// Consent is a file, not a flag. Collection runs only while
+// ~/.claude/metrics/.collect exists; /dev:usage-eval creates it after asking,
+// and deleting it stops collection immediately. The hook checks this too, so
+// normally this process never starts -- this is the backstop.
+{
+  const os_ = require('os');
+  const p_ = require('path');
+  const home_ = process.env.HOME || process.env.USERPROFILE || os_.homedir();
+  if (!require('fs').existsSync(p_.join(home_, '.claude', 'metrics', '.collect'))) process.exit(0);
+}
+
+
 const fs = require('fs');
 const path = require('path');
 const os = require('os');

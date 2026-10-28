@@ -136,6 +136,28 @@ Use the controlled labels throughout: **Confirmed · Assumption · Open Question
 ### 6. Wire up dependencies and preserve traceability
 Identify dependencies **between** features (Supplier Approval depends on Supplier Onboarding; RFP Generation depends on Outlet Discovery) and record them in both features' `dependencies.md` and in the index. Every feature's `feature.md` must carry **Source References** back to the scope section and/or the register IDs it came from — traceability runs scope → feature, and no scope item may be silently dropped. Where you reference a page, API, or data entity that lives in another context file, **link to it, don't duplicate** the contract or schema (Rule 3).
 
+### 6b. Resolve the surfaces an acceptance criterion names
+
+**Only where repos are mapped** (`.jetrix/code-map-registry.md` lists them) — no registry, no change.
+
+When a criterion is about to name a page, endpoint or entity, resolve it through
+`tl-read-code-context`: **layer index → the one matching row → that unit file.** Two reads per
+surface, and only for surfaces a criterion actually names. Never scan a repo, never read source —
+the index exists so you do not have to.
+
+| Found? | Write |
+|---|---|
+| exists | cite the unit id — `PAGE-TEAM-01` — so planning resolves it instead of guessing |
+| missing, scope asked for it | write it, mark `New surface` in `dependencies.md` |
+| missing, scope never asked | an open question, not an acceptance criterion |
+
+The third row is the one that blocked three of seven features in a real run: a criterion assuming a
+UI nobody had described. **Citing a unit is not agreeing with it** — as-built is where the feature
+lands, not what the business signed off; where code and scope disagree, that is a `CON` for the scope
+review.
+
+---
+
 ### 7. Report the breakdown — as a table, not a file
 Return a one-row-per-feature table in the run summary: `Feature ID | Feature | Status | Priority | Dependencies | Folder`.
 

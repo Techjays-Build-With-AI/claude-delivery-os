@@ -31,6 +31,52 @@ Presence of the `<repo>/context/code-context/{frontend,backend,database}` folder
    - **Resolves** — the unit file exists at the path the index row points to (open the index, find the row matching the id, `test -f` the file path).
    - **Linked** — this feature's `FEAT-<AREA>-NN` appears in the unit file's `Used by Features:` cell OR in the corresponding index row's `Used by Features` column (word-boundary match — an id embedded in a longer id doesn't count).
 
+   - **Current** — the unit still describes the code it was read from. Compare its
+     `mapped_from_commit` with `git log -1 --format=%H -- <mapped_from>` in that repo.
+
+     | Result | Meaning | What to do |
+     |---|---|---|
+     | match | the unit describes the file as it stands | nothing |
+     | differ | the source moved on after the unit was written | **flag, do not halt** |
+     | no `mapped_from_commit` | never stamped | report `unknown`, never `stale` |
+
+     **Take the path only — `mapped_from` is not always a path.** It is commonly
+     `<path>:<symbol>` — a file plus the function, class or handler inside it. Cut at the
+     first `:` before calling git: `git log -1 --format=%H -- "${mapped_from%%:*}"`. Passing the
+     whole value matches nothing and every unit comes back looking stale — in one real repo all 79
+     units carry the suffix, so an unstripped check is wrong 79 times out of 79, loudly and
+     uselessly.
+
+     **One git call per repo, not one per unit.** Build the whole map in a single pass and look
+     units up in it:
+
+     ```bash
+     git -C <repo> log --format='C %H' --name-only        | awk '/^C /{c=$2; next} NF && !seen[$0]++ {print c, $0}'
+     ```
+
+     First appearance walking back from HEAD is that file's last commit. Measured on a real repo:
+     **299 ms for every file, against 51 seconds** for 79 per-unit calls at ~200 ms each. The
+     per-unit form makes a check worth having feel like a tax, and a check people resent is one
+     they turn off.
+
+          **A repo git cannot answer for reports `unknown`.** A shallow clone, a missing `.git`, or a
+     file git has never seen returns no commit — that is an absent measurement, not drift. Never
+     report it as stale.
+
+     **Flag, never halt.** A unit whose source moved is usually still mostly right, and stopping a
+     plan over it would cost more than it saves. Name the unit and both commits so the reader can
+     judge: `<unit-id> — unit@<short-sha>, file@<short-sha> (<mapped_from path>)`. Carry the
+     count into the run summary as `stale_units`.
+
+     **Why it belongs here.** Stage 1 already opens every declared unit to check it resolves and is
+     linked, so the file is in hand and the extra check is one `git log` per unit. A unit that is
+     out of date is worse than one that is missing: a missing unit gets planned, a stale one gets
+     believed. A unit still describing an endpoint's old contract — written before the handler
+     started requiring a verified credential — is a plan built on something that is no longer so.
+
+     **This flags drift; it does not repair it.** Re-reading the code is `/tl:code-map`'s job and
+     needs a human to approve the result.
+
 4. **Verdict:**
    - **Planned** — every declared page/endpoint/entity resolves AND is linked to this `FEAT-id`. Proceed to §1c (repo count) then Stage 2.
    - **Partially planned** — some declared units are missing from the graph, unresolved, or unlinked. Treat as *needs planning* (§1b re-runs planning to fill gaps; the TL skill updates in place and won't duplicate existing units).

@@ -447,11 +447,11 @@ Proceed with all? [Y/n]  or  [pick=1,3,5] to only continue with some
   terms that argue against it ("36 sub-tasks, ~36 analysis agents, a long Q&A session"). How much
   work the batch is, is not a reason for this command to shrink it. `pick=` exists for the user who
   wants a subset, and it stays theirs to reach for.
-- **Never forecast blockers here.** Stage 3 has not run, and two of its six sources read
+- **Never forecast blockers here.** Stage 3 has not run, and three of its seven sources read
   `analysis.md`, which Stage 2 has not written yet — any count quoted at this point is invented. Do
   not count ledger rows as a proxy either: `Accepted (assumed)` and `Closed` rows are settled, and
   reporting them as open questions turns resolved work back into a reason to hesitate. The only
-  questions that become `PB-###` are the ones the six sources in `blocker-detection.md` §5.1 find
+  questions that become `PB-###` are the ones the seven sources in `blocker-detection.md` §5.1 find
   — `dependencies.md` rows marked **Blocks build**, not every row under `## Open questions`.
 
 ### The base branch is part of this checkpoint

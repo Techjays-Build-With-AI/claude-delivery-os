@@ -609,6 +609,42 @@ seeded 23, so the normal path kept producing the old tree and the rewrite was de
 
 Set `scaffolded=true` on success (for the §16 summary line).
 
+## 15a. Pull the shared delivery context
+
+**A bind that scaffolds empty folders leaves the second person worse off than a clone.** The repos carry their
+own `context/code-context/` and test harness through git; what does not travel is everything workspace-level,
+and two of those are hard gates — `/dev:build` Stage 4 on `qa/quality-gates.md`, Stage 0 on
+`shared-context/coding-standards.md`. Without them a teammate who just cloned a fully-built repo is refused a
+build over files that describe work already finished.
+
+Run the Tier A pull — `references/pull/scope.md` with no requirement slug. It fetches `connection-map.md`,
+`code-map-registry.md`, `qa/quality-gates.md`, every `qa/<repo>-setup.md` and `shared-context/coding-standards.md`,
+and nothing else. No requirement's scope, registers or ledger: those are opt-in.
+
+`code-map-registry.md` matters as much as the gates. `/tl:code-map` step 9 mints area tokens **reusing the ones
+already in the registry so ids never collide across repos**; a teammate mapping without it mints fresh tokens
+against a tree that already carries someone else's, and nothing detects the divergence.
+
+Not on Jetrix, or nothing pushed yet → say so in one line and carry on. **Never fail the bind over the pull.**
+
+**Then name the requirements the Solution holds**, read from the manifest paths (`requirements/<slug>/...`), so
+the next step is a command the user can run rather than a slug they have to guess:
+
+```
+This Solution has 2 requirements:
+  asset-management
+  billing-portal
+
+Next:
+  Joining an existing requirement?  Pull it first —
+      /jetrix:pull scope asset-management
+
+  Starting a new one?
+      /ba:scope add "<where your client material lives>"
+```
+
+With no requirements yet, drop the list and keep only the `/ba:scope` line.
+
 ## 16. Report
 
 Execute `plugins/jetrix/commands/references/init/summary.md` verbatim. It chooses **one** next step from what

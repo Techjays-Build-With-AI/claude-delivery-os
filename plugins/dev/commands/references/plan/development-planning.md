@@ -19,7 +19,21 @@ Determined from `units/<repo>/status.md § ## Run history`'s `stage-1-results.sp
 
 **Parallel per task** — spawn N `dev-agent` subagents for the split branch; one for parent-alone.
 
-Each subagent runs §2b (pre-flight) → §2c (readiness) → §2d (impact) → §2e (dev-plan) → §2f (write scratchpad) on its own task.
+Each subagent runs §2b (pre-flight) → §2c (readiness) → §2d (impact) → §2e (dev-plan) on its
+own task, and **returns** its scratchpad content. §2f is the caller's: it writes every returned
+scratchpad to `units/<repo>/analysis.md` after the fan-out settles.
+
+**The subagent returns, the caller writes — and this is not a style preference.** Some harnesses
+refuse file writes from a subagent. When that happened on a real run the subagent's retry was then
+cut off by a content-filter false positive, so no scratchpad was written and compose ran on nothing
+— with no error anyone saw, because a subagent that cannot write still returns. A flow that depends
+on a capability the harness may withhold fails silently, and silently is the worst way for a planning
+stage to fail.
+
+**Verify, do not assume.** After writing, confirm each expected `units/<repo>/analysis.md` exists and
+is non-empty. A task whose scratchpad is missing does **not** continue to compose: record it as a
+failed task with the reason, and let its siblings carry on. Compose reads the scratchpad, so running
+it without one produces a plan built from nothing — which looks like a plan.
 
 ---
 

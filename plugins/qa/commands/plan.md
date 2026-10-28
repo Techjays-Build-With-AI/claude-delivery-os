@@ -41,3 +41,13 @@ Next:
 ```
 
 Where a decision is still open, replace the `Next:` line with the question and say that `/qa:setup` cannot start until it is answered.
+
+## Publish it
+
+**`qa/<repo>-setup.md` is workspace-level — no repo holds it, so git does not carry it.** Push it as soon as it is written,
+the way `/ba:features` pushes a breakdown the moment the folders exist: `/jetrix:push scope qa/<repo>-setup.md`.
+**Pass the filename** — this run owns one repo's plan, not the whole scope manifest. It is the build record `/qa:setup` reads and `/qa:health` checks drift against; a teammate without it cannot extend the harness.
+
+Not on Jetrix, or the push fails → one `⚠ Needs you` line naming the retry command. **Never fail the run over
+the upload** — the work is on disk, and a dropped connection must not cost it.
+

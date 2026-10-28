@@ -341,6 +341,14 @@ The **as-built code graph** (pages, endpoints, entities) does NOT live under `.j
     └── {tables,collections,views,procedures,functions,triggers}/<slug>.md    # ENT-<AREA>-NN
 ```
 
+**An index's header count is derived, never carried forward.** Recompute it from the rows the index
+now holds, every time you write one. Four things write these files — `tl-code-map`,
+`tl-feature-planning`, `/dev:build` Stage 10 and `tl-semantic-context-merge` — and a count that only
+the first of them sets is wrong from the second write onward. One real backend index opened with
+*"15 endpoints across 4 domains"* while listing 82, because the map wrote 15 and planning added 67
+without touching the line. That header is the first thing a reader uses to judge whether the map is
+worth opening.
+
 The workspace `.jetrix/code-map-registry.md` is the one workspace-level TL file — it lists each mapped repo, its context root, its indexes and its area tokens, so `tl-feature-planning` (internal) can find as-built units to reuse and cross-repo links resolve. Unit IDs and match keys are identical to forward-planned ones; reverse-mapped units add `origin: reverse-mapped`, `mapped_from`, `mapped_from_commit`, and `map_confidence`. Nothing sensitive is written into this tree — it is committed and shared.
 
 ### 1.c Jetrix binding — `.jetrix/` (owned by the **jetrix** plugin)

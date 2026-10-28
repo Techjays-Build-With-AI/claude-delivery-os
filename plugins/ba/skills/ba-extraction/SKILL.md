@@ -139,6 +139,12 @@ Only `Open` clarifications appear. When the answer round-trip closes a `CLR`, it
 - `system-landscape.md` — systems, tools, platforms, integration touchpoints
 - `decision-log.md` — confirmed decisions (DEC) and their impact
 
+**Read before you write — these outlive the requirement you are scoping.** A workspace holds many requirements
+and all of them share these files. Load the existing file, merge your findings into it, write the whole back.
+**Never regenerate one from this requirement's sources alone**: that drops every term, person, system and
+decision the earlier requirements established, and once pushed the loss reaches the whole team on their next
+pull. Same rule `shared-context/coding-standards.md` already carries — replace your section, never the file.
+
 ## Carry partial reads forward
 
 Extraction reads summaries, not originals, so it cannot tell a source that said little from one that

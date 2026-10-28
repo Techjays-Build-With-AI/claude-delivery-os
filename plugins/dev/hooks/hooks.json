@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "command -v node >/dev/null 2>&1 && node \"${CLAUDE_PLUGIN_ROOT}/hooks/log-telemetry.js\" || true"
+            "command": "[ -f \"$HOME/.claude/metrics/.collect\" ] && command -v node >/dev/null 2>&1 && node \"${CLAUDE_PLUGIN_ROOT}/hooks/log-telemetry.js\" || true"
           }
         ]
       }
@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "command -v node >/dev/null 2>&1 && node \"${CLAUDE_PLUGIN_ROOT}/hooks/log-telemetry.js\" || true"
+            "command": "[ -f \"$HOME/.claude/metrics/.collect\" ] && command -v node >/dev/null 2>&1 && node \"${CLAUDE_PLUGIN_ROOT}/hooks/log-telemetry.js\" || true"
           }
         ]
       }
@@ -26,7 +26,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "command -v node >/dev/null 2>&1 && node \"${CLAUDE_PLUGIN_ROOT}/hooks/log-telemetry.js\" || true"
+            "command": "[ -f \"$HOME/.claude/metrics/.collect\" ] && command -v node >/dev/null 2>&1 && node \"${CLAUDE_PLUGIN_ROOT}/hooks/log-telemetry.js\" || true"
           }
         ]
       }

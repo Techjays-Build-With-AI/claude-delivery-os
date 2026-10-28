@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "d=\"${CLAUDE_PROJECT_DIR:-.}\"; i=$(find \"$d\" -maxdepth 4 -path '*/context/code-context/code-context-index.md' -not -path '*/node_modules/*' 2>/dev/null | head -5); [ -n \"$i\" ] && { echo \"Delivery OS: this workspace has a committed code-context map. Entry points:\"; echo \"$i\"; echo \"Resolve any page, endpoint or database object through: layer index -> the matching row -> that unit file. Do not grep the repo for a surface the index already names. Units carry implementation_state - Implemented is as-built, Planned is not written yet.\"; } || true"
+          }
+        ]
+      }
+    ]
+  }
+}
