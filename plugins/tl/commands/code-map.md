@@ -271,3 +271,14 @@ of the Review block.
 Link, last and briefly: the root index, each layer index, `map-coverage.md`, and the registry — with the
 one-line read protocol (root index → the layer's Domain Map → the single unit file). That protocol is the
 return on the whole run, and it is one sentence.
+
+## Publish it
+
+**`code-map-registry.md` is workspace-level — no repo holds it, so git does not carry it.** Push it as soon as it is written,
+the way `/ba:features` pushes a breakdown the moment the folders exist: `/jetrix:push scope code-map-registry.md`.
+**Pass the filename** — a bare `/jetrix:push scope` would also send BA documents this run never touched,
+some of them mid-edit. Without it the next person to map this workspace mints colliding area tokens, and nothing detects it.
+
+Not on Jetrix, or the push fails → one `⚠ Needs you` line naming the retry command. **Never fail the run over
+the upload** — the work is on disk, and a dropped connection must not cost it.
+

@@ -27,20 +27,27 @@ cd "$PROJECT_ROOT"
 
 # Every scope-stage file the plugin will consider.
 CANDIDATES=(
+  # Tier C - this requirement
   requirements/<slug>/scope.md
-  shared-context/data.md
+  requirements/<slug>/scope.html
+  requirements/<slug>/ledger.md
   requirements/<slug>/registers/workflows.md
   requirements/<slug>/registers/business-rules.md
   requirements/<slug>/registers/use-cases.md
-  shared-context/integrations.md
   requirements/<slug>/registers/examples.md
-  requirements/<slug>/ledger.md` (kind: assumption)
   requirements/<slug>/registers/requirements.md
-  requirements/<slug>/ledger.md` (kind: question)
+  # Tier B - project knowledge, shared by every requirement
+  shared-context/data.md
+  shared-context/integrations.md
   shared-context/glossary.md
   shared-context/stakeholder-map.md
   shared-context/system-landscape.md
   shared-context/decision-log.md
+  # Tier A - infra, pulled by /jetrix:init
+  shared-context/coding-standards.md
+  code-map-registry.md
+  qa/quality-gates.md
+  qa/*-setup.md
 )
 
 for f in "${CANDIDATES[@]}"; do
@@ -80,9 +87,13 @@ Per-file mapping:
 | `requirements/<slug>/registers/use-cases.md` | `["scope-context"]` |
 | `shared-context/integrations.md` | `["scope-context"]` |
 | `requirements/<slug>/registers/examples.md` | `["scope-context"]` |
-| `requirements/<slug>/ledger.md` (kind: assumption) | `["scope-context"]` |
 | `requirements/<slug>/registers/requirements.md` | `["scope-context"]` |
-| `requirements/<slug>/ledger.md` (kind: question) | `["scope-context"]` |
+| `requirements/<slug>/scope.html` | `["scope-context"]` |
+| `requirements/<slug>/ledger.md` | `["scope-context"]` |
+| `shared-context/coding-standards.md` | `["scope-context"]` |
+| `code-map-registry.md` | `["scope-context"]` |
+| `qa/quality-gates.md` | `["scope-context"]` |
+| `qa/<repo>-setup.md` | `["scope-context"]` |
 | `shared-context/glossary.md` | `["scope-context"]` |
 | `shared-context/stakeholder-map.md` | `["scope-context"]` |
 | `shared-context/system-landscape.md` | `["scope-context"]` |

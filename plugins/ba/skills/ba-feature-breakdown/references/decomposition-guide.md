@@ -32,9 +32,9 @@ CRM Synchronization
 
 ---
 
-## Sizing — the two guards
+## Sizing — the three guards
 
-Apply both before you commit to a feature.
+Apply all three before you commit to a feature.
 
 **Guard 1 — not too broad.** If a capability can't be estimated, built, tested, and released as one coherent unit, it's a *capability area*, not a feature — split it. "Supplier Management" that covers onboarding, approval, compliance, payment setup, and performance scoring is four or five features, not one. A feature you can't picture a team finishing in a bounded slice of work is too broad.
 
@@ -49,6 +49,31 @@ Email Template
 ```
 
 Document them inside the relevant feature's `feature.md` (as a build area or backend capability). **Exception:** a technical component *is* a feature when it's a genuinely reusable business capability the whole system leans on — e.g. `Notification Center`, `Audit History`, `User and Role Management`, `Document Upload Capability`. The test is Rule 1: does it carry business value on its own?
+
+**Guard 3 — anchored to a use case.** A feature maps to **one use case, or a small cluster sharing a
+flow and an actor**. Carry the `<MODULE>-UC-NN` ids into the feature so the mapping is visible rather
+than asserted.
+
+A feature covering a whole scope module is a **capability area**, however neatly it estimates. This is
+the guard the other two miss: "estimate and release independently" is satisfied by a feature that
+mirrors an entire module, which is how a breakdown ends up restating the scope with different
+headings — every feature passes both guards and nothing has been decomposed.
+
+More than about three unrelated `UC-` ids means it is a module. Split on the use-case seams the scope
+has already drawn.
+
+**But place the shared surfaces first, or the split is worse than the module.** Use cases overlap —
+two routinely read the same endpoint or write the same table. Split without deciding where that work
+lives and you get **two features building the same surface**, or a dependency nobody declared.
+
+1. **List the surfaces each candidate needs.** Appearing twice means shared.
+2. **Put each shared surface in exactly one feature** — the one that owns its rules.
+3. **Declare the dependency** in the others' `dependencies.md` (`depends_on_features`). `/dev:build`
+   orders its waves from this; undeclared, a feature builds against a base missing what it needs.
+
+That third step is what keeps an unfinished feature from taking the others down: declared, it holds
+back only its real dependants. **If the pieces end up depending on each other in both directions, it
+is not a split — leave it as one feature and say why in `feature.md`.**
 
 When in doubt between one big feature and several small ones, prefer the decomposition that lets a team **estimate and release independently** — that's the unit the breakdown exists to produce.
 

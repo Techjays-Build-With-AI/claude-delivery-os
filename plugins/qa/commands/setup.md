@@ -105,3 +105,14 @@ the branch every teammate builds from.
 **`/dev:build` is never the plain step after setup.** It halts without a `/dev:plan` plan (`build.md` §2, "run /dev:plan first"), so printing it bare sends the user into a refusal. `--tests-only` is the one exception — it writes no production code, so it needs no plan, and it is the single most useful thing to offer right after a harness goes green on a repo that already has code.
 
 Name any **`Required*` gate whose condition holds but whose command is still `Not-configured`** — those are the tiers the dev loop will report as `tier-unavailable`, and they are gaps rather than opt-outs. It stops at the PR and **never merges**.
+
+## Publish it
+
+**`qa/quality-gates.md` is workspace-level — no repo holds it, so git does not carry it.** Push it as soon as it is written,
+the way `/ba:features` pushes a breakdown the moment the folders exist: `/jetrix:push scope qa/quality-gates.md`.
+**Pass the filename** — a bare `/jetrix:push scope` would also send every BA document, which this run has
+no business publishing. **`/dev:build` Stage 4 hard-gates on it.** The harness itself travels through git, so without this file a teammate who cloned a green repo is refused a build over a missing receipt for work already done.
+
+Not on Jetrix, or the push fails → one `⚠ Needs you` line naming the retry command. **Never fail the run over
+the upload** — the work is on disk, and a dropped connection must not cost it.
+

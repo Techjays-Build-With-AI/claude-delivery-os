@@ -1,5 +1,7 @@
 # Index-rebuild — row-union merge for layer indexes
 
+**Recompute the index header count from its rows** — it is derived, never carried forward (`delivery-os-conventions`, layer-index header rule).
+
 **Purpose.** How to merge the three layer indexes — `<repo>/context/code-context/frontend/frontend-index.md`, `<repo>/context/code-context/backend/backend-index.md`, `<repo>/context/code-context/database/database-index.md` (filenames on disk; frontmatter doc_types are `page-index` / `endpoint-index` / `entity-index` respectively) — when both baseline (`main`) and our feature-branch copy have edits.
 
 Rule of thumb: **indexes are tables keyed by unit_id.** Merge is a row union with per-row field-level LWW.

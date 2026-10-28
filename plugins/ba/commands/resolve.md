@@ -1,6 +1,6 @@
 ---
 description: Adjudicate author answers to a scope review and close the questions. Point it at the scope-review-<timestamp>-responses.md file exported from the HTML report; the BA agent matches it to the original review, judges each answer (resolve / accept-as-assumption / ask for verification / decline), folds confirmed answers back into the scope and the BA registers, recomputes the scores and verdict, and writes a new review round.
-argument-hint: "<path-to-scope-review-<timestamp>-responses.md>"
+argument-hint: "[<path-to-scope-review-<timestamp>-responses.md>] (blank = newest responses file)"
 ---
 
 # /ba:resolve
@@ -11,7 +11,10 @@ You are running a **resolution round** on a scope review: the author has answere
 
 `$ARGUMENTS` should be the path to a **responses file** — `scope-review-<reviewId>-responses.md`, exported from the interactive HTML report (or hand-written in the same format). This is required.
 
-- If no path is given, ask the user which responses file to resolve and stop.
+- **No path given → take the newest `*-responses.md` under the requirement's `reviews/`** and name
+  the file you picked. Resolve the requirement from `.jetrix/requirements/` — one requirement means
+  no ambiguity, and the folder is `requirements/<slug>/reviews/`. Several requirements and none named → ask which requirement. None found →
+  say so and name the folder searched.
 - If the path doesn't resolve, say so and ask for a valid one.
 - The `<reviewId>` (timestamp) embedded in the filename and the file's `source_review` frontmatter is the **join key** back to the original review.
 

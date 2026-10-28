@@ -33,6 +33,16 @@ If the token is unrecognized, tell the user the valid modes and stop.
 
 ## 2. Read what already exists — only if it does
 
+**First, make `shared-context/` current.** These six files are project-level and every requirement writes into
+them, so scoping against a stale or absent copy is how the previous requirement's terms get dropped. Where the
+workspace is bound to Jetrix and `shared-context/` is missing or older than the bucket, run
+`/jetrix:pull scope` for it before extracting. Not on Jetrix, or nothing pushed yet → carry on; this adds a
+source, it is never a prerequisite.
+
+It also arms the version lock: the push sends `expected_version` from sync-state, and sync-state only knows a
+version for a file that was pulled. Writing a file you never pulled means the push carries nothing to compare,
+so it overwrites the server copy instead of being told to merge.
+
 **The gate, first.** Read `.jetrix/code-map-registry.md`:
 
 | What you find | What happens |

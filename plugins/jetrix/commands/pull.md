@@ -9,12 +9,13 @@ Refresh the local delivery-os container from Jetrix. The first argument names th
 
 | Stage | MCP | What it pulls |
 |---|---|---|
-| `scope` | `scope-mcp` + `task-mcp` | Everything Solution-scoped: BA outputs, shared-context/, **connection-map**, and every feature folder — one combined pull |
+| `scope` | `scope-mcp` + `task-mcp` | **Shared delivery context only** — connection-map, `code-map-registry.md`, `qa/quality-gates.md`, the `qa/<repo>-setup.md` plans, `shared-context/coding-standards.md`, and every feature folder |
+| `scope <requirement>` | `scope-mcp` + `task-mcp` | All of the above **plus** `shared-context/` and that one requirement's `scope.md`, `scope.html`, registers and ledger. Requirements you did not name are not downloaded |
 | `connection-map` | `scope-mcp` | Targeted pull of just the Solution's `connection-map.md`. Rarely needed — `scope` already includes it. Use when you want to skip BA/feature pulls. |
 | `task <ref>` | `task-mcp` | ONE feature folder — `<ref>` is `TASK-<number>`, `FEAT-<id>`, or a MongoDB `_id` |
 | `sprint <ref>` | `task-mcp` | Every feature currently in a sprint — `<ref>` is a sprint number or MongoDB `_id` |
 | `list <ref>` | `task-mcp` | Every feature in an MC List — `<ref>` is a list name or MongoDB `_id` |
-| `all` | (same as `scope`) | Alias for `scope` — the scope manifest already covers connection-map + BA outputs + features |
+| `all` | `scope-mcp` + `task-mcp` | Everything — shared context plus **every** requirement. The catch-all when you want the whole Solution on disk |
 
 Every stage uses **one MCP call for the manifest + one Bash call for parallel downloads**. `curl --parallel` opens 8 concurrent HTTP/2 transfers over a single TCP connection to `storage.googleapis.com` — same mechanism the browser uses when the Documents-tab UI loads many files. **File bytes never enter Claude's context**; they go from GCS straight to disk via signed download URLs.
 
@@ -41,7 +42,8 @@ The per-stage flow (manifest call, filter, curl loop, sync-state update) lives i
 >     ├── shared-context/
 >     ├── ba/                          (scope.md, registers/, logs/, artifacts/, reviews/, …)
 >     ├── requirements/<slug>/features/ (per-feature <slug>/{feature.md, dev/, …})
->     ├── tl/                          (reviews/, maturity/, code-map-registry.md)
+>     ├── code-map-registry.md         (written by /tl:code-map)
+>     ├── tl/                          (reviews/, maturity/)
 >     ├── qa/                          (quality-gates.md, audits/, health/, escalations/)
 >     ├── doc/                         (decks/, walkthroughs/, workflows/, boards/)
 >     └── tasks/

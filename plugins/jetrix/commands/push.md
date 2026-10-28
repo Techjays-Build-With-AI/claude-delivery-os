@@ -41,7 +41,8 @@ The per-stage flow (walk / hash / MCP call sequence / skip-unchanged rules / pre
 >     ├── shared-context/
 >     ├── ba/                          (scope.md, registers/, logs/, artifacts/, reviews/, …)
 >     ├── requirements/<slug>/features/ (per-feature <slug>/{feature.md, dev/, …})
->     ├── tl/                          (reviews/, maturity/, code-map-registry.md)
+>     ├── code-map-registry.md         (written by /tl:code-map)
+>     ├── tl/                          (reviews/, maturity/)
 >     ├── qa/                          (quality-gates.md, audits/, health/, escalations/)
 >     ├── doc/                         (decks/, walkthroughs/, workflows/, boards/)
 >     └── tasks/

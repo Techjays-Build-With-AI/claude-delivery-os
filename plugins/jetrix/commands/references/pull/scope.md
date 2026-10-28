@@ -44,6 +44,44 @@ Path shape → write root. Do NOT interpret tags client-side; the manifest alrea
 
 **One Bash tool call**: writes a curl config + a manifest sidecar as heredocs, runs `curl --parallel` (HTTP/2 multiplexed to GCS — same mechanism the browser uses), then invokes the plugin's apply script to atomically move successful downloads into place and update sync-state.
 
+**Tier filter — decide what this pull is for, BEFORE skip-unchanged.** Classify every manifest doc by its
+path, and keep only the tiers this invocation asked for:
+
+| Path | Tier | When it is pulled |
+|---|---|---|
+| not under `requirements/` or `shared-context/` | **A** infra | always |
+| `shared-context/coding-standards.md` | **A** infra | always |
+| any other `shared-context/*` | **B** project knowledge | with any requirement pull |
+| `requirements/<slug>/**` | **C** one requirement | that slug only |
+
+- `/jetrix:pull scope` → Tier A only.
+- `/jetrix:pull scope <slug>` → Tier A + B + that requirement's C.
+- `/jetrix:pull all` → everything.
+
+`coding-standards.md` is Tier A despite its folder: `/tl:code-map` writes it and **`/dev:build` Stage 0
+hard-gates on it**, so a developer who never pulls a requirement still needs it on the first build.
+
+**Match the slug on the exact path segment, never a prefix** — `requirements/billing` must not match
+`requirements/billing-portal`. Split the path on `/`, compare segment 2, lowercased.
+
+**A slug no document matches is an error, not an empty pull.** Name the requirements the manifest does hold:
+*"no requirement `asset-mgmt` — this Solution has: asset-management, billing-portal"*. Downloading nothing and
+reporting success is the failure that costs an afternoon.
+
+**A bare pull still names the requirements it skipped.** The manifest already carries every slug, so a run
+that took Tier A alone ends by saying what else is available — otherwise someone pulling a week after
+`/jetrix:init` has no way to learn a slug exists:
+
+```
+Pulled shared context — 6 files.
+
+Not pulled (2 requirements available):
+  asset-management     /jetrix:pull scope asset-management
+  billing-portal       /jetrix:pull scope billing-portal
+```
+
+**A path matching no rule is Tier A.** One file too many is harmless; one silently skipped is not.
+
 **Skip-unchanged decision is made in Claude, not in Bash.** Before emitting the script, iterate the manifest docs where `ok:true`:
 
 - If `manifest.contentHash` matches `sync-state[doc.path].contentHash` (both are server-authoritative — we recorded manifest.contentHash on the last successful pull) → **skip**. Don't add to the curl config.

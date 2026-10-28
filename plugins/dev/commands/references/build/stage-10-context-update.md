@@ -109,6 +109,8 @@ For pages — verify `## Consumes endpoints` matches actual API calls in code.
 
 ### 10e. Update layer indexes
 
+**Recompute the index header count from its rows** — it is derived, never carried forward (`delivery-os-conventions`, layer-index header rule).
+
 For each involved layer index:
 
 - Update the row's `Status` column to match the unit's new `status:` — **`Proposed` → `Active`**. Take the value from the unit file rather than assuming a vocabulary: an index row left at `Proposed` beside an implemented unit is the same contradiction as the frontmatter one, and it is what a reader sees first.
