@@ -137,7 +137,11 @@ same customer table is discovering more of the same entity, not a new one.
     │   │                                 # tl-feature-planning cites these when minting ENT- units, so a
     │   │                                 # per-requirement DATA-001 meaning two things would break that link.
     │   ├── integrations.md               # INT-### — same reasoning; /dev:plan blocker-detection reads it
-    │   └── coding-standards.md           # /tl:code-map writes it; /dev:build Stage 0 gates on it
+    │   └── coding-standards.md           # /tl:code-map writes it; /dev:build Stage 0 gates on it.
+    │                                     # TWO TIERS - gated (§1-12, 13, 19, 20) and advisory
+    │                                     # (§15, 16, 17, 21, 22). Rules are yaml blocks with a
+    │                                     # status: an `inferred` rule is a proposal, not policy.
+    │                                     # Contract: references/engineering-standards.md
     │
     ├── requirements/                     # STAGE 01 — one folder per requirement, n per workspace
     │   └── <requirement-slug>/           # lowercase-kebab, e.g. shift-timesheet
@@ -215,7 +219,16 @@ same customer table is discovering more of the same entity, not a new one.
                         ├── status.md           # state · history · proof. Frontmatter: status · phase ·
                         │                     # branch · owner_lock ·
                         │                     # ready_for_dev_build · ready_for_dev_commit ·
-                        │                     # blocker_ids · status_pushed · tests_only.
+                        │                     # blocker_ids · status_pushed · tests_only ·
+                        │                     # base_branch — confirmed at /dev:plan's
+                        │                     #   checkpoint; /dev:build Stage 3 cuts from it
+                        │                     #   and /dev:commit Stage 2 confirms it. Never
+                        │                     #   re-derived from project.json ·
+                        │                     # snapshot_sha — the review snapshot every
+                        │                     #   finding and every gate result cites ·
+                        │                     # scope_selected[] · scope_excluded[] — the
+                        │                     #   paths this run delivers, and the ones a
+                        │                     #   human deliberately left out.
                         │                     # ## Run history — one entry per stage, the build
                         │                     # verdict, base branch + SHA, the semantic-merge
                         │                     # trace Stage 8 hard-gates on, the PR url, and any
@@ -230,10 +243,20 @@ same customer table is discovering more of the same entity, not a new one.
                         │                     # risks_and_rollback. Blocker resolutions fold back
                         │                     # into this file, not into the plan.
                         ├── findings.md         # FIX-LOOP STATE — read, not archived.
-                        │                     # ## Security — build (Critical-blocking) ·
-                        │                     # ## Security — commit (Critical + High) ·
+                        │                     # ## Security — build (report-only, all severities) ·
+                        │                     # ## Security — commit (Critical + High block) ·
                         │                     # ## Code review (7 dimensions × 4 severities) ·
-                        │                     # ## Context merge.
+                        │                     # ## Test verification (semantic — do the
+                        │                     #    tests prove what they claim?) ·
+                        │                     # ## Context merge ·
+                        │                     # ## Settled — accepted/deferred findings,
+                        │                     #    carried forward so a decision made
+                        │                     #    last run is never re-raised.
+                        │                     # Ids are STABLE ACROSS RUNS: derived from
+                        │                     # repo + path + enclosing symbol, never a
+                        │                     # line number. Every finding carries a
+                        │                     # disposition before the PR opens.
+                        │                     # See references/common/findings-contract.md
                         │                     # Every finding: id · severity · origin stage ·
                         │                     # status (open → fixed → escalated) · attempts_used,
                         │                     # bounded at 3 focused fixes and 2 broad re-runs.
@@ -323,7 +346,16 @@ same customer table is discovering more of the same entity, not a new one.
 The **as-built code graph** (pages, endpoints, entities) does NOT live under `.jetrix/`. Each linked app repo carries its own `<repo>/context/code-context/` tree, committed with the code. Written by `/tl:code-map` (brownfield reverse-map) and extended by `tl-feature-planning` (internal) (forward planning of new units), read by `/dev:plan` (v2.3 Stage 2 analysis + Stage 4 compose), `/dev:build` (Stage 10 `designed → implemented` flip), `/dev:commit` (Stage 7 semantic-context-merge via `tl-semantic-context-merge`), and doc/qa consumers. Structure:
 
 ```text
-<repo>/context/code-context/
+<repo>/context/
+├── test-map/<feature-slug>.md             # scenario → test → tier → fixtures.
+│                                         # Written by /dev:build Stage 5-6 AS the
+│                                         # tests are written; verified by
+│                                         # /dev:commit Stage 5. Committed, because
+│                                         # .jetrix/ is gitignored and a map nobody
+│                                         # else can open is not a map.
+│                                         # RESULTS do not live here - they change
+│                                         # every run and belong in status.md.
+└── code-context/
 ├── README.md
 ├── code-context-index.md
 ├── map-coverage.md
@@ -567,7 +599,7 @@ units"* — because that is an explanation, not an instruction. The rule is abou
 
 ```yaml
 ---
-doc_type: scope            # scope | requirement-register | use-case-register | glossary | run-summary | source-summary | intake-index | description | implementation | status | plan-run | analysis-scratchpad | task-decision | plan-blockers | traceability | `## Acceptance` table | build-run | commit-run | implementation-log | security-findings | code-review-findings | context-merge-log | merge-conflicts | escalation | task-comments | task-attachments | ...
+doc_type: scope            # scope | requirement-register | use-case-register | glossary | run-summary | source-summary | intake-index | description | implementation | status | plan-run | analysis-scratchpad | task-decision | plan-blockers | test-map | traceability | `## Acceptance` table | build-run | commit-run | implementation-log | security-findings | code-review-findings | context-merge-log | merge-conflicts | escalation | task-comments | task-attachments | ...
 schema_version: 1.3        # the contract version this file conforms to
 produced_by: ba            # ba | doc | tl | qa | delivery-os
 last_intake_run: run-003   # the run that last touched this file (omit if N/A)
@@ -780,6 +812,7 @@ phase: plan-blockers     # local detail — tells /dev:build WHY, so it can rout
 | `agentExecuting` | `implementing` | `/dev:build` Stages 3–6 | |
 | `agentExecuting` | `testing` | `/dev:build` Stages 7–10 | |
 | `inProgress` | `built` | `/dev:build` Stage 11 | build complete, awaiting `/dev:commit` |
+| `inProgress` | `adopted` | `/dev:commit` Stage 0 | the code exists and Delivery OS did not write it — adopted from the working tree. No plan to validate against, so scenarios are inferred and labelled |
 | `devReview` | `pr-open` | `/dev:commit` Stage 3 onward | in the review pipeline |
 | `devReview` | `pr-pending` | `/dev:commit` Stage 9 Step 4 | pushed, but the PR was never opened — the user has a compare link to click |
 | `devReview` | `merge-conflict` | `/dev:commit` Stage 7 halt | resolvable, not a full block |
@@ -793,7 +826,7 @@ phase: plan-blockers     # local detail — tells /dev:build WHY, so it can rout
 |---|---|
 | `/dev:plan` | `status: todo` — unplanned work. With `--resume`, `status: blocked` **and** `phase: plan-blockers`. **Never `readyForDev`:** that is this command's own output, so selecting it means re-planning finished work and skipping everything that actually needs a plan. |
 | `/dev:build` | `status: readyForDev`. On `blocked` + `plan-blockers` it refuses and routes to `/dev:plan --resume` — a different message from `blocked` + `escalated`. |
-| `/dev:commit` | `status: inProgress` **and** `phase: built`. `agentExecuting` means a build is still running. |
+| `/dev:commit` | `status: inProgress` **and** `phase: built \| adopted`. `agentExecuting` means a build is still running. `adopted` is work written outside the loop that `/dev:commit` Stage 0 took in — it was never built here, so it has no `built` phase to reach. |
 | `/dev:fix-review` | `status: devReview` **and** `phase: pr-open` **and** a non-empty `pr_url:`. On `merge-conflict` there is no PR yet; on `pr-pending` the PR was never opened, so route to the compare link, not here. |
 | `/dev:resolve` | `status: blocked` **and** `phase: plan-blockers`. |
 
@@ -824,7 +857,8 @@ questions.
 
 **A blank target means the whole batch, never "the next one".** `/dev:plan`, `/dev:build` and
 `/dev:commit` all resolve a blank argument to *every* task their gate admits — `todo`, `readyForDev`,
-and `inProgress` + `built` respectively — and fan out bounded by `--concurrency` (default 5). This
+and `inProgress` + (`built` or `adopted`) respectively — and fan out bounded by `--concurrency`
+(default 5). This
 matches `/ba:features`, which decomposes a whole scope rather than one feature. A user who wants one
 thing names it; a user who names nothing wants the set. Three consequences, and none of them are
 optional: never present a picker of candidate tasks, never narrow the set yourself ("start with the

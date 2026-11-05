@@ -11,10 +11,11 @@
 ### 10a. Preconditions (v2.3.27 — HARD gates)
 
 - `units/<repo>/status.md § ## Run history` `stage-9.status: DONE` (or SKIPPED)
-- Branch commits present — `git log <base>..HEAD` returns ≥ 1 commit
+- Changes present in the working tree — `/dev:build` commits nothing, so there is no branch history to count
 - Target repo has `<repo>/context/code-context/` — created by `tl-feature-planning` (internal) OR `/tl:code-map`
-- **Stage 9 repair loop invoked if it had Critical findings (v2.3.27)** — read `status.md` § `## Run history` `stage-9.findings`. If pre-repair `findings.critical > 0` but no `stage-9.repair_loop_invocation.invoked_at` block exists → HALT with `blocker: stage-9-repair-loop-not-invoked`. Same enforcement pattern as `/dev:commit` Stage 8 §8a for its fix loops. Flipping context units to `origin: implemented` on code with an unaddressed Critical security finding would misrepresent the graph as "verified" when the review actively said "block".
-- **Stage 9 final findings ARE clean** — after any repair loop, `stage-9.findings.critical` must be zero. Non-zero → HALT with `blocker: stage-9-repair-loop-did-not-clear-critical` (fix loop ran but ended ESCALATED; check `units/<repo>/status.md § ## Run history (a BLOCKED entry)`).
+- **Stage 9 ran and recorded its findings** — read `status.md` § `## Run history` for `stage-9.status: DONE | SKIPPED` and a `findings_recorded:` block (or `reason:` when skipped). Missing → HALT with `blocker: stage-9-not-run`.
+
+  **A Critical finding here does NOT halt Stage 10.** Stage 9 is report-only; `/dev:commit` Stage 3 is the security authority and blocks the *delivery*. Flipping a unit to `implemented` records that the code was written, which is true whatever the review found — and the finding travels in `findings.md`, where the commit gate reads it. The earlier gate, written when Stage 9 owned a repair loop, would now halt every build on a trace nothing writes.
 
 If context tree is missing → escalate. `/dev:plan` should have run `tl-feature-planning` (internal) to create the graph; if we got here without it, that's a plan-side gap.
 
@@ -50,15 +51,35 @@ origin: implemented
 status: Active                              # from Proposed - the unit is real now
 implementation_state: Implemented           # from Planned - THIS is what readers filter on
 design_confidence: Confirmed                # promote from Likely (design was verified by working code)
-implemented_at: 2026-08-31T15:21:44Z        # ADD (from git commit timestamp of last touching commit)
-implemented_by_commit: <HEAD SHA>           # ADD
+implemented_at: 2026-08-31T15:21:44Z        # ADD (this build's own clock — there is no commit yet)
+implemented_by_commit: pending              # ADD — backfilled by /dev:commit Stage 7.5
 implemented_by_task: FEAT-SUP-001-1         # ADD (feature id + sub-task suffix if applicable)
 mapped_from: src/routes/supplier.ts         # ADD (canonical source file)
 mapped_from_line: 42                        # ADD (line of the export / entry point, if resolvable)
-mapped_from_commit: <sha>                   # ADD — `git log -1 --format=%H -- <that file>`
+mapped_from_commit: pending                 # ADD — backfilled by /dev:commit Stage 7.5
 ```
 
-**`mapped_from_commit` is the SOURCE FILE's commit, not the branch HEAD.** `implemented_by_commit` already records where the work landed; this records which version of the file the unit actually describes, and they are different questions. Take it from `git log -1 --format=%H -- <that file>`. Without it the unit cannot be checked for drift later — and a unit nobody can check is one that quietly goes wrong.
+**Both commit fields are written as the literal `pending`, and neither is a sha yet.**
+`/dev:build` commits nothing, so at this moment no commit contains this code. Two
+things follow, and both have bitten before:
+
+- `git log -1 --format=%H -- <file>` here returns the **last commit that touched
+  the file before this build** — a version that predates the work the unit now
+  describes. Stamping it is worse than stamping nothing, because drift checks
+  would compare against the wrong baseline and report `match` on a stale unit.
+- The review snapshot's sha is **not** a substitute. It is a dangling object that
+  git will garbage-collect, and this tree is committed into the product repo — so
+  the unit would permanently cite a sha nobody can ever resolve.
+
+**`/dev:commit` Stage 7.5 §7.5e.i backfills both**, once a real commit exists:
+`implemented_by_commit` from the new commit, `mapped_from_commit` from
+`git log -1 --format=%H -- <mapped_from path>`. That is the only place either
+becomes a sha.
+
+**`mapped_from_commit` is the SOURCE FILE's commit, not the branch HEAD.**
+`implemented_by_commit` records where the work landed; this records which version
+of the file the unit describes. Different questions, and the drift check reads the
+second one.
 
 **All four lifecycle fields move together, or none of them do.** `origin`, `status`,
 `implementation_state` and `design_confidence` describe one fact - this unit is built - and a reader
@@ -191,7 +212,8 @@ stage-10:
   indexes_updated:
     - backend/backend-index.md
     - database/database-index.md
-  commit_sha: a1b2c3d
+  provenance: pending                 # implemented_by_commit + mapped_from_commit
+                                      # are literal `pending` until Stage 7.5 §7.5e.i
   finished_at: 2026-08-31T15:23:11Z
 ```
 

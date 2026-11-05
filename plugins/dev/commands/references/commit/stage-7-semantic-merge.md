@@ -10,6 +10,10 @@
 
 ### 7a. Preconditions (v2.3.25 — base branch on disk is now REQUIRED)
 
+**Route A only.** A Route B run reaches this stage with no `stage-10` block, because
+no build ran. Record `SKIPPED` with `reason: route-b-no-context-units` and continue —
+do not invoke the skill against an empty unit list.
+
 - Stages 3–5 clean
 - `units/<repo>/status.md § ## Run history` Stage 10 has `context_units_updated: [<paths>]` list
 - Access to the context-mcp `context_pull_manifest` tool for `env='main'`

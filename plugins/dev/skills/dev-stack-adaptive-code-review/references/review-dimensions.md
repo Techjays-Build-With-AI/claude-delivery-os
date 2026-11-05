@@ -161,11 +161,34 @@ Each dimension applies to every diff regardless of stack. Framework-specific SIG
 
 ---
 
-## Dimension 8 — Clean code & anti-patterns
+## Dimension 8 — Engineering standards (gated + advisory)
 
 **Question.** Does the new code meet the engineering-standard limits declared in `shared-context/coding-standards.md` § `<repo>` — complexity, length, nesting, duplication, recursion policy, magic values, boolean-flag arity, forbidden anti-patterns?
 
-**Read `shared-context/coding-standards.md` § `<repo>` first.** Its §6 (function complexity budget), §7 (duplication policy), §8 (recursion policy), §9 (constants & magic values), §12 (anti-patterns forbidden) declare the NUMERIC and CATEGORICAL limits. Dimension 8 checks the diff against those limits. If `coding-standards.md` is missing or a section is blank, escalate that as a Blocker on `units/<repo>/status.md § ## Run history (a BLOCKED entry)` — the review cannot fire without the contract to check against, and the fix goes upstream to whoever authors standards.
+**Read `shared-context/coding-standards.md` § `<repo>` first.** Its §6 (function complexity budget), §7 (duplication policy), §8 (recursion policy), §9 (constants & magic values), §12 (anti-patterns forbidden) declare the NUMERIC and CATEGORICAL limits.
+
+**Under the v2 contract this dimension covers both tiers** — see
+`delivery-os-conventions/references/engineering-standards.md`:
+
+| Tier | Sections | How a violation is reported |
+|---|---|---|
+| **Gated** | §1–12, §13 architecture, §19 reliability, §20 backward compatibility | at the rule's declared severity. A §20 breach is a Blocker by default — it breaks an existing consumer |
+| **Advisory** | §15 performance, §16 API design, §17 database, §21 observability, §22 accessibility | at its real severity. **Advisory governs whether a MISSING SECTION blocks the build — not whether a violation is serious.** A Blocker-severity performance finding blocks like any other |
+
+**Three rules that keep this honest:**
+
+- **Only `status: confirmed` rules are enforced.** An `inferred` rule is observed
+  practice nobody approved; flagging code for breaking it would enforce the repo's
+  habits, including its mistakes. Report inferred and `needs-author` rules as
+  pending decisions, never as findings against the diff.
+- **`enforcement.available: false` is where you matter most.** No installed tool
+  checks §13's dependency directions, so the reviewer is the only check there is.
+- **Do not re-run `security-review`'s or Dependabot's job.** §14 and §18 do not exist
+  in this contract; vulnerability classes and dependency advisories have their own
+  owners. Check only how *this repo* implements auth, validation and secrets.
+
+**Every finding cites `rule_id`**, the declared limit or rule text, the observed
+value, and the file and line — so a reader can check the call without re-deriving it. Dimension 8 checks the diff against those limits. If `coding-standards.md` is missing or a section is blank, escalate that as a Blocker on `units/<repo>/status.md § ## Run history (a BLOCKED entry)` — the review cannot fire without the contract to check against, and the fix goes upstream to whoever authors standards.
 
 **Signals.**
 

@@ -87,6 +87,49 @@ Write these so the dev agent (and future TL runs) build against a confirmed foun
   11. **Comments & documentation** — when a comment is required, when it's forbidden, the doc-comment format for public exports, the "why not what" rule.
   12. **Anti-patterns forbidden in this repo** — explicit list (god function / god class / god file, boolean-flag chains beyond §6's limit, premature abstraction with one implementation + one caller, dead code left behind, comment-code mismatch, silent catches, magic sleeps in tests, snapshot-only tests, mocks that assert nothing). Every entry has ONE line naming what the reviewer flags on.
 
+
+### Authoring the two-tier engineering standards (v2 contract)
+
+Full contract:
+`plugins/delivery-os-core/skills/delivery-os-conventions/references/engineering-standards.md`.
+
+**Infer first, ask only what is left, never invent.**
+
+| Step | Action |
+|---|---|
+| 1 | Detect language, framework, architecture |
+| 2 | Read lint config, package manifests, test layout, a sample of source |
+| 3 | Derive module boundaries and the **actual** dependency direction between layers |
+| 4 | Write only rules the evidence supports |
+| 5 | **Ask** the developer for the gated decisions evidence cannot settle |
+| 6 | Anything still open → `status: needs-author` |
+| 7 | Stamp `source:` provenance on every rule |
+
+**The status decides whether a rule is policy:**
+
+| Evidence | status | Enforced? |
+|---|---|---|
+| A lint config declares the limit | `confirmed` — the config **is** the approval, `source.type: tooling-config` | yes |
+| The code consistently does X | `inferred` — evidence of practice, **not** approval | **no**, until a human confirms |
+| Nothing in the repo settles it | `needs-author` | no; a gated section stays unresolved |
+| The section does not apply | `not-applicable` with a one-line reason | n/a |
+
+**Observed practice is not policy.** A repo that consistently skips input
+validation is consistently wrong; promoting that to a `confirmed` rule would
+encode the defect as the standard. Inferred rules are proposals, surfaced in the
+run summary for a human to confirm.
+
+**Never invent a threshold to make the document look complete.** No retry
+behaviour anywhere → `needs-author`, not `3`.
+
+**Set `enforcement.available` honestly.** A §13 dependency-direction rule names
+`dependency-analysis` as its method, but no stack in the QA harness matrix
+installs a dependency-graph checker — so it ships `available: false` and is
+reviewer-validated until `/qa:setup` wires one.
+
+**Frontmatter:** `standards_version: 2`, `migration_status`,
+`gated_sections: ["1-12", "13", "19", "20"]`.
+
   Sections 1–5 describe existing repo shape (name what IS). Sections 6–12 declare ENFORCEABLE limits (name what MUST NOT happen). The dev agent's write-time check (Rule 13 in `dev-stack-adaptive-implementation`) and the code-review Dimension 8 both read this file — if a section is missing or vague, they can't enforce it.
 
   Where a limit is stack-specific (e.g. cyclomatic threshold, recursion policy), pick the value that matches the stack's lint ecosystem defaults. Record the value and the rationale; don't leave it blank.

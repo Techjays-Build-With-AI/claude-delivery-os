@@ -13,7 +13,7 @@ The defining behaviour: **review the diff against the repo's own conventions.** 
 
 Read the **`delivery-os-conventions`** contract if not in context. Your inputs:
 
-- The feature diff — `git diff <base>...<HEAD>` in the target repo (base from `.jetrix/project.json` env_branches per `/dev:commit` Stage 2)
+- The feature diff — `git diff <base>..$SNAP` in the target repo, where `$SNAP` is the **review snapshot** the caller built (`references/common/review-snapshot.md`) and `<base>` is the branch confirmed at `/dev:commit` Stage 2. A caller that passes a branch ref instead of a snapshot on a freshly-built task hands this skill an empty diff — refuse rather than review nothing
 - The target repo's existing files — for pattern inference on identifiers, error handling, DI, config, logging, naming
 - The detected stack from `units/<repo>/status.md § ## Run history` `detected_stack:` block (written by `dev-stack-adaptive-implementation` during `/dev:build`)
 - The inferred patterns from `units/<repo>/status.md § ## Run history` `inferred_patterns:` block (same source)
@@ -58,21 +58,71 @@ Emit findings via the `ReportFindings` tool if available, or write directly to `
 
 ## Hard rules
 
-**Rule 1 — Diff-scoped only.** Only review lines in the diff (`git diff <base>...<HEAD>`). If the reviewer sees "the whole controller is bad but this change doesn't touch that", the reviewer stays silent. In-scope means changed lines + immediately-surrounding context (5 lines).
+**Rule 1 — Diff-scoped only.** Only review lines in the diff (`git diff <base>..$SNAP`). If the reviewer sees "the whole controller is bad but this change doesn't touch that", the reviewer stays silent. In-scope means changed lines + immediately-surrounding context (5 lines).
 
-**Rule 2 — Match the repo, not the framework.** If the repo does something the framework docs don't recommend but does it CONSISTENTLY, that's the standard — don't flag deviation. If a change deviates from the repo's own pattern, THAT's flaggable.
+**Read the changed files whole, then widen by one hop.** Reviewing only changed
+lines ± 5 cannot see the two defect classes that have no changed line to attach to:
+
+| Class | Why the narrow window misses it |
+|---|---|
+| **absence** — a missing null guard, auth check, error branch, validation | there is no line to point at; the defect is what is *not* there |
+| **cross-file contract** — a caller now passes a nullable the callee never guards | each side is correct alone and wrong together |
+
+So: open each changed file in full, and resolve its **immediate callers and
+callees from the code-context graph** (`tl-read-code-context`) — one hop, not a
+transitive crawl. The graph is the cheap way to do this: one index read gives the
+callers without grepping the repository.
+
+**Findings still only land on changed lines.** Widening is for *seeing*; the
+finding must still cite a line this diff touched, or it is a pre-existing issue
+and belongs in the summary as one.
+
+**Graph thin or absent** — a greenfield repo at feature 1 — review the changed
+files whole and record `scope_expansion: unavailable — graph has N links`. Never
+report the same coverage on a thin graph as on a complete one.
+
+**An empty diff is a refusal, not a pass.** Report `scope-empty` and stop. A review that inspected nothing must never return "no findings" — that reads as a clean bill of health and ends the search. State the scope in the findings header: the snapshot sha and the file count it covered.
+
+**Rule 2 — Match the repo, not the framework — on STYLE only.** If the repo does
+something the framework docs don't recommend but does it CONSISTENTLY, that's the
+standard — don't flag deviation. If a change deviates from the repo's own pattern,
+THAT's flaggable.
+
+**This rule does not apply to Dimension 1 (correctness), security, or Dimension 5
+(business-rule enforcement).** A repo that consistently omits a null guard is
+consistently wrong, and a defect that mirrors existing bad practice is still a
+defect. Say so where it is relevant — *"the surrounding code does this too"* — but
+report it.
+
+This is the suppression that hid two of five planted defects in a real run: the
+reviewer was instructed not to report them.
 
 **Rule 3 — Every Blocker/Major has a concrete fix.** Not "this is wrong" — "change line 42 from `X` to `Y`, or introduce `Z` instead." The fix suggestion is what `/dev:commit` Stage 6's fix loop delegates to `dev-stack-adaptive-implementation`.
 
 **Rule 4 — Findings cite line numbers.** Every finding names the file + line in the diff. Without the line, the fix loop can't route.
 
-**Rule 5 — One finding per issue.** Don't emit five findings for the same "consistent use of camelCase" — one finding covering all instances is enough.
+**Rule 5 — One finding per issue — per DEFECT, not per theme.** Five instances of
+one camelCase slip is one finding with an instance count. **Two different defects
+are two findings even when they share a category.** A missing null guard in one
+handler and a missing auth check in another are not "input validation"; merging
+them reports one problem where there are two, and the second never gets fixed.
+
+The test: *could these be fixed independently?* Yes → two findings. Always give
+an instance count on a merged finding, so a reader can see what one row covers.
 
 **Rule 6 — Never require patterns the repo doesn't already use.** *"You should add dependency injection here"* — NO, if the repo doesn't use DI everywhere. Follow the repo's actual style.
 
 **Rule 7 — Business rule enforcement is non-negotiable.** For every parent `BR-N` that applies to the diff's domain, there must be a code path that enforces it. Missing = Major.
 
-**Rule 8 — Suggest additive changes only.** If a Blocker fix requires removing existing behaviour, that's a design change; escalate to human. Reviewers propose additions and modifications, not deletions of scope.
+**Rule 8 — Suggest additive changes only — but still REPORT the finding.** A fix
+that requires removing existing behaviour is a design change and escalates rather
+than being applied. **Escalating is not the same as staying silent**: emit the
+finding at its true severity with the escalation noted, so it reaches the
+disposition gate like any other. A defect whose only fix is a deletion is still a
+defect.
+
+Reviewers propose additions and modifications, not deletions of scope — but they
+report every defect they find, whatever its fix would require.
 
 **Rule 9 — No stylistic bikeshedding.** Tab vs space, single vs double quotes, brace on same line vs next line — these are covered by lint/format gates from `qa/quality-gates.md`. The reviewer NEVER flags them.
 

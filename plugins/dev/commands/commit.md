@@ -1,6 +1,6 @@
 ---
 description: Commit a built task through the full 10-stage commit loop — strict security review (Critical + High blocking, vs /dev:build's Critical-only), dynamic code review via dev-stack-adaptive-code-review (Blocker + Major blocking), final `## Acceptance` table re-verification (regression + last-sub-task E2E), bounded fix loop, semantic-context-merge against baseline via tl-semantic-context-merge (unit-level merge, not text-level), push branch, raise PR with units/<repo>/pr-summary.md, print terminal summary. Flips status to devReview (phase pr-open) on start and stays there on success; the PR-merge webhook flips it to done. Sub-task commits work in the sub-task's repo only. Refuses to run without a completed /dev:build.
-argument-hint: "<task-number | Task-N | slug | features/<slug> | tasks/<slug>.md | FEAT-<AREA>-NN | list=<name> | requirement=<slug> | --all | (blank = every task /dev:build finished)> [requirement=<slug>] [--concurrency=N] [--resume] [--skip-security] [--force-context-merge=ours] [--force-push]"
+argument-hint: "<task-number | Task-N | slug | features/<slug> | tasks/<slug>.md | FEAT-<AREA>-NN | list=<name> | requirement=<slug> | --all | (blank = every task /dev:build finished)> [requirement=<slug>] [--concurrency=N] [--resume] [--clear-locks] [--skip-security] [--force-context-merge=ours] [--force-push]"
 ---
 
 # /dev:commit
@@ -9,7 +9,9 @@ You are the entry point for the 10-stage commit loop. **Orchestrator only** — 
 
 Read the **`delivery-os-conventions`** skill first if it's not in context — the v2.2 loop-control state model + MC status mapping. Then read the task's `units/<repo>/status.md § ## Run history`.
 
-**The single invariant:** `/dev:commit` runs on a completed `/dev:build` or refuses. `status` must be `inProgress` **and** `phase` must be `built` when this command starts — `agentExecuting` means a build is still running.
+**The single invariant:** `/dev:commit` runs on work that is finished, or refuses. `status` must be `inProgress` and `phase` must be **`built`** (Delivery OS wrote it) or **`adopted`** (someone else did, and Stage 0 took it in). `agentExecuting` means a build is still running.
+
+**Two routes, one gate layer.** Route A arrives at `built` from `/dev:build`. Route B arrives at `adopted` from Stage 0, having never been planned or built here. Both then run the same security review, code review and delivery — see §2's route table for the stages Route B skips.
 
 ---
 
@@ -24,13 +26,25 @@ Read the **`delivery-os-conventions`** skill first if it's not in context — th
 - Sub-task folder: `features/supplier-onboarding/units/backend`
 - **Non-feature ticket**: `tasks/<slug>.md` — run state lives at `tasks/<slug>/dev/` (`status.md` § `## Run history`, `status.md`). Every stage is unchanged: same security review, same code review, same acceptance re-verify, same PR. Only the path to the run files differs.
 - Internal id: `FEAT-<AREA>-NN`
-- Blank: **every task `/dev:build` has finished** — `status: inProgress` · `phase: built` · `ready_for_dev_commit: true`, across `features/*/units/<repo>/status.md` and `tasks/*/units/<repo>/status.md`. Same default as `/dev:plan` and `/dev:build`: blank means the whole set, a target means that one thing.
+- Blank: **every task that is finished and uncommitted** — `status: inProgress` · `phase: built` **or** `adopted` · `ready_for_dev_commit: true`, across `features/*/units/<repo>/status.md` and `tasks/*/units/<repo>/status.md`. Same default as `/dev:plan` and `/dev:build`: blank means the whole set, a target means that one thing.
 - `list=<name>` / `requirement=<slug>` / `--all` — resolved as `/dev:plan` §2a resolves them, then filtered to the gate above.
 
 **Flags:**
 - `requirement=<slug>` — scope the target set to one requirement
 - `--concurrency=N` — how many tasks commit at once. Default `5`, matching `/dev:plan` and `/dev:build`.
 - `--resume` — continue from last completed stage per `units/<repo>/status.md § ## Run history`
+- `--clear-locks` — remove every `.jetrix/cache/session.json` row for the resolved repo and print what was removed, then stop. Runs no stages
+
+**Delivering only part of a file?** Stage the hunks you mean first, then answer
+`[b] index only` at the scope prompt:
+
+```
+git add -p src/auth/session.ts
+/dev:commit
+```
+
+Per-hunk selection inside the prompt is deliberately not built — git already has
+the right tool for it.
 - `--skip-security` — bypass Stage 3 (requires `SECURITY_REVIEW_OVERRIDE` env + audited reason)
 - `--force-context-merge=ours` — auto-resolve Stage 7 conflicts to our-side (emergency)
 - `--force-push` — allow `git push --force-with-lease` (rare)
@@ -59,7 +73,7 @@ Stage 8 all move **ahead** of fan-out, into one consolidated checkpoint:
    recommended default is still its tasks' `status.md` `base_branch:`, the value `/dev:plan`
    confirmed. Where tasks in one repo disagree on `base_branch:`, that is a real conflict — show both
    and make the user pick; never silently take one.
-2. Read every task's `stage-8.final_status` from its `## Run history` **before** starting any of them, and
+2. Read every task's `build.stage-8.final_status` from its `## Run history` **before** starting any of them, and
    put all the `PARTIAL_HARNESS` ones in a single confirmation naming each task and its red gate.
    A task the user declines is dropped from the set, not failed.
 3. Check `gh` auth once for the whole run.
@@ -75,16 +89,21 @@ exactly as it does today — there is nothing to consolidate.
 
 Same resolution as `/dev:plan` Stage 0 / `/dev:build` Stage 0 — see `plugins/dev/commands/plan.md` §2a, including the multi-target forms. Determine `task_kind` (parent-alone or sub-task) and canonical `(feature_id, task_object_id, task_number, task_folder)` **per task in the resolved set**.
 
-**Verify `/dev:build` completed.** Check `status.md`:
-- `status: inProgress` · `phase: built`
+**Verify the work is finished.** Check `status.md`:
+- `status: inProgress` · `phase: built` **or** `adopted`
 - `ready_for_dev_commit: true`
 - `branch:` field non-empty
 
+**No `status.md` at all is not a failure — it is Route B.** Changes exist with no
+record, so Stage 0's scope detection takes them in (§2a.2) and writes the record
+at `adopted`. Refusing here is what sent a real run down the improvised-scope path
+that found three of five planted defects.
+
 Any missing → this task is not built. **Single target:** halt with the "run /dev:build first" message. **Batch:** skip it, keep its reason, and report it with the other skips at the end — one unbuilt task must never stop the tasks that are ready.
 
-**Read the build verdict** from `units/<repo>/status.md § ## Run history` — the field is `stage-8.final_status`, **not** `stage-8.status`, which only ever holds `DONE` or `BLOCKED` and would match none of the rows below. `IN_PROGRESS` alone does not distinguish a clean build from one that advanced carrying a red Required gate:
+**Read the build verdict** from `units/<repo>/status.md § ## Run history` — the field is `build.stage-8.final_status`, **not** `build.stage-8.status`, which only ever holds `DONE` or `BLOCKED` and would match none of the rows below. `IN_PROGRESS` alone does not distinguish a clean build from one that advanced carrying a red Required gate:
 
-| `stage-8.final_status` | Action |
+| `build.stage-8.final_status` | Action |
 |---|---|
 | `COMPLETE` · `PARTIAL_DEFERRED` | proceed |
 | `PARTIAL_HARNESS` | a Required gate is red for a **harness** reason, not a defect. Proceed only after `AskUserQuestion` confirms, and carry the `harness_config_remedy` and flaky rows into Stage 5 (§5b.i) and the PR body. Never report this run as green |
@@ -101,14 +120,210 @@ Any missing → this task is not built. **Single target:** halt with the "run /d
 | 5 acceptance | Unchanged — re-verify every row. This is the stage that catches code edited between build and commit |
 | 7 context merge | Unchanged — it is cheap, and a zero-change result is the expected outcome |
 
-**Check the diff, do not assume it.** `tests_only` says the *build* wrote no product code; it does not promise the branch carries none — earlier harness commits often do. Read `git diff <base>...HEAD`, and where product files appear, review them normally and say so. Report pre-existing findings as pre-existing, never as introduced by this commit.
+**Check the diff, do not assume it.** `tests_only` says the *build* wrote no product code; it does not promise the change set carries none — earlier harness commits often do. Read `git diff <base>..$SNAP` (the review snapshot, below), and where product files appear, review them normally and say so. Report pre-existing findings as pre-existing, never as introduced by this commit.
 
 **Verify branch is checked out** in the target repo: `git rev-parse --abbrev-ref HEAD` matches the branch recorded in `status.md`. Mismatch → halt with "checkout the feature branch first: `git checkout <branch>`".
 
-**Verify no uncommitted changes** (`git status --porcelain` empty) UNLESS `--resume` and we're in Stage 7 halt state — in which case pending manual edits are allowed on `dev/context-merge-conflicts.md` and touched context files.
+### 2a.1. Scope detection — what this run is about to review
+
+**There is no clean-tree check.** There used to be — *"verify no uncommitted
+changes, `git status --porcelain` empty"* — and it was the single line that made
+the happy path impossible: `/dev:build` leaves its entire output uncommitted by
+design, so every properly-built task was refused here. Restoring it in any form
+re-breaks the flow.
+
+A dirty tree is the **expected** state at this point. Establish what is in it:
+
+1. **Build the detection snapshot** — `references/common/review-snapshot.md` §1,
+   with no pathspec. This is a read: the working tree, the real index and HEAD are
+   all untouched.
+
+2. **Nothing in it → stop cleanly.** `git diff --quiet <base>..$DETECT` means there
+   is nothing to review and nothing to deliver. Halt with `blocker: empty-scope`,
+   one line, exit 0. **No commit, no empty commit, no push, no PR.**
+
+3. **Build the review snapshot** from the paths in scope. Record its sha as
+   `snapshot_sha` in `status.md` § `## Run history`, and put it in the header of
+   every findings section this run produces. Stages 3, 4 and 5 all read this one
+   snapshot, so they review the same bytes as each other and as what Stage 7.5
+   will stage.
+
+**Scope selection comes in Phase 2.** Until then the review snapshot covers the
+whole working tree, which is correct for a Route A run: `/dev:build` produced
+everything in it. The per-file prompt, the staged/unstaged split and the
+collapse rule are specified in `review-snapshot.md` §3 and wired later.
+
+**A stage that cannot build a snapshot does not review.** It halts with the
+blocker code and says so. It never falls back to reading files by judgement and
+reporting that as a review — that failure looks like success and ends the search.
+
+`--resume` after a Stage 7 halt is the one case where pending manual edits are
+expected: `dev/context-merge-conflicts.md` and the touched context files carry the
+human's resolution. Recompute the snapshot rather than comparing against the old
+one — the tree legitimately moved.
+
+### 2a.2. Route and mode — decided once, here
+
+Before any stage runs, Stage 0 answers two questions from the detection
+snapshot: **which route**, and **what scope**.
+
+| | Route A | Route B |
+|---|---|---|
+| Who wrote the code | `/dev:build`, from a plan | a person, an AI, another tool |
+| Arrives with | `status.md` at `phase: built` | nothing on disk |
+| Record | already exists | **Stage 0 writes one** (§2a.4) |
+| Phase | `built` | `adopted` |
+
+Four modes follow from what the snapshot holds:
+
+| Mode | Detection | Action |
+|---|---|---|
+| **1 — task-aware** | a `status.md` matches the changed paths | Route A, full stage set |
+| **2 — local change** | changes exist, no record matches | Route B — adopt (§2a.3), reduced stage set (§2a.6) |
+| **3 — mixed** | some paths belong to a record, others do not | **ask once** which set to deliver (§2a.3); never guess a theme |
+| **4 — no change** | detection snapshot is empty | halt `empty-scope`, exit 0 |
+
+**Decide once, in the orchestrator, before any fan-out.** A worker never
+re-derives its route, and never prompts.
+
+### 2a.3. Adoption — automatic, no command
+
+Mode 2 or 3 means changes exist that no record covers. **Take them in here.**
+There is no adopt command and none is planned: this is a step of Stage 0, the
+same way `/dev:plan` builds the context graph by running
+`tl-feature-planning` with no slash command of its own (`delivery-os-conventions`
+§1.f). **A next-step block may never print one.**
+
+Confirm once, then write:
+
+```
+No task record matches the changes in Inhouse-server.
+  12 files changed (+340 / -28)
+
+  Adopt them as a task and validate?  [Y/n]
+    slug: auth-session-expiry        type: bug (inferred from the diff)
+```
+
+`n` stops cleanly, writing nothing.
+
+On `Y`, write **two files**, both inside gitignored `.jetrix/`:
+
+```
+tasks/<slug>.md                       short description, inferred type
+tasks/<slug>/units/<repo>/status.md   status: inProgress · phase: adopted
+                                      scope_selected[] · scope_excluded[]
+```
+
+| Do | Do not |
+|---|---|
+| infer the slug and `task_type` from the diff, and **state both** so they can be corrected | write any tracker id — the record is local until `/jetrix:push task <slug>` is run deliberately |
+| resolve the touched surfaces from the code-context graph (`plan.md` §2a.1 — already implemented) | compose a `## Build sequence` — the work is done; a plan for finished work is backwards |
+| record the selected and excluded path sets | run blocker detection — you cannot block work that already exists |
+
+**The record exists so findings have a file, `--resume` has state, and
+`## Settled` has somewhere to carry an accepted finding to the next run.** It
+is not a ticket and nothing appears on any board.
+
+`implementation.md` for an adopted task is written **after** review, from the
+delivered diff, as a record of what was done.
+
+### 2a.4. Mixed scope — ask once
+
+Mode 3 means the tree holds both the recorded work and something else. Present
+the full set grouped by directory, with each path's git state, and let the user
+tick — the prompt, the collapse rule for untracked directories, and the
+staged-vs-unstaged `[a]`/`[b]` split are all specified in
+`references/common/review-snapshot.md` §3.
+
+Two rules carry from there and matter most here:
+
+- **Never silently exclude a file.** Absent from the list is a bug; present and
+  unticked is a decision.
+- **Record `scope_selected[]` and `scope_excluded[]`** in the record's
+  `status.md`, so a later run and a reviewer both see what was left out.
+
+Asked **once, at this checkpoint**. No worker prompts after fan-out.
+
+### 2a.5. Scope certainty — halt rather than improvise
+
+**A run that cannot determine its scope does not review.** If the snapshot
+cannot be built, or the user abandons the scope prompt, halt with the blocker
+code and stop.
+
+Never fall back to reading files by judgement and reporting the result as a
+review. That is what produced a confident three-of-five on a commit carrying
+five known defects: no task, no acceptance map, no stated file set, and an
+answer that read as complete.
+
+**Every review stage states its scope in its findings header** — the snapshot
+sha and the file count it covered. A reviewer with no snapshot has nothing to
+state, and must say so.
+
+### 2a.6. Route B runs a reduced stage set
+
+Security review and code review need only a diff and the repo's own standards.
+Everything that exists to validate work *against a ticket* has nothing to read
+on Route B and does not run.
+
+| Stage | Route A | Route B |
+|---|---|---|
+| 1 lock + read BA files + flip tracker status | all three | **lock only** — no BA files exist, no ticket to flip |
+| 2 base + snapshot | yes | yes, with the Route B base ladder below |
+| **3 security review** | yes | **yes — the point** |
+| **4 code review** | yes | **yes — the point** |
+| 5 acceptance | re-verify the ticket's rows | **reduced** — run the tests that exist, check they cover the diff, report gaps |
+| 6 fix loop | yes | yes |
+| 7 semantic context merge | yes | **skipped** — no build flipped a unit, so there is nothing to merge |
+| 7.5 commit · 8 push · 9 PR | yes | yes |
+
+**No tracker write happens on Route B at all** unless the user asks for one.
+
+### 2a.7. Route B base branch
+
+Route A reads `status.md` `base_branch:`, the value confirmed at `/dev:plan`'s
+checkpoint, and never re-derives it. Route B has no plan, so:
+
+1. the current branch's upstream (`git rev-parse --abbrev-ref @{u}`)
+2. `apps[].env_branches.dev` for this repo from `project.json`
+3. **ask**, at this checkpoint
+
+Unresolvable → `blocker: base-unresolvable`, printing the ladder tried.
+
+### 2a.8. How far Route B may infer
+
+**Infer technical context; never invent a business requirement.** The decision
+is mechanical, not a judgement — a judgement rule here would depend on the agent
+classifying its own situation correctly, which is the thing that already failed.
+Evaluate against the review snapshot:
+
+```
+ASK — never infer — when ANY of these holds:
+
+  1. the diff touches more than one top-level source directory
+  2. any changed path matches:  auth | login | session | token | password
+                                payment | billing | invoice | refund
+                                crypto | secret | permission | role | acl
+  3. the diff touches an endpoint unit whose code-context `## Auth`
+     section is non-empty
+  4. a changed source file has no test covering it
+  5. the diff deletes or weakens an existing check
+     (a removed guard, a loosened comparison, a widened scope)
+
+otherwise INFER, and mark every row `source: inferred`
+```
+
+Every inferred acceptance row carries four things: `source: inferred`, the diff
+hunk it came from, the behaviour inferred, and the test that covers it (or its
+absence). A reader must always be able to separate *what the ticket asked for*
+from *what the implementation implies*.
+
+All asking happens at this checkpoint — the no-prompt-after-fan-out invariant
+holds for Route B exactly as for Route A.
 
 ## 3. Stage 1 — Acquire lock + flip status
 
+- **Refuse a colliding run first**, exactly as `/dev:build` Stage 1 does: a live, non-stale row in `.jetrix/cache/session.json` for this repo halts with `blocker: repo-locked`. Per repo path, not per task — a Route A build and a Route B commit share one working tree and must not run together
+- **Declare this session.** Append a row per `references/common/session-marker.md`: `kind: commit`, repo, task ref, `started_at`, `gates_passed: false`, `deny: {git_push: true}`. Push stays refused until Stage 7.5 flips `gates_passed`
 - Write owner into `status.md` (agent id)
 - status `devReview` · phase `pr-open` (broadcast)
 - MC: `inProgress → devReview` via `task-mcp.update_task_status`
@@ -174,7 +389,75 @@ stage-2:
 
 ## 5. Route to Stages 3–9
 
+**On Route B, Stage 7 does not run and Stages 1 and 5 are reduced** — §2a.6. Record
+the skip explicitly in `status.md` § `## Run history` as
+`stage-7: {status: SKIPPED, reason: route-b-no-context-units}`. A stage that was
+never applicable must not read as a stage that was forgotten, and Stage 8's
+precondition checks for the trace either way.
+
 Read each stage's reference file and execute verbatim. Fix loop is inline routing between Stages 3-5 (see Stage 6 file for the loop mechanics).
+
+### 5a. The reviewers are three fresh-context agents, run in parallel
+
+Stages 3, 4 and 5 are **read-only reviews of one snapshot**, so they run at the
+same time, each as its own agent with its own context.
+
+```
+commit:<repo>
+  ├─ review:security:<repo>    built-in security-review          read-only
+  ├─ review:code:<repo>        dev-stack-adaptive-code-review    read-only
+  └─ review:tests:<repo>       dev-test-verifier                 read-only
+```
+
+**Readers parallel, writers serial.** Three reviewers at once is safe. Two
+repair agents in one working tree collide, so Stage 6 is always serial (§6).
+
+#### What each reviewer is given — and what it is not
+
+| Given | Withheld |
+|---|---|
+| the snapshot sha and `git diff <base>..$SNAP` | `analysis.md` |
+| the repo path | `implementation.md` |
+| `shared-context/coding-standards.md § <repo>` | `status.md § ## Run history` |
+| the parent's `business-rules.md` (Route A) | any statement of what the build believed it had done |
+| the open findings and `## Settled` | any verdict to write, or to prefer |
+
+> *"Do NOT pass: the builder's diary or any plan/reasoning files, and never a
+> verdict to write or to prefer. The reviewer forms independent judgment."*
+
+This is the point of the tier. An agent that inherits the build's reasoning is
+primed to accept the code it just watched being written; one handed a diff and
+the repo's own standards is not.
+
+#### Review classes
+
+| Reviewer | Class | Blocks? |
+|---|---|---|
+| built-in `security-review` (Stage 3) | adversarial | Critical + High |
+| `dev-stack-adaptive-code-review` (Stage 4) | adversarial | Blocker + Major |
+| built-in `code-review` (Stage 4, second opinion) | **advisory** | never |
+| test-verifier (Stage 5) | adversarial on required gates, advisory on inferred rows | required gates only |
+
+**Adversarial** means findings route to the fix loop and the stage re-runs.
+**Advisory** means one pass, recorded, never blocking — it informs the human at
+the gate. An advisory reviewer that blocks has been miscategorised.
+
+#### Concurrency
+
+Print this before fan-out, every time:
+
+```
+Repositories: 3   concurrency 3
+Reviewers per commit: 3        peak reviewer agents: 9
+Review mode: parallel          Repair mode: serial per repository
+```
+
+Bound the **product**, not each factor. A 19-task batch at `--concurrency=5`
+with three reviewers each is 15 agents, not 57 — and the number is stated
+before any of them start.
+
+**An unavailable reviewer is `BLOCKED`, never `PASS`** — `commit.md` § *When a
+required tool cannot run* applies to agents too.
 
 ### When a required tool cannot run
 
@@ -213,6 +496,14 @@ Where the refusal is fixable, name the fix in the summary rather than only repor
 **Read** `plugins/dev/commands/references/commit/stage-6-fix-loop.md`. Not a standalone stage — invoked from Stages 3, 4, or 5 when findings block. After each fix batch, upstream stages re-run in order. Bounds exceeded → escalation + halt.
 
 ### Stage 7 — Semantic context merge (v2.3.25 — MANDATORY EXECUTION, not skippable)
+
+**Route A only.** On Route B no build flipped a unit `designed → implemented`, so
+there is no graph change to reconcile and nothing for the skill to merge. Record
+`SKIPPED` with `reason: route-b-no-context-units` and move to Stage 7.5.
+
+This is the one skip the "mandatory execution" rule allows, and it is allowed
+because the stage's *input* is absent, not because a run judged it unnecessary —
+which is exactly the reasoning v2.3.25 was written to forbid.
 
 **Read** `plugins/dev/commands/references/commit/stage-7-semantic-merge.md` and execute verbatim. Delegates to `tl-semantic-context-merge` skill. Halts cleanly on conflict with `dev/context-merge-conflicts.md` for human resolution.
 
@@ -293,14 +584,17 @@ MC sub-task:   https://mission-control.techjays.com/task/6b72a1c48d4e7d1cab2c7
 PR:            https://github.com/acme/acme-backend/pull/247
 
 Branch:        feature/FEAT-SUP-001-supplier-onboarding-backend  →  develop
-Security:      ✓ 0 Critical, 0 High  (2 Medium warnings surfaced in PR body)
+Security:      ✓ 0 Critical, 0 High  (2 Medium dispositioned, in PR body)
 Code review:   ✓ 0 Blocker, 0 Major  (3 Minor follow-ups in PR body)
-Acceptance:    ✓ 9/9 verified at commit-time (3 deferred-to-e2e)
+Tests:         ✓ 5/6 scenarios covered · 5/5 executed passed · 72.4% lines
+               1 scenario has no test: AC-4 bulk-import malformed row
+               e2e ran (snapshot touched a user-facing surface)
 Context merge: 3 units merged clean · 4 base units carried forward · 0 conflicts
 Push:          ✓ 9 commits pushed to origin
 PR:            ✓ opened by /dev:commit
 
 Status:        devReview        (flips to done on PR-merge webhook — future)
+⚠ Hook bypass: 1 this run       (git commit at 14:22 — .jetrix/cache/bypass.log)
 
 Local runbook: features/supplier-onboarding/units/backend/pr-summary.md § ## How to verify
 PR summary:    features/supplier-onboarding/dev/backend-pr-summary.md
@@ -329,6 +623,41 @@ All three URLs are must-haves in the terminal summary — the whole point of thi
 No file writes at Stage 10 — pr-summary + commit-run + delivery-status are already written by earlier stages.
 
 ## 7. Failure surfaces
+
+### A halt is reported in the same shape as a success
+
+A failed run is read more carefully than a successful one, so it gets the same
+structure — not a post-mortem, and never an apology.
+
+```
+✗ /dev:commit Subtask-7 halted at Stage 5 — acceptance regression
+
+  Blocker:   fix-loop-bounds-exceeded
+  Findings:  AC-4 still failing after 3 focused fixes + 2 broad re-runs
+  Written:   units/Inhouse-server/findings.md  (3 open, 11 settled)
+             units/Inhouse-server/status.md    (## Run history, stage-5)
+  Branch:    feature/FEAT-HCAL-01-holiday-calendar-backend  (6 commits, unpushed)
+  Snapshot:  0f50921291d9  (18 files)
+
+  Resume:     /dev:commit --resume Subtask-7
+  Or inspect: units/Inhouse-server/findings.md § ## Code review
+```
+
+Four things, always, in this order: **the named blocker code**, **what
+survives and where it is**, **the one command that continues**, and **where to
+look**. Never a narrative of what went wrong — the findings file holds that,
+and a reader who needs it will open it.
+
+**Every halt removes this run's `session.json` row before returning** (§ Stage 1).
+A halt that keeps its row leaves the user's next manual `git commit` refused in
+that repo until it goes stale.
+
+**In a batch, one task's halt never stops the others.** Each reports its own
+blocker; the run summary lists them together at the end, and a sibling that
+succeeded still pushes.
+
+
+**Every halt below removes this run's `session.json` row before it returns**, and names a blocker code from `docs/dev/build-commit-rework.md` §12c. Stage 6's bounded escalation, a Stage 7 conflict and a Stage 8 push rejection all count — a halt that keeps its row leaves `git push` refused in that repo until it goes stale.
 
 - **Any stage BLOCKED** (Stage 6 bounds exceeded) → local `BLOCKED`, MC `blocked`, `units/<repo>/status.md § ## Run history (a BLOCKED entry)`, halt
 - **Stage 7 semantic-merge conflict** → status `devReview` (phase `merge-conflict`), `dev/context-merge-conflicts.md`, halt

@@ -36,7 +36,7 @@ Never re-run BA discovery. Never re-run TL planning yourself (that's `/dev:plan`
 - **`tl-semantic-context-merge`** — unit-level merge of code-context vs `main` baseline via `context-mcp`. Invoked at `/dev:commit` Stage 7.
 - **`dev-pr-handoff`** (slimmed to content-only) — composes `units/<repo>/pr-summary.md` OR `units/<repo>/status.md § ## Run history (a BLOCKED entry)`. NO state transitions, NO MC calls.
 
-Claude Code's built-in **`security-review`** skill is invoked at TWO thresholds — `/dev:build` Stage 9 (Critical-only) and `/dev:commit` Stage 3 (Critical + High). Same skill, two configs.
+Claude Code's built-in **`security-review`** skill is invoked TWICE — `/dev:build` Stage 9 (**report-only**: records every severity, blocks nothing, repairs nothing) and `/dev:commit` Stage 3 (**the gate**: Critical + High block, findings route to the Stage 6 fix loop). Same skill; build is the early signal, commit is the authority.
 
 ## What you do
 
@@ -56,9 +56,9 @@ Refuses on missing plan OR unresolved `plan-blockers.md`. Runs on a decidable pl
 3. Branch creation FIRST
 4. QA harness gate (auto-bootstrap via `qa-greenfield-harness`)
 5+6. Implementation + test writing (via `dev-stack-adaptive-implementation`)
-7. Execute tests locally
+7. Verify the test map (no execution — /dev:commit runs the tests)
 8. Acceptance-map validation (parent AC + BR + TS + NFRs)
-9. Security review (Critical-blocking)
+9. Security review (report-only — records every severity, blocks nothing)
 10. Update code-context units `designed → implemented`
 11. Summary + `units/<repo>/pr-summary.md § ## How to verify`
 

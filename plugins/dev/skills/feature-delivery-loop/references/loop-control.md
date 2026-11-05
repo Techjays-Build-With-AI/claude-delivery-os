@@ -23,6 +23,7 @@ status: agentExecuting   phase: implementing  (Stages 3–6)
    │
    ▼  Stage 11
 status: inProgress       phase: built          ──▶ ready for /dev:commit
+status: inProgress       phase: adopted        ──▶ ready for /dev:commit (Route B)
    │
    │  /dev:commit (Stage 3 flips status)
    ▼
@@ -42,6 +43,7 @@ status: blocked · phase: escalated — reachable from any working state
 | `agentExecuting` | `implementing` | `/dev:build` Stages 3–6 | `/dev:build` |
 | `agentExecuting` | `testing` | `/dev:build` Stages 7–10 | `/dev:build` |
 | `inProgress` | `built` | `/dev:build` finished cleanly; ready for `/dev:commit` | `/dev:build` Stage 11 |
+| `inProgress` | `adopted` | code written outside the loop, taken in from the working tree; ready for `/dev:commit` | `/dev:commit` Stage 0 |
 | `devReview` | `pr-open` | `/dev:commit` finished; PR opened; awaiting human review | `/dev:commit` Stage 3 |
 | `devReview` | `merge-conflict` | Stage 7 semantic-context-merge halted for human resolution | `/dev:commit` Stage 7 |
 | `blocked` | `escalated` | Execution-time escalation (bounds exceeded, unresolvable finding, dependency gap) | any stage |
@@ -53,7 +55,8 @@ status: blocked · phase: escalated — reachable from any working state
   human to unpick a runtime failure. `/dev:build` refuses both, with different messages.
 - `devReview` + `merge-conflict` has **no PR yet** — Stage 7 runs before Stage 8/9 push+PR. `/dev:fix-review`
   requires `pr-open`; sending it at a merge conflict would look for a PR that was never opened.
-- `inProgress` + `built` means the build finished. `agentExecuting` means one is still running, and
+- `inProgress` + `built` means the build finished; `inProgress` + `adopted` means it was never
+  built here but the code exists. `agentExecuting` means a build is still running, and
   `/dev:commit` must not start on top of it.
 
 `phase` is **never pushed** — Mission Control has no field for it and no other tracker needs one. Changing
@@ -229,8 +232,8 @@ A good escalation names what was attempted, the precise blocker, its impact (whi
 
 **Mandatory — all must hold:**
 - Task scope implemented per `implementation.md`
-- Every Required gate in `qa/quality-gates.md` passes (Stage 7)
-- Every parent AC + BR + TS + NFR row in `units/<repo>/status.md § ## Acceptance` is `✅ pass` OR properly `⏸ deferred-to-e2e` (Stage 8)
+- Every row of `context/test-map/<feature-slug>.md` verified against the disk — spec exists, named test exists, fixture exists, `Needs` startable (Stage 7). **No gate is run here; build executes nothing**
+- Every parent AC + BR + TS + NFR row in `units/<repo>/status.md § ## Acceptance` is `⏳ pending` OR properly `⏸ deferred-to-e2e`, and none is `❌ missing-test` or `❌ mock-contradicts-tier` (Stage 8). **`✅ pass` is not reachable at build** — `/dev:commit` Stage 5 runs the tests and fills the result in
 - Zero Critical security findings at build-time threshold (Stage 9)
 - Every owned code-context unit flipped `origin: designed → implemented` with valid Source References (Stage 10)
 - `units/<repo>/pr-summary.md § ## How to verify` written (Stage 11)

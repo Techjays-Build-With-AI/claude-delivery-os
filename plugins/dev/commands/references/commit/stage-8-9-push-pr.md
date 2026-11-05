@@ -22,6 +22,11 @@ Two closely-coupled stages. Combined in one reference file because their state t
 - **Stage 7 merged base matches Stage 2 base** — check `stage-7.tl_semantic_context_merge_invocation.base_ref` sha matches `stage-2.base_remote_sha`; mismatch → HALT with `blocker: stage-7-merged-against-wrong-base` (means Stage 7 pulled its own base separately from Stage 2's; not allowed)
 - **Stage 7.5 commits landed** — check `stage-7-5.commits_made` list is non-empty (or `stage-7-5.status: SKIPPED` with reason `working tree has no source/test/context uncommitted changes`)
 - **Working tree clean** — `git status --porcelain` shows only allowed `dev-local` / `workspace-local` files (see Stage 7.5 §7.5b categorization)
+- **What was staged is what was reviewed (v1.4)** — recompute the review snapshot and check its sha against `stage-3.snapshot_sha`, `stage-4.snapshot_sha` and `stage-5.snapshot_sha`. Any mismatch → HALT with `blocker: snapshot-stale`. **All three must cite the same sha**: three reviewers disagreeing about what they read means the tree moved mid-run and at least one verdict describes bytes that are no longer there
+- **Commit-time gates actually ran** — `stage-5.gates_run` is present, every gate in it has a `result`, and every gate absent from it appears in `stage-5.gates_skipped` with a reason. Missing → HALT with `blocker: commit-gates-not-run`. An acceptance table built from tests that never executed is the failure this whole stage set exists to prevent
+- **Services were started for the tiers that needed them** — where `stage-5.gates_run` contains an `integration`, `contract` or `e2e` gate, `stage-5.external_services_started` must be non-empty and every entry `healthy`. Missing → HALT with `blocker: commit-gates-ran-without-services`
+- **Nothing is undispositioned** — every finding in `units/<repo>/findings.md` carries a `disposition` (`references/common/findings-contract.md` §2). Any missing → HALT with `blocker: findings-undispositioned`, listing them
+- **No unit still reads `pending`** — check `stage-7-5.provenance_backfilled`; a context unit whose `implemented_by_commit` is still the literal `pending` after a commit exists can never be drift-checked. Missing → HALT with `blocker: provenance-not-backfilled`
 - **`.jetrix/project.json`** has the target repo's remote name (default `origin`)
 
 Any halt at 8a means the developer needs to re-run `/dev:commit --resume <task-ref>` — the missing stage will re-run from where the trace shows the gap.
@@ -419,6 +424,9 @@ stage-9:
   status: DONE | HALTED | PENDING_USER_BROWSER
   started_at: <ISO>
   finished_at: <ISO>
+  attempts:                                            # every ladder step tried, and why it failed
+    - {step: 1, method: gh_cli, result: skipped, reason: "gh not installed"}
+    - {step: 2, method: git_credential_fill, result: ok}
   pr_method: gh_cli | git_credential_fill | gh_config_read | gh_installed_on_demand | web_url_fallback
   pr_number: 247                                       # empty when pr_method == web_url_fallback
   pr_url: https://github.com/acme/acme-backend/pull/247   # empty when pr_method == web_url_fallback (compare_url instead)

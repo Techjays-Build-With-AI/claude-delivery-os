@@ -28,8 +28,8 @@ MC sub-task:       https://mission-control.techjays.com/task/6b72a1c48d4e7d1cab2
 
 Branch:            feature/FEAT-SUP-001-supplier-onboarding-backend  (in acme-backend)
 Base:              develop
-Commits:           8  (7 code + 1 context-update)
-Files changed:     18  (+624 / -12)
+Files changed:     18  (+624 / -12)   — all uncommitted, in the working tree
+Commits:           0  — /dev:build never commits; /dev:commit gathers and commits
 
 Implementation:
   · Detected stack:    TypeScript + NestJS + Prisma + Jest + Playwright + pnpm
@@ -43,12 +43,15 @@ Tests:
   · Coverage:          72.4% lines (≥60% required)
   · All Required gates: 7/7 pass
 
-Security review (build-time, Critical-blocking only):
-  · Critical:  0
-  · High:      2 (deferred to /dev:commit's stricter gate)
+Security review (build-time, REPORT-ONLY — nothing blocked, nothing repaired):
+  · Critical:  1   ⚠ blocks at /dev:commit — fix it now or it stops the commit
+  · High:      2   ⚠ blocks at /dev:commit
   · Medium:    1
   · Low:       1
   See: units/<repo>/findings.md § ## Security — build
+
+  Every finding above travels to /dev:commit Stage 3. Critical and High
+  block delivery there; the rest must be dispositioned before the PR opens.
 
 Acceptance map: 12/12 rows resolved
   · Pass locally:    12  (Unit + Integration + Component + Concurrency tiers per qa/quality-gates.md)
@@ -88,6 +91,12 @@ Files written by this run:
 ```
 
 ---
+
+**Never print a commit count this command did not produce.** The old summary read
+`Commits: 8 (7 code + 1 context-update)`, written when Stage 10 committed its own
+changes. It no longer does — nothing in `/dev:build` commits — so that line reported
+work that had not happened, and a developer reading it would believe the branch
+carried something it did not.
 
 ### 11c. Compose `units/<repo>/pr-summary.md § ## How to verify` — developer-facing setup guide
 
@@ -130,19 +139,23 @@ the supplier creation + validation endpoint; the frontend sub-task provides the 
 - Postgres running locally (dep: prisma with PostgreSQL provider)
 - Playwright browsers installed (`pnpm exec playwright install --with-deps chromium`)
 
-## 3. Environment / config setup (v2.3.23 — from real startup, not grep-guess)
+## 3. Environment / config setup (from the declared test requirements, not a grep-guess)
 
-**Env var detection MUST use both signals** — source grep AND Stage 7's `external_services_started.env_vars_verified` list:
+**Env var detection uses three signals.** Build no longer starts services, so the
+old second signal — Stage 7's `external_services_started[].env_vars_verified`, which
+only exists once something has actually booted — is not available here. It is
+replaced by a declarative source that is available, and is arguably better: what the
+tests say they will need.
 
 1. **Grep the source** for `process.env.<NAME>`, `os.environ["<NAME>"]`, `os.getenv("<NAME>")`, `System.getenv("<NAME>")`, `settings.<NAME>` accessors, and the repo's config module lookups.
-2. **Cross-reference with Stage 7's actual startup** — the `external_services_started[].env_vars_verified` list contains every env var the backend REQUIRED to reach `status: healthy` at Stage 7 time. If Stage 7 halted with `blocker: required-env-vars-missing`, THOSE are the ones the developer MUST provide.
+2. **Read the test map's `Needs` column** (`context/test-map/<feature-slug>.md`, verified at Stage 7 §7b). Every row naming `backend-running`, `real-db`, `real-auth` or `frontend-running` declares a service `/dev:commit` Stage 5 must boot — and every var in that service's `.env.example` is therefore required to run this feature's tests. **A var reaching the developer as a surprise at commit time is the failure this replaces.**
 3. **Cross-reference with the repo's `.env.example`** — every var listed there is a documented required var for the service.
 4. Union all three sources → deduplicate → categorize per var:
 
    | Category | Detection | Marker in `pr-summary.md` § `## How to verify` |
    |---|---|---|
    | Required, from repo's `.env.example` with placeholder | Present in `.env.example` with `<placeholder>` value | `[SET REQUIRED — see <where to get>]` |
-   | Required, verified at Stage 7 startup | Present in `external_services_started[].env_vars_verified` | `[SET REQUIRED — service won't start without it]` |
+   | Required by a service the tests need | The map's `Needs` names the service, and the var is in that service's `.env.example` | `[SET REQUIRED — service won't start without it]` |
    | Optional with sensible default | Present in source with a default in the code | `[OPTIONAL — default: <value>]` |
    | Auth / credential — MUST NOT commit | Matches pattern `*SECRET*`, `*TOKEN*`, `*KEY*`, `*PASSWORD*`, `*CREDENTIAL*`, `FIREBASE_SERVICE_ACCOUNT`, `GOOGLE_APPLICATION_CREDENTIALS` | `[SET REQUIRED — credential; do NOT commit; from <where to get>]` |
    | Endpoint / URL for external service | Ends with `_URL`, `_ENDPOINT`, `_HOST` | `[OK — dev value from technology-stack.md]` if declared there, else `[SET REQUIRED — the actual URL for your env]` |
@@ -244,7 +257,7 @@ pnpm format:check        # Prettier
 
 Use the repo's real commands and package manager, not this example. **Give each runner its own line and its own test count** — a unit runner and a browser runner are separate commands with separate totals, and a reader handed one combined figure will run one command, see a smaller number, and assume the run was broken.
 
-Expected: all gates pass. `units/<repo>/status.md § ## Acceptance` was built assuming these all pass.
+**These have not been run here.** Build executes no tests, so `units/<repo>/status.md § ## Acceptance` carries `⏳ pending` rows, not results. Give the reader the commands so they *can* run them; `/dev:commit` Stage 5 is what actually does, and its run is what fills the table in. Never write "all gates pass" in a build summary — nothing in this run could have established that.
 
 **CI:** name the workflow that already runs these gates (`.github/workflows/*.yml` or equivalent) and which of them it covers, so nobody re-wires what exists. Build never watches CI — so tell the reader to confirm the run is green on the PR rather than claiming it here. Where no workflow runs them, say so: local is then the only place they have ever passed.
 

@@ -59,7 +59,7 @@ Stages (see `plugins/dev/commands/build.md` + refs):
 7. Test writing (same skill)
 8. Test execution locally
 9. Acceptance map validation
-10. Security review — **build-time gate, Critical-blocking only**
+10. Security review — **build-time, report-only** (records every severity, blocks nothing)
 11. Update code-context units (`designed → implemented`)
 12. Summary + `units/<repo>/pr-summary.md § ## How to verify`
 
@@ -71,7 +71,7 @@ The `units/<repo>/pr-summary.md § ## How to verify` from `/dev:build` Stage 11 
 
 ### 4. `/dev:commit <target>` — 10 stages
 
-**Precondition:** `status.md` `status: inProgress`, `ready_for_dev_commit: true`, branch checked out in target repo.
+**Precondition:** `status.md` `status: inProgress`, `phase: built` or `adopted`, `ready_for_dev_commit: true`, branch checked out in target repo.
 
 Stages (see `plugins/dev/commands/commit.md` + refs):
 
@@ -112,7 +112,7 @@ The webhook that flips MC `done` on PR merge is v2.3 scope. In v2.2 the MC statu
 
 Security review runs TWICE with different thresholds:
 
-- **`/dev:build` Stage 9 (build-time)** — Critical-only blocking. High/Medium/Low logged but non-blocking. Rapid dev iteration friendly.
+- **`/dev:build` Stage 9 (build-time)** — report-only. Every severity recorded and carried to commit; nothing blocked. Rapid dev iteration friendly.
 - **`/dev:commit` Stage 3 (commit-time)** — Critical + High blocking. Medium warns. Low logged. Strict pre-PR gate.
 
 Same `security-review` skill invocation with different `severity_threshold`. Build-deferred Highs surface at commit time; they either got fixed in dev iteration or now block.

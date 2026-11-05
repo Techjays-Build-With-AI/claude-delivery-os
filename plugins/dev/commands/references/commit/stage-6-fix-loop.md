@@ -68,6 +68,78 @@ A "broad re-run" = full re-execution of the originating stage over the current b
 
 ---
 
+### 6b.i. Freeze this unit's tests for the duration of the loop
+
+Before the first fix-mode invocation, set `deny.write_paths` on this run's
+`.jetrix/cache/session.json` row to the test paths in scope — the files whose
+failures fed the loop, plus the directory the repo keeps tests in. The guard
+hook then refuses an `Edit` or `Write` to any of them.
+
+**A failing test is fixed in the code, never in the test.** That rule already
+exists in prose here and in `--tests-only`'s hard limits; this makes it a
+refusal instead of a hope. A test that is genuinely wrong is an escalation —
+record it and halt, do not edit it.
+
+**Empty `deny.write_paths` on every exit from the loop**, including the
+bounds-exceeded escalation in §6f. A frozen path left frozen blocks the human
+who was just asked to fix it by hand.
+
+### 6b.ii. One repair agent at a time, and a new one each round
+
+| | |
+|---|---|
+| **Serial per repository** | two repair agents in one working tree overwrite each other, and a fix in one can invalidate the other's premise. Never parallel, even for findings that look orthogonal |
+| **A fresh agent per round** | round N+1 gets a new agent with only the finding and `allowed_files`. Reusing the agent carries round N's rationalisation — *"I already looked at this and it seemed fine"* — into the round that was supposed to re-examine it |
+| **Scoped to `allowed_files`** | the finding's file plus its test. A repair that needs a file outside that set is a scope escalation, not a wider edit |
+
+The repair agent is a **writer**. The reviewers are readers and run in parallel
+(`commit.md` §5a); this is the other half of that rule.
+
+### 6b.iii. A reviewer that returns no verdict gets exactly one retry
+
+A reviewer agent can die, time out, or return without a usable verdict. That is
+not a finding and not a defect, so neither the fix loop nor a halt is right.
+
+**Re-dispatch the same reviewer once, with the same inputs**, and record
+`retry: 1`. A second failure is `blocker: reviewer-no-verdict` — halt that unit,
+name the reviewer, and let siblings continue.
+
+**A reviewer that returns findings you cannot parse** — no severity, no file, a
+malformed table — is `blocker: reviewer-malformed-findings`. Keep its raw output
+verbatim in `findings.md § ## Raw` and halt that unit; do not guess at what it
+meant, and do not drop it. Siblings continue.
+
+**Never infer a verdict from a reviewer that did not give one.** An absent verdict
+is not a pass; recording one would be the same class of error as reporting a
+review that inspected nothing.
+
+### 6b.iv. A finding goes back to build — commit never implements
+
+**`/dev:commit` validates; it does not write features.** Every repair is delegated
+to the build half — `dev-stack-adaptive-implementation` in fix-mode — which is the
+skill that wrote the code in the first place and knows the repo's conventions,
+`coding-standards.md` and the stack.
+
+```
+  Stage 3 security  ┐
+  Stage 4 code review ├─ finding ──▶ build repair (fix-mode)
+  Stage 5 tests     ┘                      │  minimal change, allowed_files only
+                                            │  + a regression test for the finding
+          ◀────── re-review ─────────────┘
+          recompute the snapshot, re-run 3 → 4 → 5 in order
+```
+
+**The repair writes a regression test for the finding**, not only a fix. A defect
+that was found once and has no test can return silently; `/dev:build`'s own rule
+for a bug fix is the same, and it applies here.
+
+**After a test failure specifically, re-run that scenario's own `Run it` command
+from the test map** before re-running the stage — the fastest signal is the one row
+that failed, and it costs one command rather than a suite.
+
+**Order matters on the re-run: 3 → 4 → 5.** A security fix can break a test; a code
+fix can open a security hole. Never re-run only the originating stage.
+
 ### 6c. Fix-mode invocation
 
 For each blocking finding, invoke `dev-stack-adaptive-implementation` in fix-mode:
@@ -102,6 +174,25 @@ If a fix in one dimension breaks another dimension's test (rare but possible), t
 
 ---
 
+### 6d.i. Re-run only what the repair could have affected
+
+Re-running all three reviewers after every fix is correct and wasteful. Re-run on
+this rule, computed from the repair's actual diff:
+
+| Reviewer | Re-runs when |
+|---|---|
+| **security** | any source file changed. Always — a fix anywhere can open a hole, and this is the cheapest place to be paranoid |
+| **test verification** | always. The repair changed code that tests assert on |
+| **code review** | only when the repair touched a file in its finding set, or a file it cited as evidence |
+
+**Recompute the snapshot first and record the new sha.** Findings from the
+previous round cite the old one; a reviewer that is not re-run keeps its earlier
+verdict, and that verdict must still name the snapshot it was formed against.
+Stage 8 checks all three agree (§8a).
+
+**A reviewer that is skipped is recorded as skipped**, with the reason — not left
+to look like it ran.
+
 ### 6e. Re-run cascade
 
 After ALL blocking findings for the origin stage are fixed:
@@ -117,6 +208,37 @@ After ALL blocking findings for the origin stage are fixed:
 Order matters: fixing a code-review Major may introduce a security concern; fixing a security issue may break an acceptance test. Never assume "just re-run the origin stage" is enough.
 
 ---
+
+### 6e.i. Disposition every finding, then the batched cheap-fix pass
+
+The loop exits when nothing **blocks**. It is not finished until nothing is
+**undispositioned**.
+
+| Severity | Blocks | Must carry a disposition before the PR |
+|---|---|---|
+| Critical · High · Blocker · Major | **yes** — `fixed` only | yes |
+| Medium · Low · Minor | no | **yes** — `fixed` \| `accepted` (name + reason) \| `deferred` (tracker id) |
+| Nit | no | capped at 10; beyond the cap, counted not listed |
+
+Stage 8 refuses to push while any is missing (`blocker: findings-undispositioned`).
+It costs nothing on a clean run and makes *"we'll get to it"* impossible to leave
+implicit.
+
+**The batched cheap-fix pass.** Once the blocking loop is clean, fix the
+mechanically-safe Low/Minor findings — an unused import, a missing null guard, a
+magic number to a constant, a missing error branch — in **one** batch, with
+**one** gate re-run. Not one loop per finding.
+
+Routing forty nits through a loop bounded at three attempts each would be 120 fix
+cycles, each re-triggering the 3→4→5 cascade, trading a real risk of regression
+for cosmetic gain. The batch captures most of the value inside a bound.
+
+**A finding that is not mechanically safe does not go in the batch** — it is
+dispositioned, not fixed. If the fix needs a judgement, it needs a human.
+
+**An agent may not `accept` its own finding.** Acceptance carries a name and a
+reason and is asked at the pre-fan-out checkpoint, or carried from `## Settled`
+(`references/common/findings-contract.md` §3).
 
 ### 6f. Bounds exceeded
 

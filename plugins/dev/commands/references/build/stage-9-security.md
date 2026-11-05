@@ -1,6 +1,10 @@
-## Stage 9 — Security review (feature-diff scoped, build-time threshold)
+## Stage 9 — Security review (snapshot-scoped, REPORT-ONLY)
 
-**Purpose.** Scan the feature diff for security vulnerabilities. Build-time threshold: block on `Critical` only. High findings become warnings (they're re-checked at `/dev:commit` Stage 3 with strict blocking).
+**Purpose.** Scan this build's changes for security vulnerabilities and **record every finding at every severity**. Nothing is repaired here and nothing blocks here.
+
+**Why report-only.** `/dev:commit` Stage 3 runs the same skill at the stricter Critical+High threshold and owns remediation through the Stage 6 fix loop. Two repair loops over one diff, at two thresholds, in two commands, is one too many: it burns the build's budget on findings the commit gate will re-raise anyway, and it splits the authority for "is this safe to ship" across two places. **Commit is the security authority. Build is the early signal.**
+
+This is a report, so it is also honest about what it cannot do: a Critical finding here does **not** stop the build. It is written to `findings.md`, carried into Stage 11's summary, and blocks at `/dev:commit`.
 
 **Runs after Stage 8 `## Acceptance` table is COMPLETE.** State: `agentExecuting` (unchanged). MC: `inProgress`.
 
@@ -11,9 +15,9 @@
 ### 9a. Preconditions
 
 - `units/<repo>/status.md § ## Run history` `stage-8.status: DONE` and `final_status` is anything but `PARTIAL_FAILURES` — `COMPLETE`, `PARTIAL_DEFERRED` (deferred rows don't block security review) or `PARTIAL_HARNESS` (the harness is misconfigured, the code is not). §8e advances all three, so requiring `COMPLETE` here would strand two of them
-- Branch has commits — `git log <base>..HEAD` returns at least one commit
+- A **review snapshot** builds — `references/common/review-snapshot.md`. `/dev:build` commits nothing, so there is no branch history to diff; the snapshot is the scope
 
-If either fails → halt.
+If either fails → halt. A stage that cannot build a snapshot does not review: it never falls back to reading files by judgement and reporting that as a review.
 
 ---
 
@@ -40,10 +44,9 @@ Invoke via the `Skill` tool with the `security-review` skill name (built-in to C
 ```
 {
   "scope": "diff",
-  "diff_range": "<base>...<HEAD>",         # <base> from project.json env_branches.dev
-  "severity_block": ["Critical"],           # build-time threshold
-  "severity_warn":  ["High"],
-  "severity_note":  ["Medium", "Low"],
+  "diff_range": "<base>..$SNAP",            # the review snapshot, NOT <base>...HEAD
+  "severity_block": [],                     # report-only: nothing blocks at build time
+  "severity_report": ["Critical", "High", "Medium", "Low", "Info"],
   "focus_areas": [
     "injection",                             # SQL, command, path traversal
     "authn_authz_new_endpoints",             # only on endpoints this feature added/modified
@@ -88,18 +91,17 @@ Skill returns a structured findings list per the `ReportFindings` tool shape:
 
 ---
 
-### 9e. Threshold application
-
-Filter findings by severity:
+### 9e. Record every severity — none of them block
 
 | Severity | Action at build-time |
 |---|---|
-| Critical | Blocking → jump to §9g repair loop |
-| High | Warning → record for `/dev:commit` Stage 3 to re-check; do NOT block |
-| Medium | Note → record for `/dev:commit` |
-| Low / Info | Log only |
+| Critical | **record**, surface loudly in Stage 11's summary, carry to `/dev:commit` Stage 3 where it blocks |
+| High | record, carry to Stage 3 where it blocks |
+| Medium · Low · Info | record, carry to Stage 3 where it must be dispositioned |
 
-If any Critical findings → §9g. Else record all findings to `units/<repo>/findings.md § ## Security — build` and proceed to Stage 10.
+Write them all to `units/<repo>/findings.md § ## Security — build`, then proceed to Stage 10.
+
+**Detect everything, block nothing, lose nothing.** A finding recorded here and not carried forward is worse than one never found, because the run reports a clean build over a defect somebody already saw.
 
 ---
 
@@ -116,17 +118,22 @@ feature_id: FEAT-<AREA>-NN
 subtask_number: <N>
 subtask_repo: <repo-slug>
 scan_run_at: <ISO>
-threshold: Critical-blocking-only         # build-time
+mode: report-only                         # build-time: nothing blocks here
+snapshot_sha: <sha>                       # the scope these findings cite
 build_id: <build-timestamp>
 ---
 
-# Security review — build-time (Critical blocking only)
+# Security review — build-time (report-only)
 
-## Blocking findings (Critical) — 0 (must be zero to pass Stage 9)
+**Findings follow `references/common/findings-contract.md`**: a stable id derived
+from repo + path + enclosing symbol (never a line number), a `disposition` on every
+row, and `## Settled` carried in so a decision made last run is not re-raised.
 
-*(none — all Critical findings must be resolved or Stage 9 halts)*
 
-## Warnings (High) — 2 (will be re-checked at /dev:commit Stage 3 with High blocking)
+Every finding below is recorded and carried to `/dev:commit` Stage 3. Nothing
+was blocked and nothing was repaired here.
+
+## Critical — 1 (blocks at /dev:commit Stage 3)
 
 ### SR-B-001 · authn.missing · src/supplier/controller.ts:18
 
@@ -134,9 +141,12 @@ POST /supplier missing @UseGuards(AuthGuard)
 
 **Failure scenario:** Any unauthenticated request can create a supplier
 
-**Deferred to commit-time.** `/dev:commit` will block on this if not fixed before then.
+**Not repaired here.** `/dev:commit` Stage 3 blocks on it and routes it to the
+Stage 6 fix loop.
 
-## Notes (Medium / Low) — 3
+## High — 2 (block at /dev:commit Stage 3)
+
+## Medium / Low — 3 (must be dispositioned before the PR opens)
 
 - SR-B-002 · dependency.vuln · package.json — Yeah axios pinned to 1.x, latest is 1.12 (not currently exploitable)
 - SR-B-003 · logging.oversharing · src/supplier/service.ts:71 — Full request body logged including tax_id (PII)
@@ -145,56 +155,20 @@ POST /supplier missing @UseGuards(AuthGuard)
 
 ---
 
-### 9g. Repair loop for Critical findings
+### 9g. No repair loop here
 
-Per `/dev:build` §14 limits (3 focused / 1 broad for security):
+**Stage 9 does not fix anything.** It does not invoke
+`dev-stack-adaptive-implementation`, it has no attempt budget, and it records
+no `repair_loop_invocation`.
 
-**Focused repair:**
+Remediation is `/dev:commit` Stage 6, driven by Stage 3's findings at the
+Critical+High threshold. A developer who wants a Critical fixed before
+committing can read it in Stage 11's summary and fix it by hand; the commit
+gate will confirm it is gone.
 
-1. For the Critical finding, identify: file, line, category, suggested fix (from `security-review` output)
-2. Delegate to `dev-stack-adaptive-implementation` in "security-fix mode"
-3. Skill applies the fix
-4. Re-run `security-review` on the SAME diff — verify the specific finding is gone
-5. If Critical still present → next attempt
-
-**Broad cycle:** re-run the WHOLE security review after 3 focused attempts didn't clear one finding. Only ONE broad cycle allowed at build-time.
-
-**Limits exceeded:**
-- Write `units/<repo>/status.md § ## Run history (a BLOCKED entry)` — sensitive-data / vulnerability / permissions escalations are per Delivery-OS never-guess policy
-- Local state: `agentExecuting → BLOCKED`
-- MC status: `blocked`
-- Halt.
-
-### 9g.i. Non-skippable execution (v2.3.27 — closes the "critical finding surfaced but agent didn't invoke repair loop" gap)
-
-**Whenever the security scan produces one or more Critical findings, this stage MUST invoke `dev-stack-adaptive-implementation` in security-fix mode via the Skill / Agent tool. Applying the fix inline "because it's a small change" without going through the skill is NOT sufficient evidence of execution — the skill's own invocation log is the evidence. Skip = spec violation.**
-
-Same class of gap as `/dev:commit` Stages 3–5 (v2.3.27): findings surface, the agent reports them, the agent moves to Stage 10 without invoking §9g, and Stage 10 flips context units on code that still has a Critical security hole. Stage 10 (§10a preconditions, v2.3.27) refuses to advance without evidence of the repair loop for any Critical finding.
-
-Recording format (Stage 10's precondition check reads this):
-
-```yaml
-stage-9:
-  status: DONE                                    # DONE | SKIPPED | BLOCKED
-  findings:
-    critical: 0                                    # after repair; must be zero to advance
-    high:     2                                    # non-blocking at build-time; deferred to /dev:commit
-    medium:   1
-    low:      1
-  repair_loop_invocation:                          # REQUIRED whenever pre-repair findings.critical > 0
-    invoked_at: <ISO>                              # required — presence proves invocation
-    subagent_id: <id>                              # required — proves a real skill call happened
-    origin_findings: [SR-B-001]                    # what fed the loop
-    fix_attempts:
-      - finding: SR-B-001
-        attempts_used: 1
-        resolved: true
-    broad_reruns_used: 0
-    exit_state: CLEAN | ESCALATED
-    escalation_file: null | units/<repo>/status.md § ## Run history (a BLOCKED entry)
-```
-
-Zero-Critical runs skip §9g entirely and do NOT record `repair_loop_invocation:`. Absence on a Critical-free run is fine. Gate: critical > 0 (pre-repair) IMPLIES repair_loop_invocation MUST be present.
+**Stage 10 must not gate on a repair trace that no longer exists.** That gate
+is corrected in the same change as this one — see `stage-10-context-update.md`
+§10a. Removing the loop without correcting the gate halts every build.
 
 ---
 
@@ -204,25 +178,29 @@ Append to `units/<repo>/status.md § ## Run history`:
 
 ```yaml
 stage-9:
-  status: DONE                                    # DONE | SKIPPED | BLOCKED
+  status: DONE                                    # DONE | SKIPPED
   started_at: 2026-08-31T15:18:57Z
-  scope: diff (develop...HEAD, 8 files)
-  threshold: Critical-blocking
-  findings:
-    critical: 0                                    # became 0 after repair
+  mode: report-only
+  snapshot_sha: 0f50921291d9                      # the scope these findings cite
+  scope: 8 files vs develop
+  findings_recorded:
+    critical: 1                                    # recorded, NOT repaired
     high:     2
     medium:   1
     low:      1
-  repair_attempts: 1
+  carried_to_commit: true
   findings_file: units/<repo>/findings.md § ## Security — build
   finished_at: 2026-08-31T15:21:44Z
 ```
+
+`BLOCKED` is no longer a Stage 9 outcome. A non-zero `critical` is a normal,
+reportable result here.
 
 ---
 
 ### 9i. On `--resume`
 
-If `--resume` finds `stage-9.status: DONE`, skip.
+If `--resume` finds `stage-9.status: DONE` **or `SKIPPED`**, skip. `SKIPPED` is the `--no-security-review` opt-out; re-running it would ignore a choice the user already made.
 
 If `stage-9.status: BLOCKED`, re-run — the developer might have fixed the Critical by hand.
 
@@ -230,7 +208,7 @@ If `stage-9.status: BLOCKED`, re-run — the developer might have fixed the Crit
 
 ### Skills / agents invoked
 
-- **Claude Code built-in `security-review` skill** — the primary work
-- **`dev-stack-adaptive-implementation` skill** in security-fix mode — only during §9g repair
+- **Claude Code built-in `security-review` skill** — the only skill this stage invokes
+- **No `dev-stack-adaptive-implementation`.** Build-time security remediation moved to `/dev:commit` Stage 6
 
 Never invoke `dev-stack-adaptive-code-review` from Stage 9 — that's `/dev:commit` Stage 4.

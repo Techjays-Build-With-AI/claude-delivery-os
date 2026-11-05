@@ -1,6 +1,6 @@
 ---
-description: Build a planned task through the full 11-stage loop — branch, QA harness gate (auto-bootstraps greenfield via qa-greenfield-harness), implement per implementation.md using dev-stack-adaptive-implementation (dynamic per stack, reads repo conventions, matches idiomatic patterns), write stack-adaptive tests, execute them locally, validate against parent's Acceptance Criteria + Business Rules + Test Scenarios + NFRs, run a scoped security review (feature-diff only, Critical-blocking at build-time; /dev:commit is stricter), update code-context units to origin:implemented, and produce a summary + pr-summary.md § ## How to verify. Bounded fix loop until 100% or escalation. Refuses to run without a plan from /dev:plan, OR with unresolved plan-blockers.md. Accepts any task identifier (MC task number, feature slug or folder, sub-task folder, FEAT-<AREA>-NN). Sub-task builds work in the sub-task's repo only, on a branch named feature/FEAT-<AREA>-NN-<slug>-<repo>. Never merges, never pushes, never raises a PR — /dev:commit does that.
-argument-hint: "<task-number | Task-N | slug | features/<slug> | tasks/<slug>.md | FEAT-<AREA>-NN | list=<name> | requirement=<slug> | --all | (blank = every task at readyForDev)> [repo=<slug|slug,slug>] [requirement=<slug>] [--concurrency=N] [--resume] [--no-security-review] [--skip-qa] [--tests-only] [--vulnerable]"
+description: Build a planned task through the full 11-stage loop — branch, QA harness gate (auto-bootstraps greenfield via qa-greenfield-harness), implement per implementation.md using dev-stack-adaptive-implementation (dynamic per stack, reads repo conventions, matches idiomatic patterns), write stack-adaptive tests, execute them locally, validate against parent's Acceptance Criteria + Business Rules + Test Scenarios + NFRs, run a report-only security scan (snapshot-scoped, records every severity, blocks nothing; /dev:commit Stage 3 is the gate), update code-context units to origin:implemented, and produce a summary + pr-summary.md § ## How to verify. Bounded fix loop until 100% or escalation. Refuses to run without a plan from /dev:plan, OR with unresolved plan-blockers.md. Accepts any task identifier (MC task number, feature slug or folder, sub-task folder, FEAT-<AREA>-NN). Sub-task builds work in the sub-task's repo only, on a branch named feature/FEAT-<AREA>-NN-<slug>-<repo>. Never merges, never pushes, never raises a PR — /dev:commit does that.
+argument-hint: "<task-number | Task-N | slug | features/<slug> | tasks/<slug>.md | FEAT-<AREA>-NN | list=<name> | requirement=<slug> | --all | (blank = every task at readyForDev)> [repo=<slug|slug,slug>] [requirement=<slug>] [--concurrency=N] [--resume] [--clear-locks] [--no-security-review] [--skip-qa] [--tests-only] [--vulnerable]"
 ---
 
 # /dev:build
@@ -51,7 +51,8 @@ something mid-run belongs inline; one that cannot, does not.
 **Flags:**
 - `requirement=<slug>` — scope the target set to one requirement
 - `--resume` — continue from last completed stage per `units/<repo>/status.md § ## Run history`
-- `--no-security-review` — skip Stage 9's diff security review (dev-time convenience; `/dev:commit` always runs security)
+- `--clear-locks` — remove every `.jetrix/cache/session.json` row for the resolved repo and print what was removed, then stop. For a session whose run died before it could clean up. Takes a target only to resolve the repo; runs no stages
+- `--no-security-review` — skip Stage 9's security scan. Stage 9 is report-only, so this only costs you the early signal; `/dev:commit` Stage 3 is the gate that blocks and always runs
 - `--skip-qa` — **skip Stage 4's harness bootstrap and write no tests.** For a change whose risk does not justify standing up a test framework: a CSS value, a copy fix, a config default. Stage 4 logs `qa_gate_state: skipped-by-user` and Stages 5–6 write code without tests; Stage 8 builds the `## Acceptance` table from inspection instead of test evidence and marks every row `verified: manually`. `/dev:commit` still runs its full security and code review — this flag buys you out of *testing*, never out of *review*.
 
 - `--tests-only` — **write tests against code already on disk; write no production code.** Runs Stage 4 → the test half of Stages 5–6 → 7 → 8, and ends at Stage 8.5. See §1a.
@@ -77,7 +78,7 @@ parallel** bounded by `--concurrency`. A task-ref carries its own repo and needs
 | | |
 |---|---|
 | **Reads** | source on disk · `qa/quality-gates.md` tier pool · the ticket's Acceptance Criteria or Expected Result when a ref is given |
-| **Runs** | Stage 4 (harness gate) → Stage 5–6 **test half only** → Stage 7 execute → Stage 8 `## Acceptance` table → the bounded fix loop |
+| **Runs** | Stage 4 (harness gate) → Stage 5–6 **test half only** → Stage 7 **executes** (§7a1 — terminal mode, no commit follows) → Stage 8 `## Acceptance` table → the bounded fix loop |
 | **Skips** | the implementation half of Stage 5–6 entirely. It writes no production code |
 | **Never** | edits product logic to make a test pass · deletes, disables or loosens an existing test · marks `✅ pass` without a test behind it |
 | **Ranks** | uncovered business logic and branches first; getters and generated code last |
@@ -179,7 +180,7 @@ language here. If no audit command is configured for that repo, that is the bloc
 |---|---|
 | **Reads** | the dependency manifest and lockfile · the `BL-08` audit command and its baseline · `qa/quality-gates.md` tier pool |
 | **Writes** | **both the manifest and the lockfile** · nothing else |
-| **Runs** | Stage 4 (harness gate) → upgrade → Stage 7 execute → Stage 8 `## Acceptance` → the bounded fix loop |
+| **Runs** | Stage 4 (harness gate) → upgrade → Stage 7 **executes** (§7a1 — terminal mode, no commit follows) → Stage 8 `## Acceptance` → the bounded fix loop |
 | **Skips** | Stages 5–6 entirely. **It writes no feature code** |
 | **Never** | changes product behaviour to accommodate an upgrade · silences a finding instead of fixing it · bumps a major without saying so |
 | **Orders** | **production dependencies first**, then dev. Within each: patch and minor together, verified once; each **major** separately, verified on its own — that is where behaviour changes, and a batch tells you nothing about which bump broke what |
@@ -263,7 +264,17 @@ Same 4-way resolution as `/dev:plan` Stage 0 — see `plugins/dev/commands/plan.
 **Verify engineering standards contract (v2.3.11 hard gate).** Check for `shared-context/coding-standards.md` § `<repo>`:
 
 - Missing → halt with `blocker: coding-standards-missing`. Message points at `plugins/tl/skills/tl-project-scaffold/references/scaffold-guide.md` §4 for the required-sections template (greenfield: re-run `tl-project-scaffold` if the scaffold skipped it; brownfield: author the file directly using the template).
-- Present, but §6 (function complexity budget), §7 (duplication policy), §8 (recursion policy), §9 (constants & magic values), §10 (state & side effects), or §12 (anti-patterns forbidden) is blank / absent → halt with `blocker: coding-standards-incomplete`, listing which section(s).
+- **`standards_version` absent, or `1`** → **do not halt.** Print a one-line migration notice naming the sections to backfill, and continue under §1–§12.
+
+  **Absent is the normal v1 signal, not `1`.** Every `coding-standards.md` written before the v2 contract has no such key — the field did not exist — so a gate matching only on `standards_version: 1` would miss every real legacy file and halt it as incomplete. Treat a missing key and `1` identically.
+
+  An existing repo must not start failing Stage 0 the day the contract grows; `migration_status` makes the debt visible instead.
+
+- **Only if `standards_version: 2`** — a **gated** section blank or unresolved → halt with `blocker: coding-standards-incomplete`, listing which. Gated is **§1–§12** plus §13 (architecture & dependency rules), §19 (reliability & resilience) and §20 (backward compatibility). **Advisory sections (§15, §16, §17, §21, §22) never block for being incomplete** — the reviewer reads them and reports violations; a missing section is not a defect in the code being built.
+
+  **Order matters, and this bullet must stay below the version check.** §13/§19/§20 are absent from every v1 file by definition. Testing "is a gated section blank" before "is this a v1 file" halts exactly the legacy repo the clause above exists to let through, and the grandfathering becomes unreachable code.
+- A gated rule whose `status:` is `inferred` or `needs-author` is **not policy** — it does not block and Rule 13 does not enforce it. Surface it in the run summary as a decision waiting on a human. Observed practice is evidence, not approval.
+- Full contract: `plugins/delivery-os-core/skills/delivery-os-conventions/references/engineering-standards.md`.
 - Present + all required sections filled → continue. Log `coding_standards_checked: true` + the file's `updated_at` timestamp to `status.md` § `## Run history`.
 
 Rationale: `dev-stack-adaptive-implementation` Rule 13/14 and code-review Dimension 8 are hard consumers of this file. Without it, Rule 13's write-time checks have no thresholds to compare against and Dimension 8's review checks have no policy to enforce — the "100% engineering standard" guarantee collapses to hope. Catching the gap at Stage 0 means the fix lands before any code is written, not after review flags it.
@@ -291,6 +302,23 @@ The Stack-Inferred path is the intentional escape hatch for teams that want to p
 | Feature ID / slug / folder of a PARENT-ALONE feature | 1 worker for the parent | Single |
 | Feature ID / slug / folder of a SPLIT feature (has `units/<repo>/` children) | ONE worker PER sub-task, FAN OUT in PARALLEL | Bounded by `--concurrency=N` (default: 5) |
 | Blank, `list=`, `requirement=` or `--all` → every task at `readyForDev` | One worker per parent-alone task, and per sub-task for each split parent — the whole set fans out together | Bounded by `--concurrency=N` (default: 5) across the entire set, not per feature |
+
+**Print the plan before any agent starts.** Named agents, the wave table and the
+concurrency bound, every time:
+
+```
+Execution plan — /dev:build
+  Targets: 11 tasks across 3 repos     concurrency 5
+  Waves:   3 (ordered by depends_on_features)
+    wave 1  build:backend:FEAT-PLAT-01 · build:backend:FEAT-SUP-012
+    wave 2  build:frontend:FEAT-ROLE-02 · build:backend:FEAT-REGR-01
+    wave 3  build:frontend:FEAT-DASH-01
+  Each agent is named and streams on its own; open one to watch it.
+```
+
+An eleven-stage run that takes an hour behind a single opaque agent is the thing
+this replaces. Name every agent `build:<repo>:<task>` so the user can watch,
+message or cancel one without killing the batch.
 
 **Order the batch yourself — never ask the user to sequence it.**
 
@@ -349,6 +377,8 @@ Next:
 
 ### Stage 1 — Acquire lock + mount context
 
+- **Refuse a colliding run first.** Read `.jetrix/cache/session.json`; a live, non-stale row whose `repo` is this task's repo means another run holds it. Halt with `blocker: repo-locked`, naming that session's `id`, `task` and start time, and offering `--clear-locks` if it is dead. The lock is **per repo path**, not per task — two tasks in one working tree collide whatever their ids say
+- **Declare this session.** Append a row to `.jetrix/cache/session.json` per `references/common/session-marker.md`: `kind: build`, this repo's absolute path, the task ref, `started_at`, and `deny: {git_commit: true, git_push: true}`. The guard hook reads it; while it is there, `git commit` in this repo is refused. **A row left behind blocks the user's own commits, so every halt path below removes it**
 - Write owner into `status.md`
 - status `agentExecuting` · phase `planning` (broadcast)
 - MC: `readyForDev → inProgress` via `task-mcp.update_task_status`
@@ -401,9 +431,9 @@ Three cheap re-checks:
 
 status `agentExecuting` · phase `planning` → `implementing` (broadcast)
 
-### Stage 7 — Execute tests locally
+### Stage 7 — Verify the test map
 
-**Read** `plugins/dev/commands/references/build/stage-7-test-execute.md` and execute verbatim. Runs every Required gate from `qa/quality-gates.md`.
+**Read** `plugins/dev/commands/references/build/stage-7-test-execute.md` and execute verbatim. **Runs no tests** — it verifies every test-map row against the disk (the spec exists, the named test exists, the fixture exists, the `Needs` token is startable) and records `executed: false`. `/dev:commit` Stage 5 is the only executor.
 
 status `agentExecuting` · phase `implementing` → `testing` (broadcast)
 
@@ -411,9 +441,11 @@ status `agentExecuting` · phase `implementing` → `testing` (broadcast)
 
 **Read** `plugins/dev/commands/references/build/stage-8-validate.md` and execute verbatim. Builds `units/<repo>/status.md § ## Acceptance`. Any `❌ fail` row → bounded repair loop (3 focused / 2 broad).
 
-### Stage 9 — Security review (build-time, Critical-blocking)
+### Stage 9 — Security review (snapshot-scoped, REPORT-ONLY)
 
-**Read** `plugins/dev/commands/references/build/stage-9-security.md` and execute verbatim. Invokes Claude Code's `security-review` skill on the feature diff. Skipped if `--no-security-review`.
+**Read** `plugins/dev/commands/references/build/stage-9-security.md` and execute verbatim. Invokes Claude Code's `security-review` skill against the **review snapshot** (`references/common/review-snapshot.md`) and records findings at every severity.
+
+**Nothing blocks here and nothing is repaired here.** `/dev:commit` Stage 3 runs the same skill at Critical+High and owns remediation via its Stage 6 fix loop — two repair loops over one diff split the authority for "is this safe to ship". A Critical finding is recorded, surfaced loudly in Stage 11's summary, and blocks at commit. Skipped entirely if `--no-security-review`.
 
 ### Stage 10 — Update code-context units (`designed → implemented`)
 
@@ -425,11 +457,48 @@ status `agentExecuting` · phase `implementing` → `testing` (broadcast)
 
 status `inProgress` · phase `built` (build phase done; awaits `/dev:commit`)
 
+**Remove this run's row from `.jetrix/cache/session.json`.** Stage 11 is the normal exit; §5 covers the rest.
+
 ## 4. Summary output
 
 The Stage 11 summary IS the final output. See its reference file for the exact terminal format.
 
 ## 5. Failure surfaces
+
+### A halt is reported in the same shape as a success
+
+A failed run is read more carefully than a successful one, so it gets the same
+structure — not a post-mortem, and never an apology.
+
+```
+✗ /dev:build Subtask-7 halted at Stage 7 — required service would not start
+
+  Blocker:   required-env-vars-missing
+  Missing:   FIREBASE_SERVICE_ACCOUNT (backend will not authenticate without it)
+  Written:   units/Inhouse-server/findings.md  (3 open, 11 settled)
+             units/Inhouse-server/status.md    (## Run history, stage-5)
+  Branch:    feature/FEAT-HCAL-01-holiday-calendar-backend  (6 commits, unpushed)
+  Snapshot:  0f50921291d9  (18 files)
+
+  Resume:     /dev:build --resume Subtask-7   (after setting it in dev/build-env.local)
+  Or inspect: units/Inhouse-server/status.md § ## Run history
+```
+
+Four things, always, in this order: **the named blocker code**, **what
+survives and where it is**, **the one command that continues**, and **where to
+look**. Never a narrative of what went wrong — the findings file holds that,
+and a reader who needs it will open it.
+
+**Every halt removes this run's `session.json` row before returning** (§ Stage 1).
+A halt that keeps its row leaves the user's next manual `git commit` refused in
+that repo until it goes stale.
+
+**In a batch, one task's halt never stops the others.** Each reports its own
+blocker; the run summary lists them together at the end, and a sibling that
+succeeded still pushes.
+
+
+**Every halt below removes this run's `session.json` row before it returns**, and names a blocker code from `docs/dev/build-commit-rework.md` §12c rather than a free-text error. A halt that keeps its row blocks the user's next manual commit until it goes stale four hours later — which is how enforcement gets uninstalled.
 
 - **Any stage BLOCKED** → local state `BLOCKED`, MC `blocked`, `units/<repo>/status.md § ## Run history (a BLOCKED entry)` written, halt. Never partial-ship.
 - **Any repair loop bound exceeded** → same as above, cleanly.

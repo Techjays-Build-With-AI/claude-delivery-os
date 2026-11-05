@@ -1,34 +1,113 @@
-## Stage 7 — Execute tests locally
+## Stage 7 — Verify the test map · and the execution runbook
 
-**Purpose.** Actually RUN the tests. Not a plan-mode "would run" — the exact commands from `qa/quality-gates.md` Required table execute in the target repo, and their real exit codes drive the `## Acceptance` table at Stage 8.
+**This file holds two halves, and they run in different commands.**
 
-**Runs after Stages 5-6.** status `agentExecuting` · phase `implementing` → `testing`
+| Sections | Who runs them | What they do |
+|---|---|---|
+| **§7a0 – §7b**, **§7i – §7l** | `/dev:build` | verify the test map against the disk. **Run no tests** |
+| **§7b.i – §7h** | `/dev:commit` Stage 5 | start what the tests need, execute, parse, record, classify failures |
 
-**On completion:** every Required gate has a real pass/fail result captured in `units/<repo>/status.md § ## Run history`. Failing gates route to Stage 8's repair loop.
+**`/dev:build` does not execute tests.** Build implements, writes the tests, the test map and
+the fixtures, then proves the map is *runnable* without running it. `/dev:commit` Stage 5 is
+the only executor, and it reads §7b.i–§7h of this file.
+
+Build's half catches what makes a command fail for reasons unrelated to the code — a renamed
+spec, a fixture nobody wrote, a `Needs` token nothing can start. Finding those costs a file
+read here; finding them at commit costs a full run plus a loop back into build.
+
+**Section numbers are historical and deliberately unchanged** — `stage-8-validate.md` points at
+`§7f.i`, `stage-11-summary.md` at `§7b`, `commit/stage-5-acceptance.md` at `§7b.i`. Renumbering
+would break all three.
+
+**Runs after Stages 5-6.** status `agentExecuting` · phase `testing`
+
+**On completion:** `context/test-map/<feature-slug>.md` is verified row by row and every row
+carries `status: pending` — written, not yet run.
+
+---
+
+### 7a0. `--skip-qa` short-circuit
+
+If `stage-4.qa_gate_state: skipped-by-user`, no tests and no map were written.
+Record and move on:
+
+```yaml
+stage-7:
+  status: SKIPPED
+  reason: --skip-qa (no harness, no tests, no map written)
+```
+
+Stage 8 handles this run shape at §8a0.
+
+---
+
+---
+
+### 7a1. `--tests-only` and `--vulnerable` DO execute — they are terminal
+
+These two modes end at Stage 8 (§8.5) and never hand off to `/dev:commit`. There is
+no later executor, so if they do not run the suite, nothing ever does and the mode
+reports nothing it can stand behind:
+
+| Mode | Why the run is the point |
+|---|---|
+| `--tests-only` | its output is before/after coverage. Coverage is measured, not read off a map |
+| `--vulnerable` | it upgrades packages. The suite result is the only evidence the upgrade broke nothing |
+
+For these two, execute **§7b.i–§7h of this file** in full, then continue
+to Stage 8 with real pass/fail rows.
+
+**This is not an exception to "build declares, commit executes" — it is that rule
+applied.** Execution belongs wherever the diff stops moving. In the delivery flow
+that is commit; in a terminal maintenance run there is no commit, so it is here.
+
+---
 
 ---
 
 ### 7a. Preconditions
 
 - `units/<repo>/status.md § ## Run history` `stage-5-6.status: DONE`
-- `qa/quality-gates.md` `harness_status: Active` (verified in Stage 4)
-- Target repo working tree contains the newly-written code + tests
-- Package dependencies installed (either by `qa-greenfield-harness` in Stage 4 OR pre-existing)
+- `<repo>/context/test-map/<feature-slug>.md` exists
 
-Missing → halt.
+Missing map with tests written → HALT `blocker: test-map-missing`. The map is the
+contract commit executes; without it commit has nothing to run and falls back to
+guessing, which is the drift this architecture exists to prevent.
 
 ---
 
-### 7b. Read the Required gates
+---
 
-Parse the `Required gates` table from `qa/quality-gates.md`. For each row, capture:
-- `qg_id` (QG-###)
-- `check` name
-- `command` — the exact shell command
-- `threshold` — pass/fail criteria
-- `layer` — advisory; used only for parent-alone tasks that touch multiple layers
+### 7b. Verify every row, against the disk
+
+For each row of the map's table:
+
+| Check | Fails when | Blocker |
+|---|---|---|
+| **Test file exists** | the `Test` column names a path not on disk | `test-map-dangling-test` |
+| **Named test exists** | the file exists but holds no test matching `::name` | `test-map-dangling-test` |
+| **`Run it` is populated** | the cell is empty or `—` | `test-map-incomplete` |
+| **`Needs` is startable** | a token is not `real-db`, `backend-running`, `frontend-running`, `real-auth` or `—` | `test-map-unstartable` |
+| **Fixture exists** | the `Fixtures` column names a factory or seed not on disk | `test-map-dangling-fixture` |
+
+**Match the test name the way the runner does, not by substring.** A row reading
+`create.spec.ts::duplicate` must find a test whose name the runner's own filter
+would select. A substring check passes on `duplicate-ignored` and the row then
+runs a different test than the map claims — a false green nobody can see.
+
+**Do not execute anything to prove a row.** Reading the spec file settles every
+check above. Running it is commit's job and would need the services started.
+
+---
+
+---
 
 ### 7b.i. Pre-start required external services (v2.3.23 — REQUIRED for integration/contract/concurrency/e2e tiers)
+
+**This procedure has two callers.** `/dev:build` Stage 7 (here) and `/dev:commit`
+Stage 5 §5a.0a, which re-runs gates after the fix loop and finds nothing running
+because this stage tore its services down at step 6. Keep it generic enough for
+both; never fork a second copy.
 
 For every test file in this run's scope — the ones Stages 5-6 wrote **and** any pre-existing test the run will execute — read its `# tier:` and `# requires:` header (Rule 7.ii in the dev-implementation SKILL). If the tier is `integration` / `contract` / `concurrency` / `e2e`, the required **external** services MUST be started BEFORE the test runs.
 
@@ -278,17 +357,58 @@ stage-7:
 
 ---
 
-### 7i. On `--resume`
+---
 
-If `--resume` finds `stage-7.status: DONE`, skip Stage 7 entirely. Rationale: even if code was hand-edited between runs (unlikely), running Stage 8 (validate) will pick up the change through its `## Acceptance` table rebuild.
+### 7i. Verify `CLAUDE.md` points at the map
 
-If `stage-7.status: FAILED` on the last recorded run, re-execute Stage 7 fully — the developer might have fixed the failing gates by hand.
+`<repo>/CLAUDE.md` has the `## Tests` pointer written at Stage 5-6 §5-6b.iii.
+Missing → write it now, idempotently. A map nobody is pointed at is a map the
+next agent never opens, and it writes a second `holidayFactory` instead.
 
 ---
 
-### Skills / agents invoked
+---
 
-- Shell tool for command execution (direct, no MCP)
-- No subagents
+### 7j. Record
 
-Never invoke `dev-stack-adaptive-implementation` from Stage 7 — that's Stages 5-6. Never modify code from Stage 7 — that's Stage 8's repair job.
+```yaml
+stage-7:
+  status: DONE                      # DONE | SKIPPED
+  started_at: <ISO>
+  map_file: context/test-map/<feature-slug>.md
+  rows_total: 12
+  rows_verified: 12
+  tiers_present: [unit, integration, e2e]
+  needs_tokens: [real-db, backend-running]
+  executed: false                   # ALWAYS false — build does not run tests
+  finished_at: <ISO>
+```
+
+**`executed: false` is recorded deliberately**, so `/dev:commit` Stage 0 can tell
+"not run yet, by design" from "a run that never happened". Commit reads this and
+knows every row is still `pending`.
+
+---
+
+---
+
+### 7k. Failure handling
+
+A dangling row is a **build defect, not a test failure** — build wrote both the
+test and the map, so a mismatch between them is work left unfinished. Fix it here:
+rename the row to the real test, write the missing fixture, or drop the row if the
+scenario was dropped. Then re-verify.
+
+Never "fix" a dangling row by deleting the scenario it names. If a scenario in the
+plan has no test, that is a coverage gap Stage 8 must report as `not-verified` —
+not something to tidy away by removing the evidence that it is missing.
+
+---
+
+---
+
+### 7l. On `--resume`
+
+If `--resume` finds `stage-7.status: DONE` **or `SKIPPED`**, skip. The map is
+cheap to re-verify, but re-verifying it would also re-raise blockers the user has
+already resolved.

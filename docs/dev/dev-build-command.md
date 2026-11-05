@@ -61,7 +61,7 @@ argument-hint: "<Task-N | Feature-N | Subtask-N | slug | features/<slug> | featu
 │
 ├── Stage 6 — Write stack-adaptive tests (part of the same skill)
 │
-├── Stage 7 — Execute tests locally (actually run them)
+├── Stage 7 — Verify the test map (runs nothing; /dev:commit executes)
 │     Local: TESTING  ·  MC: inProgress
 │
 ├── Stage 8 — Validate against parent AC + BR + TS + NFRs
@@ -226,7 +226,7 @@ Test file locations follow the stack's convention (e.g. `*.test.ts` next to sour
 
 ---
 
-## 11. Stage 7 — Execute tests locally
+## 11. Stage 7 — Verify the test map
 
 **Actually run the test command.** No planning-mode, no "would run" — the command from `qa/quality-gates.md` (or `dev/test-decision.md`) executes in the target repo.
 
@@ -288,7 +288,7 @@ Invoke Claude Code's built-in **`security-review`** skill:
 | Phase | Focused attempts per failure | Broad re-runs |
 |---|---|---|
 | Stage 6 (test write) | 2 | 1 |
-| Stage 7 (test execute) | 3 | 2 |
+| Stage 7 (verify test map) | 3 | 2 |
 | Stage 8 (validate) | 3 | 2 |
 | Stage 9 (security) | 3 (per finding) | 1 (whole security pass) |
 
@@ -550,7 +550,7 @@ Per your instruction (2026-08-31 chat): use MC's existing enum. No new invented 
 | [plugins/dev/skills/qa-greenfield-harness/references/gates-template.md](../../plugins/dev/skills/qa-greenfield-harness/references/) | The minimal quality-gates.md template |
 | [plugins/dev/commands/references/build/stage-4-qa-gate.md](../../plugins/dev/commands/references/build/) | QA harness gate runbook |
 | [plugins/dev/commands/references/build/stage-5-6-implement.md](../../plugins/dev/commands/references/build/) | Implementation + test-write runbook |
-| [plugins/dev/commands/references/build/stage-7-test-execute.md](../../plugins/dev/commands/references/build/) | Test execution runbook |
+| [plugins/dev/commands/references/build/stage-7-test-execute.md](../../plugins/dev/commands/references/build/) | Stage 7 - verify the test map (build) + the execution runbook (/dev:commit Stage 5) |
 | [plugins/dev/commands/references/build/stage-8-validate.md](../../plugins/dev/commands/references/build/) | Acceptance-map building runbook |
 | [plugins/dev/commands/references/build/stage-9-security.md](../../plugins/dev/commands/references/build/) | Security review invocation |
 | [plugins/dev/commands/references/build/stage-10-context-update.md](../../plugins/dev/commands/references/build/) | designed → implemented update rules |

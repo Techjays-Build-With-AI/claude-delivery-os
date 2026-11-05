@@ -129,6 +129,33 @@ Three passes. Discovery enumerates cheaply; detail writes one unit at a time; **
       2. Observed patterns from the ≤ 10 sample files Phase 2 already read.
       3. `shared-context/technology-stack.md` if present for confirmed framework + version.
 
+    - **§13 Architecture, §19 Reliability, §20 Backward compatibility** — the three
+      sections added by the v2 contract. These have **no lint rule to read**, so the
+      ecosystem-default path above does not apply. Derive them from the code, and be
+      honest about what the derivation proves:
+
+      1. **§13** — the dependency graph is observable: which layer imports which, and
+         whether any cycle exists. Write the **actual** direction as
+         `status: inferred` — the code shows what happens, not what was agreed. Set
+         `enforcement.available: false` unless the repo already installs a
+         dependency-graph checker (`madge`, `import-linter`, `dependency-cruiser`,
+         ArchUnit); none of the QA harness stacks do.
+      2. **§19** — timeouts, retry counts and backoff appear in HTTP-client config and
+         call sites. Found consistently → `inferred`. **Not found → `needs-author`.
+         Never pick a number.** A guessed retry count looks like policy and is fiction.
+      3. **§20** — what must not break is a decision, not an observation. Default to
+         `needs-author` and ask. The one thing safely inferable is the existence of
+         contract or snapshot tests, which tell you what is already protected.
+
+      Every rule carries `source:` provenance and one of four statuses — `confirmed`,
+      `inferred`, `needs-author`, `not-applicable`. **Observed practice is evidence,
+      not approval:** only `confirmed` rules are enforced, so an inferred rule is a
+      proposal in the run summary for a human to accept.
+
+      Stamp the frontmatter `standards_version: 2`, `migration_status`, and
+      `gated_sections: ["1-12", "13", "19", "20"]`. Full contract:
+      `delivery-os-conventions/references/engineering-standards.md`.
+
     - **§6 Function complexity budget, §7 Duplication policy, §8 Recursion policy, §9 Constants & magic values, §10 State & side effects, §11 Comments & documentation, §12 Anti-patterns forbidden** — declare **engineering best practices**, resolved DYNAMICALLY per detected stack:
       1. First: read the value from the repo's own lint/tooling config if declared (e.g. the ESLint rule for complexity, the Ruff config for max-complexity, the golangci-lint config for gocyclo — whatever the stack's lint ecosystem provides).
       2. Otherwise: apply the ecosystem-default from the stack's own toolchain — the value that stack's standard lint suite recommends when no override is declared. Do NOT invent numbers; use what the stack's own recommended-config says.
@@ -144,6 +171,9 @@ Three passes. Discovery enumerates cheaply; detail writes one unit at a time; **
     generated_at: <ISO>
     generated_by: tl-code-map (Pass C step 15)
     detected_stack: <language>+<framework>+<version>
+    standards_version: 2
+    migration_status: legacy | in-progress | migrated
+    gated_sections: ["1-12", "13", "19", "20"]
     harness_status: Ready | Stack-Inferred
     stack_inferred: <bool>
     inferred_sections: [§6, §7, ...]           # only when Stack-Inferred; lists sections resolved via ecosystem defaults
@@ -168,7 +198,8 @@ Three passes. Discovery enumerates cheaply; detail writes one unit at a time; **
     **Effect on `/dev:build` Stage 0:** with this step authoring the file at map time, `/dev:build` Stage 0's Rule 14 hard-gate never fires for a repo that has been mapped. First `/dev:build` on an unmapped brownfield workspace will still halt with the "run /tl:code-map first" message — which is correct: map the code, then build against it.
 
 17. **Point future sessions at the tree — `<repo>/CLAUDE.md`.** The tree is only useful if a session knows
-    it exists. Write a delimited block at the repo root, creating the file if absent and **replacing the block
+    it exists. **`tl-feature-planning` writes this same block**, so a repo that is both reverse-mapped and
+    forward-planned ends up with one pointer, not two — keep the marker and the wording identical in both. Write a delimited block at the repo root, creating the file if absent and **replacing the block
     in place** when it is already there, so a re-run never duplicates it. Everything outside the delimiters is
     the repo's own — never rewrite it.
 
@@ -176,7 +207,7 @@ Three passes. Discovery enumerates cheaply; detail writes one unit at a time; **
     <!-- delivery-os:code-context -->
     ## Code context
 
-    This repo is mapped. `context/code-context/code-context-index.md` is the entry point.
+    This repo has a context graph. `context/code-context/code-context-index.md` is the entry point.
 
     Resolve any page, endpoint or database object through **layer index → the matching row → that unit
     file** — two reads. Do not grep the repo for a surface the index already names.

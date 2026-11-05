@@ -25,7 +25,8 @@ doc_type: unit-status
 unit: backend                     # the repo slug; matches cache/repolocation.json
 feature_id: FEAT-SUP-001
 status: inProgress                # the shared value — identical here, on Jetrix, on any tracker
-phase: built                      # local only, never pushed (conventions §5)
+phase: built                      # or `adopted` on Route B. Local only, never
+                                  # pushed to any tracker (conventions §5)
 branch: feature/FEAT-SUP-001-supplier-onboarding-backend
 base_branch: develop
 base_sha: 4f2c9a1
@@ -35,6 +36,12 @@ ready_for_dev_commit: false
 blocker_ids: []                   # PB-### still open
 status_pushed: true
 tests_only: false
+snapshot_sha: 0f50921291d9        # the review snapshot every finding and gate
+                                  # result cites. /dev:commit Stage 0 sets it
+scope_selected:                   # the paths this run delivers
+  - src/holidays/
+  - tests/holidays/
+scope_excluded: []                # what a human deliberately left out
 updated_at: 2026-10-21T11:02:17Z
 ---
 
@@ -48,7 +55,7 @@ One entry per stage, appended. Newest last, so the file reads in the order thing
 - out:  analysis.md (build_sequence 12 steps · impact_matrix 12/12 · risks 3)
 - 41s
 
-### 2026-10-21T09:19:40Z · /dev:build · Stage 7 execute tests
+### 2026-10-21T09:19:40Z · /dev:build · Stage 7 verify test map
 - cmd:  poetry run pytest -q
 - out:  273 passed · 28 skipped · exit 0
 - 2m04s
@@ -77,15 +84,20 @@ that cannot be settled here.
 
 | Kind | ID | Assertion | Evidence | Result | Notes |
 |---|---|---|---|---|---|
-| AC | AC-03 | Rejects a duplicate supplier tag | `test_supplier.py::test_dup_tag` | ✅ pass | |
-| BR | BR-07 | One open record per normalised tag | `test_supplier.py::test_unique` | ✅ pass | |
+| AC | AC-03 | Rejects a duplicate supplier tag | `test_supplier.py::test_dup_tag` | ⏳ pending | |
+| BR | BR-07 | One open record per normalised tag | `test_supplier.py::test_unique` | ⏳ pending | |
 | AC | AC-08 | Coordinator sees the rejection reason | — | ⏸ deferred-to-e2e | needs the frontend unit |
-| NFR | NFR-02 | p95 under 400ms at 50 rps | load run, 310ms | ✅ pass | |
+| NFR | NFR-02 | p95 under 400ms at 50 rps | `perf/supplier.bench.ts` | ⏳ pending | threshold 400ms p95 |
 | TS | TS-11 | ERP sync retries twice then alerts | — | verified: not-verified | ERP sandbox unavailable |
 ```
 
-Results are controlled: `✅ pass` · `❌ fail` · `⏸ deferred-to-e2e` · `verified: manually` ·
-`verified: not-verified`.
+Results are controlled: `⏳ pending` · `✅ pass` · `❌ fail` · `⏸ deferred-to-e2e` ·
+`verified: manually` · `verified: not-verified`.
+
+**At `/dev:build` the only results reachable are `⏳ pending`, `⏸ deferred-to-e2e` and
+`verified: not-verified`** — build writes the tests but runs none of them. `✅ pass` and
+`❌ fail` are written by `/dev:commit` Stage 5, which executes the map. A build-time
+`✅ pass` is a claim nothing in that run could have earned.
 
 **`deferred-to-e2e` is a cross-unit row** — it closes only when every sibling unit is done, which is why the
 parent's `status.md` carries a per-unit table and the last unit to land resolves them.
@@ -111,7 +123,7 @@ escalated: 0
 ---
 
 ## Security — build
-*Critical-blocking only. Build does not stop for Medium.*
+*Report-only. Build does not stop for any severity; /dev:commit Stage 3 is the gate.*
 
 ### SEC-B-01 · Critical · open · attempts_used: 1/3
 Raw SQL interpolation in `suppliers/repo.py:142`.
