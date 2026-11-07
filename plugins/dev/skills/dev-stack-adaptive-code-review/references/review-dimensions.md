@@ -38,7 +38,7 @@ Each dimension applies to every diff regardless of stack. Framework-specific SIG
 
 - Naming: does the new code follow `inferred_patterns.naming.functions` (camelCase, snake_case, PascalCase)?
 - Imports: does the new code use aliases the repo uses (`@/services/...`) vs relative (`../services/...`)?
-- File placement: is the new file where similar existing files live?
+- File placement: is the new file where `shared-context/coding-standards.md` §2 says it goes, and where similar existing files live? Check the document, not just the neighbours — a repo can drift away from its own standard.
 - Async style: does the repo use `async/await` OR `.then()` chains? Match.
 - Comment style: does the repo use JSDoc / docstrings? Match.
 
@@ -46,6 +46,7 @@ Each dimension applies to every diff regardless of stack. Framework-specific SIG
 
 - New public API using different naming case than existing → **Major** (breaks readability)
 - Import style differs from repo dominant → **Minor** (readable but off-pattern)
+- File placed where `coding-standards.md` §2 does not put it → **Major** (every later file copies the first one that got it wrong)
 - Comment format inconsistent → **Nit**
 
 **Ignore.** Preferences the repo doesn't clearly express. If the repo mixes both styles 50/50, don't flag either.
@@ -239,6 +240,43 @@ value, and the file and line — so a reader can check the call without re-deriv
   failure_scenario: "<concrete scenario where the breach causes harm — e.g. deep nesting makes the change-case impossible to review; unnecessary recursion causes stack overflow on inputs the plan lists as valid; god function will regress on the next unrelated edit>"
   fix_suggestion: "<the refactor, in prose — extract the inner block into a helper named X; replace recursion with iteration using accumulator Y; introduce a named constant Z; split the function on responsibility boundary W>"
 ```
+
+---
+
+## Dimension 9 — API design and contract
+
+**Question.** Does each new or changed operation present a coherent contract, consistent with the
+rest of the API?
+
+Applies to both sides: the repo that **defines** the operation and the repo that **consumes** it.
+
+**Signals.**
+
+- Input validated at the boundary — not deep inside a service, not only on the client.
+- Status codes match semantics: created vs accepted, not-found vs forbidden, conflict vs validation failure.
+- Failures return the repo's **error envelope**, the same shape as every other endpoint.
+- Field naming is consistent across request and response, and matches the repo's dominant convention.
+- Collection operations handle pagination, filtering and sorting the way existing collection operations do.
+- The response does not leak internal or persistence fields — primary keys the client must not see, password hashes, soft-delete flags, internal status enums.
+- Consumer and producer agree: the client's expected shape matches what the server actually returns.
+- A change to an existing operation's contract is additive, or carries a version/migration note.
+
+**Severity guidance.**
+
+- Response leaks a credential, hash or internal field → **Blocker** (also a security finding)
+- Consumer expects a shape the producer does not return → **Blocker** (it will fail in production, not in a mocked test)
+- Failure path returns an ad-hoc error shape instead of the repo's envelope → **Major**
+- Status code contradicts the operation's semantics → **Major**
+- Field naming inconsistent with the dominant convention → **Major**
+- Validation present on the client but absent at the boundary → **Major**
+- Pagination/filtering shape differs from sibling collection operations → **Minor**
+
+**"The endpoint beside it is also wrong" is not a defence.** Per `dev-stack-adaptive-implementation`
+Rule 15, contract quality is not inherited from neighbours. Flag the new code at its true severity;
+the existing endpoint is out of scope and stays unflagged.
+
+**Ignore.** A genuinely new resource class with no precedent in the repo — there is nothing to be
+consistent with yet. Raise it as a discussion point if the choice looks load-bearing.
 
 ---
 

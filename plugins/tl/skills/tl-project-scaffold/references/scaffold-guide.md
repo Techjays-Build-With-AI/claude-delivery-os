@@ -14,6 +14,7 @@ These are the choices a scaffold can't proceed without. For each: take it from t
 | **Repo layout** — single package · monorepo (workspaces) · polyrepo | ✕-critical | architecture / team convention |
 | **Repo target location** — where the code is created | ✕-critical | ask (recommend `./app` or a given path) |
 | **Frontend framework + language** (if there's a UI) | ✕-critical (for UI) | tech stack; context graph = # of pages |
+| **UI styling approach + component library** (if there's a UI) | ✕-critical (for UI) | rarely stated — **ask the user** (§2); default **Tailwind + shadcn/ui** if they decline |
 | **Backend language + framework** (if there's server logic) | ✕-critical (for backend) | tech stack; context graph = # of endpoints |
 | **Database engine** (if there's persistence) | ✕-critical (for data) | data schema; context graph entities |
 | **Package manager** | ✕-critical | convention (npm/pnpm/yarn, pip/poetry/uv, go mod, …) |
@@ -38,6 +39,18 @@ Example:
 
 > **Database engine isn't specified.** Recommend **PostgreSQL** — the context graph has 9 relational entities with foreign-key relationships and the data-register implies transactions. Alternatives: MySQL if the team standardises on it; SQLite only for a throwaway/local prototype.
 
+> **Nothing specifies how the UI is styled.** Recommend **Tailwind + shadcn/ui** — the context graph has 11 pages sharing forms, tables and dialogs, and shadcn drops those in as editable source the dev agent extends instead of re-inventing. Alternatives: MUI if you want a themed component set out of the box; Tailwind alone if you'd rather own every primitive.
+
+**Styling is a required decision, not a detail you can defer.** It is the one choice on this list
+the architecture almost never states, and the only one whose absence is invisible until a human
+opens the app. A repo scaffolded without it reaches `/dev:build` with no library and no tokens,
+and the first feature becomes the design system by accident.
+
+**If the user declines to choose, scaffold Tailwind + shadcn/ui** and record it `Assumed`. A default is the path most projects take — unattended runs skip every question — so it has to be the good outcome, not the minimal one. Tailwind alone leaves the agent inventing what each component looks like; shadcn gives it designed source to extend at the same install cost. Do not scaffold
+a UI repo with no styling system at all — "plain CSS, decided later" is the outcome this row exists
+to prevent. Brand-level choices inside the system — hue, typeface, logo — stay open questions; the
+scales and the semantic token names do not.
+
 Batch related questions (all frontend choices together, all backend together). Only ask what you actually need to scaffold; don't turn it into a survey. Record the user's answer with confidence `Confirmed`; if the user says "use your recommendation", record it `Assumed` and note it was an accepted default.
 
 ---
@@ -50,9 +63,53 @@ Prefer the stack's **official generator/starter** over hand-rolling — it gives
 - Backend: `spring init`, `nest new`, `poetry new` / `uv init`, `go mod init` + layout, `dotnet new webapi`, …
 - Full-stack/monorepo: the framework's monorepo template or a workspaces layout (`pnpm-workspace.yaml`, `turbo`, `nx`), only if the layout decision was monorepo.
 
+### 3.1 Research the structure — do not invent it
+
+**A generator gives you a hello-world tree, not a production layout.** `create-vite` gives you
+`src/App.tsx` and stops. What goes beside it — how features are sliced, where hooks, API modules,
+types and shared components live — is the decision that every later feature inherits, and it is the
+one most often improvised.
+
+**Before creating folders, look up the current recommended structure for the exact stack and major
+version you just confirmed.** Use `WebFetch` against, in this order:
+
+1. **The framework's own documentation** — its project-structure / directory-structure page. This is
+   authoritative and version-specific.
+2. **The framework's official starter or template repository** — what its maintainers actually ship.
+3. **One widely-adopted community reference** for the architectural pattern (feature-sliced design,
+   hexagonal, layered) where the framework's docs stay deliberately unopinionated.
+
+**Pin it to the version you are installing.** A structure recommended for v5 can be wrong for v7 —
+routing, server components and data loading all move between majors. Fetch for the version in the
+manifest, not for the framework in general.
+
+**Record the sources** in `shared-context/architecture.md` and cite them in the `DEC-###` for the
+layout. A structure nobody can trace is a structure the next person will argue with.
+
+**Prefer boring and conventional.** The goal is a layout a developer joining the project recognises
+on sight — not the cleverest arrangement available. Where sources disagree, follow the framework's
+own docs.
+
+### 3.2 Build the structure, then prove it with one worked example
+
+**Create the folders you documented, and put one real unit in each.** A standards document that
+describes `src/features/<slug>/`, `src/hooks/` and `src/lib/apiClient.ts` in a repo that contains
+none of them is not a standard — it is a wish. The first feature then has no neighbour to match,
+invents its own arrangement, and *that* becomes the architecture.
+
+Scaffold one reference implementation per unit kind the stack has — one feature slice, one page or
+screen, one hook, one API module, one type module; one route, one service, one model, one migration
+— wired end to end and covered by the trivial passing test. It can be a health check or an "about"
+page; it does not need product meaning. It needs to exist, because **`match the neighbour` is the
+rule every later feature runs on, and this is what supplies the neighbour.**
+
+Then write `coding-standards.md` §2 to describe **what you actually built**, not what you intended
+to build, and mark it `confirmed` rather than `inferred`.
+
 Whatever the generator leaves out, ensure the repo has:
 
 - [ ] **Package-manager manifest(s)** with pinned/compatible versions (`package.json`, `pyproject.toml`, `go.mod`, …).
+- [ ] **UI styling system** (if there's a UI) — chosen library installed, its token source created (spacing · type · radius · elevation · semantic colour · motion), and the base primitives composed once (`Button`, `FormField`, `Card`, `EmptyState`, `LoadingState`, `ErrorState`). Every token pair clears WCAG 2.2 AA contrast before the scaffold is called done.
 - [ ] **Lint + format** config (ESLint + Prettier, Ruff/Black, golangci-lint, …) with a runnable script.
 - [ ] **Type checking** for typed languages (`tsconfig.json`, `mypy.ini`, …) with a runnable script.
 - [ ] **Test framework** wired with **one trivial passing test** (proves the harness runs).
@@ -70,7 +127,7 @@ Keep the scaffold **minimal and idiomatic** — a skeleton with a green build, n
 
 Write these so the dev agent (and future TL runs) build against a confirmed foundation:
 
-- **`technology-stack.md`** — the exact stack and versions chosen, one row per layer, each citing the `DEC-###` that decided it.
+- **`technology-stack.md`** — the exact stack and versions chosen, one row per layer, each citing the `DEC-###` that decided it. **A repo with a UI carries a `Styling` row and a `Design tokens` row**, naming the library and the token file's path. A frontend table listing only tooling — language, bundler, test runner, linter — is how an app ends up with no design system.
 - **`architecture.md`** — the architecture the scaffold realises: components, how they fit, the repo layout, and the runtime shape. Reconcile with the spec; where you filled a gap, mark it and cite the decision.
 - **`coding-standards.md`** — the file the dev agent's implementation step follows AND the review dimension checks against. Mandatory sections (concrete, per-stack values — no vague words like "reasonable" or "clean"; every limit is a NUMBER a lint tool or reviewer can check):
 
@@ -135,6 +192,44 @@ reviewer-validated until `/qa:setup` wires one.
   Where a limit is stack-specific (e.g. cyclomatic threshold, recursion policy), pick the value that matches the stack's lint ecosystem defaults. Record the value and the rationale; don't leave it blank.
 
 Every layer carries standard frontmatter (`doc_type`, `produced_by: tl`, `schema_version`, `generated_at`).
+
+---
+
+### Point the repo at its UI system — `<repo>/CLAUDE.md`
+
+**A system nobody is pointed at is a system nobody follows.** `CLAUDE.md` is what an agent reads on
+entering a repo; `shared-context/technology-stack.md` is not. Record the styling decision in both —
+the stack table is the audit trail, this block is what actually reaches the next session.
+
+Write a delimited block at the repo root, creating the file if absent and **replacing the block in
+place** when it is already there. Everything outside the delimiters is the repo's own — never
+rewrite it. Same convention as the `delivery-os:code-context` block.
+
+```markdown
+<!-- delivery-os:ui-system -->
+## UI system
+
+Styling: **<library>**. Tokens: `<token file>`. Primitives: `<primitives dir>`.
+
+Every visual value comes from a token — no hex, no px font sizes, no magic spacing, no inline
+transition. Where no token exists, use the library's own scale, never a number you chose.
+
+Reuse before you create: check the primitives directory before writing a component. A visual
+element used on a second screen becomes a shared primitive — the second use is the trigger.
+Variants live inside the component (`<Button variant="danger" size="sm">`), never as a class
+applied from the call site. Never add a second UI library.
+
+Every interactive element ships `default · hover · focus-visible · active · disabled`.
+Every data surface ships `loading · empty · error · populated` — a screen with only the
+populated case is unfinished.
+
+Match the neighbour: open the page that sits next to yours and copy its container, heading
+levels and spacing rhythm before inventing your own.
+<!-- /delivery-os:ui-system -->
+```
+
+Fill `<library>`, `<token file>` and `<primitives dir>` with the real values; the rules are fixed
+text. They are the enforceable subset of `ui-consistency.md`, which stays the full reference.
 
 ---
 

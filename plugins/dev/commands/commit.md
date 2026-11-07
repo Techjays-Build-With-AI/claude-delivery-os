@@ -584,8 +584,9 @@ MC sub-task:   https://mission-control.techjays.com/task/6b72a1c48d4e7d1cab2c7
 PR:            https://github.com/acme/acme-backend/pull/247
 
 Branch:        feature/FEAT-SUP-001-supplier-onboarding-backend  →  develop
-Security:      ✓ 0 Critical, 0 High  (2 Medium dispositioned, in PR body)
-Code review:   ✓ 0 Blocker, 0 Major  (3 Minor follow-ups in PR body)
+Security:      ✓ 0 Critical, 0 High   ·  2 Medium found, 2 fixed
+Code review:   ✓ 0 Blocker, 0 Major   ·  3 Minor + 1 Nit found, 4 fixed
+Findings:      11 found · 11 fixed · 0 accepted · 0 deferred
 Tests:         ✓ 5/6 scenarios covered · 5/5 executed passed · 72.4% lines
                1 scenario has no test: AC-4 bulk-import malformed row
                e2e ran (snapshot touched a user-facing surface)
@@ -605,6 +606,16 @@ Next:
      folds them back through the commit stages — do not hand-patch the branch
   3. On merge, MC status flips to `done` automatically (webhook — v2.3)
 ```
+
+**The findings roll-up is a required line.** Report every finding the run
+surfaced, at every severity, as **found vs fixed** — not "dispositioned", which
+hides whether anything was actually done. `fixed` is the default at every
+severity (`stage-6-fix-loop.md` §6e.i), so a clean run reads *N found · N fixed*.
+
+Any finding that ended `accepted` or `deferred` is listed by id, severity and
+stated reason underneath — never collapsed into a count. One unfixed Minor that a
+human chose to carry is useful information; three hidden inside the word
+"dispositioned" is not.
 
 **Step 2 is not optional boilerplate.** Of the three lines, it is the only one with work in it, and a
 reviewer comment fixed by hand skips the security review, the acceptance re-verify and the context merge

@@ -417,7 +417,8 @@
   var BOUND = {
     "Bounded": "var(--covered)", "Partially-bounded": "var(--partial)", "Unbounded": "var(--gap)"
   };
-  var COV = { "Covered": "var(--covered)", "Partial": "var(--partial)", "Absent": "var(--gap)" };
+  var COV = { "Covered": "var(--covered)", "Partial": "var(--partial)", "Absent": "var(--gap)",
+              "not-applicable": "var(--na)" };
   var COV_DIMS = [
     ["current_future", "Current→Future"], ["in_out_scope", "In/Out scope"],
     ["functional_reqs", "Functional reqs"], ["ai_automation", "AI / Automation"],
@@ -689,7 +690,9 @@
     }
 
     // Coverage matrix
-    b.appendChild(el("h4", { text: "Coverage across the nine scope dimensions" }));
+    // Pre-applicability reviews carry no applicableCount; nine reproduces them.
+    var appCount = (a.applicableCount != null) ? a.applicableCount : 9;
+    b.appendChild(el("h4", { text: "Coverage — " + appCount + " of 9 dimensions apply" }));
     var cov = a.coverage || {};
     var grid = el("div", { class: "covgrid" });
     COV_DIMS.forEach(function (pair) {
@@ -869,7 +872,7 @@
     var L = ["---", "doc_type: scope-review-responses", "source_review: " + reviewId,
       "scope: " + (data.documentReviewed || ""), "exported_from: html-report", "---", "",
       "# Responses to scope-review-" + reviewId, "",
-      "> Each section is one scope question. Edit the answer and intent, then run `/ba:resolve` on this file.", ""];
+      "> Each section is one scope question. A question carried from an earlier round shows what you answered, why it did not close, and what is still needed. Edit the answer and intent, then run `/ba:resolve` on this file.", ""];
     var answered = 0;
     rl.querySelectorAll(".respond-card").forEach(function (card) {
       var fid = card.getAttribute("data-fid");
@@ -877,6 +880,18 @@
       var resp = (card.querySelector("textarea").value || "").trim();
       var intent = card.querySelector("select").value;
       L.push("## " + fid + " — [" + (f.severity || "") + " · " + (f.feature || "") + "] " + (f.question || ""));
+      L.push("**Status:** " + (f.status || "Open") + " · round " + (data.round || 1)
+             + (f.consequence ? " · impact: " + f.consequence : ""));
+      // Carry the prior round forward. The adjudication rationale is already
+      // recorded on the question; dropping it here is what made round 2 look
+      // identical to round 1 from where the author sits.
+      if (f.authorResponse) L.push("", "### Previously answered", f.authorResponse);
+      if (f.adjudication)   L.push("", "### Why it is still open", f.adjudication);
+      if (f.followUps && f.followUps.length) {
+        L.push("", "### Still needed");
+        f.followUps.forEach(function (q, i) { L.push((i + 1) + ". " + q); });
+      }
+      L.push("");
       L.push("**Intent:** " + intent);
       L.push("**Response:**");
       L.push(resp || "(no response yet)");
@@ -1160,14 +1175,14 @@ function showSaveBanner() {
   function docExport(title, bodyHtml, fileBase) {
     var html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" ' +
       'xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">' +
-      '<head><meta charset="utf-8"><title>' + esc(title) + '</title><style>' +
+      '<head><meta charset="utf-8"><title>' + esc(title) + '<\/title><style>' +
       'body{font-family:Calibri,Arial,sans-serif;font-size:11pt;line-height:1.45;}' +
       'h1{font-size:18pt;}h2{font-size:13pt;margin-top:18pt;}' +
       'table{border-collapse:collapse;width:100%;}td,th{border:1px solid #999;padding:5pt;text-align:left;}' +
-      '.m{color:#555;font-size:9.5pt;}</style></head><body>' +
+      '.m{color:#555;font-size:9.5pt;}<\/style><\/head><body>' +
       "<h1>" + esc(title) + "</h1>" +
       '<p class="m">' + esc(data.project || "") + " · " + esc(data.documentReviewed || "") +
-      " · " + esc(data.reviewDate || "") + "</p>" + bodyHtml + "</body></html>";
+      " · " + esc(data.reviewDate || "") + "<\/p>" + bodyHtml + "<\/body><\/html>";
     download(fileBase + ".doc", html, "application/msword");
   }
 

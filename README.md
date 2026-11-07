@@ -43,9 +43,16 @@ Then install the plugins (same for all options):
 ```text
 /plugin install delivery-os@techjays-delivery-os
 /plugin install ba@techjays-delivery-os
-/plugin install doc@techjays-delivery-os
 /plugin install tl@techjays-delivery-os
+/plugin install dev@techjays-delivery-os
+/plugin install qa@techjays-delivery-os
+/plugin install doc@techjays-delivery-os
+/plugin install jetrix@techjays-delivery-os
 ```
+
+`dev` requires `tl` — `/dev:plan` and `/dev:commit` invoke its skills internally. `ba` and `qa`
+need it only once repos are mapped. See [docs/SETUP.md](docs/SETUP.md#step-2--install-the-plugins-you-need)
+for the full dependency table.
 
 After editing files (local) or pushing new commits (GitHub), refresh without re-adding:
 

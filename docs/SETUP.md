@@ -28,12 +28,29 @@ This downloads the plugins into Claude Code's **own cache** (`~/.claude/plugins/
 
 ## Step 2 — Install the plugin(s) you need
 
-Add whichever domain agents you want. Each is an independent install on top of the core:
+Add whichever domain agents you want on top of the core:
 
 ```text
-/plugin install ba@techjays-delivery-os      # Business Analyst — /ba:scope
-/plugin install tl@techjays-delivery-os      # Technical Lead    — /tl:review
+/plugin install ba@techjays-delivery-os        # Business Analyst  — /ba:scope
+/plugin install tl@techjays-delivery-os        # Technical Lead    — /tl:code-map
+/plugin install dev@techjays-delivery-os       # Developer         — /dev:plan
+/plugin install qa@techjays-delivery-os        # Quality Assurance — /qa:audit
+/plugin install doc@techjays-delivery-os       # Documentation     — /doc:deck
+/plugin install jetrix@techjays-delivery-os    # Jetrix sync       — /jetrix:init
 ```
+
+**They are not fully independent — `tl` carries skills the other agents invoke internally.**
+
+| Install | Also install | When | Why |
+|---|---|---|---|
+| `dev` | `tl` | **always** | `/dev:plan` auto-runs `tl-feature-planning` when the context graph is missing and composes via `tl-feature-compose`; `/dev:commit` Stage 7 runs `tl-semantic-context-merge` |
+| `ba` | `tl` | only with mapped repos | `/ba:scope` and `/ba:resolve` read the code context via `tl-read-code-context`, so the review stops asking about behaviour the code already has. No mapped repos — greenfield, or discovery before any code — and `ba` runs on its own |
+| `qa` | `tl` | only with mapped repos | the audit reads the graph through `tl-read-code-context` rather than grepping source |
+| `dev` | `qa` | only on **Yes** at the `/dev:plan` QA prompt | runs `/qa:audit → /qa:plan → /qa:setup` inline |
+| `doc`, `jetrix` | — | — | core only |
+
+**A missing plugin does not warn at install time.** The command fails at the stage that needs the
+skill — so for `dev`, install `tl` up front rather than discovering it mid-plan.
 
 > **Team rollout:** instead of each person installing by hand, commit the marketplace + `enabledPlugins` block into a project's `.claude/settings.json` so teammates are prompted to enable them automatically. See the [README](../README.md#roll-out-to-a-team-recommended) for the exact JSON.
 
@@ -76,7 +93,7 @@ It depends on the plugin:
 | Plugin | Needs a workspace? |
 |--------|--------------------|
 | `ba` (`/ba:scope`) | **Yes** — intake reads/writes `intake.index.md` and the `ba-output/` deliverables. Run `init` first. |
-| `tl` (`/tl:review`) | **Optional** — it can review any document standalone. With a workspace it writes to `tl-output/` and uses `ba-output/scope.md` + `shared-context/` as context; without one it writes the report beside the reviewed document. |
+| `tl` (`/tl:code-map`) | **Optional** — it can map or audit any repository standalone. With a workspace it uses `ba-output/scope.md` + `shared-context/` as context; without one it writes the code-context tree inside the mapped repo only. |
 
 Check the individual plugin's README for which mode applies.
 
@@ -100,4 +117,4 @@ PLUGIN CACHE (read-only)        YOUR ORIGINALS (untouched)      THE WORKSPACE (c
 ## Next steps
 
 - **Business Analyst:** point intake at your material — `/ba:scope add "transcripts in <folder/link>, requirements in <folder/link>"`. See [ONBOARDING.md](../ONBOARDING.md) for the full first-run walkthrough.
-- **Technical Lead:** review a spec — `/tl:review docs/tech-spec.md`. See [plugins/tl/tl_readme.md](../plugins/tl/tl_readme.md).
+- **Technical Lead:** map an existing repo — `/tl:code-map`. (Spec review moved to `/dev:review`.) See [plugins/tl/tl_readme.md](../plugins/tl/tl_readme.md).

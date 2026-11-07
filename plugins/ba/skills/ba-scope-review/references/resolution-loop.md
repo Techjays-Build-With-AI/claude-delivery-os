@@ -8,7 +8,14 @@ The point is **convergence with a paper trail**: open → responded → (verify 
 
 ## 1. Question lifecycle
 
-Every `SQ-###` carries a `status` (controlled values):
+**The question id is `CLR-###`** — the same id the ledger uses (`ledger.md` kind: question,
+RAID `Q-##`). One namespace from the moment a question is raised to the moment it closes, so a
+question in a report, in a responses file and in the ledger is recognisably one item.
+
+`OQ-<AREA>-NN` is **a different thing and stays separate**: `/ba:features` mints it for a gap
+found at breakdown time, attached to a feature folder rather than to a review round.
+
+Every `CLR-###` carries a `status` (controlled values):
 
 | Status | Meaning |
 |--------|---------|
@@ -24,7 +31,7 @@ Every `SQ-###` carries a `status` (controlled values):
 ## 2. Round model — stable IDs carry questions forward
 
 - **Round 1** is the initial `/ba:review`: all questions `Open`.
-- Each `/ba:resolve` is the **next round**: a new timestamped report whose `priorReview` points back to the report being resolved. Questions carry forward **by their stable `SQ-###` ID** (append-only), so SQ-004 in round 2 is the same item as SQ-004 in round 1 — only its status and resolution thread change.
+- Each `/ba:resolve` is the **next round**: a new timestamped report whose `priorReview` points back to the report being resolved. Questions carry forward **by their stable `CLR-###` ID** (append-only), so CLR-004 in round 2 is the same item as CLR-004 in round 1 — only its status and resolution thread change.
 - The `<timestamp>` (the `reviewId`) is the **join key**: a responses file names the review it came from, and `/ba:resolve` matches it to that review's `.json`. New questions discovered during resolution get fresh IDs continuing the sequence.
 
 ## 3. The responses file (input to `/ba:resolve`)
@@ -41,32 +48,66 @@ generated_at: 2026-06-30 17:10
 
 # Responses to scope-review-2026-06-30-143012
 
-## SQ-004 — [Blocker · AUTH] Which authentication methods are in scope?
+## CLR-004 — [Blocker · AUTH] Which authentication methods are in scope?
+**Status:** Open · round 1 · impact: estimate
 **Intent:** resolve            # resolve | accept-assumption | need-info | wont-fix  (a hint, not binding)
 **Response:**
 Email/password plus Google SSO. Corporate domains only; email is verified; MFA optional in phase 1.
 Registration and password reset are in scope; profile management is phase 2.
 
-## SQ-011 — [Blocker · CRM] Which CRM are we integrating with?
+## CLR-011 — [Blocker · CRM] Which CRM are we integrating with?
+**Status:** Needs-verification · round 2 · impact: integrations
+
+### Previously answered
+We are using Salesforce.
+
+### Why it is still open
+The CRM platform was confirmed, but the edition and whether API access is enabled were not —
+both change the integration estimate.
+
+### Still needed
+1. Which Salesforce edition is in use?
+2. Is API access enabled, and is a sandbox available?
+
 **Intent:** need-info
 **Response:**
-Still confirming with the client — likely Salesforce, awaiting their admin.
 ```
 
-Parse by the `## SQ-###` headers; read each question's `Intent` and `Response`. A question with a blank or missing response stays `Open` — don't invent a resolution. `Intent` is the author's *requested* outcome; the agent decides the actual status (it is not bound by the hint).
+Parse by the `## CLR-###` headers; read each question's `Intent` and `Response`. A question with a blank or missing response stays `Open` — don't invent a resolution. `Intent` is the author's *requested* outcome; the agent decides the actual status (it is not bound by the hint).
+
+### 3a. A carried question must say why it came back
+
+**Any question not in its first round carries three sections**, built from the prior round's
+record — `authorResponse`, `adjudication`, `followUps`:
+
+| Section | Source | Omitted when |
+|---|---|---|
+| `### Previously answered` | `authorResponse` | nothing was answered last round |
+| `### Why it is still open` | `adjudication` | no rationale recorded |
+| `### Still needed` | `followUps[]` | no follow-ups were asked |
+
+**The rationale already exists — §4 requires one for every decision.** It was being written into
+the report and then dropped from the file the author actually fills in, so round 2 looked
+identical to round 1 from where they sat. An author who cannot see what was missing last time
+re-answers the same way, and the round is wasted.
+
+This is the export's job (`assets/report.html` → `buildResponsesMd`), so a hand-written
+responses file need not carry it; a question with none of the three sections is simply a
+first-round question.
 
 ## 4. Adjudication — judge each response, don't rubber-stamp
 
 For every question with a non-empty response, decide its new status. **Be fair but skeptical** — the value of the loop is that the agent actually checks the answer rather than closing on a vague assurance.
 
-- **→ `Resolved`** when the response *substantively answers the question* with specifics a team could estimate against. "Email/password + Google SSO, corporate domains, email verified, MFA optional" resolves SQ-004; "we'll sort out login" does not. For Blockers (auth, integration partner, volume, compliance), require concrete facts, not intentions.
+- **→ `Resolved`** when the response *substantively answers the question* with specifics a team could estimate against. "Email/password + Google SSO, corporate domains, email verified, MFA optional" resolves CLR-004; "we'll sort out login" does not. For Blockers (auth, integration partner, volume, compliance), require concrete facts, not intentions.
 - **→ `Accepted-assumption`** when the client can't confirm now but the team will **proceed on an explicit assumption**. Record the assumption and its risk plainly (it becomes an `ASM-###` / RAID A-##). Don't infer acceptance from silence — it must be stated.
 - **→ `Needs-verification`** when the answer is plausible but thin, unverifiable, or raises a new question. Ask **1–3 targeted follow-ups** that would close it (e.g. *"Salesforce which edition, and is a sandbox available? Who owns the CRM side?"*). The question stays open into the next round.
 - **→ `Open` (unchanged)** when the response doesn't address the question — say why.
 - **→ `Won't-fix`** only when the author clearly declines or defers out of phase; record the residual gap (and, if it's being pushed to T&M / a later phase, say so).
 
 **Record who answered — `answeredBy` is required on every terminal status.** One of:
-- **`client`** — the client (or their named authority) actually said this. Only this value may be written into the scope as a client decision.
+- **`client`** — the client (or their named authority) actually said this, **directly and in writing**. Only this value may be written into the scope as a client decision.
+- **`client-relayed`** — a client answer that reached us through someone on our side: a meeting note, or an account manager passing it on. Real intent, not a confirmed decision. Record **who relayed it**. It carries the same weight as `assumed` for the confirmation override below — the scope must never read *"the client accepts…"* about something only relayed.
 - **`internal`** — the team decided it. Legitimate and common, but it is *our* call, not theirs, and it must be surfaced for sign-off.
 - **`assumed`** — nobody confirmed it; the team is proceeding on a stated assumption (pairs with `Accepted-assumption`).
 
@@ -85,16 +126,62 @@ A scope review exists to **improve the scope**, so closing a question means putt
 - **`Needs-verification` / still `Open`** (must-close items) → ensure a `CLR-###` exists in `requirements/<slug>/ledger.md` (kind: question) (the RAID Open-Questions `Q-##` feed) carrying the follow-ups, so the open question lives in the BA's own tracking, not only in the review.
 - **`Won't-fix` / deferred** → record it as out-of-scope/phase-2 in scope §6 or the relevant §3.x.2, and log the decision (`DEC-###`) so the deferral is auditable.
 
-**Then sweep for stale references.** Promoting the answer fixes the place the gap lived; it does not fix every *other* place that mentioned the open question. Before the round is written, search the scope and registers for the closed id (`CLR-###`, `SQ-###`, `OQ-###`) and for phrases that assumed it was still open — "pending CLR-014", "to be confirmed", "not yet decided" — and update or delete each one. Also re-check any status line or build-state claim the answer invalidates.
+**Then sweep for stale references.** Promoting the answer fixes the place the gap lived; it does not fix every *other* place that mentioned the open question. Before the round is written, search the scope and registers for the closed id (`CLR-###`, `CLR-###`, `OQ-###`) and for phrases that assumed it was still open — "pending CLR-014", "to be confirmed", "not yet decided" — and update or delete each one. Also re-check any status line or build-state claim the answer invalidates.
 
 A scope that says *"pending CLR-014"* underneath a section recording CLR-014's answer reads as though nobody checked, and it undermines the parts that are correct. This is the cheapest possible defect to prevent and one of the most visible to a client.
 
 Baking the answer into `scope.md` is what actually closes the gap — a later `/ba:review` of the updated scope should then find nothing. Use the `DEC-###` / `ASM-###` / `CLR-###` id formats from `delivery-os-conventions` (append-only). If there's no workspace, skip the promotions and keep the resolution in the report only (note that the edits still need applying).
 
+## 5a. Revalidate what the answer just invalidated
+
+**An answer does not only close its own question.** It edits the scope, and other open questions
+were screened against the text it just changed. Promoting an answer without re-checking them
+leaves questions whose premise no longer holds — open ones that are now answered, closed ones
+that should reopen.
+
+**Derive the impacted set; no new field is needed.** Every question records `checkedIn` — the
+sections searched before it shipped. After §5 writes its edits, collect:
+
+1. Every open question whose `checkedIn` names a section this round **edited**
+2. Every open question on the **same module** as the answered one
+3. Every question on a use case the changed requirement maps to (§3.x.5's `Use Cases` column,
+   and `use-cases.md` § `Maps To`)
+
+For each, re-run step 6's screen from `SKILL.md` against the **new** text:
+
+| Re-screen result | Action |
+|---|---|
+| the edit answers it | close it — `Resolved`, rationale naming the answer that closed it |
+| the edit changes what it should ask | rewrite the **follow-up**, never the original question text |
+| the edit contradicts it | raise a `CON-###` — two client statements now conflict |
+| unaffected | leave it, and do not re-raise it |
+
+**A merged question closes on every feature it cost.** A scope-level question (`SKILL.md` step 6)
+was raised once but deducted on **every feature whose assessment cites its id**, and it belongs to
+no single module — so rules 1-3 above never reach them. On closing it, move the dimension on each
+citing feature, every one with its own §6 `changes` entry naming the same `cause`. A merged
+question that closes without moving the cells it cost is the "I answered and the score didn't
+move" failure §6 exists to prevent.
+
+**A terminal question can reopen, and that is the point.** If an answer in round 3 changes the
+auth model, a question closed in round 1 against the old model is no longer answered. Reopen it
+with a rationale naming the round and answer that invalidated it — never by editing the original
+closure away. The resolution thread is append-only (§1).
+
+**Report the revalidation.** The round names which questions were re-screened and why, so a reader
+can see an answer's blast radius was checked rather than assumed. A silent reopen reads like the
+agent changed its mind.
+
+---
+
 ## 6. Re-score and recompute the verdict
 
 Closing questions changes the picture, so recompute:
-- Raise a **feature score** by updating its **coverage map**, never the number. An answer closes a gap, so the dimension it came from moves `Absent → Partial` or `Partial → Covered`; a resolved boundedness gap also lifts or removes the `cap`. Then re-run the derivation from `SKILL.md` step 7 and write the refreshed `coverageScore`, `cap` and `score` into the round. This is the same rule the original review used, deliberately: if a resolve round re-judged the number by hand, the two halves of the loop would drift apart and the drift this derivation removes would come straight back.
+- **An answer can change applicability, not only coverage.** If the answer says a module has no
+  integrations, that dimension becomes `not-applicable` and leaves the divisor — a different move
+  from `Absent → Covered`, and one that raises the score more. Re-read the §3.x section the answer
+  edited before assuming only the coverage cell moved.
+- Raise a **feature score** by updating its **coverage map**, never the number. An answer closes a gap, so the dimension it came from moves `Absent → Partial` or `Partial → Covered`; a resolved boundedness gap also lifts or removes the `cap`. Then re-run the derivation from `SKILL.md` step 7 and write the refreshed `coverageScore`, `applicableCount`, `cap` and `score` into the round. **Carry `applicableCount` even when it is unchanged** — a round that omits it reads as a pre-applicability review and silently falls back to a divisor of nine. This is the same rule the original review used, deliberately: if a resolve round re-judged the number by hand, the two halves of the loop would drift apart and the drift this derivation removes would come straight back.
   An `AUTH` feature sitting at 1/10 rises because four dimensions filled in, not because the Blocker "feels resolved" — and the new `coverageScore` shows exactly how far it moved.
 - Recompute the **overall score** (average of features) and the **scope-readiness verdict**. A resolved Blocker **lifts the verdict cap**. `Accepted-assumption` also lifts the cap *only if* the assumption is explicit and logged — but call out the residual risk in the executive summary. `Needs-verification` and `Open` Blockers keep the cap.
 - Track progress in the executive summary: *"Round 2: 1 of 2 Blockers resolved, 1 awaiting verification; overall 3.4 → 6.2, verdict Significant gaps → Estimate with caveats."*
@@ -103,15 +190,15 @@ Closing questions changes the picture, so recompute:
 
 A number that moves without a stated cause is the thing this loop exists to avoid — and a score that goes **down** after the author answered questions is the version of that which destroys trust fastest. So from round 2 onward, record the movement, not just the result.
 
-For every feature whose score changed, write a `changes` entry per dimension that moved: the dimension, its `from` and `to` states, and the `cause` — the `SQ-###` that closed it or the `DEC-###`/`ASM-###` it was promoted into. A dimension that moved with no cause is an error, exactly like a `score` that doesn't match its coverage map.
+For every feature whose score changed, write a `changes` entry per dimension that moved: the dimension, its `from` and `to` states, and the `cause` — the `CLR-###` that closed it or the `DEC-###`/`ASM-###` it was promoted into. A dimension that moved with no cause is an error, exactly like a `score` that doesn't match its coverage map.
 
-**A dimension may only move down if a new question goes up.** If an answer made the scope *worse* — the client's reply introduced a branch, a rule, or a dependency nobody had seen — then something specific became unclear, and that something is a finding. Raise it as a new `SQ-###` and name it in the entry's `raised` field. A downward move with no new question is not a real reduction; it is the old re-judging returning in disguise, and it must not be written.
+**A dimension may only move down if a new question goes up.** If an answer made the scope *worse* — the client's reply introduced a branch, a rule, or a dependency nobody had seen — then something specific became unclear, and that something is a finding. Raise it as a new `CLR-###` and name it in the entry's `raised` field. A downward move with no new question is not a real reduction; it is the old re-judging returning in disguise, and it must not be written.
 
 ```
 BILLING   8 → 6
   business_rules   Covered → Partial
-  cause:  SQ-009's answer introduced tier-based routing
-  raised: SQ-014 — how do tiers map to routes?
+  cause:  CLR-009's answer introduced tier-based routing
+  raised: CLR-014 — how do tiers map to routes?
 ```
 
 This is also the honest case for a score falling: the scope really did get worse, the author can see exactly where, and the drop comes with the question that will close it. Report it plainly rather than softening it — an answer that reveals a gap has done its job.

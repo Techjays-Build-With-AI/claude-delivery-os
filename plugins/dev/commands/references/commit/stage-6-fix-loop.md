@@ -30,7 +30,9 @@ stage-3:                       # or stage-4 / stage-5 depending on origin
     high:     0                # after fix loop; must be zero to advance
     medium:   1                # non-blocking
     low:      1
-  fix_loop_invocation:         # REQUIRED whenever findings.critical or findings.high (or S4 blocker/major, or S5 regression/fail) was > 0 BEFORE the loop ran
+  fix_loop_invocation:         # REQUIRED whenever ANY finding at ANY severity was > 0 BEFORE the loop ran
+                               # — blocking (critical/high/blocker/major/regression) drives §6c;
+                               # non-blocking (medium/low/minor/nit) drives §6e.i's rounds. Both are recorded here
     invoked_at: <ISO>          # required — presence proves invocation
     invocation: <subagent id | "inline">   # required — an id when the skill ran as a subagent,
                                            # the literal "inline" when the Skill tool returned none.
@@ -44,6 +46,19 @@ stage-3:                       # or stage-4 / stage-5 depending on origin
         attempts_used: 2
         resolved: true
     broad_reruns_used: 1
+    nonblocking_rounds:        # REQUIRED when any medium/low/minor/nit finding existed (§6e.i)
+      rounds_used: 1           # 1 or 2; 0 is only valid when there were none
+      findings:                # EVERY non-blocking finding, with its individual re-check
+        - finding: CR-M-001
+          round: 1
+          reverified: true     # the targeted re-check passed — this is what permits `fixed`
+          disposition: fixed
+        - finding: CR-M-002
+          round: 2
+          reverified: false
+          disposition: escalated   # bound reached — never silently `deferred`
+          reason: "fix requires removing the legacy export; scope decision"
+      cascade_rerun: true      # the single 3→4→5 re-run after the rounds
     exit_state: CLEAN | ESCALATED
     escalation_file: null | units/<repo>/status.md § ## Run history (a BLOCKED entry)
 ```
@@ -61,6 +76,7 @@ If a stage completes with BLOCKING findings resolved but no `fix_loop_invocation
 | Stage 3 (security) | 3 per finding | 1 (whole security re-scan) |
 | Stage 4 (code review) | 3 per finding | 1 (whole review re-scan) |
 | Stage 5 (acceptance regression) | 3 per failing row | 2 (whole acceptance re-verification) |
+| Non-blocking findings (Medium/Low/Minor/Nit) | batched per round, re-verified per finding | 2 rounds, then 1 cascade (§6e.i) |
 
 A "focused fix attempt" = one delegation to `dev-stack-adaptive-implementation` in fix-mode scoped to the finding, plus one localized re-verify of that finding.
 
@@ -214,27 +230,63 @@ Order matters: fixing a code-review Major may introduce a security concern; fixi
 The loop exits when nothing **blocks**. It is not finished until nothing is
 **undispositioned**.
 
-| Severity | Blocks | Must carry a disposition before the PR |
+| Severity | Blocks the PR | Default disposition |
 |---|---|---|
-| Critical · High · Blocker · Major | **yes** — `fixed` only | yes |
-| Medium · Low · Minor | no | **yes** — `fixed` \| `accepted` (name + reason) \| `deferred` (tracker id) |
-| Nit | no | capped at 10; beyond the cap, counted not listed |
+| Critical · High · Blocker · Major | **yes** | `fixed` — the only accepted outcome |
+| Medium · Low · Minor · Nit | no | **`fixed`**, via the batched pass below |
+
+**`fixed` is the default at every severity.** `accepted` and `deferred` are
+exceptions that must be argued for, not the cheap path taken by default. Each
+carries a named reason — and `deferred` a real tracker id — and each appears in
+the Stage 10 report. "We'll get to it" is not a disposition.
+
+A Minor left unfixed every sprint is how a codebase degrades: naming drift, a
+file in the wrong folder, a second way of doing something that already had one.
+Those are exactly the findings that look safe to defer and compound fastest.
 
 Stage 8 refuses to push while any is missing (`blocker: findings-undispositioned`).
 It costs nothing on a clean run and makes *"we'll get to it"* impossible to leave
 implicit.
 
-**The batched cheap-fix pass.** Once the blocking loop is clean, fix the
-mechanically-safe Low/Minor findings — an unused import, a missing null guard, a
-magic number to a constant, a missing error branch — in **one** batch, with
-**one** gate re-run. Not one loop per finding.
+**The non-blocking fix rounds.** Once the blocking loop is clean, every remaining
+finding — Medium, Low, Minor and Nit alike — goes through the **same fix-then-verify
+discipline as a Blocker**. What differs is the batching, not the rigour.
 
-Routing forty nits through a loop bounded at three attempts each would be 120 fix
-cycles, each re-triggering the 3→4→5 cascade, trading a real risk of regression
-for cosmetic gain. The batch captures most of the value inside a bound.
+The round takes any finding that carries a concrete fix suggestion and whose fix
+neither removes existing behaviour nor needs a product decision. That is wider
+than "mechanically safe": a misplaced file, an inconsistent field name, a
+duplicated helper, an ad-hoc error shape — all qualify, and the reviewer has
+already said how to fix each one.
 
-**A finding that is not mechanically safe does not go in the batch** — it is
-dispositioned, not fixed. If the fix needs a judgement, it needs a human.
+Each round is:
+
+1. **Fix every open non-blocking finding in one delegation** to
+   `dev-stack-adaptive-implementation` in fix-mode — one batch, not one call per finding.
+2. **Re-verify each finding individually.** A targeted re-check per finding, against the
+   thing the reviewer actually reported — not a stage re-run. A finding may be marked
+   `fixed` **only** on a passing re-check. Marking it `fixed` because it was in the batch
+   is a spec violation; the re-check is the evidence.
+3. **Any finding that did not clear carries into the next round**, with what was tried
+   recorded against it.
+
+**Bound: 2 rounds.** Then one full 3→4→5 cascade re-run to catch anything the fixes
+disturbed.
+
+**Why rounds rather than the per-finding loop.** Routing forty findings through the
+per-finding loop at three attempts each would be 120 fix cycles, each re-triggering the
+full cascade — a real regression risk traded for cosmetic gain. Batching the *fix* while
+keeping the *verification* per-finding gets the same guarantee at a fraction of the cost:
+every finding is individually proven resolved, and the cascade runs twice, not 120 times.
+
+**A finding still open after round 2 escalates per §6f**, named, with its attempts
+listed. It does not quietly become `deferred` — the bound being reached is a
+reportable outcome, not a disposition.
+
+**Only two things stay out of the rounds**: a fix that would remove existing
+behaviour, and one that needs a product decision nobody has made. Those are
+escalated — `accepted` or `deferred` with a named reason — because they are
+scope questions, not code questions. Cost is never a reason to leave a finding
+unfixed.
 
 **An agent may not `accept` its own finding.** Acceptance carries a name and a
 reason and is asked at the pre-fan-out checkpoint, or carried from `## Settled`

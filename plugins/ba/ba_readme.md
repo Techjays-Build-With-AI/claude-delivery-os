@@ -38,7 +38,7 @@ So the loop is: **`/ba:scope` to build → hand the client the **Client question
 
 The review's defining behaviour is **productive paranoia**. A scope line like *"the system will have a login screen"* isn't a feature — it's the *name* of one with everything that matters left unsaid. The agent turns that one line into the dozen questions an estimator actually needs (which auth method? email vs social vs SSO? personal vs corporate email? verification, lockout, MFA, session rules, roles, PII/compliance?), so the gaps surface **before** the estimate, not mid-sprint.
 
-For every feature/module in the scope, the agent judges **coverage depth** across the nine Techjays D&D dimensions, marking each **Covered / Partial / Absent**:
+For every feature/module in the scope, the agent first decides **which of the nine Techjays D&D dimensions apply** — they are the scope template's own §3.x sub-headings, so a section reading "None" marks that dimension `not-applicable` and drops it from the score's divisor. It then judges **coverage depth** on the rest, marking each **Covered / Partial / Absent**:
 
 | # | Dimension | What "Covered" means |
 |---|-----------|----------------------|
@@ -78,7 +78,7 @@ Each feature gets a **0–10 score** on how completely and unambiguously it's sc
 | 4.5–6.4, or any Blocker | **Significant gaps — clarify before estimate** |
 | < 4.5 | **Not scope-ready — discovery needed** |
 
-Every gap is logged as a **scope question** with a stable `SQ-###` ID and a severity that maps onto the BA's RAID open-question classes:
+Every gap is logged as a **scope question** with a stable `CLR-###` ID and a severity that maps onto the BA's RAID open-question classes:
 
 | Severity | Meaning | RAID class |
 |----------|---------|------------|
@@ -97,6 +97,7 @@ Installation and workspace setup are shared across all Delivery OS plugins — s
 /plugin marketplace add techjays/claude-delivery-os
 /plugin install delivery-os@techjays-delivery-os
 /plugin install ba@techjays-delivery-os
+/plugin install tl@techjays-delivery-os   # only if repos are mapped — lets the review read the code
 ```
 
 ### Do I need `/delivery-os:init`?
@@ -153,10 +154,10 @@ Open the Login feature and you see why it's a 2 — eight of nine dimensions are
 
 | ID | Sev. | Feature | Question | Suggested scope addition |
 |----|------|---------|----------|--------------------------|
-| SQ-004 | Blocker | AUTH | Which auth methods are in scope — email/password, social (Google/Apple/Microsoft), OTP/passwordless, magic link, or enterprise SSO? | In §3.1.3 list the methods with Resp./Pri.; reconcile with EX-004 (Google sign-in) |
-| SQ-005 | Major | AUTH | Are registration, password reset, and profile management in scope, or out? | State each explicitly in §3.1.2 In/Out of scope |
-| SQ-006 | Major | AUTH | What are the account-access policies the business wants — email verification, lockout after repeated failures, MFA (required/optional/none)? | Add the access policies to §3.1.5 (the *what*, not the technical controls) |
-| SQ-011 | Blocker | CRM | Which CRM system, and do we read from it, write to it, or both? | Name the system and direction + the business data exchanged in §3.2.7 |
+| CLR-004 | Blocker | AUTH | Which auth methods are in scope — email/password, social (Google/Apple/Microsoft), OTP/passwordless, magic link, or enterprise SSO? | In §3.1.3 list the methods with Resp./Pri.; reconcile with EX-004 (Google sign-in) |
+| CLR-005 | Major | AUTH | Are registration, password reset, and profile management in scope, or out? | State each explicitly in §3.1.2 In/Out of scope |
+| CLR-006 | Major | AUTH | What are the account-access policies the business wants — email verification, lockout after repeated failures, MFA (required/optional/none)? | Add the access policies to §3.1.5 (the *what*, not the technical controls) |
+| CLR-011 | Blocker | CRM | Which CRM system, and do we read from it, write to it, or both? | Name the system and direction + the business data exchanged in §3.2.7 |
 
 The **example check** is what turns "this feels thin" into a citable gap: `EX-004` shows a user signing in with Google, but the scope mentions only email/password — a **Conflict**, surfaced against the Login feature.
 
@@ -190,10 +191,10 @@ A review *raises* scope questions; the loop *closes* them — and, uniquely for 
    - **Accepted-assumption** — the client can't confirm now, so the team proceeds on an explicit, logged assumption (`ASM-###` / RAID A-##), with the residual risk noted.
    - **Needs-verification** — plausible but thin; it asks 1–3 targeted follow-ups and keeps the item open.
    - **Won't-fix / still Open** — declined/deferred or unaddressed, with a note on the residual gap.
-4. **Promote & re-score.** Confirmed answers are folded into `scope.md` (the agent gives the exact §3.x edit) and the relevant register; each feature's coverage map is updated; the feature scores and overall verdict are **recomputed** — a resolved Blocker lifts the cap. A fresh timestamped round is written (`round` 2, `priorReview` linking back) with questions carried forward by their `SQ-###` IDs.
+4. **Promote & re-score.** Confirmed answers are folded into `scope.md` (the agent gives the exact §3.x edit) and the relevant register; each feature's coverage map is updated; the feature scores and overall verdict are **recomputed** — a resolved Blocker lifts the cap. A fresh timestamped round is written (`round` 2, `priorReview` linking back) with questions carried forward by their `CLR-###` IDs.
 5. **Repeat** until no open questions remain.
 
-**Worked example (continuing Acme):** you answer SQ-004 with *"Email/password + Google SSO, corporate domains only, email verified, MFA optional in phase 1; registration and reset in scope, profile is phase 2"* and export. `/ba:resolve` judges this specific and consistent with EX-004 → marks **SQ-004 Resolved**, gives the §3.1.3 edit, logs **DEC-007**, refills the Login coverage map, and — with that Blocker cleared — lifts the verdict from *Significant gaps* toward *Estimate with caveats*. A vaguer *"we'll support standard login"* comes back as **Needs-verification** with pointed follow-ups.
+**Worked example (continuing Acme):** you answer CLR-004 with *"Email/password + Google SSO, corporate domains only, email verified, MFA optional in phase 1; registration and reset in scope, profile is phase 2"* and export. `/ba:resolve` judges this specific and consistent with EX-004 → marks **CLR-004 Resolved**, gives the §3.1.3 edit, logs **DEC-007**, refills the Login coverage map, and — with that Blocker cleared — lifts the verdict from *Significant gaps* toward *Estimate with caveats*. A vaguer *"we'll support standard login"* comes back as **Needs-verification** with pointed follow-ups.
 
 > Why a separate step rather than editing in place? Timestamped rounds keep the **full history** — what was open at review time, what the author said, and how each question was closed.
 

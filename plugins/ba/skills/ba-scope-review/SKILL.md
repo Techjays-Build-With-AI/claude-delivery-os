@@ -52,7 +52,35 @@ Work out the feature/module breakdown. Prefer the scope's own §2 Module Breakdo
 
 Record each feature's **boundedness** — `Bounded` / `Partially-bounded` / `Unbounded` — with a one-line note. This is not optional colour: an **Unbounded** feature scores **≤ 4** and a **Partially-bounded** one **≤ 6**, however clearly its purpose is written, and the missing boundary becomes a `Blocker` (when it drives what/how-much gets processed) or `Major`. Boundedness expresses itself through the coverage dimensions below — **In/Out of scope** (exclusions), **Business rules** (definitions & classification logic), **Information & data** (mandatory/optional), and, for branching features, **Use-case / route expansion** (each distinct route written up as its own use case) — so mark those Covered only when the feature is actually bounded and its routes are actually expanded, not merely mentioned.
 
-**Then judge coverage depth** across the Techjays D&D nine sub-headings, marking each **Covered** / **Partial** / **Absent**:
+**First decide which dimensions apply — before judging any of them.**
+
+The nine dimensions **are** the scope template's own §3.x sub-headings, and `ba-extraction`
+requires every module to carry all eleven **"even if 'None'"**. So applicability is already
+authored: read the section rather than inferring it.
+
+| Dimension | § | Dimension | § | Dimension | § |
+|---|---|---|---|---|---|
+| `current_future` | 3.x.1 | `ai_automation` | 3.x.6 | `integrations` | 3.x.9 |
+| `in_out_scope` | 3.x.2 | `business_rules` | 3.x.7 | `exceptions` | 3.x.10 |
+| `functional_reqs` | 3.x.5 | `data_fields` | 3.x.8 | `acceptance` | 3.x.11 |
+
+| §3.x.N reads | Dimension state |
+|---|---|
+| has content | **applicable** — judge coverage below |
+| says **"None"** (or equivalent) | **`not-applicable`** — excluded from the divisor, **and no question** |
+| **section missing entirely** | **one** `Major` — *"§3.x.9 is absent; does this module integrate with anything?"* — not a dimension gap |
+
+**Record the evidence on every row** — the section read and what it said. `not-applicable` is a
+finding like any other, and one asserted without naming its section is a guess.
+
+**Never mark `not-applicable` because you could not find information.** Absent information is
+`Absent`, which is a gap. Only an explicit "None" is not-applicable.
+
+The third row matters most: a **missing section** is a scope-structure defect, not a coverage
+gap. Treating them alike is what produced questions about integrations for features that never
+had any — and docked them 1.11 points for it.
+
+**Then judge coverage depth** on the applicable dimensions only, marking each **Covered** / **Partial** / **Absent**:
 
 1. **Current → Future state** — is today's process (actors, triggers, systems, manual steps, pain points) and the future split (AI / deterministic / human) actually described?
 2. **In scope / Out of scope** — is the boundary explicit, or is "out of scope" silent (the most expensive kind of silence)?
@@ -84,7 +112,32 @@ A scope that looks complete but can't satisfy a real example the client handed y
 ### 6. Screen every question before it counts
 A question that the scope already answers is not a gap — it is a reading error, and it costs the author trust in every other question in the report. Screen the full list **before** scoring, because a dropped question must also clear the deduction it caused.
 
-Take each candidate question and do two things.
+Take each candidate question and do three things.
+
+**Collapse a scope-wide gap into ONE question.** Before screening individually, look across the
+whole candidate list: a dimension that is `Absent` on every feature is **one fact about the
+scope**, not one gap per feature. Twelve features with no NFRs is one question — *"No
+non-functional requirements appear anywhere in this scope. What are the performance, volume and
+availability expectations?"* — raised once at scope level, against §6 or the document as a whole.
+
+| Shape | Raise as |
+|---|---|
+| the dimension is `Absent` on **every applicable feature** | **one** scope-level question |
+| `Absent` on most, present on a few | one scope-level question **naming the exceptions** |
+| genuinely different per feature | per-feature, as now |
+
+The test is whether one answer closes them all. *"What are the NFRs?"* closes twelve;
+*"which auth methods for login"* and *"which CRM for sync"* close one each and stay separate.
+
+**A scope-level question still deducts on every feature it came from.** Merging is about what the
+author has to answer, not about forgiving the gap — the coverage map keeps its `Absent` cells and
+the scores stay where they were. Cite the merged id in each feature's assessment so the deduction
+is traceable to the one question that closes it.
+
+This is the single largest source of the duplication the review has been criticised for: the same
+missing fact, restated twelve times with twelve ids, reads as twelve problems and costs twelve
+answers.
+
 
 **Search for the answer, then record where you looked.** The scope is not read top-to-bottom by the author; an obligation opened in one module is often closed in a global section. Before a question ships, re-scan the places its answer would live — the feature's own §3.x sub-headings, the global §6 out-of-scope, the ledger, and the example register. Record those locations in the question's `checkedIn` field.
 
@@ -112,17 +165,26 @@ Score the **scope's treatment of each feature** — how completely and unambiguo
 **Compute the score; never pick it.** A judged number drifts between runs even when the findings are identical, which makes scores incomparable across sessions and impossible to argue with. The coverage map you filled in at step 4 already holds the evidence, so derive the score from it:
 
 ```
-coverageScore = (Covered = 1, Partial = 0.5, Absent = 0, summed over the nine dimensions) / 9 * 10
+coverageScore = (Covered = 1, Partial = 0.5, Absent = 0, summed over the APPLICABLE
+                 dimensions) / applicable_count * 10
 cap           = 4 if Unbounded · 6 if Partially-bounded · none if Bounded
 score         = round(coverageScore)            when the feature is Bounded (no cap)
               = round(min(coverageScore, cap))  when a cap applies
 ```
 
-Round half up, clamp to 0–10. **A `Bounded` feature has no cap — it is not capped at zero**; its score is simply the rounded coverage figure. The divisor is always nine: every dimension carries a value (mark one `Covered` with an assessment note when it genuinely doesn't apply).
+Round half up, clamp to 0–10. **A `Bounded` feature has no cap — it is not capped at zero**; its score is simply the rounded coverage figure.
+
+**The divisor is `applicable_count`, not nine.** A dimension marked `not-applicable` at step 4 is
+excluded from both the numerator and the divisor — a module with no integrations and no AI is
+scored out of seven. Scoring it out of nine charged it 2.2 points for work it was never going to
+do, which is why fully-specified simple features kept landing around 6.
+
+Record `applicable_count` beside `coverageScore` so the arithmetic can be checked. Where every
+dimension applies it is nine and the figure is unchanged from before.
 
 Record `coverageScore` (one decimal, pre-cap) and `cap` alongside `score`, so the number can be audited instead of trusted.
 
-The judgement hasn't disappeared — it now sits in nine Covered / Partial / Absent calls, each defined in `references/review-rubric.md` §B. So if a score looks wrong, a dimension is marked wrong: fix the dimension and let the score follow.
+The judgement hasn't disappeared — it now sits in the applicability call plus one Covered / Partial / Absent call per applicable dimension, each defined in `references/review-rubric.md` §B. So if a score looks wrong, a dimension is marked wrong: fix the dimension and let the score follow.
 
 Emit all three. If `score` doesn't match the formula above, the map and the number disagree and the report is wrong — fix the coverage call, never the number.
 
@@ -156,7 +218,7 @@ Record notable **strengths** too, so the report is balanced and the author keeps
 
 The Blocker override is a hard floor: **any unresolved Blocker caps the verdict at "Significant gaps — clarify before estimate" at best**, no matter how high the average — because that one unknown makes the estimate a guess. Name the Blocker that drove the cap in the executive summary.
 
-**The confirmation override (rounds 2+).** "Estimate with confidence" is a claim about what the *client* agreed, not about how much got written down. If any question the client never answered — `answeredBy` of `internal` or `assumed` (see `resolution-loop.md` §4) — sits on a dimension whose `consequence` is `estimate`, `integrations`, or `compliance`, the verdict is capped at **"Estimate with caveats"** however high the average. Name the unconfirmed decisions in the executive summary so they reach the sign-off conversation.
+**The confirmation override (rounds 2+).** "Estimate with confidence" is a claim about what the *client* agreed, not about how much got written down. If any question the client never answered **directly** — `answeredBy` of `internal`, `assumed` or `client-relayed` (see `resolution-loop.md` §4) — sits on a dimension whose `consequence` is `estimate`, `integrations`, or `compliance`, the verdict is capped at **"Estimate with caveats"** however high the average. Name the unconfirmed decisions in the executive summary so they reach the sign-off conversation.
 
 A scope can be complete and still be built on answers the client hasn't seen. That is a normal way to work — it just isn't confidence, and the verdict shouldn't call it that.
 

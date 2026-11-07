@@ -95,6 +95,7 @@ Install the core, then `qa` (works best alongside `dev`):
 /plugin install delivery-os@techjays-delivery-os
 /plugin install qa@techjays-delivery-os
 /plugin install dev@techjays-delivery-os   # the consumer of the quality-gate contract
+/plugin install tl@techjays-delivery-os    # only if repos are mapped — the audit reads the code graph
 ```
 
 Typical first run on an existing repo: `/qa:audit` → review the report, approve recommendations, export → `/qa:plan <approvals>` → `/qa:setup`. After that, `/dev:build` validates features against the gates QA set, and `/qa:health` keeps them honest over time.

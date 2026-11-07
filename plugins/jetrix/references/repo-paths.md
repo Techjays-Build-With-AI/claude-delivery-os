@@ -6,6 +6,21 @@ of an app's local clone. The paths live in
 `<workspace>/.jetrix/cache/repolocation.json`, which `/jetrix:init` step 9
 seeds — keyed by `projectId`.
 
+## Two kinds of "no path"
+
+| State | Written as | Asked again? |
+|---|---|---|
+| the teammate does not work on this app | `"SKIPPED"` | **no** — except on an explicit refresh (rule 4) |
+| the repo does not exist yet | **key omitted** | **yes**, every run |
+
+Collapsing these is the bug worth avoiding. A greenfield app whose repo `/tl:scaffold` has
+not created yet is *undecided*, not declined — writing `SKIPPED` there means no command ever
+offers to bind it once the code exists.
+
+The asymmetry in rule 4 is deliberate: a feature command that nags about a repo the user
+declined is noise, but a teammate who typed `/jetrix:pull` is asking what changed, and a repo
+that has since been cloned is exactly that.
+
 ## Contract
 
 ```
@@ -20,6 +35,9 @@ Need a local path for projectId "<pid>"?
      Update the JSON with the answer.
 4. If it contains "<pid>": "SKIPPED" → the user opted out of this repo.
      Skip silently; do NOT ask again.
+     EXCEPTION: an explicit refresh (/jetrix:pull, /jetrix:init) MAY re-offer it
+     once — the user typing a refresh IS the request to revisit. Every other
+     caller honours the skip in silence.
 5. If "<pid>" is not in the JSON at all → ask the user:
        "Where's the <projectName> (<projectType>) repo on your laptop?
         Absolute path, or 'skip' if you don't work on this app."

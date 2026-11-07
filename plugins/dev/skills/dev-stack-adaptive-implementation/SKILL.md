@@ -355,6 +355,29 @@ Only `status: confirmed` rules are enforced by Rule 13.
 Full contract:
 `plugins/delivery-os-core/skills/delivery-os-conventions/references/engineering-standards.md`.
 
+**Rule 15 — Convention governs form, never quality. Matching the repo is not a licence to copy a defect.**
+
+Rules 1–6 make the new code *look* like the repo: placement, naming, imports, error paradigm, config
+style, test framework. That is the whole of what "match the repo" means. It does not extend to
+these, which hold in every repo regardless of what the neighbouring code does:
+
+| Non-negotiable | What it means on a brownfield repo |
+|---|---|
+| **API contract** | every new operation validates its input at the boundary, returns the repo's error envelope, and uses status codes that match its semantics — even where the endpoint beside it does not |
+| **Contract consistency** | request/response field naming, pagination, filtering and error shape match the repo's *dominant* pattern; where the repo is genuinely inconsistent, follow the one that is correct, not the one that is nearest |
+| **Reuse** | Rule 2. An existing abstraction is extended, never paralleled |
+| **Clean code** | `coding-standards.md` §§6–12 limits (Rule 13) apply to every line written, whatever the surrounding file looks like |
+| **Error paths** | every failure branch is handled; "the existing handler doesn't either" is not a reason |
+| **Secrets** | Rule 10, absolutely |
+
+**Write the new code to the standard; leave the existing code alone.** Rule 11 still holds — do not
+retrofit files the build sequence did not name. The two rules resolve cleanly: new work meets the
+bar, old work is out of scope, and the gap is visible rather than propagated.
+
+**When the repo's existing pattern is itself the defect**, implement correctly and log a `DEC-###`
+naming the divergence and why. Do not silently diverge, and do not silently conform. A reviewer
+seeing one correct endpoint among four broken ones needs to know which way the project is moving.
+
 ## Completion criteria
 
 A implementation.md build sequence step is complete when:

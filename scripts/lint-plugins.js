@@ -513,11 +513,85 @@ if (AS_JSON) {
   process.exit(errors.length ? 1 : 0);
 }
 
+// ----------------------- 10. controlled vocabulary stated in more than one file
+// A controlled set -- `answeredBy`, the coverage states -- is enumerated in the
+// file that defines it AND relied on by the files that consume it. Add a value
+// in one place and the others keep validating against the old set, which is how
+// `client-relayed` nearly shipped as a value no consumer recognised.
+//
+// DERIVED, not hardcoded: the canonical set comes from the declaring file, so
+// this cannot rot into watching a literal that stopped existing.
+const VOCAB = [
+  {
+    name: "answeredBy",
+    // Declared as §4's bullet list in resolution-loop.md: - **`value`** — ...
+    declaredIn: "plugins/ba/skills/ba-scope-review/references/resolution-loop.md",
+    declRe: /^- \*\*`([a-z-]+)`\*\* —/gm,
+    // Consumers name the set inline, e.g. "`internal`, `assumed` or `client-relayed`"
+    usesRe: /`answeredBy`[^.\n]*?((?:`[a-z-]+`(?:,| or | and )?\s*)+)/g,
+  },
+  {
+    name: "coverage",
+    declaredIn: "plugins/ba/skills/ba-scope-review/SKILL.md",
+    declRe: /\*\*(Covered|Partial|Absent|not-applicable)\*\*|`(not-applicable)`/g,
+    usesRe: null,   // presence-only: see below
+  },
+];
+
+{
+  const vocab = VOCAB[0];
+  const decl = text.get(vocab.declaredIn);
+  if (decl) {
+    const allowed = new Set([...decl.matchAll(vocab.declRe)].map((m) => m[1]));
+    if (allowed.size) {
+      for (const f of md.map(rel)) {
+        if (!f.startsWith("plugins/ba/")) continue;
+        const L = text.get(f).split("\n");
+        L.forEach((l, i) => {
+          if (!l.includes("answeredBy")) return;
+          for (const m of l.matchAll(/`([a-z][a-z-]{2,})`/g)) {
+            const v = m[1];
+            // only values that look like enum members, not prose in backticks
+            if (!/^(client|client-relayed|internal|assumed|confirmed|inferred)$/.test(v)) continue;
+            if (!allowed.has(v)) {
+              add("ERROR", "bavocab", f, i + 1,
+                  "`" + v + "` is used as an answeredBy value but " +
+                  vocab.declaredIn.split("/").pop() + " §4 does not declare it",
+                  l.trim().slice(0, 90));
+            }
+          }
+        });
+      }
+    }
+  }
+}
+
+// The coverage set gained `not-applicable`. Every file that ENUMERATES the
+// states must carry it -- a renderer or schema still listing only three will
+// mis-handle the fourth rather than failing loudly.
+{
+  const enumerators = [
+    "plugins/ba/skills/ba-scope-review/SKILL.md",
+    "plugins/ba/skills/ba-scope-review/references/report-template.md",
+    "plugins/ba/skills/ba-scope-review/assets/report.html",
+  ];
+  for (const f of enumerators) {
+    const t = text.get(f);
+    if (!t) continue;
+    const hasThree = /Covered/.test(t) && /Partial/.test(t) && /Absent/.test(t);
+    if (hasThree && !/not-applicable/.test(t)) {
+      add("ERROR", "bavocab", f, 0,
+          "enumerates Covered/Partial/Absent but never `not-applicable` \u2014 the fourth " +
+          "coverage state is silently unhandled here", "");
+    }
+  }
+}
+
 const byCheck = {};
 for (const p of problems) (byCheck[p.check] ||= []).push(p);
 
 console.log(`\nlint-plugins — ${md.length} markdown files, ${files.length} total\n`);
-for (const check of ["paths", "refs", "struct", "schema", "internal", "status", "tokens", "scope", "writers", "blocks", "contracts", "frontmatter"]) {
+for (const check of ["paths", "refs", "struct", "schema", "internal", "status", "tokens", "scope", "writers", "blocks", "contracts", "frontmatter", "bavocab"]) {
   const rows = (byCheck[check] || []).filter((p) => p.level === "ERROR" || SHOW_WARN);
   const nE = (byCheck[check] || []).filter((p) => p.level === "ERROR").length;
   const nW = (byCheck[check] || []).filter((p) => p.level === "WARN").length;

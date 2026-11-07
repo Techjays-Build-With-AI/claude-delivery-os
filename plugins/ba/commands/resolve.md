@@ -22,7 +22,7 @@ You are running a **resolution round** on a scope review: the author has answere
 
 Invoke the **ba-agent** subagent with the responses-file path. Pass it this instruction:
 
-> Run a scope-review resolution round using the `ba-scope-review` skill — follow `references/resolution-loop.md`. Read the responses file at `<path>`, take its `source_review` reviewId, and read the prior round back out of the report itself — `<script id="review-data">` in the matching `.html` — that block holds the prior review state. There is no `.json` sidecar. For each question that received an answer, **adjudicate** it: set status to `Resolved`, `Accepted-assumption`, `Needs-verification` (with 1–3 specific follow-up questions), `Won't-fix`, or leave it `Open` — with a one-line rationale each. Be skeptical: require specifics, don't close on vague assurances. For every terminal question, give the **exact scope edit** (which §3.x sub-heading, what text) and, when a workspace exists, promote it: confirmed facts → `shared-context/decision-log.md` (`DEC-###`) and the scope; accepted assumptions → `requirements/<slug>/ledger.md` (kind: assumption) (`ASM-###`, RAID A-##); still-open must-close items → `requirements/<slug>/ledger.md` (kind: question) (`CLR-###`, RAID Q-##). Carry all questions forward by their stable `SQ-###` IDs, update each feature's coverage map, and recompute the feature scores and the scope-readiness verdict (a resolved Blocker lifts the cap; note residual risk for accepted assumptions). Then write a **new review round** — a fresh timestamped `.html` and `.md`, with `round` incremented and `priorReview` set to the resolved reviewId — and return a summary of the movement.
+> Run a scope-review resolution round using the `ba-scope-review` skill — follow `references/resolution-loop.md`. Read the responses file at `<path>`, take its `source_review` reviewId, and read the prior round back out of the report itself — `<script id="review-data">` in the matching `.html` — that block holds the prior review state. There is no `.json` sidecar. For each question that received an answer, **adjudicate** it: set status to `Resolved`, `Accepted-assumption`, `Needs-verification` (with 1–3 specific follow-up questions), `Won't-fix`, or leave it `Open` — with a one-line rationale each. Be skeptical: require specifics, don't close on vague assurances. For every terminal question, give the **exact scope edit** (which §3.x sub-heading, what text) and, when a workspace exists, promote it: confirmed facts → `shared-context/decision-log.md` (`DEC-###`) and the scope; accepted assumptions → `requirements/<slug>/ledger.md` (kind: assumption) (`ASM-###`, RAID A-##); still-open must-close items → `requirements/<slug>/ledger.md` (kind: question) (`CLR-###`, RAID Q-##). Carry all questions forward by their stable `CLR-###` IDs, update each feature's coverage map, and recompute the feature scores and the scope-readiness verdict (a resolved Blocker lifts the cap; note residual risk for accepted assumptions). Then write a **new review round** — a fresh timestamped `.html` and `.md`, with `round` incremented and `priorReview` set to the resolved reviewId — and return a summary of the movement.
 >
 > Responses file: `<path>`
 
@@ -86,6 +86,16 @@ the attachment and its passcode; reprint the stored one from sync-state.
 **Skip it when no scope edit landed.** A round where every answer was `Needs-verification` changes the
 review, not the scope — re-rendering then produces an identical file and a pointless upload. The hash check
 catches it either way, but not doing the work is better than undoing it.
+
+### 3b. Push the scope sources too
+
+A terminal answer edits `scope.md`, the registers it projects into, and `ledger.md` — promoted assumptions,
+closed questions, new contradictions. Republishing only `scope.html` leaves all three behind, and the next
+teammate to pull the workspace resolves against a round-old ledger.
+
+Run `/jetrix:push scope` after the republish, for the same reason §3a republishes without asking: the work is
+already out there and a stale copy is worse than no copy. Hash-diffed per file, so a round that moved nothing
+pushes nothing, and the two failure cases are reported exactly as `/ba:scope` §4a states them.
 
 ## 4. Surface the result
 

@@ -51,8 +51,21 @@ and type scales, MUI's theme defaults, Material/Cupertino, Compose's `MaterialTh
 `$spacers`. Take its defaults and *narrow* them to the set this app uses. A scale you reasoned out
 yourself is a second system competing with the library's.
 
-If the scaffold picked no component library, that is a `PB-###` for the human (§10) — not something
-to settle by writing CSS.
+**A repo should never reach you in establish mode.** `/tl:scaffold` asks the styling question and
+installs the system, and writes it into the repo's `CLAUDE.md` as a `delivery-os:ui-system` block —
+read that first. Establish mode is now the exception: a repo scaffolded before that rule existed, a
+reverse-mapped brownfield repo, or a hand-made one.
+
+When you are in it anyway, **establish the system and keep building — do not stall.** Install the
+library the repo's `CLAUDE.md` or `shared-context/technology-stack.md` names; where neither names
+one, use **Tailwind + shadcn/ui** and log it as a `DEC-###`. Then derive the six scales from its published
+defaults, compose the primitives, and say so in the build summary (§9).
+
+Stopping for a `PB-###` here was the old rule and it did not survive contact with a build: a hard
+stall mid-feature always loses to "write just enough CSS to make the page legible", and nothing
+downstream checks the difference. Raise a `PB-###` only for the brand-level choices in §2.3 — hue,
+typeface, logo — and carry on with neutral defaults until they are answered. What you must never do
+is write per-screen CSS *instead of* a system; that is the one outcome this file exists to prevent.
 
 ### 2.1 The six scales
 

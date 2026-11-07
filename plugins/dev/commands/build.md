@@ -253,7 +253,7 @@ to build from. The acceptance rows are the advisories closed and the suites that
 
 Same 4-way resolution as `/dev:plan` Stage 0 — see `plugins/dev/commands/plan.md` §2a. Determine `task_kind` (parent-alone or sub-task) and canonical `(feature_id, task_object_id, task_number, task_folder)`.
 
-**Verify the plan exists.** Check for `implementation.md` (with sections §1–§9 per v2.3.11 frame — Build sequence through Shared contract) and `status.md` under the task folder. Missing OR `status.md` `status` is not `readyForDev` → this task has no plan. **Single target:** halt with the "run /dev:plan first" message. **Batch:** skip it, keep its reason, and report it with the other skips at the end — one unplanned task must never stop the tasks that are ready.
+**Verify the plan exists.** Check for `implementation.md` (with sections §1–§8 per v2.3.16 frame — Build sequence through Shared contract) and `status.md` under the task folder. Missing OR `status.md` `status` is not `readyForDev` → this task has no plan. **Single target:** halt with the "run /dev:plan first" message. **Batch:** skip it, keep its reason, and report it with the other skips at the end — one unplanned task must never stop the tasks that are ready.
 
 **Verify no unresolved plan blockers (v2.2 hard gate).** Check for `units/<repo>/plan-blockers.md`:
 
@@ -303,6 +303,12 @@ The Stack-Inferred path is the intentional escape hatch for teams that want to p
 | Feature ID / slug / folder of a SPLIT feature (has `units/<repo>/` children) | ONE worker PER sub-task, FAN OUT in PARALLEL | Bounded by `--concurrency=N` (default: 5) |
 | Blank, `list=`, `requirement=` or `--all` → every task at `readyForDev` | One worker per parent-alone task, and per sub-task for each split parent — the whole set fans out together | Bounded by `--concurrency=N` (default: 5) across the entire set, not per feature |
 
+**More than one task → ask the batch shape first.** Before any agent starts,
+`references/build/batch-strategy.md` measures the set and asks how to run it —
+one branch for the whole batch, or one per group. `/dev:build` still writes code
+and nothing else: no commits, no pushes, no PRs. `/dev:commit` owns that
+boundary and the batch does not change it.
+
 **Print the plan before any agent starts.** Named agents, the wave table and the
 concurrency bound, every time:
 
@@ -321,6 +327,11 @@ this replaces. Name every agent `build:<repo>:<task>` so the user can watch,
 message or cancel one without killing the batch.
 
 **Order the batch yourself — never ask the user to sequence it.**
+
+Sequencing and branching are different questions. **Order** is derived from
+`depends_on_features` and is this command's job. **How many branches and PRs the
+batch produces**, and **whether it pauses for a merge**, are the user's — they
+own the review burden, so `batch-strategy.md` asks those two and nothing else.
 
 A batch is not a flat list. `features/<slug>/dependencies.md` carries the graph in frontmatter:
 

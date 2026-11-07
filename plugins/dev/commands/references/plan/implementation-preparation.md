@@ -91,7 +91,7 @@ None. (This file records any `--split`/`--no-split` used.)
 **Parallel per repo — N concurrent `tl-agent` subagents.** For each repo, spawn one `tl-agent` subagent to run the `tl-feature-compose` skill **twice**:
 
 1. **`description` mode** → sub-task **Description** (6-section user-story format per Rule 13; see the skill's §description).
-2. **`implementation` mode, scoped to that repo's units only** → sub-task **Implementation** (9-section stack-agnostic template §1–§9: Build sequence, Impacted components, Operations exposed and consumed, Stored data changes, User-facing surfaces, Touch points, Coverage, Risks and rollback, Shared contract).
+2. **`implementation` mode, scoped to that repo's units only** → sub-task **Implementation** (8-section stack-agnostic template §1–§8: Build sequence, Impacted components, Operations exposed and consumed, Stored data changes, User-facing surfaces, Touch points, Risks and rollback, Shared contract).
 
 Each subagent writes to disk directly:
 
@@ -161,7 +161,7 @@ Sub-task files on disk are ALWAYS preserved regardless of where the halt occurs 
 
 ### 4d. Compose branch B — parent alone
 
-**Single tl-agent subagent** running `tl-feature-compose` in **`implementation` mode** on the parent. Reads BOTH the TL context units AND `units/<repo>/analysis.md` scratchpad. Output → `.jetrix/features/<slug>/implementation.md` with `compose_mode: implementation` + `capabilities:` in frontmatter (v2.3 — parent-alone Implementation now writes to `implementation.md` at feature root, not `tl-plan.md`). Writes ALL 9 sections (§1–§9, stack-agnostic per v2.3.11) in one pass. Verify runbook is produced separately by /dev:build Stage 11 as `units/<repo>/pr-summary.md § ## How to verify` — implementation.md is plan-only.
+**Single tl-agent subagent** running `tl-feature-compose` in **`implementation` mode** on the parent. Reads BOTH the TL context units AND `units/<repo>/analysis.md` scratchpad. Output → `.jetrix/features/<slug>/implementation.md` with `compose_mode: implementation` + `capabilities:` in frontmatter (v2.3 — parent-alone Implementation now writes to `implementation.md` at feature root, not `tl-plan.md`). Writes ALL 8 sections (§1–§8, stack-agnostic per v2.3.16) in one pass. Verify runbook is produced separately by /dev:build Stage 11 as `units/<repo>/pr-summary.md § ## How to verify` — implementation.md is plan-only.
 
 Skip §4e's `subtask_upsert_bundle` call — there are no sub-tasks. Proceed directly to §4f (parent Implementation push).
 

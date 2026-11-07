@@ -154,12 +154,14 @@ function parseFlow(src) {
   const nodes = new Map(); // id -> {id,label,shape}
   const edges = []; // {from,to,label}
   let sawHeader = false;
+  let dir = "TD";
 
   for (const raw of src.split("\n")) {
     const line = raw.trim();
     if (!line || line.startsWith("%%")) continue;
-    if (/^(flowchart|graph)\s+(TD|TB)\b/i.test(line)) { sawHeader = true; continue; }
-    if (/^(flowchart|graph)\b/i.test(line)) return null; // LR etc -- not ours
+    const hdr = /^(flowchart|graph)\s+(TD|TB|LR|RL|BT)\b/i.exec(line);
+    if (hdr) { sawHeader = true; dir = hdr[2].toUpperCase(); continue; }
+    if (/^(flowchart|graph)\b/i.test(line)) return null; // an axis we do not lay out
 
     // A -->|label| B   /   A --> B
     // Split on the arrow rather than regex-matching the whole line: a node
@@ -183,7 +185,7 @@ function parseFlow(src) {
     return null; // something we do not model -- fall back
   }
   if (!sawHeader || !nodes.size) return null;
-  return { nodes, edges };
+  return { nodes, edges, dir };
 }
 
 /** `ID[text]` -> registers and returns the id; `ID` alone -> the id. */
@@ -247,43 +249,77 @@ function wrap(text, max) {
 function renderFlow(src) {
   const g = parseFlow(src);
   if (!g) return null;
-  const rows = layer(g);
+  let rows = layer(g);
   if (!rows.length) return null;
 
-  const PADX = 13, LINEH = 15, GAPY = 40, GAPX = 20, TOP = 10;
+  // LR/RL lay the layers out as columns; RL and BT run the layers backwards.
+  const horiz = g.dir === "LR" || g.dir === "RL";
+  if (g.dir === "RL" || g.dir === "BT") rows = rows.slice().reverse();
+
+  const PADX = 13, LINEH = 15, TOP = 10;
+  // A horizontal run needs more room between layers (the edge label rides the
+  // gap) and less between siblings; a vertical one is the other way round.
+  const GAPY = horiz ? 18 : 40;
+  const GAPX = horiz ? 74 : 20;
   const boxes = new Map();
 
   rows.forEach((row, r) => {
     row.forEach((id) => {
       const n = g.nodes.get(id);
-      const lines = wrap(n.label, 26);
+      const lines = wrap(n.label, horiz ? 20 : 26);
       const w = Math.max(84, Math.round(Math.max(...lines.map((l) => l.length)) * CH) + PADX * 2 + (n.shape === "diamond" ? 22 : 0));
       const h = lines.length * LINEH + 16 + (n.shape === "diamond" ? 10 : 0);
       boxes.set(id, { ...n, lines, w, h, r });
     });
   });
 
-  // centre each row
-  let width = 0;
-  rows.forEach((row) => {
-    const w = row.reduce((a, id) => a + boxes.get(id).w, 0) + GAPX * (row.length - 1);
-    width = Math.max(width, w);
-  });
-  width += 40;
+  let width, height;
 
-  let y = TOP;
-  rows.forEach((row) => {
-    const rowW = row.reduce((a, id) => a + boxes.get(id).w, 0) + GAPX * (row.length - 1);
-    let x = (width - rowW) / 2;
-    const rowH = Math.max(...row.map((id) => boxes.get(id).h));
-    row.forEach((id) => {
-      const b = boxes.get(id);
-      b.x = x; b.y = y + (rowH - b.h) / 2;
-      x += b.w + GAPX;
+  if (horiz) {
+    // layers march left to right; each column is centred on the tallest one
+    let tallest = 0;
+    rows.forEach((row) => {
+      const colH = row.reduce((a, id) => a + boxes.get(id).h, 0) + GAPY * (row.length - 1);
+      tallest = Math.max(tallest, colH);
     });
-    y += rowH + GAPY;
-  });
-  const height = y - GAPY + TOP;
+    height = tallest + TOP * 2;
+
+    let x = 20;
+    rows.forEach((row) => {
+      const colW = Math.max(...row.map((id) => boxes.get(id).w));
+      const colH = row.reduce((a, id) => a + boxes.get(id).h, 0) + GAPY * (row.length - 1);
+      let y = (height - colH) / 2;
+      row.forEach((id) => {
+        const b = boxes.get(id);
+        b.x = x + (colW - b.w) / 2; b.y = y;
+        y += b.h + GAPY;
+      });
+      x += colW + GAPX;
+    });
+    width = x - GAPX + 20;
+  } else {
+    // centre each row
+    width = 0;
+    rows.forEach((row) => {
+      const w = row.reduce((a, id) => a + boxes.get(id).w, 0) + GAPX * (row.length - 1);
+      width = Math.max(width, w);
+    });
+    width += 40;
+
+    let y = TOP;
+    rows.forEach((row) => {
+      const rowW = row.reduce((a, id) => a + boxes.get(id).w, 0) + GAPX * (row.length - 1);
+      let x = (width - rowW) / 2;
+      const rowH = Math.max(...row.map((id) => boxes.get(id).h));
+      row.forEach((id) => {
+        const b = boxes.get(id);
+        b.x = x; b.y = y + (rowH - b.h) / 2;
+        x += b.w + GAPX;
+      });
+      y += rowH + GAPY;
+    });
+    height = y - GAPY + TOP;
+  }
 
   const parts = [];
   parts.push(
@@ -296,18 +332,31 @@ function renderFlow(src) {
   for (const e of g.edges) {
     const a = boxes.get(e.from), b = boxes.get(e.to);
     if (!a || !b) continue;
-    const x1 = a.x + a.w / 2, y1 = a.y + a.h, x2 = b.x + b.w / 2, y2 = b.y;
-    const my = (y1 + y2) / 2;
-    const d = Math.abs(x1 - x2) < 2
-      ? `M${x1} ${y1} L${x2} ${y2 - 6}`
-      : `M${x1} ${y1} L${x1} ${my} L${x2} ${my} L${x2} ${y2 - 6}`;
+
+    let d, lx, ly;
+    if (horiz) {
+      // leave the right face, enter the left face, elbow at the mid-gap
+      const x1 = a.x + a.w, y1 = a.y + a.h / 2, x2 = b.x, y2 = b.y + b.h / 2;
+      const mx = (x1 + x2) / 2;
+      d = Math.abs(y1 - y2) < 2
+        ? `M${x1} ${y1} L${x2 - 6} ${y2}`
+        : `M${x1} ${y1} L${mx} ${y1} L${mx} ${y2} L${x2 - 6} ${y2}`;
+      lx = mx; ly = Math.abs(y1 - y2) < 2 ? y1 - 11 : (y1 + y2) / 2;
+    } else {
+      const x1 = a.x + a.w / 2, y1 = a.y + a.h, x2 = b.x + b.w / 2, y2 = b.y;
+      const my = (y1 + y2) / 2;
+      d = Math.abs(x1 - x2) < 2
+        ? `M${x1} ${y1} L${x2} ${y2 - 6}`
+        : `M${x1} ${y1} L${x1} ${my} L${x2} ${my} L${x2} ${y2 - 6}`;
+      lx = Math.abs(x1 - x2) < 2 ? x1 : (x1 + x2) / 2; ly = my;
+    }
+
     parts.push(`<path d="${d}" fill="none" stroke="var(--flow-line)" stroke-width="1.4" marker-end="url(#ah)"/>`);
     if (e.label) {
       const lw = e.label.length * 6.1 + 12;
-      const lx = Math.abs(x1 - x2) < 2 ? x1 : (x1 + x2) / 2;
       parts.push(
-        `<rect x="${lx - lw / 2}" y="${my - 9}" width="${lw}" height="18" rx="9" fill="var(--flow-chip)"/>`,
-        `<text x="${lx}" y="${my + 4}" text-anchor="middle" class="flow-edge">${esc(e.label)}</text>`
+        `<rect x="${lx - lw / 2}" y="${ly - 9}" width="${lw}" height="18" rx="9" fill="var(--flow-chip)"/>`,
+        `<text x="${lx}" y="${ly + 4}" text-anchor="middle" class="flow-edge">${esc(e.label)}</text>`
       );
     }
   }
@@ -376,9 +425,20 @@ function render(md) {
         html += '<figure class="diagram">' + drawn + "</figure>\n";
         continue;
       }
+      if (isDiagram) {
+        // The inline parser could not model it. Hand the source to Mermaid if
+        // the reader is online; the <pre> underneath stays as the offline
+        // answer, so the page is never blank where a diagram belongs.
+        html +=
+          '<figure class="code diagram mermaid-wrap">' +
+          '<figcaption>Flow diagram</figcaption>' +
+          '<div class="mermaid-target" data-src="' + esc(buf.join("\n")) + '"></div>' +
+          '<pre class="mermaid-src"><code>' + esc(buf.join("\n")) + "</code></pre></figure>\n";
+        continue;
+      }
       html +=
-        '<figure class="code' + (isDiagram ? " diagram" : "") + '">' +
-        (isDiagram ? '<figcaption>Flow diagram — source</figcaption>' : lang ? `<figcaption>${esc(lang)}</figcaption>` : "") +
+        '<figure class="code">' +
+        (lang ? `<figcaption>${esc(lang)}</figcaption>` : "") +
         "<pre><code>" + esc(buf.join("\n")) + "</code></pre></figure>\n";
       continue;
     }
@@ -702,9 +762,17 @@ const html = `<!DOCTYPE html>
   body{
     margin:0; background:var(--bg); color:var(--ink);
     font-family:"Google Sans","Product Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-    font-size:15px; line-height:1.6;
+    font-size:16.5px; line-height:1.68;
     font-feature-settings:"kern" 1,"liga" 1; text-rendering:optimizeLegibility;
   }
+
+  /* Slim scrollbars. The rail and any wide table each get their own scroller,
+     and three chunky default bars on one page read as clutter. */
+  *{scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+  *::-webkit-scrollbar{width:8px;height:8px}
+  *::-webkit-scrollbar-track{background:transparent}
+  *::-webkit-scrollbar-thumb{background:var(--line);border-radius:99px}
+  *::-webkit-scrollbar-thumb:hover{background:var(--c1l)}
   a{color:var(--c1);text-decoration:none}
   a:hover{text-decoration:underline}
 
@@ -725,16 +793,23 @@ const html = `<!DOCTYPE html>
     padding:0 56px 90px;display:grid;grid-template-columns:var(--rail) minmax(0,1fr);
     gap:56px;align-items:start}
 
+  /* The rail scrolls only when it is genuinely taller than the viewport, and
+     its bar stays invisible until the pointer is in it -- a second permanent
+     scrollbar beside the page's own is the clutter this file was criticised for. */
   nav.toc{position:sticky;top:0;max-height:100vh;overflow-y:auto;
-    padding:30px 0 30px;border:0}
-  nav.toc::before{content:"Contents";display:block;font-size:11px;
+    padding:30px 0 30px;border:0;overscroll-behavior:contain;
+    scrollbar-width:none}
+  nav.toc::-webkit-scrollbar{width:0}
+  nav.toc:hover{scrollbar-width:thin}
+  nav.toc:hover::-webkit-scrollbar{width:6px}
+  nav.toc::before{content:"Contents";display:block;font-size:11.5px;
     text-transform:uppercase;letter-spacing:.14em;color:var(--lbl);
     font-weight:600;margin-bottom:14px}
-  nav.toc a{display:block;font-size:15px;color:var(--mut);padding:7px 0 7px 14px;
+  nav.toc a{display:block;font-size:15.5px;color:var(--mut);padding:7px 0 7px 14px;
     border-left:2px solid var(--line);line-height:1.45;
     transition:color .12s,border-color .12s}
   nav.toc a:hover{color:var(--ink);border-left-color:var(--c1l);text-decoration:none}
-  nav.toc a.l3{padding-left:26px;font-size:13.5px}
+  nav.toc a.l3{padding-left:26px;font-size:14px}
   /* where you are. Without it an eleven-section rail is a list, not a map. */
   nav.toc a.active{color:var(--c1);border-left-color:var(--c1);font-weight:600}
   nav.toc a.l3.active{font-weight:500}
@@ -742,26 +817,26 @@ const html = `<!DOCTYPE html>
   main{padding-top:30px;min-width:0}
 
   /* ---- type: numbered-section document ---------------------------------- */
-  h2{font-size:23px;line-height:1.25;letter-spacing:-.012em;font-weight:600;
-    margin:38px 0 8px;padding-top:18px;border-top:2px solid var(--ink)}
+  h2{font-size:26px;line-height:1.24;letter-spacing:-.014em;font-weight:600;
+    margin:44px 0 10px;padding-top:20px;border-top:2px solid var(--ink)}
   h2:first-of-type{margin-top:0;padding-top:0;border-top:0}
-  h3{font-size:17px;line-height:1.32;font-weight:600;margin:24px 0 5px}
-  h4{font-size:14px;font-weight:600;color:var(--lbl);margin:18px 0 3px;
+  h3{font-size:19px;line-height:1.34;font-weight:600;margin:28px 0 6px}
+  h4{font-size:15px;font-weight:600;color:var(--lbl);margin:20px 0 4px;
     text-transform:none;letter-spacing:0}
-  p{margin:0 0 .85em;max-width:78ch}
-  ul,ol{max-width:78ch;margin:.5em 0} li{margin:.18em 0}
+  p{margin:0 0 .9em;max-width:74ch}
+  ul,ol{max-width:74ch;margin:.55em 0} li{margin:.22em 0}
   blockquote{margin:1em 0;padding:10px 16px;background:var(--surface);
     border-left:3px solid var(--c1);border-radius:0 var(--radius) var(--radius) 0;
     color:var(--ink)}
   blockquote p:last-child{margin-bottom:0}
 
   /* ---- tables get the full column --------------------------------------- */
-  table{border-collapse:collapse;width:100%;margin:1.1em 0;font-size:13.5px;
-    line-height:1.45}
-  th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;
+  table{border-collapse:collapse;width:100%;margin:1.25em 0;font-size:14.5px;
+    line-height:1.5}
+  th{text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:.07em;
     color:var(--lbl);font-weight:600;background:var(--surface2);
-    border-bottom:1px solid var(--line);padding:7px 12px;white-space:nowrap}
-  td{padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+    border-bottom:1px solid var(--line);padding:9px 13px;white-space:nowrap}
+  td{padding:9px 13px;border-bottom:1px solid var(--line);vertical-align:top}
   tr:last-child td{border-bottom:1px solid var(--line)}
   tbody tr:hover td{background:var(--surface)}
 
@@ -772,13 +847,24 @@ const html = `<!DOCTYPE html>
   pre code{background:none;padding:0}
 
   /* ---- toolbar ---------------------------------------------------------- */
-  figure.diagram{margin:1.2em 0;padding:12px 10px;background:var(--surface);
-    border:1px solid var(--line);border-radius:var(--radius);overflow-x:auto}
+  figure.diagram{margin:1.6em 0;padding:20px 16px;background:var(--surface);
+    border:1px solid var(--line);border-radius:12px;overflow-x:auto;
+    text-align:center}
   figure.diagram svg{display:block;margin:0 auto;max-width:100%;height:auto}
-  figure.diagram{text-align:center}
-  .flow-t{font-size:12px;fill:var(--ink);font-weight:500}
+  figure.diagram figcaption{font-size:11.5px;text-transform:uppercase;
+    letter-spacing:.1em;color:var(--lbl);font-weight:600;margin-bottom:12px;
+    text-align:left}
+  .flow-t{font-size:12.5px;fill:var(--ink);font-weight:500}
   .flow-term{font-weight:600}
-  .flow-edge{font-size:11.5px;fill:var(--mut)}
+  .flow-edge{font-size:12px;fill:var(--mut)}
+
+  /* Mermaid fallback: source on show until the library draws it, then the
+     drawing replaces it. Offline the <pre> is simply what the reader gets. */
+  .mermaid-target{display:none}
+  .mermaid-wrap.drawn .mermaid-target{display:block}
+  .mermaid-wrap.drawn .mermaid-src{display:none}
+  .mermaid-wrap.drawn{text-align:center}
+  .mermaid-target svg{max-width:100%;height:auto}
 
   .tools{position:fixed;right:24px;bottom:24px;display:flex;gap:8px;z-index:50}
   .tools button{font:inherit;font-size:13px;font-weight:500;cursor:pointer;
@@ -897,9 +983,34 @@ ${main.html}${coverage}${features}${extra}
   targets.forEach(function (t) { io.observe(t); });
 })();
 
+/* Diagrams the inline parser could not model.
+ *
+ * The page still ships every diagram as readable source, so it is complete
+ * offline -- that rule has not moved. This only adds: when the reader happens
+ * to be online, fetch Mermaid and draw the ones we could not. A failed fetch
+ * is not an error path, it is the offline path, and the <pre> is already there.
+ */
+(function () {
+  if (!document.querySelector(".mermaid-target")) return;
+  var s = document.createElement("script");
+  s.type = "module";
+  s.textContent = [
+    "try{",
+    "const m=(await import('https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.esm.min.mjs')).default;",
+    "const dark=matchMedia('(prefers-color-scheme:dark)').matches;",
+    "m.initialize({startOnLoad:false,securityLevel:'strict',theme:dark?'dark':'neutral',",
+    " flowchart:{curve:'basis',htmlLabels:true,useMaxWidth:true},fontFamily:'inherit'});",
+    "let n=0;",
+    "for(const t of document.querySelectorAll('.mermaid-target')){",
+    "  try{const{svg}=await m.render('mmd'+(n++),t.dataset.src);t.innerHTML=svg;",
+    "    t.closest('.mermaid-wrap').classList.add('drawn');}catch(e){}",
+    "}}catch(e){}",
+  ].join("\n");
+  document.head.appendChild(s);
+})();
+
 // A .doc Word opens is HTML plus the Office namespace and the right MIME type.
-// No library, no CDN -- the page stays self-contained, which is the same rule
-// that keeps Mermaid rendered as labelled source here.
+// No library, no CDN -- the export stays self-contained.
 function exportDoc() {
   var page = document.documentElement.cloneNode(true);
   var tools = page.querySelector(".tools"); if (tools) tools.remove();
@@ -927,8 +1038,8 @@ function exportDoc() {
   var html =
     '<html xmlns:o="urn:schemas-microsoft-com:office:office" ' +
     'xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">' +
-    '<head><meta charset="utf-8">' + wordCss + "</head>" +
-    "<body>" + page.querySelector("body").innerHTML + "</body></html>";
+    '<head><meta charset="utf-8">' + wordCss + "<\/head>" +
+    "<body>" + page.querySelector("body").innerHTML + "<\/body><\/html>";
 
   var name = (document.title || "scope").replace(/[^A-Za-z0-9._ -]+/g, "-").trim() + ".doc";
   var blob = new Blob(["﻿", html], { type: "application/msword" });

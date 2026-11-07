@@ -1,6 +1,6 @@
 ## Stage 4 — Dynamic code review (commit-time)
 
-**Purpose.** Delegate the feature-diff code review to `dev-stack-adaptive-code-review` skill. Reviews the diff against the repo's own conventions + parent's Business Rules. Reports findings in 4 severity tiers: `Blocker` / `Major` / `Minor` / `Nit`. At commit-time, blocks on `Blocker` and `Major`; `Minor` + `Nit` surface as follow-up suggestions in the PR body.
+**Purpose.** Delegate the feature-diff code review to `dev-stack-adaptive-code-review` skill. Reviews the diff against the repo's own conventions + parent's Business Rules. Reports findings in 4 severity tiers: `Blocker` / `Major` / `Minor` / `Nit`. At commit-time, blocks on `Blocker` and `Major`. `Minor` + `Nit` do not block — they are fixed in Stage 6's single batched pass (`stage-6-fix-loop.md` §6e.i), not deferred.
 
 **Runs after Stage 3 (security review passed).** State: `devReview` (unchanged); MC: `devReview` (unchanged). On any Blocker/Major finding, fix loop kicks in.
 
@@ -129,7 +129,7 @@ one of those is a recall problem.
 
 ### 4d. Route to fix loop or advance
 
-**Zero Blocker + Zero Major** → mark Stage 4 done. Minor + Nit findings persist in the findings file for PR body integration + follow-up. Advance to Stage 5.
+**Zero Blocker + Zero Major** → mark Stage 4 done. Minor + Nit findings persist in the findings file and carry into Stage 6's batched fix pass, where `fixed` is the default disposition. Advance to Stage 5.
 
 **One or more Blocker/Major** → invoke the fix loop per `stage-6-fix-loop.md` §6a.i (v2.3.27). The fix loop is **MANDATORY and VERIFIABLE** — this stage MUST invoke `dev-stack-adaptive-implementation` in fix-mode via the Skill / Agent tool and record a `stage-4.fix_loop_invocation:` block in `status.md` § `## Run history` (fields per §6a.i). Applying the fix inline without recording the invocation trace is a spec violation and Stage 8 §8a will refuse to push. After fix loop, Stage 3 (security) + Stage 4 (code review) both re-run from the top — code fixes may introduce new security concerns.
 

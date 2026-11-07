@@ -237,6 +237,24 @@ Report   http://127.0.0.1:<port>/scope.html      ← open in your browser
 
 The serve line matters locally: `file://` blocks a page fetching its own siblings, which the hosted copy never hits.
 
+### 4a. Push the scope sources — no confirmation prompt
+
+`scope.html` is what the client reads; `scope.md`, the registers, `ledger.md` and `shared-context/` are what the
+**team** reads, and a teammate who pulls the workspace gets whatever was last pushed. Publishing the page and
+leaving the sources behind makes the stale copy invisible, because the page everyone looks at is right.
+
+So end the run with `/jetrix:push scope`. It is hash-diffed per file — an unchanged register costs nothing — and
+idempotent, so there is nothing to confirm.
+
+Two outcomes to report rather than hide, the same pair `/ba:features` §3 handles:
+
+- **No workspace bound** (`.jetrix/project.json` missing) — the scope still succeeded. Report the files, say the
+  push was skipped, and print `/jetrix:init`.
+- **Partial failure** — name the files that did not land and print `/jetrix:push scope` to retry. Never report a
+  scope as pushed when part of it is not.
+
+Off Jetrix the stage prints its own "stays local" notice and stops; that is the tracker's answer, not a failure.
+
 ## 5. Surface the result
 
 **The block below is the whole output.** Not a lead-in to it, not a summary before it — the entire thing

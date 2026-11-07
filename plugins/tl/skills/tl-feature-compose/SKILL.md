@@ -1,6 +1,6 @@
 ---
 name: tl-feature-compose
-description: Compose self-contained implementation content for a feature or sub-task in one of three modes — implementation (plan-only 9-section technical spec §1–§9, stack-agnostic vocabulary, for a parent Task's Implementation tab, or for a single sub-task's Implementation tab scoped to one repo), description (user-story format for a sub-task's Description tab), or rollup (parent Implementation tab when the feature was split into sub-tasks — names each sub-task, sequence, cross-task dependencies, and touch points). Use whenever a feature has been planned technically (units exist in `<repo>/context/code-context/{frontend,backend,database}/`) and needs a document a developer or coding agent can build from without opening the other files. Point it at one feature folder, a `FEAT-<AREA>-NN` id, an `requirement=<slug>` slice, or the whole `features/` set; it reads the feature, its owned pages/endpoints/entities, and (when the repo is cloned locally) the target repo's file layout, and writes the appropriate document per mode. It never restates business rationale (that's in `feature.md`), never invents an endpoint/contract/schema/path the source can't ground, never leaks framework names or file paths, and never composes above Mission Control's 60 KB tab cap.
+description: Compose self-contained implementation content for a feature or sub-task in one of three modes — implementation (plan-only 8-section technical spec §1–§8, stack-agnostic vocabulary, for a parent Task's Implementation tab, or for a single sub-task's Implementation tab scoped to one repo), description (user-story format for a sub-task's Description tab), or rollup (parent Implementation tab when the feature was split into sub-tasks — names each sub-task, sequence, cross-task dependencies, and touch points). Use whenever a feature has been planned technically (units exist in `<repo>/context/code-context/{frontend,backend,database}/`) and needs a document a developer or coding agent can build from without opening the other files. Point it at one feature folder, a `FEAT-<AREA>-NN` id, an `requirement=<slug>` slice, or the whole `features/` set; it reads the feature, its owned pages/endpoints/entities, and (when the repo is cloned locally) the target repo's file layout, and writes the appropriate document per mode. It never restates business rationale (that's in `feature.md`), never invents an endpoint/contract/schema/path the source can't ground, never leaks framework names or file paths, and never composes above Mission Control's 60 KB tab cap.
 ---
 
 # TL Feature Compose (context graph + feature breakdown → buildable per-feature plan)
@@ -317,7 +317,7 @@ Regardless of mode: Description, Business Rules, Acceptance Criteria, NFRs, Test
 
 #### If mode == `implementation` (parent-alone or per-sub-task Implementation)
 
-Nine sections (§1–§9), in this order. Cross-feature "must exist first" waits are captured in the **Dependencies tab** (BA-owned); code-reuse targets are captured in **Touch points** — never both. See the top-of-file frame list for the full section spec.
+Eight sections (§1–§8), in this order. Cross-feature "must exist first" waits are captured in the **Dependencies tab** (BA-owned); code-reuse targets are captured in **Touch points** — never both. See the top-of-file frame list for the full section spec.
 
 1. **Build sequence** — one paragraph naming the phases and their dependency order, one mermaid step-graph, plus the ordered step table from the analysis scratchpad. Columns: `# | Step | Files | Units | Satisfies`. The Files column names WHERE the code lands per step (`New: <path>` / `Modified: <path>`); it replaces the free-form Notes column so each step has a concrete file target. A phase that depends on an undecided open question is marked `[HELD · waiting on OQ-<id>]` in the paragraph rather than pretending to be buildable.
 2. **Impacted components** — 12-dimension impact matrix. Dimension names are stack-agnostic: Surfaces / Operations / Stored data / Authz / Integrations / Background jobs / Notifications / Observability / Existing tests / Docs / Flags / Analytics. Additional per-repo dimensions get added by the compose based on repo shape (e.g. `Screens` for UI-heavy repos, `Migration` for stateful repos, `Accessibility` for interactive repos). Every row substantive per Rule 11.12 — bare `N/A` halts.
@@ -666,13 +666,13 @@ MC's Task detail view renders `implementationDetails` with `react-markdown v9 + 
 
 Rules 1–15 below are the QUALITY BAR the lint checks against. Under Rule 0, only the 8 mechanical rules in Rule 0a produce HALTS; the rest of Rules 10a/10b/11.5/11.9/11.10/11.12/11.13 produce WARNINGS. Sections describing rule severity ("halt", "compose halts", "REFUSE") in the text below should be read as "WARN" unless the rule is in the 8-halt list. Historical prose is retained for context but Rule 0 governs execution behavior.
 
-**Rule 1 — File paths ARE required in §1 (Files column), §4 (Fields written source), §5 (component paths), §6 (Reuse rows) — but NEVER in §9 (Shared contract) (v2.3.11 revision).** Earlier drafts of this rule forbade file paths anywhere. That was wrong for a build spec — the developer needs to know WHERE the code lands. Now:
+**Rule 1 — File paths ARE required in §1 (Files column), §4 (Fields written source), §5 (component paths), §6 (Reuse rows) — but NEVER in §8 (Shared contract) (v2.3.11 revision).** Earlier drafts of this rule forbade file paths anywhere. That was wrong for a build spec — the developer needs to know WHERE the code lands. Now:
 
 - **REQUIRED in §1 Build sequence "Files" column**: each step names the concrete new/modified path (`New: src/models/Comment.js`, `Modified: src/routes/router.js`).
 - **REQUIRED in §4 Stored data changes "Source of value" column and declaration-hazard notes**: name the reference file (`use src/models/LeaveRequest.js as the reference for constraint declaration`).
 - **REQUIRED in §5 User-facing surfaces**: name component/screen paths so the developer knows the target file.
 - **REQUIRED in §6 Touch points**: the Path column names each Reuse/New target explicitly.
-- **NEVER in §8 Shared contract**: §9 is the wire-level cross-stack invariant. File paths are stack-specific extractions that belong in the local TL unit files, not §9. Rule 11.3a's regex halt catches this.
+- **NEVER in §8 Shared contract**: §8 is the wire-level cross-stack invariant. File paths are stack-specific extractions that belong in the local TL unit files, not §8. Rule 11.3a's regex halt catches this.
 
 **Rule 2 — Framework and library NAMES may appear in impact matrix and hazards, but never as versions or as code idioms (v2.3.11 revision).** Earlier drafts forbade every framework mention. That was wrong — the impact matrix legitimately reports "Jest + Testing Library green at plan time: N suites / M tests" as a fact about the repo, and §4 declaration hazards must name the constraint-syntax gotcha (`use required: true, not require:` in a Mongoose-style repo). What IS still forbidden:
 
@@ -712,7 +712,7 @@ What IS allowed: `Jest`, `Mongoose`, `Express`, `React`, `Playwright` etc. named
 - Business-rule enforcement narrative: `"is_removed=false enforces BR-1 by making removed rows invisible to the uniqueness check"`. The BR link belongs in §1 Build sequence Satisfies column (the canonical coverage owner per v2.3.16). §4 states the shape (`partial unique index on (date) where is_removed=false`) without the WHY.
 
 **Section-mode reminders:**
-- 9 sections §1–§9 for `implementation`; 3 sections for `rollup`; 6 sections for `description`.
+- 8 sections §1–§8 for `implementation`; 3 sections for `rollup`; 6 sections for `description`.
 - No Business Goal, no AC list, no NFR list, no Business Rule list, no Test Scenarios list, no Dependencies list, no Open Questions list, no Prerequisites section (cross-feature waits live on Dependencies tab; code-reuse targets live in Touch points).
 - If a fact belongs in another tab, do not restate it here — even briefly.
 - **In `description` mode**, the workflow diagram belongs on the parent's Description tab (BA-owned) — do not include a mermaid diagram in a sub-task Description.
@@ -845,7 +845,7 @@ Boring decisions (no pagination / no rate limit / no permission model / no optim
 
 **Rule 11 — No invention.** Every endpoint contract, every DB field, every UI surface traces to the context graph or the feature files. When silent, mark the affected step `[HELD · waiting on OQ-<id>]` and name the gap. Do not guess.
 
-**Rule 11.3 — `§8 Shared contract` — feature-wide invariants inherited verbatim (v2.3.9 format fix; renamed and moved to end in v2.3.11).** The frame is §1 through §9 — 9 sections total, plan-only. `§8 Shared contract` sits AT THE END so the plan opens with buildable work (§1 Build sequence) and closes with the reference contract the reader looks up on demand. **Every sub-task in a split feature INHERITS the same `§9` VERBATIM** — composed once at the parent level, copied byte-for-byte into every sub-task's implementation.md. This is what makes "same probably means the same" become "same by construction."
+**Rule 11.3 — `§8 Shared contract` — feature-wide invariants inherited verbatim (v2.3.9 format fix; renamed and moved to end in v2.3.11).** The frame is §1 through §8 — 8 sections total, plan-only. `§8 Shared contract` sits AT THE END so the plan opens with buildable work (§1 Build sequence) and closes with the reference contract the reader looks up on demand. **Every sub-task in a split feature INHERITS the same `§8` VERBATIM** — composed once at the parent level, copied byte-for-byte into every sub-task's implementation.md. This is what makes "same probably means the same" become "same by construction."
 
 `§8 Shared contract` contents (fixed shape; all mandatory when the feature is split; parent-alone gets whatever subset applies). Every row describes the WIRE / CONTRACT / CONVENTION at the interface — never a framework field path or code extraction (see Rule 11.3a below):
 
@@ -873,16 +873,16 @@ Boring decisions (no pagination / no rate limit / no permission model / no optim
 - **Time and locale.** Wire time format (UTC ISO-8601 / epoch millis / etc.), timezone assumptions, locale for user-visible text.
 - **Pagination convention (feature-wide).** If ANY list operation in this feature paginates, name the convention (cursor with named field / offset+limit / page+size). Even if THIS operation doesn't paginate, record the feature-wide "no pagination in v1 — accepted assumption" here.
 
-When compose runs, `§9` is composed once from `shared-context/system-landscape.md` + parent BA files + resolved plan-blockers. The exact bytes of that `§9` are then copied into every sub-task's implementation.md. If a sub-task's `§9` disagrees byte-for-byte with the canonical `§9` → Rule 11.9 §10 halts.
+When compose runs, `§8` is composed once from `shared-context/system-landscape.md` + parent BA files + resolved plan-blockers. The exact bytes of that `§8` are then copied into every sub-task's implementation.md. If a sub-task's `§8` disagrees byte-for-byte with the canonical `§8` → Rule 11.9 §10 halts.
 
-**Rule 11.3a — `§9` states the WIRE contract, not the framework extraction (v2.3.11).** The line between "belongs in `§9` of the pushed plan" and "belongs in the local TL context unit only" is:
+**Rule 11.3a — `§8` states the WIRE contract, not the framework extraction (v2.3.11).** The line between "belongs in `§8` of the pushed plan" and "belongs in the local TL context unit only" is:
 
-- **In `§9` (portable, stack-agnostic):** what the WIRE carries and what the CALLER conceptually checks. `Authorization: Bearer <token>`. `{ "items": [...] }`. `status` at top level of refusal; `message` one below. Caller knows it failed when the request helper returns rather than throws. Ids are opaque 24-hex strings.
-- **NOT in `§9` — kept in the local TL unit files only:** framework-specific accessor paths (`req.user.id`, `result.response !== undefined`, `result.response.data.message`, `req.headers.authorization`), specific helper library names, code-level property paths that only make sense inside one stack's runtime. Those are extraction details the developer looks up in the TL unit file (endpoint file / page file) at build time — they're not part of the cross-repo/cross-stack contract the reader needs at plan time.
+- **In `§8` (portable, stack-agnostic):** what the WIRE carries and what the CALLER conceptually checks. `Authorization: Bearer <token>`. `{ "items": [...] }`. `status` at top level of refusal; `message` one below. Caller knows it failed when the request helper returns rather than throws. Ids are opaque 24-hex strings.
+- **NOT in `§8` — kept in the local TL unit files only:** framework-specific accessor paths (`req.user.id`, `result.response !== undefined`, `result.response.data.message`, `req.headers.authorization`), specific helper library names, code-level property paths that only make sense inside one stack's runtime. Those are extraction details the developer looks up in the TL unit file (endpoint file / page file) at build time — they're not part of the cross-repo/cross-stack contract the reader needs at plan time.
 
-The test: **could a Go backend developer, a Node backend developer, and a Swift mobile developer each build against this same `§9` and produce interoperable code?** If yes, the wording is right. If one of them would misread it because it names a JS/Node-specific field path, rewrite the line to describe the wire and the condition, not the extraction.
+The test: **could a Go backend developer, a Node backend developer, and a Swift mobile developer each build against this same `§8` and produce interoperable code?** If yes, the wording is right. If one of them would misread it because it names a JS/Node-specific field path, rewrite the line to describe the wire and the condition, not the extraction.
 
-Compose halts if `§9` contains: any regex hit on `req.`, `res.`, `result.response`, `ctx.`, `.headers[`, or any bracketed property path that looks like a runtime accessor. On halt, the compose reports which line + the framework-scent phrase + the abstract rewrite it should be.
+Compose halts if `§8` contains: any regex hit on `req.`, `res.`, `result.response`, `ctx.`, `.headers[`, or any bracketed property path that looks like a runtime accessor. On halt, the compose reports which line + the framework-scent phrase + the abstract rewrite it should be.
 
 **Rule 11.4 — implementation.md is a PLAN, not a code file (v2.3.7).** Every claim in this document describes something a developer will build; **the actual code goes into the repo at `/dev:build` time, via `dev-stack-adaptive-implementation`, not into this file.**
 
@@ -950,7 +950,7 @@ The scan runs, in order:
 
 1. **Pipe-table one-row-per-line check.** Walk every line that begins with `|`. Track the pipe-count per row. If two adjacent lines both begin with `|` AND share the same pipe-count AND appear on the same physical line separated by a space-pipe run (`| … | | …`), that's a single-line pipe-run-on → halt naming the line. Also: the header separator row (`|---|---|…|`) MUST appear on its own physical line between header and body — any table where the separator is inline with header or a body row → halt. WRONG: `| Step | Units | | 1 | … | | 2 | … |`. RIGHT: each row on its own physical line, separator row alone between header and body.
 2. **Mermaid MUST be a fenced code block.** Any table that names steps in numbered order (`1. X → 2. Y → 3. Z`) without a corresponding `\`\`\`mermaid` fenced block for the flowchart → halt. A numbered list is NOT a diagram — the diagram must render as one. RIGHT: `\`\`\`mermaid\nflowchart LR\n    S1[…] --> S2[…]\n\`\`\` on its own three physical lines, opening fence on its own line, closing fence on its own line.
-3. **Heading level check.** Every `## ` heading in `implementation` mode must be a level-2 heading of a numbered section (§1–§9). No `#` (level 1 — that's the MC tab title). No level 3+ *at section boundary* (level 3+ inside a section subsection is fine).
+3. **Heading level check.** Every `## ` heading in `implementation` mode must be a level-2 heading of a numbered section (§1–§8). No `#` (level 1 — that's the MC tab title). No level 3+ *at section boundary* (level 3+ inside a section subsection is fine).
 4. **Code fences must be balanced.** For every opening ` `` ` fence there must be a matching closing ` `` ` fence on its own line. Odd count → halt naming the line of the last unclosed fence.
 5. **Bullet consistency.** Every bullet list uses `-` prefix (never `*`). Mixed → halt naming the offending block.
 6. **Blank-line-before-and-after every table, code fence, heading.** Missing blank lines cause the markdown parser to concatenate blocks. Scan for `[^\n]\n\|` (non-blank followed by table start), `[^\n]\n##` (non-blank followed by heading), `[^\n]\n\`\`\` (non-blank followed by code fence). Any hit → halt.
@@ -1111,7 +1111,7 @@ Multiple capabilities per sub-task are normal. Backend sub-task typically: `[exp
 
 Rationale: keyword-scanning prose to determine role is brittle. A frontmatter field the compose can read directly is not. It also gives the reader (and reviewers) a one-glance summary of what each sub-task's job is in the split.
 
-**Rule 11.10 — Feature-shape adapters — the frame is the FRAME, not the CONTENT (v2.3.8, updated v2.3.10).** The 9-section (§1–§9) structure is a chassis. Certain feature shapes REQUIRE additional sub-section content beyond the frame. If the analysis scratchpad or TL units indicate one of these shapes, the compose MUST include the additional sub-sections. Missing → halt with `feature_shape_gap_<name>`.
+**Rule 11.10 — Feature-shape adapters — the frame is the FRAME, not the CONTENT (v2.3.8, updated v2.3.10).** The 8-section (§1–§8) structure is a chassis. Certain feature shapes REQUIRE additional sub-section content beyond the frame. If the analysis scratchpad or TL units indicate one of these shapes, the compose MUST include the additional sub-sections. Missing → halt with `feature_shape_gap_<name>`.
 
 Detected shapes + mandatory sub-sections:
 
@@ -1270,7 +1270,7 @@ Depends on the mode.
 - **Aspirational prose**: `consider`, `might`, `could`, `we should think about`, `probably` outside of a `[HELD · waiting on OQ-…]` marker — halt per Rule 8.
 - **Client-narrative preambles**: `⚠ PROVENANCE`, `SIMULATED response round`, `the client chose transparency knowingly` — halt per Rule 7.
 
-File paths (`src/…`, `app/…`, etc.) and framework names (`React`, `Jest`, `Mongoose`, etc.) are ALLOWED in §1/§4/§5/§6 per Rules 1 and 2. Framework-idiomatic code snippets (`new mongoose.Schema({...})` blocks) are NOT allowed — describe the constraint in prose. §9 remains framework-clean by Rule 11.3a.
+File paths (`src/…`, `app/…`, etc.) and framework names (`React`, `Jest`, `Mongoose`, etc.) are ALLOWED in §1/§4/§5/§6 per Rules 1 and 2. Framework-idiomatic code snippets (`new mongoose.Schema({...})` blocks) are NOT allowed — describe the constraint in prose. §8 remains framework-clean by Rule 11.3a.
 
 Any hit means the composition is wrong. Rewrite before writing to disk.
 

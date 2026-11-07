@@ -55,7 +55,7 @@ Then categorize each path in the set:
 | `tests/**`, `**/*.test.*`, `**/*.spec.*`, `**/__tests__/**` | `test` | YES |
 | `context/code-context/**` | `context-unit` | YES |
 | `context/test-map/**` | `test-map` | YES — written by build Stage 5-6; it is what `/dev:commit` Stage 5 executes, so a map left uncommitted makes the next run unable to re-derive what was verified |
-| `CLAUDE.md` (repo root) | `repo-doc` | YES — the `delivery-os:*` pointer blocks written by `/dev:plan` and build Stage 5-6. It is how the next session finds the context graph and the test map at all |
+| `CLAUDE.md` (repo root) | `repo-doc` | YES — the `delivery-os:*` pointer blocks written by `/tl:scaffold`, `/dev:plan` and build Stage 5-6. It is how the next session finds the context graph, the test map and the repo's UI system at all |
 | `units/<repo>/pr-summary.md § ## How to verify`, `units/<repo>/status.md § ## Run history`, `dev/*-status.md § ## Run history`, `units/<repo>/status.md § ## Run history`, `units/<repo>/status.md § ## Acceptance`, `dev/security-findings-*.md`, `dev/decisions.md`, `dev/escalation-*.md`, `dev/task-update-run.md` | `dev-local` | **NO** — LOCAL only |
 | `.jetrix/**` | `workspace-local` | **NO** — workspace state, not repo state |
 | `qa/quality-gates.md`, `shared-context/*`, `ba/**`, `features/**` | `workspace-local` | **NO** — those are workspace files, live outside the target repo unless the target repo IS the workspace |

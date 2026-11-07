@@ -319,7 +319,7 @@ Runs 4 stages: identity → code-context readiness (auto-prompts QA-check + codi
 
 After every `Resolution:` filled → invokes `/dev:plan --resume` inline.
 
-### 5b. Build the feature (implements code; runs tests; no commits)
+### 5b. Build the feature (implements code; writes tests; no commits)
 
 ```
 /dev:build <feature-slug>                        # parent slug → fans out to all sub-tasks in PARALLEL
@@ -330,7 +330,9 @@ After every `Resolution:` filled → invokes `/dev:plan --resume` inline.
 /dev:build --concurrency=N                       # parallel fan-out cap (default 5)
 ```
 
-Runs 11 stages: mount → preflight → branch → QA harness gate → implementation + tests (per §1 step) → execute tests → validate → security review (Critical-blocking only) → context update → summary + `dev/local-runbook.md`.
+Runs 11 stages: mount → preflight → branch → QA harness gate → implementation + test writing (per §1 step) → verify the test map → validate → security review (report-only; Critical-blocking) → context update → summary + `units/<repo>/pr-summary.md` § `## How to verify`.
+
+**Build writes tests and verifies the map is runnable; it does not execute them.** `/dev:commit` Stage 5 is the only executor — `--tests-only` and `--vulnerable` are the terminal exceptions.
 
 **Never commits, never pushes** — `/dev:commit` owns the git-write boundary.
 

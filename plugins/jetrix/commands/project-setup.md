@@ -122,15 +122,133 @@ mcp__project-mcp__project_create_project(
 )
 ```
 
-Capture the returned `_id` as `projectId`. **That's it for the CLI on this app** — no repo prompt, no env-branch prompt.
+Capture the returned `_id` as `projectId`.
+
+**Then ask where the repo lives locally — this is the binding that matters.**
+
+```
+Local repo path for "<name>"?  (absolute path, or 'skip' / 'none yet')
+```
+
+Write the answer into `<workspace_root>/.jetrix/cache/repolocation.json` keyed by
+`projectId`, per `plugins/jetrix/references/repo-paths.md`:
+
+| Answer | Write | Meaning |
+|---|---|---|
+| an absolute path that exists | `"<projectId>": "<abs path>"` | bound — every downstream command can reach the code |
+| `skip` | `"<projectId>": "SKIPPED"` | the teammate does not work on this app |
+| `none yet` / no repo on disk | **omit the key** | not decided. Asked again on the next refresh, which is the correct behaviour for a repo that does not exist yet |
+
+**Ask here, not later, because this is the moment the app has a name.** Every command
+that reaches into a repo — `/dev:plan`, `/dev:build`, `tl-feature-planning`,
+`tl-feature-compose`, the QA harness — resolves paths through this one file. Bound here,
+none of them has to ask.
+
+**`none yet` and `skip` are different and must not be collapsed.** `SKIPPED` is sticky —
+`repo-paths.md` never asks again. An omitted key means undecided, so a greenfield app whose
+repo `/tl:scaffold` has not created yet is asked about again rather than silently skipped
+forever.
+
+**No env-branch prompt here** — that is portal-side and optional (§3c).
 
 ### 3b. Loop or done
 
-After each app: `Add another app? [y/N]`. On `y`, back to 3a with a fresh app. On `N`, exit the loop and print the portal handoff block below.
+After each app: `Add another app? [y/N]`. On `y`, back to 3a with a fresh app. On `N`, exit the loop and go to §3b.i.
 
-### 3c. Portal handoff — link repos + set env branches
+### 3b.i. Build the connection map — collect edges, let MC synthesise
 
-Print this ONCE after all apps are created (never per-app — the teammate does the whole batch in the portal in a single sitting):
+**This is the step that makes the setup close.** You have just named every app and its type;
+that is the only moment the wiring is cheap to ask about. Skip it and `.jetrix/connection-map.md`
+stays empty — and `/dev:plan` Stage 1 reads that file to work out which repos a feature touches
+**before** it reads any feature frontmatter.
+
+**You collect structured edges. You do NOT write the map document.** Mission Control's agent
+synthesises it from the edges. Two authors for one Solution is exactly how the portal copy and
+the local copy come to disagree.
+
+**One app and no external systems → skip this section and say so.** A map of a single app with
+nothing to connect carries no information.
+
+#### Ask
+
+```
+1. Which app calls which, and over what?
+     e.g. Nutrina Web -> Nutrina API over REST
+2. Any external systems, and which app talks to each?
+     e.g. Nutrina API -> Acumatica (ERP) over REST
+3. For each edge: what flows over it, in one line?
+     e.g. "nightly invoice sync"
+```
+
+Auth boundary and data-flow colour do **not** need their own questions — they belong in each
+edge's `purpose`, which is where MC's agent reads them from.
+
+#### Read before you write
+
+```
+mcp__project-mcp__project_get_connections(solution_id = <solutionId>)
+```
+
+**`project_replace_connections` is a full replace, not a merge.** Send the union of what came
+back and what the teammate just described, or edges someone drew in the portal are silently
+deleted.
+
+#### Save the edges
+
+```
+mcp__project-mcp__project_replace_connections(
+  solution_id = <solutionId>,
+  connections = [
+    { from: { project_id: "<webProjectId>" },
+      to:   { project_id: "<apiProjectId>" },
+      protocol: "REST",
+      purpose: "Browser app calls the API for all supplier data" },
+    { from: { project_id: "<apiProjectId>" },
+      to:   { external: { name: "Acumatica", category: "ERP" } },
+      protocol: "REST",
+      purpose: "Nightly invoice sync" }
+  ]
+)
+```
+
+| Field | Rule |
+|---|---|
+| `from` / `to` | **exactly one** of `project_id` (an app, from §3a) or `external: {name, category?}` — never both, never neither |
+| `protocol` | `REST` · `GraphQL` · `gRPC` · `Event bus` · `SQL` · `File` · `WebSocket` · `Other` |
+| `purpose` | required, 1–1000 chars — what flows and why |
+
+Max 500 edges.
+
+#### Build the map
+
+```
+mcp__project-mcp__project_build_connection_map(solution_id = <solutionId>)
+```
+
+**Order matters.** This synthesises from whatever edges are stored at that moment, so it runs
+after the save, never before. It invokes an LLM upstream, so it is slower than the two calls
+around it — say `· Building connection map…` rather than appearing to hang.
+
+Once it returns, the Solution carries a `connection_map_ref`, and §4 step 5's pull fetches the
+document to `.jetrix/connection-map.md`.
+
+#### When something is missing
+
+| State | Do |
+|---|---|
+| teammate skips the questions | record nothing, print `· No connections recorded — add them any time in the portal Connections tab` |
+| an edge is only half-described | ask the one missing part. **Never guess a protocol** — an invented `GraphQL` is worse than an absent edge, because `/dev:plan` will believe it |
+| save or build fails | the apps are already created, so do not unwind. Print the error, say the edges can be added in the portal, and continue to §4 |
+
+### 3c. Portal handoff — OPTIONAL
+
+**Nothing below waits on this.** §3a already bound each app to its local repo path, which is
+what every downstream command actually resolves through. Linking the repo in the portal adds
+Jetrix-side repo metadata and env branches; it does not gate the workspace, the scope, or the
+build.
+
+Print it once after all apps are created, framed as an enhancement rather than a step the
+teammate skipped — and never per-app, since it is one portal visit:
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -175,7 +293,7 @@ Now that the Solution + apps exist in Jetrix, re-run the standard init sequence:
 2. **Confirm** — print the resolved Solution + apps + repos and ask `Bind this workspace to this Solution? [Y/n]`. Halt on `n` with `Cancelled — Solution stays created; workspace not bound. Re-run /jetrix:init <slug> anytime to bind.`
 3. **Write `.jetrix/project.json`** — per `/jetrix:init` §8.
 4. **Ask for per-app local repo paths** — per `/jetrix:init` §9.
-5. **Pull connection-map** — per `/jetrix:init` §10 (§10a gate skips it if the Solution has no `connection_map_ref` — which is guaranteed for a fresh Solution, so this is a no-op the first time; teammate can build the map in the portal Connections tab later and re-run `/jetrix:pull scope`).
+5. **Pull connection-map** — **this is where it lands.** §3b.i saved the edges and asked MC to build the map, so `solution.connection_map_ref` is now set and §10a's gate passes. The pull fetches the synthesised document to `.jetrix/connection-map.md`. When §3b.i was skipped (one app, nothing to connect) the ref is still null and §10a correctly makes this a no-op.
 6. **Update `.gitignore`** — per `/jetrix:init` §11.
 
 ## 5. Scaffold the delivery-os folder tree — inline `/delivery-os:init`
@@ -225,9 +343,41 @@ Workspace layout:
   .jetrix/tasks/                  (empty — non-feature MC tasks)
 
 Next:
-  /ba:scope                       — start the BA scope conversation
+  <the branch below — NOT a fixed list>
+```
+
+**Print the path that matches, not both.** The two orders differ for a reason, and the wrong
+one wastes a command: brownfield maps the code **before** scope so the as-built graph exists
+for planning to reuse; greenfield scaffolds **after** scope because the stack decision needs
+the architecture to be settled first.
+
+§3a already told you which: an app bound to a local path whose folder contains code is
+brownfield. A path that does not exist yet, or was answered `none yet`, is greenfield. Mixed
+solutions print the brownfield path and name which apps it applies to.
+
+**Brownfield** — at least one bound repo has existing code:
+
+```
+Next:
+  /tl:code-map                    — reverse-map the existing code first
+  /ba:scope add "<client-docs>"   — then /ba:scope, /ba:review, /ba:features
+  /jetrix:push scope              — publish the BA work
+  /dev:plan --all                 — then per feature: plan -> build -> commit
+
   /jetrix:pull scope              — refresh from Jetrix any time
-  /jetrix:push scope              — publish your BA work back
+```
+
+**Greenfield** — no code yet:
+
+```
+Next:
+  /ba:scope add "<client-docs>"   — then /ba:scope, /ba:review, /ba:features
+  /jetrix:push scope              — publish the BA work
+  /tl:scaffold                    — create the app skeleton, green base build
+  /qa:audit                       — optional; /dev:build Stage 4 bootstraps one
+  /dev:plan --all                 — then per feature: plan -> build -> commit
+
+  /jetrix:pull scope              — refresh from Jetrix any time
 ```
 
 ## Failure handling

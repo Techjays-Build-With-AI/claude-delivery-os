@@ -1,6 +1,6 @@
 ---
 name: dev-stack-adaptive-code-review
-description: Dynamic code review on the feature diff during /dev:commit Stage 4. Detects the stack (reuses dev-stack-adaptive-implementation's stack-detection), reads the repo's existing conventions, and reviews the diff against those + against the parent's Business Rules. Reports findings in 4 severity tiers (Blocker / Major / Minor / Nit). At commit-time blocks on Blocker + Major; Minor + Nit surface as follow-up suggestions. Reviews 7 dimensions — correctness / convention adherence / error handling / testability / BR enforcement / naming / reuse — NOT stack-specific playbooks; one skill covers every stack by pattern-matching what the repo already does. Diff-scoped only; never reviews the whole repo. Findings cite line numbers in the diff and include concrete fix suggestions.
+description: Dynamic code review on the feature diff during /dev:commit Stage 4. Detects the stack (reuses dev-stack-adaptive-implementation's stack-detection), reads the repo's existing conventions, and reviews the diff against those + against the parent's Business Rules. Reports findings in 4 severity tiers (Blocker / Major / Minor / Nit). At commit-time blocks on Blocker + Major; Minor + Nit do not block but are still fixed, in Stage 6's single batched pass. Reviews 9 dimensions — correctness / convention adherence / error handling / testability / BR enforcement / naming / reuse / engineering standards / API design — NOT stack-specific playbooks; one skill covers every stack by pattern-matching what the repo already does. Diff-scoped only; never reviews the whole repo. Findings cite line numbers in the diff and include concrete fix suggestions.
 ---
 
 # Dev Stack-Adaptive Code Review
@@ -35,11 +35,11 @@ If missing (rare — should be present from `/dev:build`), re-run the same detec
 
 ### Phase 2 — Review dimensions
 
-Follow **`references/review-dimensions.md`** — the 7 dimensions to review, each with concrete signals per stack pattern (via **`references/stack-signals.md`**).
+Follow **`references/review-dimensions.md`** — the 9 dimensions to review, each with concrete signals per stack pattern (via **`references/stack-signals.md`**).
 
 For each dimension, iterate every changed file in the diff and record findings. Each finding gets:
 - Severity (Blocker / Major / Minor / Nit)
-- Category (one of the 7 dimensions)
+- Category (one of the 9 dimensions)
 - File + diff line number
 - Summary (≤ 100 chars)
 - Failure scenario (concrete: "attacker does X → Y happens")
@@ -51,8 +51,14 @@ Filter by severity per the commit-time threshold config:
 
 - **Blocker** — hard block; jump to `/dev:commit` Stage 6 fix loop
 - **Major** — hard block; same
-- **Minor** — surface as follow-up suggestions in the PR summary; do NOT block
-- **Nit** — log only; not in PR
+- **Minor** — does not block the gate; still routed to Stage 6's batched fix pass
+- **Nit** — does not block; still routed to the same batched pass, and listed in the PR summary up to the display cap
+
+**Not blocking is not the same as not fixed.** The threshold decides what stops the
+pipeline; `stage-6-fix-loop.md` §6e.i decides what gets fixed, and its default at
+every severity is `fixed`. Report each finding at its true severity and let that
+stage dispose of it — never soften a severity to avoid the loop, and never assume
+a Minor will be dropped.
 
 Emit findings via the `ReportFindings` tool if available, or write directly to `units/<repo>/findings.md § ## Code review`.
 
