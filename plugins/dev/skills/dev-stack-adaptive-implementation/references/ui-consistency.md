@@ -51,15 +51,26 @@ and type scales, MUI's theme defaults, Material/Cupertino, Compose's `MaterialTh
 `$spacers`. Take its defaults and *narrow* them to the set this app uses. A scale you reasoned out
 yourself is a second system competing with the library's.
 
-**A repo should never reach you in establish mode.** `/tl:scaffold` asks the styling question and
-installs the system, and writes it into the repo's `CLAUDE.md` as a `delivery-os:ui-system` block —
-read that first. Establish mode is now the exception: a repo scaffolded before that rule existed, a
-reverse-mapped brownfield repo, or a hand-made one.
+**A repo should never reach you in establish mode.** `/tl:scaffold` asks the styling question,
+installs the system, and writes `shared-context/ui-standards.md` with a pointer to it in the repo's
+`CLAUDE.md` — **read that document first, every time.** Establish mode is the exception: a repo
+scaffolded before that rule existed, a reverse-mapped brownfield repo, or a hand-made one.
 
 When you are in it anyway, **establish the system and keep building — do not stall.** Install the
 library the repo's `CLAUDE.md` or `shared-context/technology-stack.md` names; where neither names
-one, use **Tailwind + shadcn/ui** and log it as a `DEC-###`. Then derive the six scales from its published
-defaults, compose the primitives, and say so in the build summary (§9).
+one, use **Tailwind + shadcn/ui** and log it as a `DEC-###`. Settle the direction and palette by
+§2.4, derive the six scales from the library's published defaults, compose the primitives, and say
+so in the build summary (§9).
+
+**Then write it down as `shared-context/ui-standards.md`**, with the pointer block in the repo's
+`CLAUDE.md` — both shapes are in `tl-project-scaffold/references/scaffold-guide.md` §4. Where the
+document already exists, extend it in place rather than starting a second one, and where the repo
+already carries its own styling rules with stable ids, carry those ids over unchanged so existing
+checks and `DEC-###` citations keep resolving.
+
+Establishing a system and leaving no document behind means the next session establishes a second
+one. That is the duplication this file exists to prevent, and it is the whole reason establish mode
+writes anything at all.
 
 Stopping for a `PB-###` here was the old rule and it did not survive contact with a build: a hard
 stall mid-feature always loses to "write just enough CSS to make the page legible", and nothing
@@ -113,11 +124,73 @@ own leading.
 |---|---|
 | The scales themselves, derived from the library's defaults | **agent** |
 | Which semantic tokens exist and what they are named | **agent** |
+| Design direction, and the palette mapped from a published system (§2.4) | **agent** |
 | Brand hue, font family, logo, illustration style | **human** → `PB-###` |
 | A novel interaction the library has no precedent for | **human** → `PB-###` |
 
 Deriving a coherent system from a library's own defaults is not inventing a brand. Choosing the
 brand is.
+
+### 2.4 Direction and palette — research them, never taste them
+
+**A consistent app is not yet a good one.** §§1–3 make every screen agree with every other screen.
+A government form is perfectly consistent. What follows is what makes the agreement worth having,
+and it is the one part of this file where you look outside the repo before deciding.
+
+**Settle the direction from the product, not from preference.** Read
+`shared-context/` and the scope: who uses this, how often, how much data is on a screen at once, is
+it read or operated. A personal to-do app used twice a day and a dashboard watched all day are
+different visual problems. Write the answer as three or four lines — density, tone, what the screen
+should feel like to return to — and put it at the top of the `ui-system` block. Everything below it
+is then a consequence rather than a choice.
+
+**Build the palette from a published system.** WebFetch one and map it onto the semantic roles in
+§2.1 — do not pick hex values:
+
+| Source | Use it when |
+|---|---|
+| **Radix Colors** — `radix-ui.com/colors` | default; its scales are built for semantic steps (background, interactive, border, solid, text) and ship light and dark pairs |
+| **Material 3 tonal palettes** — `m3.material.io/styles/color` | the repo already uses Material, or the product wants its tonal system |
+| **The component library's own themes** | shadcn, MUI or Chakra ship themes — prefer a real one over a new one |
+
+Record which source and which scale, in the `DEC-###`. A palette whose origin you cannot name is a
+palette you invented.
+
+**Verify before you write it down.** Every foreground/background pair in the palette clears
+WCAG 2.2 AA (§10.1) — 4.5:1 for body text, 3:1 for large text and UI boundaries — in **both** light
+and dark. A pair that fails is not a styling preference to revisit later; it is not in the palette.
+
+**Where the references come from, strongest first.**
+
+| Source | How you use it |
+|---|---|
+| **A reference the user hands you** — a screenshot, a mock-up, a photo of a whiteboard, their existing product, a brand hue, a logo, a font | **Read it.** You can see images. Pull the direction out of it: layout, density, weight, how colour is used, what the eye lands on first. Name it in the `DEC-###` as the source. It outranks everything below, and research only fills what it leaves open |
+| **The component library's own blocks**, indexed by the surface you are building | the structural reference, and the only one that arrives as code. shadcn ships `dashboard-01`, `sidebar-0x`, `login-0x` at `ui.shadcn.com/blocks`, installable with `npx shadcn add <block>`; MUI, Chakra and Material ship equivalents. Start from the block that matches the surface rather than composing one from parts. Check the licence at the source before shipping it |
+| **A published design system** whose domain matches the product | for patterns the library has no opinion on — data tables, dense dashboards, long service forms. Take the pattern and its rationale, not its brand |
+
+**Ask for a reference before you invent one.** Where the user has given no visual direction and a
+human is present, ask — one line, offering to work from any screenshot they like. A picture they
+chose beats a palette you derived, every time, and it costs one question.
+
+**You can look at an image you can name — you cannot browse for one.** `WebFetch` returns text and
+never sees a picture, but downloading the file does: `curl` the direct image URL into your
+scratchpad, then read the file. Looking at the library's own block previews before composing a
+screen is worth doing, and it costs two calls.
+
+The limit is the URL, not the picture. Get it out of the page's markup first — ask `WebFetch` for
+the image URLs on a documented page, then fetch what it names. A site that renders its gallery
+through script or behind a login returns nothing to read the URLs out of, so there is no route to
+its images at all. For *curated* taste — "make it feel like this" — ask the user; choosing is what
+they are better at, and you cannot shop.
+
+**Never claim to have seen what you only read about.** Describing a design from alt text, a
+filename or a search result, as though you had looked at it, is the one failure here that
+contaminates everything downstream.
+
+**References inform direction; they are never copied.** Reproducing another company's proprietary
+design, layout or brand is out, whatever the resemblance is worth — including from a reference the
+user supplied, unless it is their own product or their own brand. Take the principle, leave the
+artefact.
 
 ---
 

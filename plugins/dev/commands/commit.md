@@ -672,8 +672,8 @@ succeeded still pushes.
 
 - **Any stage BLOCKED** (Stage 6 bounds exceeded) → local `BLOCKED`, MC `blocked`, `units/<repo>/status.md § ## Run history (a BLOCKED entry)`, halt
 - **Stage 7 semantic-merge conflict** → status `devReview` (phase `merge-conflict`), `dev/context-merge-conflicts.md`, halt
-- **Stage 8 push rejected** → status stays `devReview` (phase `pr-open`), halt with git error verbatim
-- **Stage 9 PR creation failed** → status stays `devReview` (phase `pr-open`), halt with `gh` error verbatim
+- **Stage 8 push rejected** → status stays `devReview` (phase `pr-pending` — nothing reached the remote, so no PR can exist), halt with git error verbatim
+- **Stage 9 PR creation failed** → status stays `devReview` (phase `pr-pending`), halt with the failing step's error verbatim. `pr-open` is only ever written beside a real `pr_url` (`references/commit/stage-8-9-push-pr.md` §9f.i); a failed raise is `pr-pending` so the next step is "open it from the compare link, then `--resume`" rather than `/dev:fix-review`, which has no PR to read comments from
 - **`/dev:commit` on task at `readyForDev` or `agentExecuting`** → refuse (§2 hard gate). Route to `/dev:build`; on `agentExecuting` say a build is already running rather than inviting a second one
 
 ## 8. Guardrails

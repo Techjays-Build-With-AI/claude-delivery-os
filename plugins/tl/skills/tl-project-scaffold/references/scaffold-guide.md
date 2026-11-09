@@ -46,6 +46,14 @@ the architecture almost never states, and the only one whose absence is invisibl
 opens the app. A repo scaffolded without it reaches `/dev:build` with no library and no tokens,
 and the first feature becomes the design system by accident.
 
+**Ask the styling question in two parts: the library, and a reference.** The second half is the one
+that decides whether the app looks designed. *"Send me any screenshot of a UI you'd like this to
+feel like — a product you use, a mock-up, a sketch — and I'll build the direction from it."*
+You can read images; you cannot go and find them, so this is the only way a
+visual reference ever reaches you. One picture the user chose carries more than any palette you
+derive, and asking costs a single line. Where they give one, record it as the source in the styling
+`DEC-###`; where they don't, fall back to the researched path below.
+
 **If the user declines to choose, scaffold Tailwind + shadcn/ui** and record it `Assumed`. A default is the path most projects take — unattended runs skip every question — so it has to be the good outcome, not the minimal one. Tailwind alone leaves the agent inventing what each component looks like; shadcn gives it designed source to extend at the same install cost. Do not scaffold
 a UI repo with no styling system at all — "plain CSS, decided later" is the outcome this row exists
 to prevent. Brand-level choices inside the system — hue, typeface, logo — stay open questions; the
@@ -110,6 +118,7 @@ Whatever the generator leaves out, ensure the repo has:
 
 - [ ] **Package-manager manifest(s)** with pinned/compatible versions (`package.json`, `pyproject.toml`, `go.mod`, …).
 - [ ] **UI styling system** (if there's a UI) — chosen library installed, its token source created (spacing · type · radius · elevation · semantic colour · motion), and the base primitives composed once (`Button`, `FormField`, `Card`, `EmptyState`, `LoadingState`, `ErrorState`). Every token pair clears WCAG 2.2 AA contrast before the scaffold is called done.
+- [ ] **Design direction and palette researched, not chosen by taste** — follow `dev-stack-adaptive-implementation` `references/ui-consistency.md` §2.4: settle the direction from the scope, map the palette from a published system (Radix Colors by default), verify every pair at AA in light and dark, and cite the source in the styling `DEC-###`. That file is the single definition; do not restate the method here. A brand the user already owns outranks all of it.
 - [ ] **Lint + format** config (ESLint + Prettier, Ruff/Black, golangci-lint, …) with a runnable script.
 - [ ] **Type checking** for typed languages (`tsconfig.json`, `mypy.ini`, …) with a runnable script.
 - [ ] **Test framework** wired with **one trivial passing test** (proves the harness runs).
@@ -195,41 +204,54 @@ Every layer carries standard frontmatter (`doc_type`, `produced_by: tl`, `schema
 
 ---
 
-### Point the repo at its UI system — `<repo>/CLAUDE.md`
+### Write the UI standard — `shared-context/ui-standards.md`
 
-**A system nobody is pointed at is a system nobody follows.** `CLAUDE.md` is what an agent reads on
-entering a repo; `shared-context/technology-stack.md` is not. Record the styling decision in both —
-the stack table is the audit trail, this block is what actually reaches the next session.
+**The UI standard is a document, not a note in `CLAUDE.md`.** It sits beside `coding-standards.md`
+and carries the same weight: `coding-standards.md` governs the code, `ui-standards.md` governs the
+screen, and on anything visual the UI file wins. Write it for any repo with a rendered UI.
 
-Write a delimited block at the repo root, creating the file if absent and **replacing the block in
-place** when it is already there. Everything outside the delimiters is the repo's own — never
-rewrite it. Same convention as the `delivery-os:code-context` block.
+Standard frontmatter (`doc_type: ui-standards`, `produced_by: tl`, `schema_version`, `status`,
+`generated_at`, `applies_to`). Sections:
+
+| § | Holds |
+|---|---|
+| 1 Direction | the §2.4 paragraph — who uses this, how often, how dense, how a screen should feel to return to. Everything else is a consequence of it. Plus what is *not* decided: brand hue, typeface, logo, dark mode |
+| 2 The scales | spacing · type · radius · elevation · colour · motion, each with its token names and its current state. Name the gaps explicitly — a scale you left out is the one the next feature invents |
+| 3 Colour and contrast | the palette, its published source, and a **measured ratio per token** against its background with the floor it must clear. A failing row is an open defect with the fix, not a note |
+| 4 Rules | the enforceable one-line rules, each with a stable id. Where a project already has such ids, carry them over unchanged so existing checks and `DEC-###` citations keep resolving |
+| 5 Reuse | the primitives directory, what is already in it, and the second-use trigger |
+| 6 What every screen owes | interactive states, data-surface states, motion on change, nothing by colour alone |
+| 7 Open | the `PB-###` items and any measured defect, with an owner |
+
+**Do not duplicate it anywhere.** A visual rule stated in two places is a visual rule that will
+disagree with itself. `ui-consistency.md` stays the method — how to derive a system; this file is
+the result for this product.
+
+### Point the repo at it — `<repo>/CLAUDE.md`
+
+A document nobody is pointed at is a document nobody opens. Write a **short pointer** block at the
+repo root — creating the file if absent and replacing the block in place when it is already there,
+never touching anything outside the delimiters. Same convention and same shape as the
+`delivery-os:code-context` block: it points, it does not restate.
 
 ```markdown
 <!-- delivery-os:ui-system -->
 ## UI system
 
+The UI standard is `<path>/shared-context/ui-standards.md` — direction, token scales, the measured
+contrast table, primitives, and the `<RULE-PREFIX>-###` rules. **Read it before writing or changing
+a screen.**
+
 Styling: **<library>**. Tokens: `<token file>`. Primitives: `<primitives dir>`.
 
-Every visual value comes from a token — no hex, no px font sizes, no magic spacing, no inline
-transition. Where no token exists, use the library's own scale, never a number you chose.
-
-Reuse before you create: check the primitives directory before writing a component. A visual
-element used on a second screen becomes a shared primitive — the second use is the trigger.
-Variants live inside the component (`<Button variant="danger" size="sm">`), never as a class
-applied from the call site. Never add a second UI library.
-
-Every interactive element ships `default · hover · focus-visible · active · disabled`.
-Every data surface ships `loading · empty · error · populated` — a screen with only the
-populated case is unfinished.
-
-Match the neighbour: open the page that sits next to yours and copy its container, heading
-levels and spacing rhythm before inventing your own.
+Every visual value comes from a token. No raw hex, no px font sizes, no magic spacing, no inline
+transitions. Check the primitives directory before writing a component; the second use of an
+element is what makes it shared, not the third. Never add a second UI library.
 <!-- /delivery-os:ui-system -->
 ```
 
-Fill `<library>`, `<token file>` and `<primitives dir>` with the real values; the rules are fixed
-text. They are the enforceable subset of `ui-consistency.md`, which stays the full reference.
+Fill the angle-bracket values; the rest is fixed text. If this block starts growing past about
+fifteen lines, the content belongs in `ui-standards.md` and the block has stopped being a pointer.
 
 ---
 

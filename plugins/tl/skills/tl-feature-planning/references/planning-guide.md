@@ -24,6 +24,19 @@ Not every feature has all three layers. A pure UI feature may add no new entity;
 
 **A page** is a distinct surface a user navigates to or opens, with its own purpose, personas, and workflow role. A list, a detail view, a create/edit form, an approval queue, a dashboard — each is a page. A modal, a tab, a panel, or a single widget is **part of** a page, documented inside it (as a state or section), not a page of its own — unless it's a genuinely reusable surface the whole app leans on. The test: would a user think of it as "a screen"?
 
+**Every page carries a `## Screen Design`.** A unit that says what a page *does* and never what it
+*looks like* leaves build to improvise the layout, and the second screen improvises differently —
+which is how an app ends up consistent in its tokens and incoherent on screen. Decide it here:
+layout, what is read first, density, and what `empty · loading · error` actually show. Keep it to
+what a reviewer can disagree with — it is a design, not a stylesheet. Name no class, no hex and no
+component file; primitives come from `shared-context/ui-standards.md` (the repo's
+`delivery-os:ui-system` block points at it), and
+`dev-stack-adaptive-implementation` `references/ui-consistency.md` owns how they are built.
+
+Where that document is absent or its direction reads `None established`, plan the screens anyway and say so in the
+feature's open questions — the first build establishes the system (`ui-consistency.md` §2) and these
+designs are what it establishes it *for*.
+
 **An endpoint** is one logical backend operation with a method, a path, an input, an output, and a job to do (`POST /suppliers`, `GET /suppliers/{id}`, `POST /suppliers/{id}/submit-for-review`). Group by REST resource / domain operation, not by page — one endpoint often serves several pages. A validation helper, a private function, or a single query is **inside** an endpoint, not an endpoint. An endpoint that isn't called by a page must declare its trigger (schedule, event, webhook, another service).
 
 **An entity** is one persisted data object — a table, a collection, a view, or a stored procedure. It owns its columns/fields, keys, and relationships. A single column, an index, or a migration is documented **inside** the entity, not as its own unit. Where the BA data-register already has the entity as a `DATA-###`, this file **realises** that entity (cites the ID, adds the physical design) — it does not invent a new one.

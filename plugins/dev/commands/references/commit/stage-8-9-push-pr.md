@@ -109,18 +109,18 @@ docs/PULL_REQUEST_TEMPLATE.md         docs/pull_request_template.md
 .gitlab/merge_request_templates/      ← GitLab
 ```
 
-| Found | What to do |
-|---|---|
-| One template | **It is the skeleton.** Keep its headings, order, wording and comments; fill its sections from the content §9b describes |
+| Found               | What to do                                                                                                                                           |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| One template        | **It is the skeleton.** Keep its headings, order, wording and comments; fill its sections from the content §9b describes                             |
 | A directory of them | **Ask which**, listing the filenames. Never pick — the names are the team's own routing (`bugfix.md`, `release.md`) and only they know which applies |
-| None | §9b's structure below, unchanged |
+| None                | §9b's structure below, unchanged                                                                                                                     |
 
 **Rules when filling someone else's template, in the order they get broken:**
 
-**Never tick a checkbox on the author's behalf.** A checklist item is an assertion by a human — *"I have
-tested this"*, *"I updated the docs"*. Ticking it because a gate passed is signing someone else's name.
+**Never tick a checkbox on the author's behalf.** A checklist item is an assertion by a human — _"I have
+tested this"_, _"I updated the docs"_. Ticking it because a gate passed is signing someone else's name.
 Leave every box unticked, and under the list add one line naming the ones this run already has evidence for,
-with where it is: *"Tests pass — Stage 7, 14/14; coverage 72.4%."* The author ticks.
+with where it is: _"Tests pass — Stage 7, 14/14; coverage 72.4%."_ The author ticks.
 
 **Never delete a section because there is nothing to put in it.** A heading they wrote with `N/A` under it
 is an answer; a heading that vanished looks like it was never considered. Same for their HTML comments —
@@ -181,18 +181,18 @@ Omit this section entirely when the build verdict was `COMPLETE` or `PARTIAL_DEF
 
 ## Acceptance criteria
 
-| AC | Description | Verified by | Result |
-|----|-------------|-------------|--------|
-| AC-1 | Tax_id validation | supplier.spec.ts::validates_tax_id | ✅ |
-| AC-2 | Duplicate rejection returns 409 with DUPLICATE_TAX_ID | supplier.spec.ts::rejects_duplicate | ✅ |
-| ... | | | |
+| AC   | Description                                           | Verified by                         | Result |
+| ---- | ----------------------------------------------------- | ----------------------------------- | ------ |
+| AC-1 | Tax_id validation                                     | supplier.spec.ts::validates_tax_id  | ✅     |
+| AC-2 | Duplicate rejection returns 409 with DUPLICATE_TAX_ID | supplier.spec.ts::rejects_duplicate | ✅     |
+| ...  |                                                       |                                     |        |
 
 ## Business rules
 
-| BR | Description | Enforcement | Result |
-|----|-------------|-------------|--------|
-| BR-3 | tax_id unique per country | DB unique constraint + service pre-write check | ✅ |
-| ... | | | |
+| BR   | Description               | Enforcement                                    | Result |
+| ---- | ------------------------- | ---------------------------------------------- | ------ |
+| BR-3 | tax_id unique per country | DB unique constraint + service pre-write check | ✅     |
+| ...  |                           |                                                |        |
 
 ## Security review outcome (commit-time strict gate)
 
@@ -348,16 +348,21 @@ if [ -z "$PR_METHOD" ]; then
   echo ""
   echo "After you click Create pull request, re-run /dev:commit --resume <task> so pr_url is recorded."
   # Log: pr_method: web_url_fallback + compare_url + body_inlined: true|false
+  # State: /dev:commit exits successfully; the user completes the PR in the browser
 fi
 ```
 
 **A PR with no description is the failure this step exists to avoid.** Whenever the body does not
 travel in the URL, the summary must name the file to paste and say the PR is not complete until it is
 — one line, not a footnote. The run that prompted this printed a compare link with no `body=` at all
-and a note buried in a paragraph; the PRs were created empty.yaml
+and a note buried in a paragraph; the PRs were created empty.
+
+Record it as a run that is **not finished**:
+
+```yaml
 status: devReview
-phase: pr-pending          # NOT pr-open — nobody can review what was never opened
-pr_url:                    # stays empty until a PR exists
+phase: pr-pending # NOT pr-open — nobody can review what was never opened
+pr_url: # stays empty until a PR exists
 pr_method: web_url_fallback
 compare_url: https://github.com/<owner>/<repo>/compare/...
 ```
@@ -368,9 +373,6 @@ could not execute — it passed the phase check and failed on the missing URL, a
 to run it. On `pr-pending` the next step is **"open the PR from the compare link, then re-run
 `/dev:commit --resume <task>` so `pr_url` is recorded"** — never `/dev:fix-review`, which has no
 comments to fetch because there is no PR to comment on.
-  # State: /dev:commit exits successfully; user manually completes the PR in browser
-fi
-```
 
 **"PR already exists" handling** — if Step 1 or Steps 2/3 return a "PR already exists" error (`422 Unprocessable Entity` with `A pull request already exists for <head>`):
 
@@ -405,18 +407,18 @@ Use `AskUserQuestion` for the yes/no. On `y`: run the install, run `gh auth logi
 
 ### 9d. PR-raise failures per ladder step
 
-| Failure | Step | Behavior |
-|---|---|---|
-| `gh` missing | Step 1 | Continue to Step 2 (no error surfaced) |
-| `gh auth status` fails | Step 1 | Continue to Step 2 |
-| `git credential fill` returns no password | Step 2 | Continue to Step 3 |
-| Token from credential fill lacks `repo` scope (401 from API) | Step 2 | Continue to Step 3 |
-| `gh` config file missing | Step 3 | Continue to Step 4 |
-| Web URL computed | Step 4 | Success (manual completion) |
-| API returns `422` "PR already exists" | Any step | Fetch existing PR + update body via PATCH; do NOT create new |
-| API returns `403 RBAC forbidden` | Any step | HALT with "requires PR-create access to <owner>/<repo>" — token lacks permission |
-| API returns `422 head branch not found` | Any step | HALT — Step 8 push didn't land or was force-cleaned. User verifies branch on remote. |
-| Network error | Any step | HALT with the error; user re-runs `/dev:commit --resume` when connectivity returns |
+| Failure                                                      | Step     | Behavior                                                                             |
+| ------------------------------------------------------------ | -------- | ------------------------------------------------------------------------------------ |
+| `gh` missing                                                 | Step 1   | Continue to Step 2 (no error surfaced)                                               |
+| `gh auth status` fails                                       | Step 1   | Continue to Step 2                                                                   |
+| `git credential fill` returns no password                    | Step 2   | Continue to Step 3                                                                   |
+| Token from credential fill lacks `repo` scope (401 from API) | Step 2   | Continue to Step 3                                                                   |
+| `gh` config file missing                                     | Step 3   | Continue to Step 4                                                                   |
+| Web URL computed                                             | Step 4   | Success (manual completion)                                                          |
+| API returns `422` "PR already exists"                        | Any step | Fetch existing PR + update body via PATCH; do NOT create new                         |
+| API returns `403 RBAC forbidden`                             | Any step | HALT with "requires PR-create access to <owner>/<repo>" — token lacks permission     |
+| API returns `422 head branch not found`                      | Any step | HALT — Step 8 push didn't land or was force-cleaned. User verifies branch on remote. |
+| Network error                                                | Any step | HALT with the error; user re-runs `/dev:commit --resume` when connectivity returns   |
 
 ### 9e. Progress log
 
@@ -427,13 +429,17 @@ stage-9:
   status: DONE | HALTED | PENDING_USER_BROWSER
   started_at: <ISO>
   finished_at: <ISO>
-  attempts:                                            # every ladder step tried, and why it failed
-    - {step: 1, method: gh_cli, result: skipped, reason: "gh not installed"}
-    - {step: 2, method: git_credential_fill, result: ok}
-  pr_method: gh_cli | git_credential_fill | gh_config_read | gh_installed_on_demand | web_url_fallback
-  pr_number: 247                                       # empty when pr_method == web_url_fallback
-  pr_url: https://github.com/acme/acme-backend/pull/247   # empty when pr_method == web_url_fallback (compare_url instead)
-  compare_url: https://github.com/.../compare/...      # only when pr_method == web_url_fallback
+  attempts: # REQUIRED — one entry per ladder step tried, in order, gated by §9f.i.
+    # A list that ends on a failed step below 4 means the ladder was
+    # abandoned, and Stage 9 halts rather than reporting a result.
+    - { step: 1, method: gh_cli, result: skipped, reason: "gh not installed" }
+    - { step: 2, method: git_credential_fill, result: ok }
+  pr_method:
+    gh_cli | git_credential_fill | gh_config_read | gh_installed_on_demand | web_url_fallback
+    # this enum only — `none`/`pending-manual` are §9f.i violations
+  pr_number: 247 # empty when pr_method == web_url_fallback
+  pr_url: https://github.com/acme/acme-backend/pull/247 # empty when pr_method == web_url_fallback (compare_url instead)
+  compare_url: https://github.com/.../compare/... # only when pr_method == web_url_fallback
   pr_title: "Supplier Onboarding — backend"
   pr_body_file: units/<repo>/pr-summary.md
   action: created | updated | pending_user_completion
@@ -444,6 +450,37 @@ stage-9:
 If `stage-9.status: DONE`, print the summary from the log; don't re-raise.
 
 If `stage-9.status: HALTED` due to a transient issue, retry after human addressed it.
+
+### 9f.i. Exit gates — HARD, checked before Stage 9 may report any terminal status
+
+The ladder in §9c is four steps, and `gh` being absent is step 1 of four. A run that reads
+"gh not installed" and stops has skipped three working fallbacks — including the one that opened
+a PR on the same machine, in the same batch, minutes earlier. These gates exist because that
+happened, and because nothing checked.
+
+- **Every ladder step is accounted for** — `stage-9.attempts` must contain one entry per step
+  attempted, in order, each with a `result` and, where it failed, a `reason`. The last entry is
+  either `result: ok` or step 4. An `attempts` list that ends at a failed step below 4 → HALT with
+  `blocker: pr-ladder-not-walked`, naming the first step never tried. **Absent `attempts` is the
+  same violation**, not an omission: without it there is no evidence any step ran.
+- **`pr_method` is one of the enum** — `gh_cli` · `git_credential_fill` · `gh_config_read` ·
+  `gh_installed_on_demand` · `web_url_fallback`. Anything else → HALT with
+  `blocker: pr-method-not-recognised`. `none`, `pending`, `pending-manual` and free text are not
+  outcomes; they are a step that was never taken, written as though it were a result.
+- **`phase: pr-open` requires a real `pr_url`** — a `pr_url` that is empty, or that is not an
+  `https://` URL to a pull request, forces `phase: pr-pending`. Writing `pr-open` without one →
+  HALT with `blocker: pr-open-without-url`. §9c already says why: nobody can review what was never
+  opened, and `/dev:fix-review` passes the phase check and then fails on the missing URL, after
+  the summary has told the user to run it.
+- **`web_url_fallback` is a last resort, not a shortcut** — it is only valid when `attempts`
+  shows steps 1, 2 and 3 all tried and failed, each with its reason. `pr_method: web_url_fallback`
+  on a shorter list → `blocker: pr-ladder-not-walked`.
+
+**Report the missing tool, never the given-up step.** Where a step failed for a missing binary,
+the terminal summary names the binary and the step that still succeeded — "gh absent, PR opened
+via the credential store" is the normal, non-alarming outcome and should read like one. Telling
+the user "no PR because gh isn't installed" when three untried fallbacks remain is a false
+account of what the command can do.
 
 ### 9g. Skills / agents invoked
 

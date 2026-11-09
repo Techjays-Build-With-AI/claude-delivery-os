@@ -216,9 +216,43 @@ Three passes. Discovery enumerates cheaply; detail writes one unit at a time; **
     <!-- /delivery-os:code-context -->
     ```
 
+18. **Record the UI system the repo already has — `delivery-os:ui-system`.** Only when the repo has a
+    rendered UI. A mapped repo whose styling is undocumented sends every later feature back into
+    establish mode, and each pass invents a slightly different system.
+
+    **Derive it; never impose one.** Read what the code actually does: which library is installed,
+    where its token source lives (`tailwind.config`, theme file, token JSON, CSS custom properties),
+    which primitives already exist and are reused, and which styling rules the repo already states
+    in its own docs. Write `shared-context/ui-standards.md` in the shape
+    `tl-project-scaffold/references/scaffold-guide.md` §4 gives, filled from those findings, plus
+    the pointer block in `<repo>/CLAUDE.md` — same create-or-replace-in-place rule as step 17.
+
+    **Measure the contrast rather than restating a claim.** Where the repo's palette is readable as
+    tokens, compute each pair's ratio for §3 and record the numbers. A document that says "meets AA"
+    because the code said so is how a failing token survives — on the project that prompted this,
+    the file claimed AA and one border token measured 1.54:1 against a 3:1 floor.
+
+    Where the repo already states styling rules with stable ids, **carry the ids over unchanged** —
+    something cites them, and renumbering silently breaks a check or a `DEC-###`.
+
+    Where the repo has **no** coherent system — raw values scattered across files, no token source,
+    no shared primitives — write the document anyway, saying exactly that:
+
+    ```markdown
+    ## 1. Direction
+
+    **None established.** This repo styles screens ad hoc: no token source, no shared primitives.
+    The first UI feature built here establishes one per `dev-stack-adaptive-implementation`
+    `references/ui-consistency.md` §2, and replaces this section with what it established.
+    ```
+
+    Do not install a library, write tokens, or choose a palette — you are read-only on the code, and
+    §2.4's research belongs to the agent that will actually build a screen. Recording the absence is
+    the deliverable; filling it is not yours.
+
 ## Boundaries
 
-You **author context from code; you do not**: modify, refactor, or run the repository — read-only static analysis, and the only files you create are the `code-context/` tree, the workspace registry, this repo's `coding-standards.md` section and the delimited `code-context` block in the repo's root `CLAUDE.md` (you do not commit them; the user decides when to commit); write BA features or infer product intent/scope from the code (features stay BA-owned — that is the deliberate boundary of this capability); invent a relationship, contract, validation rule or schema the code doesn't show (mark it `Assumed` or raise an open question); design *new* units (you record what exists — new design is `tl-feature-planning`); or write secrets or customer data into a tree that will be committed. Where the code is generated, dynamic, or opaque, a documented finding beats a confident fabrication. Log a `DEC-###` only for genuine interpretation calls (how you grouped domains, which area token you reused), not for facts read straight from the code.
+You **author context from code; you do not**: modify, refactor, or run the repository — read-only static analysis, and the only files you create are the `code-context/` tree, the workspace registry, this repo's `coding-standards.md` section and the delimited `code-context` and `ui-system` blocks in the repo's root `CLAUDE.md` (you do not commit them; the user decides when to commit); write BA features or infer product intent/scope from the code (features stay BA-owned — that is the deliberate boundary of this capability); invent a relationship, contract, validation rule or schema the code doesn't show (mark it `Assumed` or raise an open question); design *new* units (you record what exists — new design is `tl-feature-planning`); or write secrets or customer data into a tree that will be committed. Where the code is generated, dynamic, or opaque, a documented finding beats a confident fabrication. Log a `DEC-###` only for genuine interpretation calls (how you grouped domains, which area token you reused), not for facts read straight from the code.
 
 ## Return value
 
