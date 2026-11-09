@@ -49,14 +49,16 @@ The hand-written case matters most: a developer's test is never re-authored or r
 - **Never delete, disable, skip or loosen an existing test** — including one that was already failing. Report it; leave it.
 - Where a unit cannot be tested without a seam that does not exist, write the highest tier that *is* reachable, and record `not-verified` with the reason rather than forcing it.
 
-**Then continue unchanged** into Stage 7 (execute) and Stage 8 (`## Acceptance` table). Where a task ref was given, its Acceptance Criteria or Expected Result supply the map's rows; without one, rows come from the observable behaviour asserted, and anything that cannot be settled reads `not-verified`.
+**Then continue unchanged** into Stage 7 (verify the map — it runs nothing) and Stage 8 (`## Acceptance` table, every row `⏳ pending`). Where a task ref was given, its Acceptance Criteria or Expected Result supply the map's rows; without one, rows come from the observable behaviour asserted, and anything that cannot be settled reads `not-verified`.
 
 ---
 
 ### 5-6a. Preconditions
 
-- `units/<repo>/status.md § ## Run history` `stage-4.status: DONE`
-- `qa/quality-gates.md` has `harness_status: Active`
+- `units/<repo>/status.md § ## Run history` `stage-4.status` is **`DONE` or `SKIPPED`**
+- `qa/quality-gates.md` has `harness_status: Active` — **required only when `stage-4.status: DONE`**
+
+  **`SKIPPED` is a valid state to enter this stage in, and must not be treated as a missing precondition.** `--skip-qa` short-circuits Stage 4 at §4a0, which records `status: SKIPPED` and `qa_gate_state: skipped-by-user` and never bootstraps a harness — so demanding `DONE` plus an `Active` gate here halts the one flow Stage 4 deliberately sent us. Under `SKIPPED`, write no tests and let Stage 8 mark every acceptance row `verified: manually`.
 - Detected stack recorded in `units/<repo>/status.md § ## Run history` (from Stage 4's qa-greenfield-harness OR from an explicit stack-detection pass here)
 - Branch is checked out and clean (`git status` clean in the target repo)
 - Every `PB-###` blocker (if any) is `RESOLVED` per `units/<repo>/plan-blockers.md`
@@ -82,6 +84,124 @@ Invoke the **`dev-stack-adaptive-implementation`** skill (see `plugins/dev/skill
 **All runs in the dev-agent's own context.** Repo mental state (file tree, existing patterns, in-progress edits) must persist across many reads and writes — subagent delegation would lose that.
 
 ---
+
+### 5-6b.i. Write the test map — in the repo, as the tests are written
+
+`.jetrix/` is **entirely gitignored**, so `status.md § ## Acceptance` exists only on
+the machine that ran the build. A teammate who clones the repo sees none of it, and
+the PR body is a snapshot frozen at PR time. The thing a person opens to ask *"is
+this tested?"* has to travel with the code.
+
+Split by how often it changes:
+
+| | Lives | Changes | Committed |
+|---|---|---|---|
+| **The map** — scenario → test → tier → fixtures | `<repo>/context/test-map/<feature-slug>.md` | only when tests change | **yes** |
+| **The results** — pass/fail/flaky, per run | `units/<repo>/status.md § ## Acceptance` | every run | no |
+
+Same Model B split the code-context graph uses: durable structure in the repo,
+per-run state in `.jetrix/`. Committing results would churn the repo on every build
+and make the diff unreadable.
+
+```markdown
+<!-- <repo>/context/test-map/holiday-calendar-management.md -->
+---
+doc_type: test-map
+feature_id: FEAT-HCAL-01
+produced_by: dev
+generated_at: 2026-11-04
+---
+
+# Test map — Holiday calendar management
+
+Every row is runnable on its own. Copy the command.
+
+| Kind | ID | Scenario | Tier | Test | Run it | Needs | Fixtures |
+|---|---|---|---|---|---|---|---|
+| AC | AC-1 | Adding a holiday on a free date succeeds | integration | `tests/holidays/create.spec.ts::adds` | `npm test -- tests/holidays/create.spec.ts -t "adds"` | `real-db` | `holidayFactory`, `seedCalendar` |
+| AC | AC-2 | A date already held refuses with a distinct message | integration | `tests/holidays/create.spec.ts::duplicate` | `npm test -- tests/holidays/create.spec.ts -t "duplicate"` | `real-db` | `holidayFactory` |
+| BR | BR-1 | One holiday per date, active rows only | unit | `tests/holidays/rules.spec.ts::uniqueness` | `npm test -- tests/holidays/rules.spec.ts -t "uniqueness"` | — | — |
+| TS | TS-4 | Full add → list → remove journey | e2e | `tests/e2e/holiday.spec.ts` | `npm run test:e2e -- --grep "holiday"` | `backend-running`, `frontend-running` | `seedCalendar` |
+
+## Run everything for this feature
+
+```bash
+npm test -- tests/holidays            # unit + integration
+npm run test:e2e -- --grep "holiday"  # browser journeys
+npm run coverage                      # floor: 70% lines
+```
+
+## Mock data and fixtures
+
+| Fixture | Lives | Gives you |
+|---|---|---|
+| `holidayFactory` | `tests/support/factories/holiday.ts` | a valid holiday; override any field |
+| `seedCalendar` | `tests/holidays/fixtures/seedCalendar.ts` | three years of holidays for the e2e journey |
+
+## Not automated
+| ID | Scenario | Why | How to check by hand |
+|---|---|---|---|
+| NFR-2 | Calendar renders under 200ms on a 3-year dataset | needs production-scale data | runbook in the PR summary |
+```
+
+**The `Run it` column is the point of the document.** A map that names a test
+but not how to run it makes the reader reconstruct the invocation — the runner,
+the path syntax, the name-filter flag — which differs per stack and is exactly
+the thing they came here to avoid. **A human or an agent copies one cell and
+runs one scenario.**
+
+**`Needs` is what `/dev:commit` reads to decide what to start.** `real-db`,
+`backend-running`, `frontend-running`, `real-auth`, or `—` for a test that needs
+nothing. These are the tokens `stage-7-test-execute.md` §7b.i knows how to start;
+anything else is not startable and will halt there.
+Build knows this because build wrote the test; commit must not have to infer it.
+
+
+**Write it as each test is written, not afterwards.** A map composed at the end is
+a summary of what happened; one written alongside is the thing that makes a missing
+scenario visible while there is still time to write it.
+
+It lands in the diff, so it is reviewed like any other file. `/dev:commit` Stage 5
+verifies it against the tests that actually exist.
+
+The `## Not automated` block is where `NOT AUTOMATED` and `INCONCLUSIVE` scenarios
+get a home instead of vanishing into a status value nobody reads.
+
+### 5-6b.iii. Point `CLAUDE.md` at the map
+
+The map is only useful if the next reader finds it without being told. Add this
+to the repo's `CLAUDE.md` once, under its testing section — idempotent, never
+duplicated:
+
+```markdown
+## Tests
+
+Coverage per feature lives in `context/test-map/<feature-slug>.md`. Each row is a
+scenario with the exact command to run it on its own, what it needs running, and
+which fixtures it uses. Read the map before writing a new test — the fixture you
+need probably exists.
+```
+
+**Why `CLAUDE.md` and not only the map:** `CLAUDE.md` is what an agent reads on
+entering the repo. A map nobody is pointed at is a map nobody opens, and the next
+agent writes a second `holidayFactory`.
+
+### 5-6b.ii. Fixtures — two owners, three rules
+
+| Scope | Owner | Lives |
+|---|---|---|
+| **Harness-level** — factories, builders, test DB/container setup, shared mocks | `/qa:setup`, recorded in `quality-gates.md § <repo> → ## Conventions` | the repo's own test tree |
+| **Feature-level** — what this feature's tests need | this stage | beside those tests |
+
+1. **Reuse before creating.** Read `## Conventions` first. A second factory for an
+   entity that already has one is a code-review Major (Dimension 7, reuse).
+2. **Every fixture a scenario depends on is named in the test map** — that is the
+   `Fixtures` column. A fixture nobody can trace to a scenario is dead weight; a
+   scenario whose fixture is missing is why a test passes against nothing.
+3. **A fixture that mocks the behaviour under test is a finding, not a fixture.**
+   Stage 8c catches the mechanical case (`vi.mock` at `tier: integration`); the
+   commit test-verifier catches the case where the mock is legal at that tier but
+   returns a canned answer that makes the assertion vacuous.
 
 ### 5-6c. Per-step completion tracking
 

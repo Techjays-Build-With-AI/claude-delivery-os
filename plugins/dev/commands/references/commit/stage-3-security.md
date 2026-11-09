@@ -12,15 +12,20 @@
 
 - Stage 2 confirmed base branch (`develop` from `.jetrix/project.json` `env_branches.dev`, unless overridden)
 - Branch is up to date locally with base (verified via `git fetch <remote>` + `git log HEAD..<remote>/<base>` = empty; if not, halt with "rebase against <base> and re-run")
-- Feature diff is deterministic: `git diff <base>...HEAD` returns the expected file list from `status.md` § `## Run history` Stage 10's `context_units_updated:` + source-file commits
+- **`snapshot_sha` is recorded** in `status.md` § `## Run history` by Stage 0, and `git diff <base>..$SNAP` returns a non-empty file list. An empty scope here is `blocker: empty-scope` at Stage 0, never a clean pass here
 
 ---
 
 ### 3b. Skill invocation
 
+**The scope is the review snapshot, not a branch diff.** `/dev:build` commits
+nothing, so `<base>...HEAD` is empty on a freshly-built task and this stage would
+review zero bytes while reporting a clean result. `$SNAP` is built at Stage 0 from
+the working tree — see `references/common/review-snapshot.md`.
+
 Invoke Claude Code's built-in `security-review` skill with:
 
-- **Scope:** `git diff <base>...HEAD` in the target repo — **except under `tests_only`**, where it is the files this commit adds or modifies, plus any product file the branch diff still contains (`commit.md` §2). The secrets scan always covers every committed file.
+- **Scope:** `git diff <base>..$SNAP` in the target repo — the review snapshot Stage 0 built. **Under `tests_only`** it is the same snapshot; the product-code review is skipped only where no product file appears in it (`commit.md` §2). The secrets scan always covers every file in the snapshot.
 - **If the skill refuses to run** (it requires a git repository, and halts when the session's working directory is the folder above the repo): do not halt this stage. Follow `commit.md` → *When a required tool cannot run* — record the refusal verbatim, apply the criteria below by hand at the same threshold, and carry that into the PR body.
 - **Severity threshold at commit-time:** `Critical + High` block; `Medium` warns; `Low + Info` logged only
 - **Full focus areas (not the build-time subset):**
@@ -55,11 +60,16 @@ feature_id: FEAT-SUP-001
 subtask_number: 1
 generated_at: 2026-08-31T15:35:00Z
 diff_base: develop
-diff_head: <sha>
+snapshot_sha: <sha>              # the exact bytes these findings cite
 severity_threshold: High
 ---
 
 # Commit-time security findings
+
+**Findings follow `references/common/findings-contract.md`**: a stable id derived
+from repo + path + enclosing symbol (never a line number), a `disposition` on every
+row, and `## Settled` carried in so a decision made last run is not re-raised.
+
 
 ## Blocking (Critical + High)
 
@@ -83,7 +93,7 @@ The findings file is the ONLY source of truth for what blocks vs warns. `/dev:co
 
 ### 3d. Deferred High-severity from `/dev:build`
 
-Read `units/<repo>/findings.md § ## Security — build` (from `/dev:build` Stage 9). Any `Severity: High` items in there were deferred at build time (Critical-only gate). At commit time they now block.
+Read `units/<repo>/findings.md § ## Security — build` (from `/dev:build` Stage 9, which is report-only). **Every** finding it recorded arrives here unrepaired — Critical and High now block, Medium and below must be dispositioned.
 
 Cross-reference with commit-time findings:
 - If a build-deferred High is STILL present in the commit-time findings → block on it (routed via Stage 6 fix loop).
@@ -117,7 +127,8 @@ stage-3:
   status: DONE
   started_at: <ISO>
   finished_at: <ISO>
-  scope: "git diff develop...HEAD (18 files, +624/-12)"
+  snapshot_sha: 0f50921291d9
+  scope: "snapshot vs develop (18 files, +624/-12)"
   severity_threshold: High
   findings:
     critical: 0
@@ -125,7 +136,14 @@ stage-3:
     medium: 1
     low: 1
     info: 0
-  build_deferred_high_resolved: [SR-B-001, SR-B-002]
+  fix_loop_invocation:                  # REQUIRED when the pre-loop blocking count was > 0
+    invoked_at: <ISO>                   # absent + blocking findings => Stage 8 halts
+    invocation: <subagent id | "inline">
+    origin_findings: [SEC-authn.missing-4f2a91c8]
+    fix_attempts: [{finding: SEC-authn.missing-4f2a91c8, attempts_used: 1, resolved: true}]
+    broad_reruns_used: 0
+    exit_state: CLEAN                   # CLEAN | ESCALATED
+  build_deferred_high_resolved: [SEC-authn.missing-4f2a91c8]
   findings_file: units/<repo>/findings.md § ## Security — commit
 ```
 
@@ -140,4 +158,6 @@ stage-3:
 
 ### 3i. On `--resume`
 
-If `--resume` finds `stage-3.status: DONE`, skip re-running unless the branch has new commits since Stage 3's `finished_at` (compare via `git log --since=<finished_at> HEAD`). If new commits exist, re-run Stage 3 from the top — the fix loop guarantees this.
+If `--resume` finds `stage-3.status: DONE`, **recompute the review snapshot and compare its sha** with the recorded `stage-3.snapshot_sha`. Same sha → the tree has not moved, skip. Different → re-run Stage 3 from the top.
+
+**Do not key this off commit history.** `git log --since=<finished_at> HEAD` was the old test and it sees nothing: the fix loop writes to the working tree, and nothing is committed until Stage 7.5. A resume would skip a stage whose input had changed under it.

@@ -19,6 +19,15 @@
             "command": "[ -f \"$HOME/.claude/metrics/.collect\" ] && command -v node >/dev/null 2>&1 && node \"${CLAUDE_PLUGIN_ROOT}/hooks/log-telemetry.js\" || true"
           }
         ]
+      },
+      {
+        "matcher": "Bash|Edit|Write|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if command -v node >/dev/null 2>&1; then node \"${CLAUDE_PLUGIN_ROOT}/hooks/guard.js\"; else exit 0; fi"
+          }
+        ]
       }
     ],
     "Stop": [

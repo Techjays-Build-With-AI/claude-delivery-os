@@ -13,7 +13,7 @@ description: How the BA Agent ingests, classifies, and normalizes artifact sourc
 2. **Detect** — type (folder/file/Drive/repo), rough file count + size + file types (cheaply: listing + sampling, not full reads).
 3. **Classify** — assign one usage mode (below). Honor an explicit user hint ("for reference only") over inference.
 4. **Categorize** — choose a short emergent category name (e.g. `meeting-transcripts`, `requirements`, `invoice-archive`). Categories are **created on demand** under `artifacts/<category>/`; there is no fixed taxonomy.
-5. **Register** — add/update a row in `sources.md` (SRC id, description, original location, type, category, usage mode, summary path, hash, status). **Reference only — never copy, move, or delete the user's originals.**
+5. **Register** — add/update a row in `sources.md` (SRC id, description, original location, type, category, usage mode, **authority**, summary path, hash, status). **Reference only — never copy, move, or delete the user's originals.**
 6. **Normalize** — generate a markdown summary per the mode (see "Normalized summaries" below).
 
 Re-declaring an existing source updates its row in place (dedup by original location + hash); it never creates a duplicate.
@@ -128,11 +128,43 @@ did not say" from "I did not read that part", and the two need opposite actions 
 question, the other is a re-run. A question raised about something sitting in an unopened appendix
 wastes the client's time and costs the review its credibility.
 
+## Source authority — who said it, and does it settle anything
+
+**Every source carries an `authority` value.** Two sources will eventually disagree, and without
+this the agent picks whichever it read last.
+
+| Authority | What it is | Settles a requirement? |
+|---|---|---|
+| `client-signed` | contract, SOW, signed spec | **yes** — the highest word |
+| `client-authored` | the client's own document, or a direct written answer from them | **yes** |
+| `client-relayed` | meeting notes, or a client answer passed on by us | **as an assumption** — record who relayed it |
+| `internal` | our interpretation, estimate or draft | **no** — it is our call, flag for sign-off |
+| `as-built` | observed from the running code | **no** — see below |
+
+**Higher authority wins. Equal authority in conflict is a `CON-###`, never a silent pick.** When a
+`client-authored` doc and a `client-relayed` note disagree, the document wins and the note is
+recorded as superseded, with both cited. When two signed documents disagree, nobody on this side
+gets to choose — that is a contradiction for the client to resolve.
+
+**`client-relayed` is the one that matters most in practice.** A client answer that reached us
+through a Techjays account manager is evidence of intent, not a confirmed decision — it maps to
+`answeredBy: client-relayed`, and `ba-scope-review`'s confirmation override keeps the verdict at
+*Estimate with caveats* until the client confirms directly. The scope must never read *"the client
+accepts…"* about something only relayed; that is the most expensive error this pipeline can make,
+because it surfaces as a dispute after delivery.
+
+**`as-built` is evidence of the present, never of agreement.** Code showing SSO proves SSO exists
+today; it proves nothing about whether anyone wants it to continue. A requirement that would change
+it stands as a question regardless of what the code does.
+
+**Unknown authority is `internal`, not a guess upward.** A source whose provenance nobody can state
+has not earned client weight.
+
 ## Conservative defaults
 
 - A source that looks like a **bulk archive, historical reference, or data dump** → classify `Reference Only` or `Index Only`, **unless** `sources.md` explicitly marks it `Deep Analysis`.
 - An explicit `Intake Rule` in the index (e.g. "create an index only") always wins over your inference.
-- Authority and priority from the index inform extraction confidence and processing order, but never override the safety thresholds above.
+- Authority and priority from the index inform extraction confidence and processing order, but never override the safety thresholds above. Authority decides **whose statement wins in a conflict** (§ Source authority); it never raises a source's usage mode or lets a `Reference Only` source be deeply analysed.
 
 ## Normalized summaries (what each mode produces)
 

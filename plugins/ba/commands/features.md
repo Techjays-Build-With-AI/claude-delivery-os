@@ -18,6 +18,55 @@ The mental model: the scope says *what the business wants*; this command turns i
 
 **No requirements exist yet** → stop and point at `/ba:scope add "…"`. This command breaks down a scope; it does not create one.
 
+## 1a. Readiness gate — is this scope ready to break down?
+
+**Read the latest review before decomposing.** A breakdown over an unresolved scope produces
+feature folders that look authoritative and encode gaps as requirements — the expensive failure
+this command can cause, and the one nobody notices until build.
+
+Find the newest `requirements/<slug>/reviews/scope-review-*.html` and read its
+`<script id="review-data">` block. **Read the verdict it already computed; do not re-derive one** —
+`ba-scope-review` SKILL.md step 7 owns that arithmetic, and a second opinion here would drift
+from it.
+
+| State | Action |
+|---|---|
+| No review at all | **STOP** → `/ba:review` first |
+| Any **open Blocker** | **STOP** → `/ba:resolve`, naming each id, feature and question |
+| Any feature `Unbounded` or `Partially-bounded` | **STOP** → `/ba:resolve` |
+| Any **feature** score < 6.5 | warn, name the feature, require confirmation |
+| Open **Majors** | warn, require confirmation, log each as an accepted assumption |
+| Unconfirmed (`answeredBy: internal`/`assumed`) on a dimension whose `consequence` is `estimate`, `integrations` or `compliance` | warn + caveat acknowledgement |
+| Otherwise | **proceed** |
+
+**Check per feature, not on the average.** Eleven features at 9 and one at 3 averages 8.5 and
+would sail through a verdict check while one feature is unbuildable. The overall verdict decides
+the headline; the per-feature scores decide whether any single breakdown is safe.
+
+**Boundedness is a hard stop because it is the one that produces the wrong product.** An unbounded
+feature — "classify the invoice", with no statement of which invoices — decomposes into folders
+that read as complete and are not. A Blocker at least announces itself.
+
+### Overriding
+
+Everything except a Blocker and boundedness can be overridden. Say what is being accepted and get
+an explicit yes:
+
+```
+2 features below 6.5 (SUPPLIER 5, REPORTING 6) and 4 open Majors.
+Break down anyway? Their gaps travel into the feature folders as open questions. [y/N]
+```
+
+**A Blocker is never overridable in one keystroke.** If it were, this gate would be today's
+behaviour with an extra prompt in front of it.
+
+**Record the override** in `requirements/<slug>/ledger.md` — which questions were waived, by whom,
+and the reason. Two uses: the breakdown stops being silently built on known gaps, and a question
+waived as *unnecessary* is evidence the review generated a question it should not have. That
+record is the tuning signal for question quality.
+
+---
+
 ## 2. Delegate
 
 Invoke the **ba-agent** subagent with the scope reference and output directory. Pass it this instruction:
@@ -38,6 +87,11 @@ Two failures worth handling rather than hiding:
 
 - **No workspace bound** (`.jetrix/project.json` missing) — the breakdown still succeeded. Report the folders, say the push was skipped, and print `/jetrix:init` as the step that enables it.
 - **Push partially failed** — list which features did not land and why, and print `/jetrix:push feature` to retry just those. Never report a breakdown as pushed when some of it is not.
+
+**Then `/jetrix:push scope`.** §1a writes every gate override into the ledger as an accepted assumption, and the
+breakdown stamps `requirement: <slug>` across the folders. Pushing the features alone leaves the ledger entry
+that *authorised* the breakdown sitting on one machine — the override is the part a reviewer most needs to find.
+Hash-diffed, so it is free when the gate passed clean.
 
 ## 4. Surface the result
 

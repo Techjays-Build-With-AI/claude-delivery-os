@@ -38,6 +38,7 @@ Presence of the `<repo>/context/code-context/{frontend,backend,database}` folder
      |---|---|---|
      | match | the unit describes the file as it stands | nothing |
      | differ | the source moved on after the unit was written | **flag, do not halt** |
+     | `mapped_from_commit: pending` | built but not yet committed — `/dev:commit` Stage 7.5 backfills it | report `pending`, never `stale` and never `unknown`. **Do not run the git comparison at all**: there is no commit to compare against, and the last commit that touched the file predates the build |
      | no `mapped_from_commit` | never stamped | report `unknown`, never `stale` |
 
      **Take the path only — `mapped_from` is not always a path.** It is commonly
@@ -88,7 +89,7 @@ Presence of the `<repo>/context/code-context/{frontend,backend,database}` folder
 
 Delegate to the TL and continue — no human pause. `/dev:plan`'s auto-plan hop follows the same rules `/dev:build`'s planning gate used to.
 
-1. **Delegate to the tl-agent subagent** scoped to this **one** feature folder, with the standard `tl-feature-planning` instruction (the same work forward planning does): map the feature's declared pages / APIs / data-entities to real, linked unit files under `<repo>/context/code-context/{frontend,backend,database}`, reusing existing units and minting new `PAGE-/EP-/ENT-<AREA>-NN` where needed, wiring links both ways, logging `DEC-###` design decisions, updating the three indexes, and running the link-integrity check.
+1. **Delegate to the tl-agent subagent** scoped to this **one** feature folder, with the standard `tl-feature-planning` instruction (the same work forward planning does): map the feature's declared pages / APIs / data-entities to real, linked unit files under `<repo>/context/code-context/{frontend,backend,database}`, reusing existing units and minting new `PAGE-/EP-/ENT-<AREA>-NN` where needed, wiring links both ways, logging `DEC-###` design decisions, updating the three indexes, running the link-integrity check, and **writing the `delivery-os:code-context` block into `<repo>/CLAUDE.md`** (created if absent, replaced in place if present) so the next session finds the graph instead of re-deriving it.
    - If subagent delegation isn't available, run the `tl-feature-planning` skill directly on the feature.
 2. **Re-verify by re-running §1a detection.** It must now return **planned**.
 3. **Carry the result forward** — note in `units/<repo>/status.md § ## Run history` that the feature was auto-planned (units created / reused, `DEC-###` logged, any open questions the TL raised) so the human checkpoint (§1d) sees the design that was generated.

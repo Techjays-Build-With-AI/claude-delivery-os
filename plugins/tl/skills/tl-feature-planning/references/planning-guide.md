@@ -24,6 +24,19 @@ Not every feature has all three layers. A pure UI feature may add no new entity;
 
 **A page** is a distinct surface a user navigates to or opens, with its own purpose, personas, and workflow role. A list, a detail view, a create/edit form, an approval queue, a dashboard — each is a page. A modal, a tab, a panel, or a single widget is **part of** a page, documented inside it (as a state or section), not a page of its own — unless it's a genuinely reusable surface the whole app leans on. The test: would a user think of it as "a screen"?
 
+**Every page carries a `## Screen Design`.** A unit that says what a page *does* and never what it
+*looks like* leaves build to improvise the layout, and the second screen improvises differently —
+which is how an app ends up consistent in its tokens and incoherent on screen. Decide it here:
+layout, what is read first, density, and what `empty · loading · error` actually show. Keep it to
+what a reviewer can disagree with — it is a design, not a stylesheet. Name no class, no hex and no
+component file; primitives come from `shared-context/ui-standards.md` (the repo's
+`delivery-os:ui-system` block points at it), and
+`dev-stack-adaptive-implementation` `references/ui-consistency.md` owns how they are built.
+
+Where that document is absent or its direction reads `None established`, plan the screens anyway and say so in the
+feature's open questions — the first build establishes the system (`ui-consistency.md` §2) and these
+designs are what it establishes it *for*.
+
 **An endpoint** is one logical backend operation with a method, a path, an input, an output, and a job to do (`POST /suppliers`, `GET /suppliers/{id}`, `POST /suppliers/{id}/submit-for-review`). Group by REST resource / domain operation, not by page — one endpoint often serves several pages. A validation helper, a private function, or a single query is **inside** an endpoint, not an endpoint. An endpoint that isn't called by a page must declare its trigger (schedule, event, webhook, another service).
 
 **An entity** is one persisted data object — a table, a collection, a view, or a stored procedure. It owns its columns/fields, keys, and relationships. A single column, an index, or a migration is documented **inside** the entity, not as its own unit. Where the BA data-register already has the entity as a `DATA-###`, this file **realises** that entity (cites the ID, adds the physical design) — it does not invent a new one.
@@ -99,6 +112,40 @@ Walk the graph and report each of these as a finding; a plan with dangling links
 
 ---
 
+## Point future sessions at the tree — `<repo>/CLAUDE.md`
+
+**A tree nobody is pointed at is a tree nobody opens.** `CLAUDE.md` is what an agent reads on
+entering a repo. Without a pointer it re-derives the graph, or writes a second unit for a page
+that already has one — the duplication this skill exists to prevent.
+
+Write a delimited block at the repo root, creating the file if absent and **replacing the block
+in place** when it is already there, so planning a second feature never duplicates it.
+Everything outside the delimiters is the repo's own — never rewrite it.
+
+```markdown
+<!-- delivery-os:code-context -->
+## Code context
+
+This repo has a context graph. `context/code-context/code-context-index.md` is the entry point.
+
+Resolve any page, endpoint or database object through **layer index → the matching row → that unit
+file** — two reads. Do not grep the repo for a surface the index already names.
+
+Units carry `implementation_state`: `Implemented` is as-built, `Planned` is not written yet.
+<!-- /delivery-os:code-context -->
+```
+
+**Identical to the block `/tl:code-map` writes, deliberately.** A repo may be reverse-mapped
+first and forward-planned later, or the reverse; one block, written the same way by both, means
+the second writer replaces it rather than appending a near-duplicate. The marker is the contract
+— match it exactly.
+
+**Greenfield is the case that needs this most.** A reverse-mapped repo gets the block from
+`/tl:code-map`; a from-scratch repo has no code-map run and would otherwise get no pointer at
+all, even though its whole graph was just authored here.
+
+---
+
 ## Completion checklist
 
 The feature plan is complete when:
@@ -109,3 +156,4 @@ The feature plan is complete when:
 - [ ] Material design decisions are logged as `DEC-###`; genuine unknowns are open questions, not inventions.
 - [ ] The link-integrity check passes (or every exception is a recorded finding with an owner).
 - [ ] The plan is understandable by a coding agent that lands on any single unit file.
+- [ ] `<repo>/CLAUDE.md` carries the `delivery-os:code-context` block, written once and replaced in place.

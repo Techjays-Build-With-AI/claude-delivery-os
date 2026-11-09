@@ -30,7 +30,7 @@ The **Developer Agent** takes an approved, TL-planned feature and **builds + shi
                         ── dev-stack-adaptive-implementation (dynamic per stack, matches repo idioms)
                         ── stack-adaptive test writing + local execute
                         ── `## Acceptance` table vs parent AC+BR+TS+NFRs
-                        ── security review — BUILD-TIME GATE: Critical-only blocking
+                        ── security review — BUILD-TIME: report-only, blocks nothing
                         ── code-context designed → implemented flip
                         ── summary + units/<repo>/pr-summary.md § ## How to verify
 
@@ -62,7 +62,8 @@ Each command is user-invoked separately — the flow never chains automatically.
 | `/dev:bootstrap [spec]` | Greenfield — ensure a usable, green product repo exists (scaffolds via the TL on project-zero) | build-ready workspace |
 | **`/dev:plan <task>`** | Just-in-time planning — verify TL graph, decide sub-task split, run per-task analysis (Stage 2 scratchpad), detect plan blockers (Stage 3), compose Description + Implementation and push to MC (Stage 4 — only after blockers resolved) | `readyForDev` (blockers `RESOLVED`) or `blocked` |
 | **`/dev:resolve --plan <task>`** | Interactive plan-blocker resolution — walks every OPEN PB-### across the task's `dev/*plan-blockers.md`, presents options + TL recommendation per blocker, asks you to pick / type free text / skip, writes Resolution: fields to disk, then invokes `/dev:plan --resume` to fold + compose + push | `readyForDev` (blockers `RESOLVED`) OR still `blocked` if any blockers were skipped |
-| **`/dev:build <task>`** | The 11-stage build loop — branch, harness bootstrap, implement, test, security-build-gate (Critical only), `## Acceptance` table, code-context flip, `pr-summary.md` § `## How to verify`. Refuses on unresolved blockers | status `inProgress` (phase `built`) |
+| **`/dev:commit`** (no target, dirty tree) | Route B — Stage 0 adopts the changes, selects scope, then runs the same review and delivery as Route A | status `inProgress` (phase `adopted`) |
+| **`/dev:build <task>`** | The 11-stage build loop — branch, harness bootstrap, implement, test, security scan (report-only), `## Acceptance` table, code-context flip, `pr-summary.md` § `## How to verify`. Refuses on unresolved blockers | status `inProgress` (phase `built`) |
 | **`/dev:commit <task>`** | The 10-stage commit loop — security-commit-gate (Critical + High), code review (Blocker + Major), acceptance re-verify, semantic-context-merge, push, PR raise | status `devReview` (phase `pr-open`) |
 | `/dev:fix-review <task> feedback=<path\|PR>` | Fold reviewer PR comments back in, re-verify, update `units/<repo>/pr-summary.md`; re-run relevant `/dev:commit` stages | status `devReview` (phase `pr-open`) |
 
@@ -92,7 +93,7 @@ Uses MC's existing enum verbatim — no invented local variants.
 
 The `security-review` skill runs TWICE with different thresholds:
 
-- **`/dev:build` Stage 9 (build-time)** — Critical-only blocking. High + Medium + Low logged, non-blocking. Rapid-iteration friendly.
+- **`/dev:build` Stage 9 (build-time)** — **report-only.** Every severity recorded, nothing blocked, nothing repaired. Rapid-iteration friendly, and it carries everything forward to commit.
 - **`/dev:commit` Stage 3 (commit-time)** — Critical + High blocking. Medium warns. Low logged. Strict pre-PR gate.
 
 Build-deferred Highs surface at commit-time; they either got fixed in dev iteration or now block.
@@ -133,7 +134,7 @@ Under a `dev/` subfolder in the task folder:
 | `units/<repo>/status.md § ## Run history` | `/dev:build` | Per-stage log for build loop |
 | `units/<repo>/status.md § ## Run history` | `/dev:build` | Detected stack + inferred patterns + per-step evidence |
 | `units/<repo>/status.md § ## Acceptance` | `/dev:build` (built) + `/dev:commit` (re-verified) | Parent AC + BR + TS + NFRs → validation → result |
-| `units/<repo>/findings.md § ## Security — build` | `/dev:build` Stage 9 | Build-time findings (Critical-blocking) |
+| `units/<repo>/findings.md § ## Security — build` | `/dev:build` Stage 9 | Build-time findings (report-only, all severities) |
 | `units/<repo>/pr-summary.md § ## How to verify` | `/dev:build` Stage 11 | Developer-facing manual verification guide |
 | `units/<repo>/status.md § ## Run history` | `/dev:commit` | Per-stage log for commit loop |
 | `units/<repo>/findings.md § ## Security — commit` | `/dev:commit` Stage 3 | Commit-time findings (Critical + High blocking) |
@@ -182,7 +183,17 @@ See **[docs/SETUP.md](../../docs/SETUP.md)**. Short version:
 
 **What if `units/<repo>/plan-blockers.md` has OPEN entries?** `/dev:build` refuses. User resolves via `/dev:plan --resume`, ticks the blocker as RESOLVED with a DEC-###, then re-runs `/dev:build`.
 
-**Why two security gates?** Fast build iteration (Critical only) + strict pre-PR check (Critical + High). Same skill, two thresholds.
+**Two routes into `/dev:commit`.** Route A is `/dev:plan → /dev:build → /dev:commit`.
+Route B is code written outside the loop — by hand, by AI, by another tool — where
+`/dev:commit` Stage 0 adopts it automatically, asks once for scope, and runs the
+same security review, code review and delivery. No adopt command exists; it is a
+step of Stage 0.
+
+**Three guard hooks** block `git commit` during a build, `git push` before the gates
+pass, and test edits during a fix loop. They are fail-open: no marker, no
+restriction. `--clear-locks` on either command clears a crashed session.
+
+**Why scan twice?** Build gives an early signal without stopping work; commit is the gate that blocks. One authority for "is this safe to ship", and one repair loop, both at commit.
 
 **Passing unit tests = done?** No. Completion is a filled acceptance map + zero commit-time Blocker/Major/Critical/High + clean semantic merge.
 

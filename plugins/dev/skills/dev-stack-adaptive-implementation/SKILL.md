@@ -33,7 +33,9 @@ Record the detected stack in `units/<repo>/status.md § ## Run history` under a 
 
 ### Phase 2 — Pattern inference (10 targeted reads, no more)
 
-**Writing UI?** Follow **`references/ui-consistency.md`** as well — detect the component library, the token source and the shared components, then reuse them. Structural consistency without visual consistency still produces a screen that looks bolted on.
+**Writing UI?** Follow **`references/ui-consistency.md`** as well. Structural consistency without visual consistency still produces a screen that looks bolted on.
+
+**Check which mode you are in first (§0).** With a library and tokens present, detect them and reuse (follow mode). **With neither — a fresh scaffold — establish the system before the first screen** (§2): derive the six scales from the component library's own defaults, build the shared primitives, and say so in the build summary. Skipping that does not avoid the decision; it makes the first screen the design system by accident, and §3's "match the neighbour" then propagates it to every screen after.
 
 Follow **`references/pattern-inference.md`** — read ≤ 10 existing files in the repo to establish:
 
@@ -191,7 +193,7 @@ If a test file's tier declaration doesn't match its actual behavior (e.g. declar
 
 **Rule 7.v — Backend-running requirement for Integration/Contract/Concurrency/E2E tests.**
 
-Before Stage 7 (Execute tests) runs any test file whose `tier:` header is `integration` / `contract` / `concurrency` / `e2e`:
+Before `/dev:commit` Stage 5 runs any test file whose `tier:` header is `integration` / `contract` / `concurrency` / `e2e` (via `references/build/stage-7-test-execute.md` §7b.i–§7h):
 
 1. Check the backend's own README + `package.json` scripts + `.env.example` for the actual startup requirement (env vars, dependent services, DB connection)
 2. Attempt to start the backend (`npm run dev` / `python manage.py runserver` / equivalent) with a health-check timeout (max 30s)
@@ -254,6 +256,8 @@ A missing tier is a **contract gap to report**, not a licence to proceed quietly
 - Step's Satisfies IDs have zero tests at any applicable tier → this step is INCOMPLETE. Do not mark complete; escalate as `units/<repo>/status.md § ## Run history (a BLOCKED entry)` if the tier can't be reached without harness support.
 - `qa/quality-gates.md` missing entirely → refuse to write code; escalate `blocker: quality-gates-missing`. Point at `/dev:plan` §1e to author it (Yes or Skip path both produce a valid file).
 
+  **Unless `stage-4.qa_gate_state: skipped-by-user`.** `--skip-qa` means "write no tests" by explicit user instruction, and Stage 4 §4a0 records that state having deliberately bootstrapped nothing. Refusing here would make the flag unusable: it would halt every build that used it. In that state, write the implementation, write no tests, and let Stage 8 mark acceptance `verified: manually`. Check the recorded state before raising this blocker — a missing gate file is only a defect when somebody expected one.
+
 **units/<repo>/status.md § ## Acceptance is the evidence artifact** built at Stage 8 — one row per parent AC/BR/TS with test-file references, tier, Pass/Fail status. The plan does NOT list test-file paths; only Stage 8 does.
 
 **Rule 8 — Tests assert on behaviour, not on hardcoded responses.** A test that mocks the entire SUT to return the "correct" value proves nothing. Real state changes, real response shapes, real error paths.
@@ -285,11 +289,94 @@ For every function or block about to be written:
    - If NO null-guard is present → HALT. The specific failure mode this catches: the value is `null` at runtime, the emitted code sends `Authorization: Bearer null`, the server's bearer-prefix check passes, `jwt.verify` fails, the user sees "session expired" when they were never signed in.
    - This is a Rule 12 anti-pattern (silent null-swallowing) applied specifically to auth headers because it's the highest-blast-radius instance of it.
 
+10. **Gated-rule check (v2 contract).** Beyond §6–§12's numeric limits, §13
+    (architecture), §19 (reliability) and §20 (backward compatibility) carry rules as
+    yaml blocks. Before writing, check the applicable ones:
+
+    - **§13** — would this import violate the declared dependency direction, or create
+      a cycle? Would it push a module past an approved fan-out limit?
+    - **§19** — does an external call carry the declared timeout and retry policy? Does
+      a write that needs one take an idempotency key? Is every opened resource released?
+    - **§20** — does this remove or rename a field on a public response, change an
+      existing signature, or make a migration that strands production data?
+
+    **Only `status: confirmed` rules are enforced.** An `inferred` rule is evidence of
+    existing practice that nobody has approved, and a `needs-author` rule is a decision
+    nobody has made — neither halts a write. Report them in the run summary as pending
+    decisions instead. Enforcing an inferred rule would turn whatever the repo happens
+    to do, including its defects, into policy.
+
+    **`enforcement.available: false` means reviewer-validated, not unenforced.** Write
+    to the rule; the reviewer checks it, because no installed tool can.
+
+    Advisory sections (§15, §16, §17, §21, §22) are **not** checked here — they are
+    the reviewer's, and a missing one never blocks a write.
+
+11. **Engineering decision guidelines.** Before creating a module, introducing an
+    abstraction, refactoring, touching a public interface or adding a dependency,
+    check the decision table in the standards file. Each row has an **observable
+    trigger** — *"two or more existing consumers need the same behaviour"* — not a
+    judgement call. A decision taken against a trigger gets a `DEC-###`.
+
 If a limit CANNOT be met without a real architectural change (splitting the sub-task, altering the plan, adding an abstraction not in implementation.md's `§6 Touch points`), escalate as `units/<repo>/status.md § ## Run history (a BLOCKED entry)` — do NOT write past-limit code and add a `TODO: refactor later` comment. Past-limit code accepted at write time becomes review debt, then production debt.
 
 (Note: §-refs in Rule 13 above point to `shared-context/coding-standards.md` § `<repo>`'s sections — not to implementation.md sections. Only this closing paragraph's `§6 Touch points` reference points at implementation.md's §6.)
 
-**Rule 14 — `shared-context/coding-standards.md` § `<repo>` is a hard precondition.** If the file is missing OR any of §6, §7, §8, §9, §10, §12 is blank or absent, this skill REFUSES to write code. The escalation goes to `units/<repo>/status.md § ## Run history (a BLOCKED entry)` with `blocker: coding-standards-missing`, naming which sections are missing. The fix goes upstream to `tl-project-scaffold` (greenfield) or an explicit standards-authoring step (brownfield) — never inline a guessed standard here. Rationale: without declared limits, Rule 13 has nothing to check against and Dimension 8 in review has nothing to enforce; the "100% engineering standard" guarantee collapses to "we hoped for the best."
+**Rule 14 — `shared-context/coding-standards.md` § `<repo>` is a hard precondition.**
+The file must exist and every **gated** section must be resolved before any write.
+
+| Gated | §1–12, §13 architecture, §19 reliability, §20 backward compatibility |
+|---|---|
+| **Advisory** | §15 performance, §16 API design, §17 database, §21 observability, §22 accessibility — **never block a write for being absent** |
+
+Missing file → halt `coding-standards-missing`. **Only when
+`standards_version: 2`**, a gated section blank or unresolved → halt
+`coding-standards-incomplete`, naming which. Check the version first: §13/§19/§20
+are absent from every v1 file by definition, so testing for a blank gated section
+before testing the version halts exactly the legacy repo the next clause exists
+to let through.
+
+**Two states that are NOT a halt**, because treating them as one would be wrong
+in opposite directions:
+
+- **`standards_version` absent, or `1`** — an existing repo under the v1 contract.
+  Proceed under §1–12 and note the migration debt.
+
+  **Absent is the normal signal.** A file written before v2 has no such key, so a
+  check matching only the literal `standards_version: 1` misses every real legacy
+  file and halts it. Missing key and `1` mean the same thing.
+- **A gated rule with `status: inferred` or `needs-author`** — not policy. An
+  inferred rule is observed practice nobody approved; enforcing it would encode
+  whatever the repo happens to do, including its defects. Report it as a pending
+  decision and carry on.
+
+Only `status: confirmed` rules are enforced by Rule 13.
+
+Full contract:
+`plugins/delivery-os-core/skills/delivery-os-conventions/references/engineering-standards.md`.
+
+**Rule 15 — Convention governs form, never quality. Matching the repo is not a licence to copy a defect.**
+
+Rules 1–6 make the new code *look* like the repo: placement, naming, imports, error paradigm, config
+style, test framework. That is the whole of what "match the repo" means. It does not extend to
+these, which hold in every repo regardless of what the neighbouring code does:
+
+| Non-negotiable | What it means on a brownfield repo |
+|---|---|
+| **API contract** | every new operation validates its input at the boundary, returns the repo's error envelope, and uses status codes that match its semantics — even where the endpoint beside it does not |
+| **Contract consistency** | request/response field naming, pagination, filtering and error shape match the repo's *dominant* pattern; where the repo is genuinely inconsistent, follow the one that is correct, not the one that is nearest |
+| **Reuse** | Rule 2. An existing abstraction is extended, never paralleled |
+| **Clean code** | `coding-standards.md` §§6–12 limits (Rule 13) apply to every line written, whatever the surrounding file looks like |
+| **Error paths** | every failure branch is handled; "the existing handler doesn't either" is not a reason |
+| **Secrets** | Rule 10, absolutely |
+
+**Write the new code to the standard; leave the existing code alone.** Rule 11 still holds — do not
+retrofit files the build sequence did not name. The two rules resolve cleanly: new work meets the
+bar, old work is out of scope, and the gap is visible rather than propagated.
+
+**When the repo's existing pattern is itself the defect**, implement correctly and log a `DEC-###`
+naming the divergence and why. Do not silently diverge, and do not silently conform. A reviewer
+seeing one correct endpoint among four broken ones needs to know which way the project is moving.
 
 ## Completion criteria
 

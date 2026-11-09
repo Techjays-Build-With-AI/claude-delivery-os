@@ -4,16 +4,16 @@
 
 **Runs after Stage 7 tests pass.** State: `agentExecuting` (unchanged). MC: `inProgress`.
 
-**On completion:** `units/<repo>/status.md § ## Acceptance` contains one row per applicable AC/BR/TS/NFR, either `✅ pass` (with evidence) or `⏸ deferred-to-e2e` (cross-sub-task E2E, closed by last sub-task).
+**On completion:** `units/<repo>/status.md § ## Acceptance` contains one row per applicable AC/BR/TS/NFR, either `⏳ pending` (a sound, runnable test is mapped to it) or `⏸ deferred-to-e2e` (cross-sub-task E2E, closed by last sub-task). **Not `✅ pass` — build runs nothing**; `/dev:commit` Stage 5 executes and fills the result in.
 
 ---
 
 ### 8a. Preconditions
 
-- `units/<repo>/status.md § ## Run history` `stage-7.status: DONE`
-- All Required gates from `qa/quality-gates.md` passed (no `FAIL` results in `test_runs:`)
+- `units/<repo>/status.md § ## Run history` `stage-7.status` is **`DONE` or `SKIPPED`** (SKIPPED only via §7a0, `--skip-qa`)
+- Stage 7 verified the test map (`rows_verified` equals `rows_total`), or recorded `SKIPPED`
 
-If any Required gate is `FAIL` → jump to Stage 8's repair loop (§8f) BEFORE trying to build the `## Acceptance` table.
+**There are no gate results to check, because build runs no tests.** Stage 7 records `executed: false` and every row is `pending`. This stage maps each assertion to the test that will prove it and checks that test is *sound* — it does not and cannot report whether it passes. `/dev:commit` Stage 5 executes and fills the result in.
 
 ---
 
@@ -110,30 +110,33 @@ For each matching test file, read the top of the file:
    - `mockery.replaceAll(`, `td.replace(`
 3. **Apply Rule 7.iv from `dev-stack-adaptive-implementation`:** if `tier: integration` (or higher) AND ANY mock indicator hit → the tier claim is CONTRADICTED. Record row as `❌ mock-contradicts-tier` — do NOT mark ✅ pass even if the test itself ran green.
 
-**Real-service run requirement per tier (v2.3.23):**
+**Real-service run requirement per tier (v2.3.23) — CHECKED AT COMMIT, NOT HERE.**
 
-Before marking a row ✅ pass for tiers `integration` / `contract` / `concurrency` / `e2e`, verify Stage 7 ran the test file against a REAL backend process:
+This check needs a run, and build no longer runs. `/dev:commit` Stage 5 verifies, for every `integration` / `contract` / `concurrency` / `e2e` row, that the services in the test's `# requires:` header actually started healthy before the test executed — and marks `❌ real-service-not-run` when they did not.
 
-- Read Stage 7's `test_runs.<file>.external_services_started` list
-- For each service in the test file's `# requires:` header, the service must appear in `external_services_started` with `status: healthy`
-- If required services aren't in `external_services_started` → row is `❌ real-service-not-run` — the test can't have actually validated integration behavior
+**Build still records what the row will need**: the `# requires:` header is read here and carried into the map's `Needs` column, so commit starts the right things. Declaring the requirement is build's job; proving it was met is commit's.
 
 **Common cause of `❌ real-service-not-run`:** the backend needs env vars that aren't set in the test environment. Example: `FIREBASE_SERVICE_ACCOUNT` missing → backend fails to start → test with `# requires: backend-running` skipped or hit an unreachable localhost:8080 → test "passed" only because axios call was mocked.
 
-Result mapping (v2.3.23 tightened):
+Result mapping at build — **no row can be `✅ pass` here**, because nothing ran:
 
-| Test file result | tier declared | mocks used | real service ran | Map row status |
-|---|---|---|---|---|
-| PASS | unit | any | N/A | ✅ pass |
-| PASS | component | any (mocking axios OK at component tier) | N/A | ✅ pass |
-| PASS | integration/contract/concurrency/e2e | none | yes | ✅ pass |
-| PASS | integration/contract/concurrency/e2e | some | any | ❌ mock-contradicts-tier |
-| PASS | integration/contract/concurrency/e2e | none | no | ❌ real-service-not-run |
-| PASS_FLAKY_ONE_RETRY | (any) | (per above) | (per above) | ✅ pass with `flaky: 1-retry` |
-| FAIL | (any) | (any) | (any) | ❌ fail (repair via §8f) |
-| No test found | — | — | — | ❌ missing-test (fail) |
+| What the files show | tier declared | mocks used | Map row status |
+|---|---|---|---|
+| a test cites the assertion | unit | any | ⏳ pending |
+| a test cites the assertion | component | any (mocking axios OK at component tier) | ⏳ pending |
+| a test cites the assertion | integration/contract/concurrency/e2e | none | ⏳ pending |
+| a test cites the assertion | integration/contract/concurrency/e2e | some | ❌ mock-contradicts-tier |
+| No test found | — | — | ❌ missing-test (fail) |
 
-**Never mark ✅ pass on `mock-contradicts-tier` or `real-service-not-run`** — those failures are treated the same as ❌ fail from Stage 8's downstream perspective. The repair loop (§8f) either fixes the test (replaces mock with real fixture) or splits it (unit test at unit tier + integration test at integration tier).
+**Except under `--tests-only` and `--vulnerable`** (§7a1), which execute because they
+are terminal. Those runs carry real `✅ pass` / `❌ fail` rows and use the original
+verdict routing in §8f — there is no commit coming to fill a `⏳ pending` row in.
+
+**`⏳ pending` is the normal, healthy outcome of a build.** It means: the assertion has a test, the test declares a tier it does not contradict, and the map can run it. `/dev:commit` Stage 5 replaces every `⏳ pending` with `✅ pass`, `❌ fail`, `❌ real-service-not-run` or `flaky`.
+
+**The two statuses build still owns are the two that need no run.** `missing-test` is a coverage gap visible by grepping; `mock-contradicts-tier` is visible by reading the imports. Both are build's own unfinished work, and both must be fixed here rather than carried to commit as a surprise.
+
+**Never mark `⏳ pending` on a `mock-contradicts-tier` row** — a mocked "integration" test is not a test awaiting a run, it is a false coverage claim, and letting it reach commit as `pending` hands commit a green it did not earn. The repair loop (§8f) either fixes the test (replaces the mock with a real fixture) or splits it (unit test at unit tier + integration test at integration tier).
 
 ---
 
@@ -169,7 +172,7 @@ subtask_number: <N>            # OMIT for parent-alone
 subtask_repo: <repo-slug>
 generated_at: <ISO>
 build_id: <build-timestamp>
-status: COMPLETE               # COMPLETE | PARTIAL_FAILURES | PARTIAL_DEFERRED
+status: COMPLETE               # COMPLETE | PARTIAL_FAILURES | PARTIAL_HARNESS | PARTIAL_DEFERRED
 ---
 ```
 
@@ -178,28 +181,42 @@ Body table:
 ```markdown
 | Kind | ID | Statement | Verified by | Result | Evidence |
 |---|---|---|---|---|---|
-| AC | AC-B1 | POST /supplier returns 201 with created record | tests/endpoint.spec.ts::create-happy | ✅ pass | test_runs: QG-006, exit 0 |
-| AC | AC-B2 | POST /supplier returns 409 with DUPLICATE_TAX_ID on repeat | tests/endpoint.spec.ts::duplicate | ✅ pass | test_runs: QG-006, exit 0 |
+| AC | AC-B1 | POST /supplier returns 201 with created record | tests/endpoint.spec.ts::create-happy | ⏳ pending | map row AC-B1 · tier integration · needs real-db |
+| AC | AC-B2 | POST /supplier returns 409 with DUPLICATE_TAX_ID on repeat | tests/endpoint.spec.ts::duplicate | ⏳ pending | map row AC-B2 · tier integration · needs real-db |
 | AC | AC-1 | (E2E) submit valid form → success toast → record in list | E2E — cross-sub-task | ⏸ deferred-to-e2e | last sub-task closes; parent rollup: backend done |
-| BR | BR-1 | (tax_id, country) uniqueness | DB constraint + integration test | ✅ pass | code:migrations/…, test:supplier.spec.ts::duplicate |
-| TS | TS-U-1 | Happy path — new supplier submission | tests/supplier.spec.ts::happy | ✅ pass | test_runs: QG-001 |
-| NFR | NFR-B1 | Endpoint responds < 300ms p95 | tests/perf.spec.ts::latency | ✅ pass | test_runs: QG-BENCH, p95=142ms |
+| BR | BR-1 | (tax_id, country) uniqueness | DB constraint + integration test | ⏳ pending | code:migrations/… · map row BR-1 |
+| TS | TS-U-1 | Happy path — new supplier submission | tests/supplier.spec.ts::happy | ⏳ pending | map row TS-U-1 · tier unit |
+| NFR | NFR-B1 | Endpoint responds < 300ms p95 | tests/perf.spec.ts::latency | ⏳ pending | map row NFR-B1 · threshold 300ms p95 |
 ```
 
 **Status field:**
 
-- `COMPLETE` — every applicable row is `✅ pass` or `⏸ deferred-to-e2e`, **and the test-suite gate was green on both runs** (§7f). A `PASS_FLAKY` gate is never `COMPLETE`: it is `PARTIAL_HARNESS`, carrying both run results
-- `PARTIAL_FAILURES` — one or more rows are `❌ fail` from a **`defect`** verdict, post-repair → task can't advance
-- `PARTIAL_HARNESS` — rows are red, but **none is a defect**: every failure is `flaky` or `harness-config` → **task advances**, carrying the remedies and flaky rows forward
-- `PARTIAL_DEFERRED` — no failures, but some deferred rows exist (normal for non-last sub-tasks)
+**At build, the vocabulary describes readiness, not results.** Nothing ran, so no row is `✅ pass` and none can be. `/dev:commit` Stage 5 re-derives this same field from real exit codes, and that is the value that decides whether the work ships.
 
-**Why the split.** A `defect` means the code is wrong — advancing would commit a known-broken state. A `flaky` or `harness-config` failure means the tests are right and the runner is not, and the remedy is a separate human change to the harness; blocking there strands good tests over a config default.
+- `COMPLETE` — every applicable row is `⏳ pending` or `⏸ deferred-to-e2e`. Every assertion has a sound test and the map can run it. **This is the normal outcome of a healthy build**
+- `PARTIAL_FAILURES` — one or more rows are `❌ missing-test` or `❌ mock-contradicts-tier` after §8f. Build's own work is unfinished → task can't advance
+- `PARTIAL_DEFERRED` — no defects, but some deferred rows exist (normal for non-last sub-tasks)
+- `PARTIAL_HARNESS` — **not reachable at build.** It classifies a red run (`flaky`, `harness-config`), and build has no run to classify. `/dev:commit` Stage 5 owns it
 
-Advancing is not the same as passing. A `PARTIAL_HARNESS` run must carry into the summary, the `## Acceptance` table and the PR body:
+**`COMPLETE` at build does not mean the feature works.** It means the feature is *provable* — the tests exist, they are honestly tiered, and every row is runnable. The proof happens at commit. Saying "complete" of an unexecuted build is only safe because `⏳ pending` is visible in every row of the table.
 
-- every `flaky` row with **both** run results
-- every `harness_config_remedy` block, verbatim, with its `requires: human DEC-###`
-- a one-line statement that a Required gate is red and why it was not repaired
+**Under `--skip-qa` (§8a0) this vocabulary is read differently, because none of it ran.**
+A skip-qa run has no tests at all, so it has no `⏳ pending` rows either — its rows are
+`verified: manually`, settled by reading the code rather than by a run that is coming.
+
+| Skip-qa run | Status |
+|---|---|
+| every row `verified: manually` | `COMPLETE` — settled by inspection; no test is pending |
+| any row `verified: not-verified` | `PARTIAL_DEFERRED` — unsettled, and §8a0 says such a run may finish |
+| a row the inspection showed is actually wrong | `PARTIAL_FAILURES` — a real defect, same as always |
+
+**`not-verified` is not `❌ fail`.** Nothing was proven broken; it was never checked.
+Mapping it to `PARTIAL_FAILURES` would strand Stage 9, whose precondition rejects exactly
+that value — and the run would halt for having honestly reported what it did not verify.
+
+**Why the split.** A `missing-test` or `mock-contradicts-tier` row means build left its own work unfinished — advancing would hand commit a map it cannot trust. A deferred row is a scheduling fact, not a defect.
+
+**The `defect` / `flaky` / `harness-config` classification still exists** — it is how `/dev:commit` Stage 5 reads a red run, using `references/build/stage-7-test-execute.md` §7f.i. It simply has no input at build, where nothing is red because nothing ran.
 
 A reviewer must be able to see the red gate without opening anything else.
 
@@ -266,24 +283,35 @@ Do all four, in order:
 
 ---
 
-### 8f. Repair loop — fix any `❌ fail` row
+### 8f. Repair loop — fix any `❌ missing-test` or `❌ mock-contradicts-tier` row
 
-Per `/dev:build` §14 bounded limits:
-- 3 focused repair attempts per failing row
-- 2 broad validation cycles (whole Stage 7 + Stage 8 re-run)
+**Build repairs its own unfinished work, not test failures.** Nothing executed, so
+there is no `❌ fail` row to route here. The two defects this loop fixes are both
+visible without a run:
 
-**Route by verdict first — only `defect` gets a repair attempt.**
+| Row | Repair |
+|---|---|
+| `❌ missing-test` | write the test at every applicable tier, add the row to the map, re-verify (Stage 7 §7b) |
+| `❌ mock-contradicts-tier` | replace the mock with a real fixture, or split into a unit test at `unit` tier plus an integration test at `integration` tier |
 
-Read `verdict:` from the gate's `units/<repo>/status.md § ## Run history` block (set at Stage 7 §7f.i). Do not re-derive it.
+Per `/dev:build` §14 bounded limits: 3 focused repair attempts per row, 2 broad
+cycles (whole Stage 7 + Stage 8 re-run).
+
+**The `defect` / `flaky` / `harness-config` routing moved to `/dev:commit` Stage 6**,
+which is where a red run now happens. The verdict table below is kept because
+commit's fix loop reads this section — and because a failure whose cause is
+instrumentation cannot be fixed by editing the test, which is the rule that stops a
+moving target eating the budget wherever the loop runs.
+
+**Verdict routing — read `verdict:` from the run's block (set by
+`references/build/stage-7-test-execute.md` §7f.i). Do not re-derive it.**
 
 | Verdict | Action | Repair budget |
 |---|---|---|
 | `defect` | focused repair, below | **consumes an attempt** |
 | `flaky` | no repair. Record both run results and carry the row as `flaky` | **none** |
 | `harness-config` | no repair. Emit the remedy block below | **none** |
-| `env-missing` | already halted at Stage 7 | — |
-
-This is the rule that stops a moving target eating the budget. A failure whose cause is instrumentation or a default limit cannot be fixed by editing the test, so spending three attempts on it produces three wasted edits and a still-red gate.
+| `env-missing` | already halted before any test ran | — |
 
 **Remedy block for `harness-config`** — write to `units/<repo>/status.md § ## Run history` and surface in the Stage 11 summary:
 

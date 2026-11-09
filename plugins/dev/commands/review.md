@@ -1,5 +1,5 @@
 ---
-description: Review a technical specification (architecture / system design / HLD / SRS) and produce a scored, interactive report you answer inside. One command, two modes — it reads the folder and knows which. No responses file yet → a fresh review round, scoring each area out of 10 with concrete findings. A saved responses file → the resolution round: it adjudicates each answer (resolve / accept-risk / needs-verification / decline), recomputes the score and verdict, and writes the next round. Replaces the old /dev:review + /dev:review pair. Read-only on the spec; writes only into tl-reviews/.
+description: Review a technical specification (architecture / system design / HLD / SRS) and produce a scored, interactive report you answer inside. One command, two modes — it reads the folder and knows which. No responses file yet → a fresh review round, scoring each area out of 10 with concrete findings. A saved responses file → the resolution round: it adjudicates each answer (resolve / accept-risk / needs-verification / decline), recomputes the score and verdict, and writes the next round. Replaces the old /tl:review + /tl:resolve pair. Read-only on the spec; writes only into tl-reviews/.
 argument-hint: "[<path-or-link-to-spec-doc>] [out=<output-prefix>]"
 ---
 

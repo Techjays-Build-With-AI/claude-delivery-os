@@ -1,6 +1,6 @@
 ## Stage: `implementation` (implemented — uses task-mcp)
 
-TL runs this AFTER `/dev:plan` writes per-feature `tl-plan.md` files (the buildable 9-section technical spec). Each MC Task's `implementationDetails` gets **that one file's body verbatim** — no concatenation, no unit-file walking, no manifest degradation. `/dev:plan` is responsible for producing a self-contained document sized under Mission Control's 60 KB cap; this stage only ships what compose produced. Status flips to `readyForDev`. Does NOT touch BA-owned body fields.
+TL runs this AFTER `/dev:plan` writes per-feature `tl-plan.md` files (the buildable 8-section technical spec). Each MC Task's `implementationDetails` gets **that one file's body verbatim** — no concatenation, no unit-file walking, no manifest degradation. `/dev:plan` is responsible for producing a self-contained document sized under Mission Control's 60 KB cap; this stage only ships what compose produced. Status flips to `readyForDev`. Does NOT touch BA-owned body fields.
 
 **On a non-Jetrix tracker** there is no `implementationDetails` field. `tl-plan.md` becomes the issue body's `## Implementation` section: read the current body, replace that one section, write it back with `mapping.update_issue`. Everything above the heading is left byte-for-byte alone.
 

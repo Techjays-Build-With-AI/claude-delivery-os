@@ -165,6 +165,16 @@ Show a single supplier's profile, contacts, documents, and approval status; the 
 - Pending review (read-mostly)
 - Approved / Rejected (with reason)
 
+## Screen Design
+<!-- what the screen is, not how it is coded. Primitives come from the repo's ui-system block. -->
+- **Layout**: single column, max 960px, centred. Header (name + status chip + Submit), then profile fields, then documents, then history.
+- **Hierarchy**: status is the first thing read — chip beside the title, not buried in the fields. Submit is the only primary action on the page; everything else is secondary or tertiary.
+- **Density**: comfortable — this is read and edited occasionally, not monitored.
+- **Empty**: "No documents yet" with the upload action inline, never a bare blank panel.
+- **Loading**: skeleton rows matching the field layout, no spinner-on-blank.
+- **Error**: inline on the field that failed; page-level banner only for a failed load.
+- **Responsive**: below 640px the header stacks and the action becomes full-width.
+
 ## Consumes Endpoints
 <!-- this file is <repo>/context/code-context/frontend/pages/<area>/<slug>.md → three levels up to context/ -->
 - GET supplier — ../../../backend/domains/supplier/endpoints/get-supplier.md (EP-SUP-03)

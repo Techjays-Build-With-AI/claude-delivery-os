@@ -234,6 +234,133 @@ for (const f of md.map(rel)) {
   }
 }
 
+// -------------------------------- 8. stage contracts: read a field, record it
+// A stage gates on `stage-N.field` from an earlier stage. The earlier stage
+// declares what it records in its own `stage-N:` yaml block. Edit the two
+// files separately and the gate reads a field nobody writes -- which halts
+// every run, silently, for a reason that points at the wrong stage.
+//
+// This is ERROR, not WARN: the failure mode is a dead happy path. It was
+// found three times by hand (stage-5.gates_run, stage-3/4.fix_loop_invocation)
+// before this check existed.
+// An explicit `build.` / `commit.` prefix names the OTHER loop's stage, which is
+// the only unambiguous way to write a cross-loop reference. Without it, a bare
+// `stage-8.x` in commit.md means commit's stage 8 - and build's stage 8 is a
+// different stage that happens to share a number.
+const STAGE_REF = /`?(?:(build|commit)\.)?stage-([0-9]+(?:-[0-9]+)?)\.([a-z_]+)/g;
+const recorded = new Map();   // "commit/3" -> Set(field)
+const declaredIn = new Map(); // "commit/3" -> file that holds its yaml block
+// /dev:build and /dev:commit BOTH have a stage-9 (security vs PR), and they are
+// different stages. Keying on the number alone unions them and makes the check
+// silently lenient, so key on the loop the file belongs to.
+const loopOf = (f) => (f.includes("/references/build/") || f.endsWith("/build.md")) ? "build"
+                    : (f.includes("/references/commit/") || f.endsWith("/commit.md")) ? "commit"
+                    : null;
+
+for (const f of md.map(rel)) {
+  if (isHistory(f)) continue;
+  const body = text.get(f);
+  // A stage's own record block: ```yaml ... stage-N: ... ``` with 2-space keys.
+  for (const blk of body.matchAll(/```ya?ml\n([\s\S]*?)```/g)) {
+    const inner = blk[1];
+    const head = inner.match(/^stage-([0-9]+(?:-[0-9]+)?):\s*$/m);
+    if (!head) continue;
+    const loop = loopOf(f);
+    if (!loop) continue;
+    const n = loop + "/" + head[1];
+    if (!recorded.has(n)) { recorded.set(n, new Set()); declaredIn.set(n, f); }
+    const after = inner.slice(inner.indexOf(head[0]) + head[0].length);
+    for (const k of after.matchAll(/^ {2}([a-z_]+):/gm)) recorded.get(n).add(k[1]);
+  }
+}
+
+for (const f of md.map(rel)) {
+  if (isHistory(f)) continue;
+  const body = text.get(f);
+  const loop = loopOf(f);
+  if (!loop) continue;
+  for (const m of body.matchAll(STAGE_REF)) {
+    const [, explicitLoop, num, field] = m;
+    const n = (explicitLoop || loop) + "/" + num;
+    if (!recorded.has(n)) continue;              // stage declares no block anywhere
+    if (declaredIn.get(n) === f) continue;       // the stage talking about itself
+    if (recorded.get(n).has(field)) continue;    // recorded: fine
+    const line = body.slice(0, m.index).split("\n").length;
+    add("ERROR", "contracts", f, line,
+        `reads \`stage-${num}.${field}\` but ${explicitLoop || loop}'s stage-${num} never records it`,
+        `records: ${[...recorded.get(n)].sort().join(", ") || "(nothing)"} — declared in ${declaredIn.get(n)}`);
+  }
+}
+
+// ------------------------------ 9. unit-status frontmatter declared in two places
+// `status.md`'s frontmatter is declared TWICE: as a yaml template (the concrete
+// shape an agent copies) and as a prose field list in delivery-os-conventions
+// (what an agent reads to know the contract). Add a field to one and not the
+// other and a command writes a field nothing declares, or the contract promises
+// a field nothing writes.
+//
+// Found by hand: `base_branch` was in the template and absent from the contract
+// while THREE commands depended on it -- /dev:plan writes it, /dev:build Stage 3
+// cuts the branch from it, /dev:commit Stage 2 confirms it.
+//
+// Both sides are explicit, so this is ERROR. If either side cannot be parsed the
+// check skips silently rather than guessing.
+{
+  let tmplFields = null, tmplFile = null;
+  for (const f of md.map(rel)) {
+    // NOT skipping isHistory here: both sides of this contract live in
+    // HISTORY-excluded files (the template and the conventions changelog).
+    // HISTORY guards the loose-prose checks; this one reads structured blocks.
+    // EVERY fenced block, not just the first. `.match()` without /g returns the
+    // first code fence in the file, which is rarely the unit-status template --
+    // so the check silently found nothing and passed. A check that cannot fail
+    // is worse than no check.
+    for (const blk of text.get(f).matchAll(/```(?:md|yaml|ya?ml)?\n---\n([\s\S]*?)\n---/g)) {
+      if (!/^doc_type:\s*unit-status\s*$/m.test(blk[1])) continue;
+      tmplFields = new Set([...blk[1].matchAll(/^([a-z_]+):/gm)].map((x) => x[1]));
+      tmplFile = f;
+      break;
+    }
+    if (tmplFields) break;
+  }
+
+  let contractFields = null, contractFile = null;
+  for (const f of md.map(rel)) {
+    const body = text.get(f);
+    const i = body.indexOf("status.md");
+    if (i < 0 || !/Frontmatter:/.test(body)) continue;
+    // the prose list runs from "Frontmatter:" to the first "## " section mention
+    const seg = body.slice(body.indexOf("Frontmatter:"));
+    const stop = seg.search(/##\s*Run history/);
+    if (stop < 0) continue;
+    const names = [...seg.slice(0, stop).matchAll(/\b([a-z]+(?:_[a-z]+)+|status|phase|branch)\b/g)].map((x) => x[1]);
+    if (names.length < 5) continue;
+    contractFields = new Set(names);
+    contractFile = f;
+    break;
+  }
+
+  if (tmplFields && contractFields) {
+    // fields the template writes that the contract never declares
+    for (const k of tmplFields) {
+      if (["doc_type", "unit", "feature_id", "updated_at", "base_sha"].includes(k)) continue;
+      if (!contractFields.has(k)) {
+        add("ERROR", "frontmatter", contractFile, 0,
+            `\`${k}\` is in the unit-status template but not declared in the contract`,
+            `template: ${tmplFile} — a command writes a field no agent is told exists`);
+      }
+    }
+    // fields the contract promises that the template never shows
+    for (const k of contractFields) {
+      if (!tmplFields.has(k)) {
+        add("ERROR", "frontmatter", tmplFile, 0,
+            `contract declares \`${k}\` but the unit-status template does not show it`,
+            `contract: ${contractFile} — an agent copying the template omits a declared field`);
+      }
+    }
+  }
+}
+
 // ------------------------------- 7. next steps naming a command that is gone
 // Conventions 1.f: a next-step block may only name a command that exists.
 // DERIVED from plugins/*/commands/*.md rather than hardcoded -- the previous
@@ -386,11 +513,85 @@ if (AS_JSON) {
   process.exit(errors.length ? 1 : 0);
 }
 
+// ----------------------- 10. controlled vocabulary stated in more than one file
+// A controlled set -- `answeredBy`, the coverage states -- is enumerated in the
+// file that defines it AND relied on by the files that consume it. Add a value
+// in one place and the others keep validating against the old set, which is how
+// `client-relayed` nearly shipped as a value no consumer recognised.
+//
+// DERIVED, not hardcoded: the canonical set comes from the declaring file, so
+// this cannot rot into watching a literal that stopped existing.
+const VOCAB = [
+  {
+    name: "answeredBy",
+    // Declared as §4's bullet list in resolution-loop.md: - **`value`** — ...
+    declaredIn: "plugins/ba/skills/ba-scope-review/references/resolution-loop.md",
+    declRe: /^- \*\*`([a-z-]+)`\*\* —/gm,
+    // Consumers name the set inline, e.g. "`internal`, `assumed` or `client-relayed`"
+    usesRe: /`answeredBy`[^.\n]*?((?:`[a-z-]+`(?:,| or | and )?\s*)+)/g,
+  },
+  {
+    name: "coverage",
+    declaredIn: "plugins/ba/skills/ba-scope-review/SKILL.md",
+    declRe: /\*\*(Covered|Partial|Absent|not-applicable)\*\*|`(not-applicable)`/g,
+    usesRe: null,   // presence-only: see below
+  },
+];
+
+{
+  const vocab = VOCAB[0];
+  const decl = text.get(vocab.declaredIn);
+  if (decl) {
+    const allowed = new Set([...decl.matchAll(vocab.declRe)].map((m) => m[1]));
+    if (allowed.size) {
+      for (const f of md.map(rel)) {
+        if (!f.startsWith("plugins/ba/")) continue;
+        const L = text.get(f).split("\n");
+        L.forEach((l, i) => {
+          if (!l.includes("answeredBy")) return;
+          for (const m of l.matchAll(/`([a-z][a-z-]{2,})`/g)) {
+            const v = m[1];
+            // only values that look like enum members, not prose in backticks
+            if (!/^(client|client-relayed|internal|assumed|confirmed|inferred)$/.test(v)) continue;
+            if (!allowed.has(v)) {
+              add("ERROR", "bavocab", f, i + 1,
+                  "`" + v + "` is used as an answeredBy value but " +
+                  vocab.declaredIn.split("/").pop() + " §4 does not declare it",
+                  l.trim().slice(0, 90));
+            }
+          }
+        });
+      }
+    }
+  }
+}
+
+// The coverage set gained `not-applicable`. Every file that ENUMERATES the
+// states must carry it -- a renderer or schema still listing only three will
+// mis-handle the fourth rather than failing loudly.
+{
+  const enumerators = [
+    "plugins/ba/skills/ba-scope-review/SKILL.md",
+    "plugins/ba/skills/ba-scope-review/references/report-template.md",
+    "plugins/ba/skills/ba-scope-review/assets/report.html",
+  ];
+  for (const f of enumerators) {
+    const t = text.get(f);
+    if (!t) continue;
+    const hasThree = /Covered/.test(t) && /Partial/.test(t) && /Absent/.test(t);
+    if (hasThree && !/not-applicable/.test(t)) {
+      add("ERROR", "bavocab", f, 0,
+          "enumerates Covered/Partial/Absent but never `not-applicable` \u2014 the fourth " +
+          "coverage state is silently unhandled here", "");
+    }
+  }
+}
+
 const byCheck = {};
 for (const p of problems) (byCheck[p.check] ||= []).push(p);
 
 console.log(`\nlint-plugins — ${md.length} markdown files, ${files.length} total\n`);
-for (const check of ["paths", "refs", "struct", "schema", "internal", "status", "tokens", "scope", "writers", "blocks"]) {
+for (const check of ["paths", "refs", "struct", "schema", "internal", "status", "tokens", "scope", "writers", "blocks", "contracts", "frontmatter", "bavocab"]) {
   const rows = (byCheck[check] || []).filter((p) => p.level === "ERROR" || SHOW_WARN);
   const nE = (byCheck[check] || []).filter((p) => p.level === "ERROR").length;
   const nW = (byCheck[check] || []).filter((p) => p.level === "WARN").length;

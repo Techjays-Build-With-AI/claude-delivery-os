@@ -9,9 +9,9 @@ Jump to:
 
 ---
 
-## §implementation — 9-section Implementation tab (v2.3.11, discipline sharpened v2.3.14)
+## §implementation — 8-section Implementation tab (v2.3.11, discipline sharpened v2.3.14)
 
-Used for a parent Task's Implementation tab (parent-alone) OR a sub-task's Implementation tab (per-sub-task, scoped to that repo's units). Nine sections, plan-only, stack-agnostic vocabulary.
+Used for a parent Task's Implementation tab (parent-alone) OR a sub-task's Implementation tab (per-sub-task, scoped to that repo's units). Eight sections, plan-only, stack-agnostic vocabulary.
 
 ### The mental model — read this before writing any section
 
@@ -256,7 +256,7 @@ Existing components reused + new components added + cross-sub-task deliveries/co
 
 **Reviewer note:** Reuse rows should be re-verified against the current context graph — the composer's snapshot could be a run old.
 
-<!-- v2.3.16 — NO §7 Coverage table. Plan-time coverage lives in §1 Satisfies column + qa/quality-gates.md tier pool. Build-time evidence lives in units/<repo>/status.md § ## Acceptance. No "Deferred to E2E" concept — E2E is a covered tier owned by whichever sub-task authors the E2E test file (declared in that sub-task's §1 Files column, cross-referenced in other sub-tasks' §6 Touch points). §7 Risks and rollback follows next; former §8 Shared contract is now §8. -->
+<!-- v2.3.16 — NO §7 Coverage table. Plan-time coverage lives in §1 Satisfies column + qa/quality-gates.md tier pool. Build-time evidence lives in units/<repo>/status.md § ## Acceptance. No "Deferred to E2E" concept — E2E is a covered tier owned by whichever sub-task authors the E2E test file (declared in that sub-task's §1 Files column, cross-referenced in other sub-tasks' §6 Touch points). §7 Risks and rollback follows next; former §9 Shared contract is now §8. -->
 
 ## 7. Risks and rollback
 
@@ -305,7 +305,7 @@ Rules 1–15 in `SKILL.md` govern the shape. Highlights that apply to this templ
 - Rule 8 — no aspirational text; either the decision is stated or the phase is `[HELD · waiting on OQ-<id>]`.
 - Rule 9 — no secrets; env var names only.
 - Rule 10 — HARD per-section budget (v2.3.13, tightened + density-mandated; v2.3.16 dropped §7 Coverage). Total soft target ~13 400 chars; warn at 40 000 chars; refuse at 60 000 chars. Measure in CHARACTERS (`len(text)`), not bytes. DENSE not verbose — every sentence carries a distinct concern from Rule 10a's required-coverage checklist; paragraph-where-a-line-would-do halts the compose (Rule 10b). Tables and bold-prefix bullets win over prose everywhere except §5's service-layer paragraph (max 6 lines).
-- Rule 10a — Required-coverage checklist per section. Every listed concern is covered in ONE dense line or ONE table row. Missing concern → halt; over-length concern → halt. See SKILL.md Rule 10a for the full per-section checklist (§1/§2/§3/§4/§5/§6/§7/§8/§9). Frontend §5 in particular must name every concern (props, state, effects, rendered states, controls, on-success, on-refusal, refusal-placement, accessibility, local-vs-server checks, session-expiry, service-layer contract) — always in ONE line each, never in a paragraph each.
+- Rule 10a — Required-coverage checklist per section. Every listed concern is covered in ONE dense line or ONE table row. Missing concern → halt; over-length concern → halt. See SKILL.md Rule 10a for the full per-section checklist (§1/§2/§3/§4/§5/§6/§7/§8). Frontend §5 in particular must name every concern (props, state, effects, rendered states, controls, on-success, on-refusal, refusal-placement, accessibility, local-vs-server checks, session-expiry, service-layer contract) — always in ONE line each, never in a paragraph each.
 - Rule 11 — no invention; every claim traces to the analysis scratchpad, TL context graph, or parent BA files.
 - Rules 11.3, 11.3a — §8 shape and no-framework-field-paths guarantee.
 - Rule 11.4 — implementation.md is PLAN not CODE; describe shape in prose/tables, don't paste implementations.

@@ -16,3 +16,4 @@ jobs:
         with:
           node-version: "20"
       - run: node scripts/lint-plugins.js
+      - run: node plugins/dev/hooks/guard.test.js

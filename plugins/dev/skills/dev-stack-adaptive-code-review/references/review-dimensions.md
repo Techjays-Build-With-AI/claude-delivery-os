@@ -38,7 +38,7 @@ Each dimension applies to every diff regardless of stack. Framework-specific SIG
 
 - Naming: does the new code follow `inferred_patterns.naming.functions` (camelCase, snake_case, PascalCase)?
 - Imports: does the new code use aliases the repo uses (`@/services/...`) vs relative (`../services/...`)?
-- File placement: is the new file where similar existing files live?
+- File placement: is the new file where `shared-context/coding-standards.md` §2 says it goes, and where similar existing files live? Check the document, not just the neighbours — a repo can drift away from its own standard.
 - Async style: does the repo use `async/await` OR `.then()` chains? Match.
 - Comment style: does the repo use JSDoc / docstrings? Match.
 
@@ -46,6 +46,7 @@ Each dimension applies to every diff regardless of stack. Framework-specific SIG
 
 - New public API using different naming case than existing → **Major** (breaks readability)
 - Import style differs from repo dominant → **Minor** (readable but off-pattern)
+- File placed where `coding-standards.md` §2 does not put it → **Major** (every later file copies the first one that got it wrong)
 - Comment format inconsistent → **Nit**
 
 **Ignore.** Preferences the repo doesn't clearly express. If the repo mixes both styles 50/50, don't flag either.
@@ -161,11 +162,34 @@ Each dimension applies to every diff regardless of stack. Framework-specific SIG
 
 ---
 
-## Dimension 8 — Clean code & anti-patterns
+## Dimension 8 — Engineering standards (gated + advisory)
 
 **Question.** Does the new code meet the engineering-standard limits declared in `shared-context/coding-standards.md` § `<repo>` — complexity, length, nesting, duplication, recursion policy, magic values, boolean-flag arity, forbidden anti-patterns?
 
-**Read `shared-context/coding-standards.md` § `<repo>` first.** Its §6 (function complexity budget), §7 (duplication policy), §8 (recursion policy), §9 (constants & magic values), §12 (anti-patterns forbidden) declare the NUMERIC and CATEGORICAL limits. Dimension 8 checks the diff against those limits. If `coding-standards.md` is missing or a section is blank, escalate that as a Blocker on `units/<repo>/status.md § ## Run history (a BLOCKED entry)` — the review cannot fire without the contract to check against, and the fix goes upstream to whoever authors standards.
+**Read `shared-context/coding-standards.md` § `<repo>` first.** Its §6 (function complexity budget), §7 (duplication policy), §8 (recursion policy), §9 (constants & magic values), §12 (anti-patterns forbidden) declare the NUMERIC and CATEGORICAL limits.
+
+**Under the v2 contract this dimension covers both tiers** — see
+`delivery-os-conventions/references/engineering-standards.md`:
+
+| Tier | Sections | How a violation is reported |
+|---|---|---|
+| **Gated** | §1–12, §13 architecture, §19 reliability, §20 backward compatibility | at the rule's declared severity. A §20 breach is a Blocker by default — it breaks an existing consumer |
+| **Advisory** | §15 performance, §16 API design, §17 database, §21 observability, §22 accessibility | at its real severity. **Advisory governs whether a MISSING SECTION blocks the build — not whether a violation is serious.** A Blocker-severity performance finding blocks like any other |
+
+**Three rules that keep this honest:**
+
+- **Only `status: confirmed` rules are enforced.** An `inferred` rule is observed
+  practice nobody approved; flagging code for breaking it would enforce the repo's
+  habits, including its mistakes. Report inferred and `needs-author` rules as
+  pending decisions, never as findings against the diff.
+- **`enforcement.available: false` is where you matter most.** No installed tool
+  checks §13's dependency directions, so the reviewer is the only check there is.
+- **Do not re-run `security-review`'s or Dependabot's job.** §14 and §18 do not exist
+  in this contract; vulnerability classes and dependency advisories have their own
+  owners. Check only how *this repo* implements auth, validation and secrets.
+
+**Every finding cites `rule_id`**, the declared limit or rule text, the observed
+value, and the file and line — so a reader can check the call without re-deriving it. Dimension 8 checks the diff against those limits. If `coding-standards.md` is missing or a section is blank, escalate that as a Blocker on `units/<repo>/status.md § ## Run history (a BLOCKED entry)` — the review cannot fire without the contract to check against, and the fix goes upstream to whoever authors standards.
 
 **Signals.**
 
@@ -216,6 +240,43 @@ Each dimension applies to every diff regardless of stack. Framework-specific SIG
   failure_scenario: "<concrete scenario where the breach causes harm — e.g. deep nesting makes the change-case impossible to review; unnecessary recursion causes stack overflow on inputs the plan lists as valid; god function will regress on the next unrelated edit>"
   fix_suggestion: "<the refactor, in prose — extract the inner block into a helper named X; replace recursion with iteration using accumulator Y; introduce a named constant Z; split the function on responsibility boundary W>"
 ```
+
+---
+
+## Dimension 9 — API design and contract
+
+**Question.** Does each new or changed operation present a coherent contract, consistent with the
+rest of the API?
+
+Applies to both sides: the repo that **defines** the operation and the repo that **consumes** it.
+
+**Signals.**
+
+- Input validated at the boundary — not deep inside a service, not only on the client.
+- Status codes match semantics: created vs accepted, not-found vs forbidden, conflict vs validation failure.
+- Failures return the repo's **error envelope**, the same shape as every other endpoint.
+- Field naming is consistent across request and response, and matches the repo's dominant convention.
+- Collection operations handle pagination, filtering and sorting the way existing collection operations do.
+- The response does not leak internal or persistence fields — primary keys the client must not see, password hashes, soft-delete flags, internal status enums.
+- Consumer and producer agree: the client's expected shape matches what the server actually returns.
+- A change to an existing operation's contract is additive, or carries a version/migration note.
+
+**Severity guidance.**
+
+- Response leaks a credential, hash or internal field → **Blocker** (also a security finding)
+- Consumer expects a shape the producer does not return → **Blocker** (it will fail in production, not in a mocked test)
+- Failure path returns an ad-hoc error shape instead of the repo's envelope → **Major**
+- Status code contradicts the operation's semantics → **Major**
+- Field naming inconsistent with the dominant convention → **Major**
+- Validation present on the client but absent at the boundary → **Major**
+- Pagination/filtering shape differs from sibling collection operations → **Minor**
+
+**"The endpoint beside it is also wrong" is not a defence.** Per `dev-stack-adaptive-implementation`
+Rule 15, contract quality is not inherited from neighbours. Flag the new code at its true severity;
+the existing endpoint is out of scope and stays unflagged.
+
+**Ignore.** A genuinely new resource class with no precedent in the repo — there is nothing to be
+consistent with yet. Raise it as a discussion point if the choice looks load-bearing.
 
 ---
 

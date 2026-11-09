@@ -202,11 +202,16 @@ That is one scope line → the handful of *business* decisions that make the eng
 ## D — Calibration
 
 ### Deriving the feature score from coverage
-**The formula lives in `SKILL.md` step 7 — apply it, don't restate it.** The score is computed from the coverage map and capped by boundedness, never chosen by feel. Two worked cases:
+**The formula lives in `SKILL.md` step 7 — apply it, don't restate it.** The score is computed from the coverage map and capped by boundedness, never chosen by feel.
+
+**The divisor is `applicable_count`, not nine.** Decide applicability first (SKILL.md step 4):
+a dimension whose §3.x section says "None" is `not-applicable` and leaves both the numerator and
+the divisor. Three worked cases:
 
 **Worked — the login feature from §C.** The scope says only "the system will have a login screen". Functional requirements are `Partial` (a screen is named, nothing more); the other eight dimensions are `Absent`. Boundedness is `Unbounded` — no auth methods enumerated, no in/out boundary.
 
 ```
+applicable    = 9  (every §3.x.N has content — thin content, but present)
 coverageScore = 0.5 / 9 * 10          = 0.6
 cap           = 4  (Unbounded)
 score         = round(min(0.6, 4))    = 1      → Stub
@@ -217,6 +222,7 @@ Note the cap isn't binding here — coverage alone already puts it below 4. **Re
 **Worked — the cap binding.** A feature whose function, rules and data are well written but whose category set is never closed: five `Covered`, two `Partial`, two `Absent`, boundedness `Partially-bounded`.
 
 ```
+applicable    = 9
 coverageScore = 6.0 / 9 * 10          = 6.7
 cap           = 6  (Partially-bounded)
 score         = round(min(6.7, 6))    = 6      → Adequate
@@ -227,12 +233,28 @@ Here the cap *is* what decides it, and `boundednessNote` is what tells the autho
 **Worked — no cap at all.** A `Bounded` feature: six `Covered`, two `Partial`, one `Absent`.
 
 ```
+applicable    = 9
 coverageScore = 7.0 / 9 * 10          = 7.8
 cap           = none  (Bounded)
 score         = round(7.8)            = 8      → Good
 ```
 
 There is nothing to take the minimum against — a `Bounded` feature is **not** capped at zero, it simply has no ceiling applied. Emit `cap: null` and round the coverage figure.
+
+**Worked — two dimensions do not apply.** A user-profile page: §3.x.9 Integrations reads "None"
+and §3.x.6 AI / Automation reads "None". Of the seven that apply: five `Covered`, two `Partial`.
+Boundedness `Bounded`.
+
+```
+applicable    = 7  (integrations + ai_automation marked not-applicable, with §3.x citations)
+coverageScore = 6.0 / 7 * 10          = 8.6
+cap           = none  (Bounded)
+score         = round(8.6)            = 9      → Strong
+```
+
+**Out of nine the same feature scores 6.7 → 7.** It is fully specified; the two missing points
+were for an integration it never had and an AI step it never claimed. That gap is the whole
+reason the divisor changed, and it is why simple, well-written features used to stall around 6.
 
 **Everything else expresses itself through the map.** Example-compliance and question severity do **not** adjust the number separately — that double-counts, and a second adjustment with no rule is where drift re-enters. They land the same way boundedness does:
 - An example **Conflict** means the scope can't satisfy something the client actually handed you — so the dimension that fails it (usually `functional_reqs`, `business_rules`, or `in_out_scope`) is not `Covered`. Mark it down, and the score follows.

@@ -22,7 +22,7 @@ Read once end-to-end; refer back by section.
 /plugin install delivery-os@techjays-delivery-os     # shared core — install FIRST
 /plugin install jetrix@techjays-delivery-os          # /jetrix:init, /jetrix:pull, /jetrix:push, /jetrix:task-update
 /plugin install ba@techjays-delivery-os              # /ba:scope, /ba:review, /ba:resolve, /ba:features
-/plugin install tl@techjays-delivery-os              # /tl:plan, /tl:review, /tl:resolve, /tl:scaffold, /tl:code-map
+/plugin install tl@techjays-delivery-os              # /tl:scaffold, /tl:code-map, /tl:maturity
 /plugin install dev@techjays-delivery-os             # /dev:plan, /dev:build, /dev:commit, /dev:fix-review, /dev:resolve, /dev:bootstrap
 /plugin install qa@techjays-delivery-os              # /qa:audit, /qa:plan, /qa:setup, /qa:health
 /plugin install doc@techjays-delivery-os             # /doc:proposal, /doc:deck, /doc:magic-board, /doc:workflow, /doc:walkthrough
@@ -212,31 +212,32 @@ Produces the app skeleton + tooling + green base build + `shared-context/{techno
 ### 3c. Plan a feature into technical units
 
 ```
-/tl:plan <feature-slug>                          # one feature
-/tl:plan features/<slug>                         # by folder path
-/tl:plan FEAT-<AREA>-NN                          # by internal id
-/tl:plan --all                                   # every feature in feature-index.md
-/tl:plan initiative=<name>                       # only features tagged with this initiative
+/dev:plan <feature-slug>                         # one feature
+/dev:plan --all                                  # every unplanned feature
 ```
+
+**There is no `/tl:plan`.** `/dev:plan` verifies the technical context graph and
+runs `tl-feature-planning` itself when it is missing — that skill has no slash
+command (`delivery-os-conventions` §1.f).
 
 Wires each feature to owned pages/endpoints/entities; keeps 3 layer indexes; logs decisions; runs link-integrity check.
 
 ### 3d. Review a technical plan
 
 ```
-/tl:review <feature-slug>                        # scored dashboard, opens interactively
+/dev:review <spec-or-doc>                        # scored dashboard, opens interactively
 ```
 
 Applies BA answers back to the TL plan:
 
 ```
-/tl:resolve <path-to-responses.md>
+/dev:review                                      # sees the saved responses, resolves them
 ```
 
 ### 3e. Sync TL context to Jetrix
 
 ```
-/jetrix:push context                             # per-repo code-context tree
+# the code-context tree is committed with the repo, not pushed to a bucket
 ```
 
 ---
@@ -318,7 +319,7 @@ Runs 4 stages: identity → code-context readiness (auto-prompts QA-check + codi
 
 After every `Resolution:` filled → invokes `/dev:plan --resume` inline.
 
-### 5b. Build the feature (implements code; runs tests; no commits)
+### 5b. Build the feature (implements code; writes tests; no commits)
 
 ```
 /dev:build <feature-slug>                        # parent slug → fans out to all sub-tasks in PARALLEL
@@ -329,7 +330,9 @@ After every `Resolution:` filled → invokes `/dev:plan --resume` inline.
 /dev:build --concurrency=N                       # parallel fan-out cap (default 5)
 ```
 
-Runs 11 stages: mount → preflight → branch → QA harness gate → implementation + tests (per §1 step) → execute tests → validate → security review (Critical-blocking only) → context update → summary + `dev/local-runbook.md`.
+Runs 11 stages: mount → preflight → branch → QA harness gate → implementation + test writing (per §1 step) → verify the test map → validate → security review (report-only; Critical-blocking) → context update → summary + `units/<repo>/pr-summary.md` § `## How to verify`.
+
+**Build writes tests and verifies the map is runnable; it does not execute them.** `/dev:commit` Stage 5 is the only executor — `--tests-only` and `--vulnerable` are the terminal exceptions.
 
 **Never commits, never pushes** — `/dev:commit` owns the git-write boundary.
 
@@ -391,7 +394,6 @@ Idempotent — files whose remote contentHash matches sync-state's are skipped.
 /jetrix:push task --list=<name>                  # target a specific MC list
 /jetrix:push task --sprint=<name>                # target a specific sprint
 /jetrix:push implementation                      # TL plan → Task's Implementation tab
-/jetrix:push context                             # per-repo code-context tree → context-mcp
 /jetrix:push deliverable                         # client HTMLs → deliverable-mcp
 ```
 
@@ -414,7 +416,7 @@ Direct-to-GCS pattern — 100-file push as fast as 1-file push. Never routes fil
 /jetrix:push scope
 /tl:scaffold                                     # create app skeleton
 /qa:audit && /qa:plan approvals.md && /qa:setup  # if not skipping
-/tl:plan --all                                   # plan every feature into TL graph
+/dev:plan --all                                  # plans, and builds the graph itself
 # Per feature:
 /dev:plan <feature-slug>
 /dev:build <feature-slug>                        # parallel over sub-tasks
@@ -433,7 +435,7 @@ Direct-to-GCS pattern — 100-file push as fast as 1-file push. Never routes fil
 /ba:features
 /jetrix:push scope
 /qa:audit                                        # optional — Skip path at /dev:plan §1e also works
-/tl:plan --all
+/dev:plan --all
 # Per feature:
 /dev:plan <feature-slug>
 /dev:build <feature-slug>
@@ -473,9 +475,9 @@ Direct-to-GCS pattern — 100-file push as fast as 1-file push. Never routes fil
 |---|---|
 | `/tl:code-map [<repo-path>]` | Reverse-map brownfield repos into code-context |
 | `/tl:scaffold [--stack=<name>]` | Scaffold initial application (greenfield) |
-| `/tl:plan <target> [--all] [initiative=<name>]` | Plan features into technical context graph |
-| `/tl:review <feature>` | Score technical plan |
-| `/tl:resolve <responses.md>` | Fold answers into TL plan |
+| `/dev:plan <target> [--all]` | Plan features; builds the context graph itself |
+| `/dev:review <doc>` | Score a technical spec; re-run to resolve responses |
+| `/jetrix:task-update <ref>` | Surgical patch of an existing task |
 | `/tl:maturity` | Assess codebase maturity |
 
 ### QA

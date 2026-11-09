@@ -149,7 +149,7 @@ stage-4:
 
 ### 4f. On `--resume`
 
-If `--resume` finds `stage-4.status: DONE` in `status.md` § `## Run history`, skip Stage 4 entirely. Don't re-run `qa-greenfield-harness` — the harness is already Active and re-running would re-install deps, waste time, and could rewrite `test-decision.md` unnecessarily.
+If `--resume` finds `stage-4.status: DONE` **or `SKIPPED`** in `status.md` § `## Run history`, skip Stage 4 entirely. **`SKIPPED` counts** — it means the user opted out with `--skip-qa`; re-entering would bootstrap a harness the run was never shaped for, and Stage 7 would then run gates against the zero tests Stages 5-6 wrote. Don't re-run `qa-greenfield-harness` — the harness is already Active and re-running would re-install deps, waste time, and could rewrite `test-decision.md` unnecessarily.
 
 ---
 
