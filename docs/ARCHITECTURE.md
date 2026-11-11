@@ -60,7 +60,7 @@ later — reads that path and continues. No stage depends on remembering a chat.
 | **Doc** | Produce client-facing collateral from the same source material | `/doc:proposal`, `/doc:deck`, `/doc:walkthrough`, `/doc:workflow`, `/doc:magic-board` |
 | **Jetrix** | Bind the workspace to the delivery platform and keep both in sync | `/jetrix:init`, `/jetrix:pull`, `/jetrix:push`, `/jetrix:project-setup` |
 
-Seven plugins carry **32 commands** and **29 skills**. Commands are the human entry points;
+Seven plugins carry **32 commands** and **43 skills**. Commands are the human entry points;
 skills carry the method and are reused across plugins. `tl` behaves as a second core — `/dev:plan`
 cannot run without it.
 
@@ -235,14 +235,13 @@ SRC-###  →  CLR-###  →  scope §3.x  →  FEAT-<AREA>-NN  →  EP-/PAGE-/ENT
 
 ## 7. Platform integration
 
-Four MCP servers connect the local workspace to the Jetrix platform.
+Three MCP servers connect the local workspace to the Jetrix platform.
 
 | Server | Moves | Direction |
 |---|---|---|
 | `project-mcp` | Solutions, applications, environments, repositories, connection maps | Read + connection writes |
 | `scope-mcp` | Scope document, registers, shared context | Push and pull |
 | `task-mcp` | Features and tasks, comments, attachments | Push and pull |
-| `deliverable-mcp` | Client-facing HTML deliverables | Push |
 
 File bytes never pass through the agent's context. Uploads broker a signed URL and stream from
 disk; downloads fetch in parallel directly from storage. A hundred-file push costs the same

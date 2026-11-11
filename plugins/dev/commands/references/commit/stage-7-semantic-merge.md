@@ -16,7 +16,7 @@ do not invoke the skill against an empty unit list.
 
 - Stages 3–5 clean
 - `units/<repo>/status.md § ## Run history` Stage 10 has `context_units_updated: [<paths>]` list
-- Access to the context-mcp `context_pull_manifest` tool for `env='main'`
+- Baseline comes from git — `git show <remote>/<base>:<path>`; no MCP call, no network
 - **`status.md` § `## Run history` `stage-2.base_pulled_at` is set** (v2.3.25 — base branch was pulled locally in Stage 2). Without the base on disk, this stage cannot merge against a real baseline — it would either hallucinate a diff OR (as seen in real runs) rationalize itself into a no-op. Missing → HALT with `blocker: base-branch-not-pulled-for-merge`.
 - **`status.md` § `## Run history` `stage-2.base_remote_sha` matches `git rev-parse <remote>/<base>` right now** — if the remote has moved since Stage 2 ran, someone else pushed to base while this commit ran; re-fetch and re-run Stage 2 before proceeding.
 
@@ -55,9 +55,9 @@ If Stage 7 completes without this block being written → Stage 8 refuses to pus
 Invoke `tl-semantic-context-merge` inline (no subagent per Skill Rule 9). The skill:
 
 1. Reads `units/<repo>/status.md § ## Run history` Stage 10's touched-unit list
-2. Calls `mcp__context-mcp__context_pull_manifest(solution_id=<from .jetrix/project.json>, env='main')`
-3. Filters manifest to only touched units + the 3 layer indexes + 3 overviews
-4. Downloads baseline copies to `dev/.context-merge-scratch/main/`
+2. Reads each baseline path straight from git — `git show <remote>/<base>:<path>`
+3. Limits the read to touched units + the 3 layer indexes + 3 overviews
+4. Writes those baseline copies to `dev/.context-merge-scratch/<base>/`
 5. Reads local (feature-branch) copies of the same paths
 6. Applies field-merge-rules (per-unit-file) + index-rebuild rules (per layer index)
 7. On any conflict, writes `dev/context-merge-conflicts.md` and exits non-zero
@@ -79,7 +79,7 @@ After the skill emits merged files successfully:
 2. Create ONE commit with message:
 
 ```
-context: semantic merge from main baseline for FEAT-SUP-001
+context: semantic merge from <base> baseline for FEAT-SUP-001
 
 Merged N units, M base rows preserved, K our rows added.
 Details: units/<repo>/findings.md § ## Context merge
@@ -106,7 +106,7 @@ N conflicts require human resolution. See:
   dev/context-merge-conflicts.md
 
 Both copies preserved in:
-  dev/.context-merge-scratch/main/  (baseline)
+  dev/.context-merge-scratch/<base>/  (baseline)
   dev/.context-merge-scratch/ours/  (our feature-branch copy)
 
 Fix the conflicts by ticking [x] in the file, or edit files manually,
@@ -157,9 +157,9 @@ stage-7:
 ### 7g. Skills / agents invoked
 
 - `tl-semantic-context-merge` (inline; no subagent)
-- `mcp__context-mcp__context_pull_manifest` (baseline read only)
+- `git show <remote>/<base>:<path>` (baseline read only)
 
-Never write to `env='main'` from this stage — that's a separate flow (out of scope for `/dev:commit`).
+Never write to the base branch from this stage — that's a separate flow (out of scope for `/dev:commit`).
 
 ---
 
@@ -178,7 +178,7 @@ If `stage-7.status: FORCE_CONTINUED`, treat as DONE.
 ### 7i. Never
 
 - Never invoke `git merge` (git line-merges the graph badly)
-- Never write to baseline context (`env='main'`) from here
+- Never write to the base branch from here
 - Never proceed past a conflict without explicit human resolution or `--force-context-merge=ours`
 - Never leave the scratch dir uncleaned after a successful merge — clean it as part of the commit
 - Never bump `origin` back to `designed` — the semantic-merge preserves `implemented` (per field-merge-rules Rule "never regress")

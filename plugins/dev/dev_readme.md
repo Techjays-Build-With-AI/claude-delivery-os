@@ -110,7 +110,7 @@ Build-deferred Highs surface at commit-time; they either got fixed in dev iterat
 
 ## Semantic context merge
 
-New in v2.2: **`tl-semantic-context-merge`** runs at `/dev:commit` Stage 7. Merges the feature branch's flipped `origin: implemented` units against the `main` env baseline via context-mcp. Graph-aware, unit-level merge — NOT a git text-level merge:
+New in v2.2: **`tl-semantic-context-merge`** runs at `/dev:commit` Stage 7. Merges the feature branch's flipped `origin: implemented` units against the base-branch baseline read from git. Graph-aware, unit-level merge — NOT a git text-level merge:
 
 - Frontmatter fields: LWW by `updated_at` (with transition-order rules for `origin`)
 - Layer indexes: row-union by `unit_id`

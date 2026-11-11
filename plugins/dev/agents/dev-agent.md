@@ -33,7 +33,7 @@ Never re-run BA discovery. Never re-run TL planning yourself (that's `/dev:plan`
 - **`dev-stack-adaptive-implementation`** — dynamic implementation guide (invoked at `/dev:build` Stages 5+6, and in fix-mode from build's repair loop + commit's Stage 6 fix loop). Detects stack + infers repo patterns, writes idiomatic code + behavioural tests.
 - **`qa-greenfield-harness`** — auto-bootstraps deterministic per-stack test harness when `qa/quality-gates.md` is missing / Draft. Invoked at `/dev:build` Stage 4. NEVER prompts the user.
 - **`dev-stack-adaptive-code-review`** — dynamic diff review; 7 dimensions × 4 severity tiers. Invoked at `/dev:commit` Stage 4.
-- **`tl-semantic-context-merge`** — unit-level merge of code-context vs `main` baseline via `context-mcp`. Invoked at `/dev:commit` Stage 7.
+- **`tl-semantic-context-merge`** — unit-level merge of code-context vs the base-branch baseline, read from git. Invoked at `/dev:commit` Stage 7.
 - **`dev-pr-handoff`** (slimmed to content-only) — composes `units/<repo>/pr-summary.md` OR `units/<repo>/status.md § ## Run history (a BLOCKED entry)`. NO state transitions, NO MC calls.
 
 Claude Code's built-in **`security-review`** skill is invoked TWICE — `/dev:build` Stage 9 (**report-only**: records every severity, blocks nothing, repairs nothing) and `/dev:commit` Stage 3 (**the gate**: Critical + High block, findings route to the Stage 6 fix loop). Same skill; build is the early signal, commit is the authority.

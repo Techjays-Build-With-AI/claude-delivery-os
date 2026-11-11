@@ -34,7 +34,7 @@ Read the **`delivery-os-conventions`** skill first (v2.2) — the loop-control s
 - `units/<repo>/status.md § ## Run history` (by `/dev:commit`)
 - `units/<repo>/status.md § ## Run history`, `units/<repo>/status.md § ## Acceptance`, `dev/decisions.md`, `units/<repo>/findings.md § ## Security — build`, `units/<repo>/findings.md § ## Security — commit`, `units/<repo>/findings.md § ## Code review`, `units/<repo>/findings.md § ## Context merge`, `dev/context-merge-conflicts.md`, `units/<repo>/pr-summary.md § ## How to verify`, `units/<repo>/pr-summary.md`, `units/<repo>/status.md § ## Run history (a BLOCKED entry)`
 - MC task status via `mcp__task-mcp__update_task_status`
-- Context-mcp: `context_pull_manifest` (baseline read) at Stage 7 semantic merge
+- git: `git show <remote>/<base>:<path>` (baseline read) at Stage 7 semantic merge
 
 ## The v2.2 three-command flow
 
