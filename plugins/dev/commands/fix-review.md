@@ -1,5 +1,5 @@
 ---
-description: Fold human reviewer feedback on an open PR back through the /dev:commit loop — re-run the affected commit stages (Stages 3–5 code fixes + Stage 7 semantic-context-merge if code-context units touched), refresh units/<repo>/pr-summary.md, keep local state devReview / MC status devReview. Escalates comments requiring product / architecture / security decisions instead of guessing. Never merges or deploys.
+description: Fold human reviewer feedback on an open PR back through the /dev:commit loop — re-run the affected commit stages (Stages 4–5 code fixes + Stage 7 semantic-context-merge if code-context units touched), refresh units/<repo>/pr-summary.md, keep local state devReview / MC status devReview. Escalates comments requiring product / architecture decisions instead of guessing. Never merges or deploys.
 argument-hint: "<Task-N | Feature-N | Subtask-N | slug | features/<slug> | features/<slug>/units/<repo> | FEAT-<AREA>-NN> [feedback=<path-to-review-comments> | pr=<link>]"
 ---
 
@@ -32,8 +32,8 @@ Requires `status: devReview`, `phase: pr-open` **and** a non-empty `pr_url:`. On
 
 For each comment in the feedback:
 
-- **Actionable code fix** — clear defect, missing test, style deviation from repo conventions, security concern. Route to Stage 6 fix-loop mechanics (see `plugins/dev/commands/references/commit/stage-6-fix-loop.md`) — invoke `dev-stack-adaptive-implementation` in fix-mode, capped at 3 focused attempts per comment.
-- **Product / architecture / security decision needed** — comment asks "should we do X instead" where X is a design change beyond scope. Do NOT guess. Write `units/<repo>/status.md § ## Run history (a BLOCKED entry)` with the comment + decision needed + recommended options + rationale. Local state `devReview → BLOCKED`; MC status `devReview → blocked`. Halt for that comment; siblings continue.
+- **Actionable code fix** — clear defect, missing test, style deviation from repo conventions. Route to Stage 6 fix-loop mechanics (see `plugins/dev/commands/references/commit/stage-6-fix-loop.md`) — invoke `dev-stack-adaptive-implementation` in fix-mode, capped at 3 focused attempts per comment.
+- **Product / architecture decision needed** — comment asks "should we do X instead" where X is a design change beyond scope. Do NOT guess. Write `units/<repo>/status.md § ## Run history (a BLOCKED entry)` with the comment + decision needed + recommended options + rationale. Local state `devReview → BLOCKED`; MC status `devReview → blocked`. Halt for that comment; siblings continue.
 - **Clarification** — comment asks a question about the code. Answer inline via `gh pr comment` (if available) OR record the answer in `dev/pr-comment-replies.md` for the developer to post. No code change.
 - **Nit / opinion** — non-blocking suggestion. Note in `dev/pr-comment-replies.md`; can defer to a follow-up PR.
 
@@ -41,8 +41,7 @@ For each comment in the feedback:
 
 After all actionable code fixes are applied for THIS round:
 
-1. **Re-run Stage 3 (security review)** — `plugins/dev/commands/references/commit/stage-3-security.md`. Any new Critical/High from the fixes → Stage 6 fix-loop within THIS command.
-2. **Re-run Stage 4 (code review)** — `plugins/dev/commands/references/commit/stage-4-code-review.md`. Any new Blocker/Major → Stage 6 fix-loop.
+1. **Re-run Stage 4 (code review)** — `plugins/dev/commands/references/commit/stage-4-code-review.md`. Any new Blocker/Major → Stage 6 fix-loop.
 3. **Re-run Stage 5 (acceptance re-verify)** — `plugins/dev/commands/references/commit/stage-5-acceptance.md`. Regression → Stage 6 fix-loop.
 4. **If any code-context units were touched** by fixes (rare — reviewers usually don't request context-graph changes, but possible for endpoint contract adjustments) → re-run Stage 7 (semantic-context-merge) — `plugins/dev/commands/references/commit/stage-7-semantic-merge.md`. If clean, otherwise halt with `dev/context-merge-conflicts.md`.
 5. **Skip Stage 8 (push)** if there are no new commits from this round. Otherwise `git push origin <branch>` — the existing PR picks up the new commits automatically.
@@ -56,7 +55,7 @@ Delegate to `dev-pr-handoff` skill (v2.2 slimmed — content compose only). Rege
 - Purpose (unchanged)
 - Scope of changes (updated file count, +X/-Y)
 - New section: **Review round N — comments addressed** — one row per comment: comment text, disposition (fixed / clarified / escalated / deferred-as-followup), commit SHA if code changed
-- Updated security + code review outcome tables (from re-runs above)
+- Updated code review outcome table (from re-runs above)
 - Updated acceptance table
 - Updated follow-up suggestions (add any Minor from re-runs)
 
@@ -85,7 +84,7 @@ fix-review-round-<n>:
     - id: RC-03
       text: "Nit: rename var"
       disposition: deferred_followup
-  stages_rerun: [stage-3, stage-4, stage-5]
+  stages_rerun: [stage-4, stage-5]
   new_commits_pushed: 2
   pr_body_updated: true
 ```
@@ -103,7 +102,7 @@ Comments processed: 7
   · Escalated:  1  (see dev/escalation-2.md — decision needed)
   · Deferred:   1  (Nit — follow-up PR)
 
-Re-run: Stage 3 (security) ✓ · Stage 4 (code review) ✓ · Stage 5 (acceptance) ✓
+Re-run: Stage 4 (code review) ✓ · Stage 5 (acceptance) ✓
 Pushed: 2 new commits
 PR body: refreshed via gh pr edit
 

@@ -2,15 +2,14 @@
 
 **Purpose.** Delegate the feature-diff code review to `dev-stack-adaptive-code-review` skill. Reviews the diff against the repo's own conventions + parent's Business Rules. Reports findings in 4 severity tiers: `Blocker` / `Major` / `Minor` / `Nit`. At commit-time, blocks on `Blocker` and `Major`. `Minor` + `Nit` do not block — they are fixed in Stage 6's single batched pass (`stage-6-fix-loop.md` §6e.i), not deferred.
 
-**Runs after Stage 3 (security review passed).** State: `devReview` (unchanged); MC: `devReview` (unchanged). On any Blocker/Major finding, fix loop kicks in.
+**Runs after Stage 2 (base branch selected).** State: `devReview` (unchanged); MC: `devReview` (unchanged). On any Blocker/Major finding, fix loop kicks in.
 
-**On completion:** `units/<repo>/findings.md § ## Code review` written (or `ReportFindings` emitted); zero Blocker + zero Major.
+**On completion:** `units/<repo>/findings.md § ## Code review` written; zero Blocker + zero Major.
 
 ---
 
 ### 4a. Preconditions
 
-- Stage 3 done, zero Critical + zero High security findings
 - Branch still up-to-date with base (`git fetch <remote>` before invocation)
 - `units/<repo>/status.md § ## Run history` present with `detected_stack:` + `inferred_patterns:` blocks from `/dev:build`
 
@@ -31,7 +30,11 @@ Invoke `dev-stack-adaptive-code-review` inline (no subagent per the skill's Rule
 - Parent's `business-rules.md` — for BR enforcement checks
 - Parent's `nfrs.md` — for NFR-declared perf/rate targets
 
-The skill emits findings via `ReportFindings` tool if available, or writes directly to `units/<repo>/findings.md § ## Code review`.
+The skill writes every finding to `units/<repo>/findings.md § ## Code review`, in the
+structure below. Where `ReportFindings` is available it emits there **as well** — that
+tool renders to the UI and writes no file, so it is the display, never the record.
+A run that only emitted has left no audit trail: the next round cannot read `## Settled`,
+and a finding closed last round is raised again as new.
 
 ---
 
@@ -131,13 +134,13 @@ one of those is a recall problem.
 
 **Zero Blocker + Zero Major** → mark Stage 4 done. Minor + Nit findings persist in the findings file and carry into Stage 6's batched fix pass, where `fixed` is the default disposition. Advance to Stage 5.
 
-**One or more Blocker/Major** → invoke the fix loop per `stage-6-fix-loop.md` §6a.i (v2.3.27). The fix loop is **MANDATORY and VERIFIABLE** — this stage MUST invoke `dev-stack-adaptive-implementation` in fix-mode via the Skill / Agent tool and record a `stage-4.fix_loop_invocation:` block in `status.md` § `## Run history` (fields per §6a.i). Applying the fix inline without recording the invocation trace is a spec violation and Stage 8 §8a will refuse to push. After fix loop, Stage 3 (security) + Stage 4 (code review) both re-run from the top — code fixes may introduce new security concerns.
+**One or more Blocker/Major** → invoke the fix loop per `stage-6-fix-loop.md` §6a.i (v2.3.27). The fix loop is **MANDATORY and VERIFIABLE** — this stage MUST invoke `dev-stack-adaptive-implementation` in fix-mode via the Skill / Agent tool and record a `stage-4.fix_loop_invocation:` block in `status.md` § `## Run history` (fields per §6a.i). Applying the fix inline without recording the invocation trace is a spec violation and Stage 8 §8a will refuse to push. After fix loop, Stage 4 (code review) re-runs from the top.
 
 ---
 
 ### 4e. Interaction with build-time deferred findings
 
-Not applicable — `/dev:build` doesn't run code review; only security. Code review is exclusively a commit-time stage.
+Not applicable — `/dev:build` doesn't run code review. Code review is exclusively a commit-time stage.
 
 ---
 

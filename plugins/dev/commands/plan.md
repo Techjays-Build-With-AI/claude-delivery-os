@@ -200,6 +200,10 @@ feature_id: FEAT-HCAL-01
 started_at: <ISO>
 ---
 
+**Time every stage.** Each stage's `## Run history` block carries `started_at`, `ended_at` and `duration_s` (integer seconds). Write them on the same edit that records the stage's result — never as a second write. A stage that halts records them too, so a halted run still says where the time went. The run summary prints the per-stage table.
+
+---
+
 ## Stage 1 — Code-context readiness + QA-gate check
 stage_1:
   status: DONE | HALTED

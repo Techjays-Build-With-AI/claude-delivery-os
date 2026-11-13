@@ -53,7 +53,6 @@ Blocker-severity performance finding blocks like any other Blocker.
 
 | Area | Who owns detection | What the standards file adds |
 |---|---|---|
-| Security vulnerabilities | **`security-review`** — 11 focus areas at build Stage 9 and commit Stage 3 | how *this repo* does auth, validation and secrets handling |
 | Dependency vulnerabilities | **Dependabot + the `BL-08` audit**, `/dev:build --vulnerable` | this repo's package-selection and pinning policy |
 
 Restating the eleven focus areas here would create a second source that drifts

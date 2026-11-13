@@ -1,11 +1,11 @@
 ---
-description: Build a planned task through the full 11-stage loop — branch, QA harness gate (auto-bootstraps greenfield via qa-greenfield-harness), implement per implementation.md using dev-stack-adaptive-implementation (dynamic per stack, reads repo conventions, matches idiomatic patterns), write stack-adaptive tests, execute them locally, validate against parent's Acceptance Criteria + Business Rules + Test Scenarios + NFRs, run a report-only security scan (snapshot-scoped, records every severity, blocks nothing; /dev:commit Stage 3 is the gate), update code-context units to origin:implemented, and produce a summary + pr-summary.md § ## How to verify. Bounded fix loop until 100% or escalation. Refuses to run without a plan from /dev:plan, OR with unresolved plan-blockers.md. Accepts any task identifier (MC task number, feature slug or folder, sub-task folder, FEAT-<AREA>-NN). Sub-task builds work in the sub-task's repo only, on a branch named feature/FEAT-<AREA>-NN-<slug>-<repo>. Never merges, never pushes, never raises a PR — /dev:commit does that.
-argument-hint: "<task-number | Task-N | slug | features/<slug> | tasks/<slug>.md | FEAT-<AREA>-NN | list=<name> | requirement=<slug> | --all | (blank = every task at readyForDev)> [repo=<slug|slug,slug>] [requirement=<slug>] [--concurrency=N] [--resume] [--clear-locks] [--no-security-review] [--skip-qa] [--tests-only] [--vulnerable]"
+description: Build a planned task through the full 10-stage loop — branch, QA harness gate (auto-bootstraps greenfield via qa-greenfield-harness), implement per implementation.md using dev-stack-adaptive-implementation (dynamic per stack, reads repo conventions, matches idiomatic patterns), write stack-adaptive tests, execute them locally, validate against parent's Acceptance Criteria + Business Rules + Test Scenarios + NFRs, update code-context units to origin:implemented, and produce a summary + pr-summary.md § ## How to verify. Bounded fix loop until 100% or escalation. Refuses to run without a plan from /dev:plan, OR with unresolved plan-blockers.md. Accepts any task identifier (MC task number, feature slug or folder, sub-task folder, FEAT-<AREA>-NN). Sub-task builds work in the sub-task's repo only, on a branch named feature/FEAT-<AREA>-NN-<slug>-<repo>. Never merges, never pushes, never raises a PR — /dev:commit does that.
+argument-hint: "<task-number | Task-N | slug | features/<slug> | tasks/<slug>.md | FEAT-<AREA>-NN | list=<name> | requirement=<slug> | --all | (blank = every task at readyForDev)> [repo=<slug|slug,slug>] [requirement=<slug>] [--concurrency=N] [--resume] [--clear-locks] [--skip-qa] [--tests-only] [--vulnerable]"
 ---
 
 # /dev:build
 
-You are the entry point for the 11-stage build loop. **Orchestrator only** — this file parses args, resolves identity, verifies the plan + no unresolved blockers, then routes each stage to its reference file under `plugins/dev/commands/references/build/`. Do NOT paraphrase the stage files' instructions — `Read` them and execute verbatim.
+You are the entry point for the 10-stage build loop. **Orchestrator only** — this file parses args, resolves identity, verifies the plan + no unresolved blockers, then routes each stage to its reference file under `plugins/dev/commands/references/build/`. Do NOT paraphrase the stage files' instructions — `Read` them and execute verbatim.
 
 Read the **`delivery-os-conventions`** skill first if it's not in context — the v2.2 loop-control state model + MC status mapping. Then read the task's plan (produced by `/dev:plan`).
 
@@ -16,7 +16,7 @@ Read the **`delivery-os-conventions`** skill first if it's not in context — th
 **Every mode of this command runs as a `dev-agent` subagent**, never in the main conversation. The invariant
 above is the reason it can: a build run has no decision in it to put to anyone. Blockers are resolved at
 `/dev:plan` time, and Stage 0 refuses a task whose `plan-blockers.md` is still OPEN — so there is nothing
-the main thread is needed for, and an eleven-stage loop costs it nothing.
+the main thread is needed for, and a ten-stage loop costs it nothing.
 
 The mandated progress broadcasts (`loop-control.md`) still happen; they appear in the agent's own stream,
 which the user can open and watch.
@@ -30,7 +30,7 @@ which the user can open and watch.
 `AskUserQuestion` — so it stays in the conversation. That is the test: a command that can ask the user
 something mid-run belongs inline; one that cannot, does not.
 
-**Never commits, never stages, never pushes (v2.3.20 clarified — the git-write boundary belongs to `/dev:commit`).** All source files, test files, and context-unit updates that `/dev:build` produces LAND IN THE WORKING TREE. Never `git add`, never `git commit`, never `git push`, never open a PR — that's the separation of concerns the plugin has always documented, and this is the invariant that enforces it. `/dev:commit` gathers everything from the working tree, structures the commit(s), pushes, and opens the PR after its stricter security + review gates pass. Stage 10 (context-graph update) writes updated units to the working tree without committing them; Stage 11 writes `units/<repo>/pr-summary.md § ## How to verify` without committing it; all Stages 5-6 code + test writes land in the working tree without commits per §1 build step.
+**Never commits, never stages, never pushes (v2.3.20 clarified — the git-write boundary belongs to `/dev:commit`).** All source files, test files, and context-unit updates that `/dev:build` produces LAND IN THE WORKING TREE. Never `git add`, never `git commit`, never `git push`, never open a PR — that's the separation of concerns the plugin has always documented, and this is the invariant that enforces it. `/dev:commit` gathers everything from the working tree, structures the commit(s), pushes, and opens the PR after its review gates pass. Stage 10 (context-graph update) writes updated units to the working tree without committing them; Stage 11 writes `units/<repo>/pr-summary.md § ## How to verify` without committing it; all Stages 5-6 code + test writes land in the working tree without commits per §1 build step.
 
 ---
 
@@ -52,8 +52,7 @@ something mid-run belongs inline; one that cannot, does not.
 - `requirement=<slug>` — scope the target set to one requirement
 - `--resume` — continue from last completed stage per `units/<repo>/status.md § ## Run history`
 - `--clear-locks` — remove every `.jetrix/cache/session.json` row for the resolved repo and print what was removed, then stop. For a session whose run died before it could clean up. Takes a target only to resolve the repo; runs no stages
-- `--no-security-review` — skip Stage 9's security scan. Stage 9 is report-only, so this only costs you the early signal; `/dev:commit` Stage 3 is the gate that blocks and always runs
-- `--skip-qa` — **skip Stage 4's harness bootstrap and write no tests.** For a change whose risk does not justify standing up a test framework: a CSS value, a copy fix, a config default. Stage 4 logs `qa_gate_state: skipped-by-user` and Stages 5–6 write code without tests; Stage 8 builds the `## Acceptance` table from inspection instead of test evidence and marks every row `verified: manually`. `/dev:commit` still runs its full security and code review — this flag buys you out of *testing*, never out of *review*.
+- `--skip-qa` — **skip Stage 4's harness bootstrap and write no tests.** For a change whose risk does not justify standing up a test framework: a CSS value, a copy fix, a config default. Stage 4 logs `qa_gate_state: skipped-by-user` and Stages 5–6 write code without tests; Stage 8 builds the `## Acceptance` table from inspection instead of test evidence and marks every row `verified: manually`. `/dev:commit` still runs its full code review — this flag buys you out of *testing*, never out of *review*.
 
 - `--tests-only` — **write tests against code already on disk; write no production code.** Runs Stage 4 → the test half of Stages 5–6 → 7 → 8, and ends at Stage 8.5. See §1a.
 - `--vulnerable` — **upgrade vulnerable dependencies; write no feature code.** Same shape as `--tests-only`, pointed at the dependency manifest instead of the source. See §1b.
@@ -88,7 +87,7 @@ parallel** bounded by `--concurrency`. A task-ref carries its own repo and needs
 
 A concern whose tier is missing from the gate table is reported as `tier-unavailable`, not silently skipped — see `dev-stack-adaptive-implementation`.
 
-**Where it ends — Stage 8.5.** Stages 9–11 do not run: there is no product diff to security-review, no context unit to flip `designed → implemented`, and no runbook to write for code that already shipped. Stage 8.5 is the terminal stage instead — it writes the run summary, records `tests_only: true`, and sets the local state `/dev:commit` requires. Execute `references/build/stage-8-validate.md` §8.5 verbatim.
+**Where it ends — Stage 8.5.** Stages 10–11 do not run: there is no context unit to flip `designed → implemented`, and no runbook to write for code that already shipped. Stage 8.5 is the terminal stage instead — it writes the run summary, records `tests_only: true`, and sets the local state `/dev:commit` requires. Execute `references/build/stage-8-validate.md` §8.5 verbatim.
 
 `/dev:commit` then reads `tests_only` and the build verdict at its Stage 0, and runs its normal stages from there.
 ## 1b. `--vulnerable` — upgrade what the scanners flagged
@@ -103,8 +102,8 @@ the ones left as decisions — a major changes behaviour and is not a call an un
 run that closes every production finding has done its job even with dev-only majors outstanding.
 
 For the findings `/qa:setup` baselined at `BL-08` and the ones `/tl:maturity` scores at `D1.4`. Both report
-them; **neither fixes them** — QA never edits product logic, maturity is read-only, and the build and commit
-security reviews only ever see the feature diff, so a pre-existing advisory in a framework is in nobody's
+them; **neither fixes them** — QA never edits product logic, maturity is read-only, and commit's code review
+only ever sees the feature diff, so a pre-existing advisory in a framework is in nobody's
 path. This mode is that path.
 
 ```
@@ -244,7 +243,7 @@ ignore rule to go green — that is weakening a check, and `§3a` of the QA setu
 
 **Where it ends — Stage 8.5**, as `--tests-only` does: no product diff to context-map, no runbook to write.
 It records `vulnerable: true` alongside `tests_only`, and `/dev:commit` runs its normal stages from there —
-including its own security review, which *will* see this diff.
+including its own code review, which *will* see this diff.
 
 **No `/dev:plan` plan is required**, for the same reason as `--tests-only`: there is no `implementation.md`
 to build from. The acceptance rows are the advisories closed and the suites that still pass.
@@ -322,7 +321,7 @@ Execution plan — /dev:build
   Each agent is named and streams on its own; open one to watch it.
 ```
 
-An eleven-stage run that takes an hour behind a single opaque agent is the thing
+A ten-stage run that takes an hour behind a single opaque agent is the thing
 this replaces. Name every agent `build:<repo>:<task>` so the user can watch,
 message or cancel one without killing the batch.
 
@@ -368,10 +367,10 @@ anything is held back — so the ordering is visible rather than implied.
 ✓ /dev:build <feature-ref> complete — <N> sub-tasks built (or halted)
 
 Per sub-task results:
-  ✓ Subtask-2 (backend)   — 12/12 §1 steps, 273+28 tests green, 0 Critical security
+  ✓ Subtask-2 (backend)   — 12/12 §1 steps, 273+28 tests green
     ↳ Branch: feature/FEAT-HCAL-01-holiday-calendar-management-backend
     ↳ MC:     https://mission-control.techjays.com/task/6a95e0a0...   ↳ Local state: inProgress
-  ✓ Subtask-3 (frontend)  — 9/9 §1 steps, 148 tests green, 0 Critical security
+  ✓ Subtask-3 (frontend)  — 9/9 §1 steps, 148 tests green
     ↳ Branch: feature/FEAT-HCAL-01-holiday-calendar-management-frontend
     ↳ MC:     https://mission-control.techjays.com/task/6a95e0a1...   ↳ Local state: inProgress
 
@@ -380,9 +379,11 @@ Working tree (per repo):
   · Inhouse-client:   <K> files changed (+412/-8),  uncommitted   ← /dev:commit Subtask-3 gathers these
 
 Next:
-  · /dev:commit Subtask-2   ← runs stricter security + review + gathers Inhouse-server working tree → commits + pushes + PR
+  · /dev:commit Subtask-2   ← runs review + gathers Inhouse-server working tree → commits + pushes + PR
   · /dev:commit Subtask-3   ← same for Inhouse-client
 ```
+
+**Time every stage.** Each stage's `## Run history` block carries `started_at`, `ended_at` and `duration_s` (integer seconds). Write them on the same edit that records the stage's result — never as a second write. A stage that halts records them too, so a halted run still says where the time went. Stage 11's summary prints the per-stage table.
 
 **Per-worker execution:** Read each stage's reference file and execute verbatim. Stages 1–3 (mount + preflight + branch) are inline in this command file below; Stages 4–11 delegate. No stage in any worker calls `git add` / `git commit` / `git push` — the "Never commits, never stages, never pushes" invariant at the top of this file applies uniformly.
 
@@ -393,7 +394,7 @@ Next:
 - Write owner into `status.md`
 - status `agentExecuting` · phase `planning` (broadcast)
 - MC: `readyForDev → inProgress` via `task-mcp.update_task_status`
-- Read parent BA files (`feature.md`, `acceptance-criteria.md`, `business-rules.md`, `nfrs.md`, `test-scenarios.md`, `dependencies.md`, `dependencies.md` § `## Open questions`) — validation contract
+- Read parent BA files (`feature.md`, `acceptance-criteria.md`, `business-rules.md`, `nfrs.md`, `test-scenarios.md`, `dependencies.md` including its `## Open questions`) — validation contract
 - Read task's Implementation content (`implementation.md` at feature root for parent-alone; `units/<repo>/{description,implementation}.md` for sub-task; plus parent's `tl-plan.md` rollup for split cross-sub-task dep context only)
 - Read `discussion.md` § `## Comments` and list `attachments/` in **this task's own folder** — `features/<slug>/` parent-alone, `features/<slug>/units/<repo>/` sub-task, `tasks/<slug>/` filed ticket (pulled from MC — team clarifications, and mockups/spreadsheets the implementation must match). Open an attachment only when a step actually needs it. Absent = the task has no discussion; not an error
 - Read `shared-context/decision-log.md`, `shared-context/coding-standards.md` § `<repo>` (Rule 13/Dimension 8 contract)
@@ -452,15 +453,9 @@ status `agentExecuting` · phase `implementing` → `testing` (broadcast)
 
 **Read** `plugins/dev/commands/references/build/stage-8-validate.md` and execute verbatim. Builds `units/<repo>/status.md § ## Acceptance`. Any `❌ fail` row → bounded repair loop (3 focused / 2 broad).
 
-### Stage 9 — Security review (snapshot-scoped, REPORT-ONLY)
-
-**Read** `plugins/dev/commands/references/build/stage-9-security.md` and execute verbatim. Invokes Claude Code's `security-review` skill against the **review snapshot** (`references/common/review-snapshot.md`) and records findings at every severity.
-
-**Nothing blocks here and nothing is repaired here.** `/dev:commit` Stage 3 runs the same skill at Critical+High and owns remediation via its Stage 6 fix loop — two repair loops over one diff split the authority for "is this safe to ship". A Critical finding is recorded, surfaced loudly in Stage 11's summary, and blocks at commit. Skipped entirely if `--no-security-review`.
-
 ### Stage 10 — Update code-context units (`designed → implemented`)
 
-**Read** `plugins/dev/commands/references/build/stage-10-context-update.md` and execute verbatim. Updates every owned TL unit file's frontmatter + Source References. Commits the changes.
+**Read** `plugins/dev/commands/references/build/stage-10-context-update.md` and execute verbatim. Updates every owned TL unit file's frontmatter + Source References. Writes to the working tree; never commits.
 
 ### Stage 11 — Report summary + `pr-summary.md` § `## How to verify`
 

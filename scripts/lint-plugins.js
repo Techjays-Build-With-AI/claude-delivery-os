@@ -241,7 +241,7 @@ for (const f of md.map(rel)) {
 // every run, silently, for a reason that points at the wrong stage.
 //
 // This is ERROR, not WARN: the failure mode is a dead happy path. It was
-// found three times by hand (stage-5.gates_run, stage-3/4.fix_loop_invocation)
+// found three times by hand (stage-5.gates_run, stage-4.fix_loop_invocation)
 // before this check existed.
 // An explicit `build.` / `commit.` prefix names the OTHER loop's stage, which is
 // the only unambiguous way to write a cross-loop reference. Without it, a bare
@@ -250,9 +250,10 @@ for (const f of md.map(rel)) {
 const STAGE_REF = /`?(?:(build|commit)\.)?stage-([0-9]+(?:-[0-9]+)?)\.([a-z_]+)/g;
 const recorded = new Map();   // "commit/3" -> Set(field)
 const declaredIn = new Map(); // "commit/3" -> file that holds its yaml block
-// /dev:build and /dev:commit BOTH have a stage-9 (security vs PR), and they are
-// different stages. Keying on the number alone unions them and makes the check
-// silently lenient, so key on the loop the file belongs to.
+// /dev:build and /dev:commit each number their stages independently, so the
+// same number means different stages in the two loops. Keying on the number
+// alone unions them and makes the check silently lenient, so key on the loop
+// the file belongs to.
 const loopOf = (f) => (f.includes("/references/build/") || f.endsWith("/build.md")) ? "build"
                     : (f.includes("/references/commit/") || f.endsWith("/commit.md")) ? "commit"
                     : null;

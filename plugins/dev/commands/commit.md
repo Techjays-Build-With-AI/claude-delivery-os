@@ -1,17 +1,17 @@
 ---
-description: Commit a built task through the full 10-stage commit loop — strict security review (Critical + High blocking, vs /dev:build's Critical-only), dynamic code review via dev-stack-adaptive-code-review (Blocker + Major blocking), final `## Acceptance` table re-verification (regression + last-sub-task E2E), bounded fix loop, semantic-context-merge against baseline via tl-semantic-context-merge (unit-level merge, not text-level), push branch, raise PR with units/<repo>/pr-summary.md, print terminal summary. Flips status to devReview (phase pr-open) on start and stays there on success; the PR-merge webhook flips it to done. Sub-task commits work in the sub-task's repo only. Refuses to run without a completed /dev:build.
-argument-hint: "<task-number | Task-N | slug | features/<slug> | tasks/<slug>.md | FEAT-<AREA>-NN | list=<name> | requirement=<slug> | --all | (blank = every task /dev:build finished)> [requirement=<slug>] [--concurrency=N] [--resume] [--clear-locks] [--skip-security] [--force-context-merge=ours] [--force-push]"
+description: Commit a built task through the full 9-stage commit loop — dynamic code review via dev-stack-adaptive-code-review (Blocker + Major blocking), final `## Acceptance` table re-verification (regression + last-sub-task E2E), bounded fix loop, semantic-context-merge against baseline via tl-semantic-context-merge (unit-level merge, not text-level), push branch, raise PR with units/<repo>/pr-summary.md, print terminal summary. Flips status to devReview (phase pr-open) on start and stays there on success; the PR-merge webhook flips it to done. Sub-task commits work in the sub-task's repo only. Refuses to run without a completed /dev:build.
+argument-hint: "<task-number | Task-N | slug | features/<slug> | tasks/<slug>.md | FEAT-<AREA>-NN | list=<name> | requirement=<slug> | --all | (blank = every task /dev:build finished)> [requirement=<slug>] [--concurrency=N] [--resume] [--clear-locks] [--force-context-merge=ours] [--force-push]"
 ---
 
 # /dev:commit
 
-You are the entry point for the 10-stage commit loop. **Orchestrator only** — parses args, resolves identity, verifies `/dev:build` completed, then routes each stage to its reference file under `plugins/dev/commands/references/commit/`. Do NOT paraphrase the stage files' instructions — `Read` them and execute verbatim.
+You are the entry point for the 9-stage commit loop. **Orchestrator only** — parses args, resolves identity, verifies `/dev:build` completed, then routes each stage to its reference file under `plugins/dev/commands/references/commit/`. Do NOT paraphrase the stage files' instructions — `Read` them and execute verbatim.
 
 Read the **`delivery-os-conventions`** skill first if it's not in context — the v2.2 loop-control state model + MC status mapping. Then read the task's `units/<repo>/status.md § ## Run history`.
 
 **The single invariant:** `/dev:commit` runs on work that is finished, or refuses. `status` must be `inProgress` and `phase` must be **`built`** (Delivery OS wrote it) or **`adopted`** (someone else did, and Stage 0 took it in). `agentExecuting` means a build is still running.
 
-**Two routes, one gate layer.** Route A arrives at `built` from `/dev:build`. Route B arrives at `adopted` from Stage 0, having never been planned or built here. Both then run the same security review, code review and delivery — see §2's route table for the stages Route B skips.
+**Two routes, one gate layer.** Route A arrives at `built` from `/dev:build`. Route B arrives at `adopted` from Stage 0, having never been planned or built here. Both then run the same code review and delivery — see §2's route table for the stages Route B skips.
 
 ---
 
@@ -24,7 +24,7 @@ Read the **`delivery-os-conventions`** skill first if it's not in context — th
 - Local feature slug: `supplier-onboarding`
 - Local feature folder: `features/supplier-onboarding`
 - Sub-task folder: `features/supplier-onboarding/units/backend`
-- **Non-feature ticket**: `tasks/<slug>.md` — run state lives at `tasks/<slug>/dev/` (`status.md` § `## Run history`, `status.md`). Every stage is unchanged: same security review, same code review, same acceptance re-verify, same PR. Only the path to the run files differs.
+- **Non-feature ticket**: `tasks/<slug>.md` — run state lives at `tasks/<slug>/dev/` (`status.md` § `## Run history`, `status.md`). Every stage is unchanged: same code review, same acceptance re-verify, same PR. Only the path to the run files differs.
 - Internal id: `FEAT-<AREA>-NN`
 - Blank: **every task that is finished and uncommitted** — `status: inProgress` · `phase: built` **or** `adopted` · `ready_for_dev_commit: true`, across `features/*/units/<repo>/status.md` and `tasks/*/units/<repo>/status.md`. Same default as `/dev:plan` and `/dev:build`: blank means the whole set, a target means that one thing.
 - `list=<name>` / `requirement=<slug>` / `--all` — resolved as `/dev:plan` §2a resolves them, then filtered to the gate above.
@@ -45,7 +45,6 @@ git add -p src/auth/session.ts
 
 Per-hunk selection inside the prompt is deliberately not built — git already has
 the right tool for it.
-- `--skip-security` — bypass Stage 3 (requires `SECURITY_REVIEW_OVERRIDE` env + audited reason)
 - `--force-context-merge=ours` — auto-resolve Stage 7 conflicts to our-side (emergency)
 - `--force-push` — allow `git push --force-with-lease` (rare)
 
@@ -55,7 +54,7 @@ A resolved set of more than one task runs the same ten stages per task, independ
 
 - **One worker per task**, bounded by `--concurrency=N` (default 5). Each task owns its own repo
   checkout, its own branch, and its own `## Run history`, so workers do not contend.
-- **One task's failure never halts the batch.** A blocked security finding, a failed acceptance
+- **One task's failure never halts the batch.** A blocked code-review finding, a failed acceptance
   re-verify or a merge conflict stops THAT task at its stage; siblings run on. Failures report
   together at the end, each naming its stage and what the human has to decide.
 - **One PR per task**, exactly as a single-target run raises one. A batch of N tasks raises N pull
@@ -115,7 +114,6 @@ Any missing → this task is not built. **Single target:** halt with the "run /d
 
 | Stage | Under `tests_only` |
 |---|---|
-| 3 security | Scan the committed files for secrets — **always**, a test fixture is a common place to leak one. Skip the product-code review *only where no product file is in the diff*; where the branch does carry product changes, review those at the normal threshold |
 | 4 code review | Review the test files — assertion strength, tier honesty, no disabled or loosened tests. Skip the product-code dimensions that have no diff to read |
 | 5 acceptance | Unchanged — re-verify every row. This is the stage that catches code edited between build and commit |
 | 7 context merge | Unchanged — it is cheap, and a zero-change result is the expected outcome |
@@ -144,7 +142,7 @@ A dirty tree is the **expected** state at this point. Establish what is in it:
 
 3. **Build the review snapshot** from the paths in scope. Record its sha as
    `snapshot_sha` in `status.md` § `## Run history`, and put it in the header of
-   every findings section this run produces. Stages 3, 4 and 5 all read this one
+   every findings section this run produces. Stages 4 and 5 both read this one
    snapshot, so they review the same bytes as each other and as what Stage 7.5
    will stage.
 
@@ -261,7 +259,7 @@ state, and must say so.
 
 ### 2a.6. Route B runs a reduced stage set
 
-Security review and code review need only a diff and the repo's own standards.
+Code review needs only a diff and the repo's own standards.
 Everything that exists to validate work *against a ticket* has nothing to read
 on Route B and does not run.
 
@@ -269,7 +267,6 @@ on Route B and does not run.
 |---|---|---|
 | 1 lock + read BA files + flip tracker status | all three | **lock only** — no BA files exist, no ticket to flip |
 | 2 base + snapshot | yes | yes, with the Route B base ladder below |
-| **3 security review** | yes | **yes — the point** |
 | **4 code review** | yes | **yes — the point** |
 | 5 acceptance | re-verify the ticket's rows | **reduced** — run the tests that exist, check they cover the diff, report gaps |
 | 6 fix loop | yes | yes |
@@ -328,7 +325,7 @@ holds for Route B exactly as for Route A.
 - status `devReview` · phase `pr-open` (broadcast)
 - MC: `inProgress → devReview` via `task-mcp.update_task_status`
 - Read parent BA files (`feature.md`, `acceptance-criteria.md`, `business-rules.md`, `nfrs.md`, `test-scenarios.md`, `dependencies.md`) — validation contract; passed to Stages 4 + 5
-- Read `units/<repo>/status.md § ## Run history` (Stage 10's `context_units_updated:` list, Stage 9's build-time security findings)
+- Read `units/<repo>/status.md § ## Run history` (Stage 10's `context_units_updated:` list)
 - Read `units/<repo>/status.md § ## Acceptance` (build-time results, feeds Stage 5)
 - Read `units/<repo>/status.md § ## Run history` (detected_stack + inferred_patterns, feeds Stage 4)
 - Record start in `units/<repo>/status.md § ## Run history`
@@ -387,7 +384,7 @@ stage-2:
   base_ci_status: green | non-green | unknown
 ```
 
-## 5. Route to Stages 3–9
+## 5. Route to Stages 4–9
 
 **On Route B, Stage 7 does not run and Stages 1 and 5 are reduced** — §2a.6. Record
 the skip explicitly in `status.md` § `## Run history` as
@@ -395,21 +392,20 @@ the skip explicitly in `status.md` § `## Run history` as
 never applicable must not read as a stage that was forgotten, and Stage 8's
 precondition checks for the trace either way.
 
-Read each stage's reference file and execute verbatim. Fix loop is inline routing between Stages 3-5 (see Stage 6 file for the loop mechanics).
+Read each stage's reference file and execute verbatim. Fix loop is inline routing between Stages 4-5 (see Stage 6 file for the loop mechanics).
 
-### 5a. The reviewers are three fresh-context agents, run in parallel
+### 5a. The reviewers are two fresh-context agents, run in parallel
 
-Stages 3, 4 and 5 are **read-only reviews of one snapshot**, so they run at the
+Stages 4 and 5 are **read-only reviews of one snapshot**, so they run at the
 same time, each as its own agent with its own context.
 
 ```
 commit:<repo>
-  ├─ review:security:<repo>    built-in security-review          read-only
   ├─ review:code:<repo>        dev-stack-adaptive-code-review    read-only
   └─ review:tests:<repo>       dev-test-verifier                 read-only
 ```
 
-**Readers parallel, writers serial.** Three reviewers at once is safe. Two
+**Readers parallel, writers serial.** Both reviewers at once is safe. Two
 repair agents in one working tree collide, so Stage 6 is always serial (§6).
 
 #### What each reviewer is given — and what it is not
@@ -433,7 +429,6 @@ the repo's own standards is not.
 
 | Reviewer | Class | Blocks? |
 |---|---|---|
-| built-in `security-review` (Stage 3) | adversarial | Critical + High |
 | `dev-stack-adaptive-code-review` (Stage 4) | adversarial | Blocker + Major |
 | built-in `code-review` (Stage 4, second opinion) | **advisory** | never |
 | test-verifier (Stage 5) | adversarial on required gates, advisory on inferred rows | required gates only |
@@ -448,12 +443,12 @@ Print this before fan-out, every time:
 
 ```
 Repositories: 3   concurrency 3
-Reviewers per commit: 3        peak reviewer agents: 9
+Reviewers per commit: 2        peak reviewer agents: 6
 Review mode: parallel          Repair mode: serial per repository
 ```
 
 Bound the **product**, not each factor. A 19-task batch at `--concurrency=5`
-with three reviewers each is 15 agents, not 57 — and the number is stated
+with two reviewers each is 10 agents, not 38 — and the number is stated
 before any of them start.
 
 **An unavailable reviewer is `BLOCKED`, never `PASS`** — `commit.md` § *When a
@@ -461,14 +456,14 @@ required tool cannot run* applies to agents too.
 
 ### When a required tool cannot run
 
-A stage's tool may **refuse to start** rather than return findings — `security-review` needs a git repository and halts when the session's working directory is the folder *above* the repo; a skill may be unavailable in this environment. This is not a finding, so the fix loop has nothing to act on, and it is not a defect, so halting the run strands finished work over an environment condition.
+A stage's tool may **refuse to start** rather than return findings — a skill may be unavailable in this environment, or may halt when the session's working directory is the folder *above* the repo. This is not a finding, so the fix loop has nothing to act on, and it is not a defect, so halting the run strands finished work over an environment condition.
 
 Do **not** halt, and do **not** silently skip. For each stage whose tool refuses:
 
 1. **Record the refusal verbatim** in `status.md` § `## Run history` under that stage — the exact error text, not a paraphrase:
    ```yaml
-   stage-3:
-     tool: security-review
+   stage-4:
+     tool: dev-stack-adaptive-code-review
      tool_status: not-invocable
      tool_error: "<the tool's exact message>"
      method: manual            # the stage's own criteria, applied by hand
@@ -477,11 +472,11 @@ Do **not** halt, and do **not** silently skip. For each stage whose tool refuses
 3. **Say so in the PR body.** A reviewer must be able to see which checks were tool-run and which were manual without opening `status.md` § `## Run history`.
 4. **Never record a tool run that did not happen.** `tool_status: not-invocable` with `method: manual` is honest; omitting the field and filling in the findings as though the tool produced them is a spec violation and worse than halting.
 
-Where the refusal is fixable, name the fix in the summary rather than only reporting it — for `security-review`, that is running `/dev:commit` from inside the repository rather than from a parent folder.
+Where the refusal is fixable, name the fix in the summary rather than only reporting it — a tool that needs a git repository is fixed by running `/dev:commit` from inside the repository rather than from a parent folder.
 
-### Stage 3 — Strict security review
+**Time every stage.** Each stage's `## Run history` block carries `started_at`, `ended_at` and `duration_s` (integer seconds). Write them on the same edit that records the stage's result — never as a second write. A stage that halts records them too, so a halted run still says where the time went. The final summary prints the per-stage table.
 
-**Read** `plugins/dev/commands/references/commit/stage-3-security.md` and execute verbatim. Invokes Claude Code's `security-review` skill at Critical+High threshold. Any finding routes to Stage 6 fix loop.
+---
 
 ### Stage 4 — Dynamic code review
 
@@ -493,7 +488,7 @@ Where the refusal is fixable, name the fix in the summary rather than only repor
 
 ### Stage 6 — Bounded fix loop
 
-**Read** `plugins/dev/commands/references/commit/stage-6-fix-loop.md`. Not a standalone stage — invoked from Stages 3, 4, or 5 when findings block. After each fix batch, upstream stages re-run in order. Bounds exceeded → escalation + halt.
+**Read** `plugins/dev/commands/references/commit/stage-6-fix-loop.md`. Not a standalone stage — invoked from Stage 4 or 5 when findings block. After each fix batch, upstream stages re-run in order. Bounds exceeded → escalation + halt.
 
 ### Stage 7 — Semantic context merge (v2.3.25 — MANDATORY EXECUTION, not skippable)
 
@@ -584,7 +579,6 @@ MC sub-task:   https://mission-control.techjays.com/task/6b72a1c48d4e7d1cab2c7
 PR:            https://github.com/acme/acme-backend/pull/247
 
 Branch:        feature/FEAT-SUP-001-supplier-onboarding-backend  →  develop
-Security:      ✓ 0 Critical, 0 High   ·  2 Medium found, 2 fixed
 Code review:   ✓ 0 Blocker, 0 Major   ·  3 Minor + 1 Nit found, 4 fixed
 Findings:      11 found · 11 fixed · 0 accepted · 0 deferred
 Tests:         ✓ 5/6 scenarios covered · 5/5 executed passed · 72.4% lines
@@ -618,7 +612,7 @@ human chose to carry is useful information; three hidden inside the word
 "dispositioned" is not.
 
 **Step 2 is not optional boilerplate.** Of the three lines, it is the only one with work in it, and a
-reviewer comment fixed by hand skips the security review, the acceptance re-verify and the context merge
+reviewer comment fixed by hand skips the code review, the acceptance re-verify and the context merge
 that `/dev:commit` just ran. Name it every time, with the task id already filled in.
 
 **Navigation URL sources (v2.3.17 — task-mcp is the URL source of truth):**
@@ -679,7 +673,6 @@ succeeded still pushes.
 ## 8. Guardrails
 
 - Never invent behaviour not in `implementation.md` or resulting from a Stage 6 fix
-- Never bypass Stage 3 security review without the `SECURITY_REVIEW_OVERRIDE` env
 - Never bypass Stage 7 semantic merge without `--force-context-merge=ours`
 - Never `git push --force` without `--force-push`
 - Never `--no-verify` on push

@@ -60,7 +60,7 @@ later — reads that path and continues. No stage depends on remembering a chat.
 | **Doc** | Produce client-facing collateral from the same source material | `/doc:proposal`, `/doc:deck`, `/doc:walkthrough`, `/doc:workflow`, `/doc:magic-board` |
 | **Jetrix** | Bind the workspace to the delivery platform and keep both in sync | `/jetrix:init`, `/jetrix:pull`, `/jetrix:push`, `/jetrix:project-setup` |
 
-Seven plugins carry **32 commands** and **43 skills**. Commands are the human entry points;
+Seven plugins carry **32 commands** and **29 skills**. Commands are the human entry points;
 skills carry the method and are reused across plugins. `tl` behaves as a second core — `/dev:plan`
 cannot run without it.
 
@@ -160,7 +160,7 @@ developer would otherwise stop and ask about is surfaced as a plan blocker first
 ### Phase 7 — Build and ship *(Dev)*
 
 Build implements against the plan, writes tests, and produces a verifiable test map. Commit is
-the only executor: it runs the suite, reviews security and code, re-verifies acceptance,
+the only executor: it runs the suite, reviews the code, re-verifies acceptance,
 merges the context graph and raises the pull request. Gates block; they do not warn.
 
 ---

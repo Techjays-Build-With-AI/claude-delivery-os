@@ -2,7 +2,7 @@
 
 **Purpose.** Merge this branch's code-context (units marked `origin: implemented` by `/dev:build` Stage 10 + index rows added) against the base branch's baseline context. Delegate to the new `tl-semantic-context-merge` skill. Prevents git's text-level merge from clobbering the graph structure when the PR merges.
 
-**Runs after Stages 3–5 pass.** State: `devReview` (unchanged); MC: `devReview` (unchanged). On any semantic conflict, halts cleanly with `dev/context-merge-conflicts.md` for human resolution.
+**Runs after Stages 4–5 pass.** State: `devReview` (unchanged); MC: `devReview` (unchanged). On any semantic conflict, halts cleanly with `dev/context-merge-conflicts.md` for human resolution.
 
 **On completion:** merged context files written locally (still on the feature branch working tree), ready for Stage 8's push.
 
@@ -14,7 +14,7 @@
 no build ran. Record `SKIPPED` with `reason: route-b-no-context-units` and continue —
 do not invoke the skill against an empty unit list.
 
-- Stages 3–5 clean
+- Stages 4–5 clean
 - `units/<repo>/status.md § ## Run history` Stage 10 has `context_units_updated: [<paths>]` list
 - Baseline comes from git — `git show <remote>/<base>:<path>`; no MCP call, no network
 - **`status.md` § `## Run history` `stage-2.base_pulled_at` is set** (v2.3.25 — base branch was pulled locally in Stage 2). Without the base on disk, this stage cannot merge against a real baseline — it would either hallucinate a diff OR (as seen in real runs) rationalize itself into a no-op. Missing → HALT with `blocker: base-branch-not-pulled-for-merge`.

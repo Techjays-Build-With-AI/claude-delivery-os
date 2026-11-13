@@ -12,7 +12,7 @@ Also: if this task is the LAST sub-task to land under the parent (all sibling su
 
 ### 5a. Preconditions
 
-- Stages 3+4 done, zero commit-time-blocking findings
+- Stage 4 done, zero commit-time-blocking findings
 - `units/<repo>/status.md § ## Acceptance` exists (from `/dev:build` Stage 8)
 - **Services are started by this stage, not assumed** — §5a.0a. `/dev:build`
   Stage 7 tears its services down when it finishes, so by commit time nothing is
@@ -259,7 +259,7 @@ the committer saw.
 
 **Every row `✅ pass` or acceptably `⏸ deferred-to-e2e`** → mark Stage 5 done. Advance to Stage 7 (semantic merge).
 
-**One or more `⚠ regression` or `❌ fail`** → invoke the fix loop per `stage-6-fix-loop.md` §6a.i (v2.3.27). The fix loop is **MANDATORY and VERIFIABLE** — this stage MUST invoke `dev-stack-adaptive-implementation` in fix-mode via the Skill / Agent tool and record a `stage-5.fix_loop_invocation:` block in `status.md` § `## Run history` (fields per §6a.i). Applying the fix inline without recording the invocation trace is a spec violation and Stage 8 §8a will refuse to push. After fix loop, Stages 3+4+5 all re-run from the top.
+**One or more `⚠ regression` or `❌ fail`** → invoke the fix loop per `stage-6-fix-loop.md` §6a.i (v2.3.27). The fix loop is **MANDATORY and VERIFIABLE** — this stage MUST invoke `dev-stack-adaptive-implementation` in fix-mode via the Skill / Agent tool and record a `stage-5.fix_loop_invocation:` block in `status.md` § `## Run history` (fields per §6a.i). Applying the fix inline without recording the invocation trace is a spec violation and Stage 8 §8a will refuse to push. After fix loop, Stages 4+5 both re-run from the top.
 
 ---
 

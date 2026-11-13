@@ -1,14 +1,12 @@
 # `findings.md` — one file, stable ids, settled decisions
 
 Every review stage writes into **one** file per unit:
-`units/<repo>/findings.md`. Six sections, never six files — v2.4 consolidated
-sixteen audit files into six on purpose, and a new report per reviewer would
+`units/<repo>/findings.md`. Four sections, never four files — v2.4 consolidated
+sixteen audit files into one on purpose, and a new report per reviewer would
 undo it.
 
 ```
 units/<repo>/findings.md
-  ## Security — build        /dev:build Stage 9      report-only, all severities
-  ## Security — commit       /dev:commit Stage 3     Critical + High block
   ## Code review             /dev:commit Stage 4     Blocker + Major block
   ## Test verification       /dev:commit Stage 5     required gates block
   ## Context merge           /dev:commit Stage 7     conflicts block

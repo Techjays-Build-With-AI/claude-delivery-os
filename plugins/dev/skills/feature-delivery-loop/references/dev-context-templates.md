@@ -109,7 +109,7 @@ way is the lie these columns exist to prevent.
 
 ## 2. `findings.md` — fix-loop state, read and rewritten
 
-**Not an archive.** Build Stage 9 and commit Stages 3–5 write it; **Stage 6 reads it**, fixes each finding,
+**Not an archive.** Commit Stages 4–5 write it; **Stage 6 reads it**, fixes each finding,
 re-runs the originating stage and rewrites this file. Stage 8 refuses to push without the resulting trace.
 
 ```md
@@ -121,19 +121,6 @@ open: 1
 fixed: 4
 escalated: 0
 ---
-
-## Security — build
-*Report-only. Build does not stop for any severity; /dev:commit Stage 3 is the gate.*
-
-### SEC-B-01 · Critical · open · attempts_used: 1/3
-Raw SQL interpolation in `suppliers/repo.py:142`.
-- found by: Stage 9 · 2026-10-21T10:22:00Z
-- fix: parameterise; re-run Stage 9
-- attempt 1 (10:31): parameterised, re-run clean — pending re-verify
-
-## Security — commit
-*Critical + High.*
-None.
 
 ## Code review
 *7 dimensions × Blocker / Major / Minor / Nit.*
@@ -210,7 +197,6 @@ content that their template has no home for.
 Duplicate supplier tags are now rejected at write time rather than by a prior read.
 
 ## Not blocking, worth knowing
-- 2 Medium security warnings — rate limiting on the public lookup (follow-up)
 - 3 Minor review notes — naming in `repo.py`
 
 ## How to verify
@@ -299,7 +285,7 @@ blank `Resolution:` field is the only thing `/dev:resolve` reads.
 | `plan-run.md` · `build-run.md` · `commit-run.md` · `implementation-log.md` · `.compare-url.txt` | `status.md` § `## Run history` |
 | `acceptance-map.md` | `status.md` § `## Acceptance` |
 | `escalation-<n>.md` | a `BLOCKED` entry in `## Run history` |
-| `security-findings-build.md` · `security-findings-commit.md` · `code-review-findings.md` · `context-merge-log.md` | `findings.md`, four sections |
+| `code-review-findings.md` · `context-merge-log.md` | `findings.md`, two sections |
 | `local-runbook.md` | `pr-summary.md` § `## How to verify` |
 | `comments.md` · `attachments.md` | `discussion.md`, two sections |
 | `traceability.md` | removed — a full schema with no writer and no reader |

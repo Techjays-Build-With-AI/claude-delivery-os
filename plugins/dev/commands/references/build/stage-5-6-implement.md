@@ -79,7 +79,9 @@ Invoke the **`dev-stack-adaptive-implementation`** skill (see `plugins/dev/skill
   1. Read the TL unit files this step references (endpoints, entities, pages)
   2. Write the code idiomatically per Phase 2's inferred patterns
   3. Write the tests immediately per `references/test-patterns.md`
-  4. Log each step + material technical choices as `DEC-###` in `shared-context/decision-log.md`
+  4. Hold each step's material technical choices in memory as a pending `DEC-###`
+
+  **Write the decision log once, at the end of Phase 3** — append every pending `DEC-###` to `shared-context/decision-log.md` in step order, in one edit. A write per step interrupts the repo mental state this phase depends on, and the log reads the same either way. A halt mid-phase writes what it has before it exits.
 
 **All runs in the dev-agent's own context.** Repo mental state (file tree, existing patterns, in-progress edits) must persist across many reads and writes — subagent delegation would lose that.
 
@@ -313,4 +315,4 @@ If `stage-5-6.status: RUNNING` (partial completion, e.g. previous run crashed):
 - **`dev-stack-adaptive-implementation` skill** — the primary work of Stages 5-6
 - No subagents (Phase 3's repo mental state must persist across many operations)
 
-Never invoke `security-review` from Stages 5-6 — that's Stage 9. Never invoke `dev-stack-adaptive-code-review` — that's `/dev:commit` Stage 4.
+Never invoke `dev-stack-adaptive-code-review` from Stages 5-6 — that's `/dev:commit` Stage 4.

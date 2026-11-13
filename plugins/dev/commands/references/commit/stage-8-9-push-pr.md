@@ -14,19 +14,19 @@ Two closely-coupled stages. Combined in one reference file because their state t
 
 - **Stage 2 base-branch confirmed by user** — check `status.md` § `## Run history` `stage-2.base_confirmed_by_user: true`; missing → HALT with `blocker: stage-2-base-not-confirmed` (user must re-run so the branch prompt fires)
 - **Stage 2 base pulled locally** — check `status.md` § `## Run history` `stage-2.base_pulled_at` timestamp exists; missing → HALT with `blocker: base-branch-not-pulled` (Stage 7 can't merge against a base that isn't on disk)
-- **Stage 3 fix loop invoked if it had blocking findings (v2.3.27)** — read `status.md` § `## Run history` `stage-3.findings`. If BEFORE-loop counts (Critical > 0 OR High > 0) but no `stage-3.fix_loop_invocation.invoked_at` block exists → HALT with `blocker: stage-3-fix-loop-not-invoked`. Same class as stage-7 gap: findings surfaced, agent moved on without running Stage 6, review said "block" and nobody acted on it.
 - **Stage 4 fix loop invoked if it had blocking findings (v2.3.27)** — read `status.md` § `## Run history` `stage-4.findings`. If (Blocker > 0 OR Major > 0) but no `stage-4.fix_loop_invocation.invoked_at` → HALT with `blocker: stage-4-fix-loop-not-invoked`.
 - **Stage 5 fix loop invoked if it had blocking findings (v2.3.27)** — read `status.md` § `## Run history` `stage-5.rows_regressed` and `stage-5.rows_failed`. If either > 0 but no `stage-5.fix_loop_invocation.invoked_at` → HALT with `blocker: stage-5-fix-loop-not-invoked`.
-- **Stage 3/4/5 final findings ARE clean** — after any fix loop, current counts must be zero for their blocking severities (Stage 3: Critical + High; Stage 4: Blocker + Major; Stage 5: regression + fail). Non-zero → HALT with `blocker: stage-<n>-fix-loop-did-not-clear-findings` (means the fix loop ran but ended in ESCALATED state; check `units/<repo>/status.md § ## Run history (a BLOCKED entry)`; user must resolve manually and re-run).
+- **Stage 4/5 final findings ARE clean** — after any fix loop, current counts must be zero for their blocking severities (Stage 4: Blocker + Major; Stage 5: regression + fail). Non-zero → HALT with `blocker: stage-<n>-fix-loop-did-not-clear-findings` (means the fix loop ran but ended in ESCALATED state; check `units/<repo>/status.md § ## Run history (a BLOCKED entry)`; user must resolve manually and re-run).
 - **Stage 7 semantic-merge INVOKED** — check `status.md` § `## Run history` `stage-7.tl_semantic_context_merge_invocation.invoked_at` is set and `invocation` is non-empty (a subagent id, or `inline` where the Skill tool returned none); `invoked_at` MISSING or NULL → HALT with `blocker: stage-7-not-executed` (this is the user-reported gap: agent skipped Stage 7 by "reasoning it was a no-op"; the skill invocation is the ONLY evidence of execution)
 - **Stage 7 merged base matches Stage 2 base** — check `stage-7.tl_semantic_context_merge_invocation.base_ref` sha matches `stage-2.base_remote_sha`; mismatch → HALT with `blocker: stage-7-merged-against-wrong-base` (means Stage 7 pulled its own base separately from Stage 2's; not allowed)
 - **Stage 7.5 commits landed** — check `stage-7-5.commits_made` list is non-empty (or `stage-7-5.status: SKIPPED` with reason `working tree has no source/test/context uncommitted changes`)
 - **Working tree clean** — `git status --porcelain` shows only allowed `dev-local` / `workspace-local` files (see Stage 7.5 §7.5b categorization)
-- **What was staged is what was reviewed (v1.4)** — recompute the review snapshot and check its sha against `stage-3.snapshot_sha`, `stage-4.snapshot_sha` and `stage-5.snapshot_sha`. Any mismatch → HALT with `blocker: snapshot-stale`. **All three must cite the same sha**: three reviewers disagreeing about what they read means the tree moved mid-run and at least one verdict describes bytes that are no longer there
+- **What was staged is what was reviewed (v1.4)** — recompute the review snapshot and check its sha against `stage-4.snapshot_sha` and `stage-5.snapshot_sha`. Any mismatch → HALT with `blocker: snapshot-stale`. **Both must cite the same sha**: two reviewers disagreeing about what they read means the tree moved mid-run and at least one verdict describes bytes that are no longer there
 - **Commit-time gates actually ran** — `stage-5.gates_run` is present, every gate in it has a `result`, and every gate absent from it appears in `stage-5.gates_skipped` with a reason. Missing → HALT with `blocker: commit-gates-not-run`. An acceptance table built from tests that never executed is the failure this whole stage set exists to prevent
 - **Services were started for the tiers that needed them** — where `stage-5.gates_run` contains an `integration`, `contract` or `e2e` gate, `stage-5.external_services_started` must be non-empty and every entry `healthy`. Missing → HALT with `blocker: commit-gates-ran-without-services`
+- **Each review stage wrote its section** — `## Code review` is present in `units/<repo>/findings.md` whenever Stage 4 ran, `## Test verification` whenever Stage 5 ran. Missing → HALT with `blocker: findings-section-missing`. The disposition check below passes vacuously on an empty file, so existence is checked first
 - **Nothing is undispositioned** — every finding in `units/<repo>/findings.md` carries a `disposition` (`references/common/findings-contract.md` §2). Any missing → HALT with `blocker: findings-undispositioned`, listing them
-- **Non-blocking findings were actually fixed, not just marked (§6e.i)** — if any Medium/Low/Minor/Nit finding existed before the loop, `stage-<n>.fix_loop_invocation.nonblocking_rounds` must be present with `rounds_used ≥ 1` and `cascade_rerun: true`. Missing → HALT with `blocker: nonblocking-rounds-not-run`. Same failure class as the Stage 3/4/5 gates above: findings surfaced and the agent moved past them
+- **Non-blocking findings were actually fixed, not just marked (§6e.i)** — if any Medium/Low/Minor/Nit finding existed before the loop, `stage-<n>.fix_loop_invocation.nonblocking_rounds` must be present with `rounds_used ≥ 1` and `cascade_rerun: true`. Missing → HALT with `blocker: nonblocking-rounds-not-run`. Same failure class as the Stage 4/5 gates above: findings surfaced and the agent moved past them
 - **Every `fixed` carries its re-check** — in `nonblocking_rounds.findings`, any entry with `disposition: fixed` must also carry `reverified: true`. A `fixed` without a passing individual re-check is unevidenced → HALT with `blocker: fix-not-reverified`, listing them. Being in the batch is not evidence the fix worked
 - **Nothing was silently downgraded** — any non-blocking finding whose disposition is `accepted` or `deferred` must carry a `reason`, and `deferred` a tracker id. A finding that hit the §6e.i round bound reads `escalated`, never `deferred`. Violations → HALT with `blocker: findings-downgraded-without-reason`
 - **No unit still reads `pending`** — check `stage-7-5.provenance_backfilled`; a context unit whose `implemented_by_commit` is still the literal `pending` after a commit exists can never be drift-checked. Missing → HALT with `blocker: provenance-not-backfilled`
@@ -127,8 +127,8 @@ is an answer; a heading that vanished looks like it was never considered. Same f
 `<!-- link the issue -->` stays unless it has been satisfied.
 
 **Never drop our content because their template has no home for it.** Anything left over goes at the end
-under `## Additional detail`, not in the bin. A Medium security finding with no matching heading is still a
-Medium security finding.
+under `## Additional detail`, not in the bin. A Medium code-review finding with no matching heading is still a
+Medium code-review finding.
 
 **Fill their placeholders, do not leave them.** `<!-- Jira ticket -->` becomes the real ticket link — the
 task's tracker URL is already in `status.md`. An unfilled placeholder is worse than our own structure,
@@ -193,13 +193,6 @@ Omit this section entirely when the build verdict was `COMPLETE` or `PARTIAL_DEF
 | ---- | ------------------------- | ---------------------------------------------- | ------ |
 | BR-3 | tax_id unique per country | DB unique constraint + service pre-write check | ✅     |
 | ...  |                           |                                                |        |
-
-## Security review outcome (commit-time strict gate)
-
-- Critical: 0
-- High: 0 (2 build-deferred Highs fixed in commit iteration)
-- Medium: 1 warning: PII in log output — needs redacted logger config (follow-up)
-- Low: 1 informational
 
 ## Code review outcome
 

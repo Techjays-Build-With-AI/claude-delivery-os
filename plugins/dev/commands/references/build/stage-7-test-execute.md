@@ -80,7 +80,26 @@ guessing, which is the drift this architecture exists to prevent.
 
 ### 7b. Verify every row, against the disk
 
-For each row of the map's table:
+**Run the script; do not walk the rows yourself.**
+
+```bash
+python "$CLAUDE_PLUGIN_ROOT/scripts/verify-test-map.py"   --map  "<repo>/context/test-map/<feature-slug>.md"   --repo "<repo>"   --json "<workspace_root>/.jetrix/cache/test-map-verify.json"
+```
+
+It applies every check below to every row and exits non-zero if any fails. Reading
+30 rows by hand costs 150 file reads and applies the name-matching rule 30 separate
+times; the script applies it once, identically. Record `rows_total` / `rows_verified`
+/ `rows_failed` and the `blockers` list from its JSON into `## Run history`.
+
+**Exit 0** — continue to Stage 8. **Exit 1** — HALT on the blocker it names; its
+`rows[]` entries carry the failing row and the reason. **Exit 2** — the map is
+missing or has no table: HALT `blocker: test-map-missing`.
+
+If the script cannot run at all (no interpreter), say so in `## Run history` with
+`method: manual` and apply the table below by hand — the bar is the same, only the
+evidence trail differs.
+
+The checks it applies, one per row:
 
 | Check | Fails when | Blocker |
 |---|---|---|
@@ -90,10 +109,11 @@ For each row of the map's table:
 | **`Needs` is startable** | a token is not `real-db`, `backend-running`, `frontend-running`, `real-auth` or `—` | `test-map-unstartable` |
 | **Fixture exists** | the `Fixtures` column names a factory or seed not on disk | `test-map-dangling-fixture` |
 
-**Match the test name the way the runner does, not by substring.** A row reading
-`create.spec.ts::duplicate` must find a test whose name the runner's own filter
-would select. A substring check passes on `duplicate-ignored` and the row then
-runs a different test than the map claims — a false green nobody can see.
+**Match the test name the way the runner does.** The runner's `-t` filter is a
+substring match, so a row must name **exactly one** test. `create.spec.ts::duplicate`
+against a file holding both `duplicate` and `duplicate-ignored` selects two, and the
+row then runs more than it claims — a false green nobody can see. The script fails
+that row as ambiguous and names the other matches.
 
 **Do not execute anything to prove a row.** Reading the spec file settles every
 check above. Running it is commit's job and would need the services started.

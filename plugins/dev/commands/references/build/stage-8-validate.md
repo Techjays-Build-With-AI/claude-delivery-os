@@ -13,7 +13,7 @@
 - `units/<repo>/status.md § ## Run history` `stage-7.status` is **`DONE` or `SKIPPED`** (SKIPPED only via §7a0, `--skip-qa`)
 - Stage 7 verified the test map (`rows_verified` equals `rows_total`), or recorded `SKIPPED`
 
-**There are no gate results to check, because build runs no tests.** Stage 7 records `executed: false` and every row is `pending`. This stage maps each assertion to the test that will prove it and checks that test is *sound* — it does not and cannot report whether it passes. `/dev:commit` Stage 5 executes and fills the result in.
+**There are no gate results to check, because build runs no tests.** Stage 7 records `executed: false` and every row is `pending`. This stage maps each assertion to the test that will prove it. **Soundness is already settled — do not re-derive it.** Stage 7's script proved, for every row, that the file exists, the named test resolves to exactly one test, the run command is populated, the service tokens are startable and the fixtures are defined; read `.jetrix/cache/test-map-verify.json` and treat a `rows[]` entry with `ok: true` as sound. A row Stage 7 failed never reaches this stage, because Stage 7 halts. What this stage adds is the mapping judgment: which assertion each test actually proves. It does not and cannot report whether it passes. `/dev:commit` Stage 5 executes and fills the result in.
 
 ---
 
@@ -211,7 +211,7 @@ A skip-qa run has no tests at all, so it has no `⏳ pending` rows either — it
 | a row the inspection showed is actually wrong | `PARTIAL_FAILURES` — a real defect, same as always |
 
 **`not-verified` is not `❌ fail`.** Nothing was proven broken; it was never checked.
-Mapping it to `PARTIAL_FAILURES` would strand Stage 9, whose precondition rejects exactly
+Mapping it to `PARTIAL_FAILURES` would strand Stage 10, whose precondition rejects exactly
 that value — and the run would halt for having honestly reported what it did not verify.
 
 **Why the split.** A `missing-test` or `mock-contradicts-tier` row means build left its own work unfinished — advancing would hand commit a map it cannot trust. A deferred row is a scheduling fact, not a defect.
@@ -224,7 +224,7 @@ A reviewer must be able to see the red gate without opening anything else.
 
 ### 8.5. Terminal stage for `--tests-only` runs
 
-A `--tests-only` run ends here, not at Stage 11. Stages 9–11 assume a product diff that does not exist: nothing to security-review, no unit to flip `designed → implemented`, no runbook for code that already shipped. Skipping them is correct — **ending without a state transition is not.**
+A `--tests-only` run ends here, not at Stage 11. Stages 10–11 assume a product diff that does not exist: no unit to flip `designed → implemented`, no runbook for code that already shipped. Skipping them is correct — **ending without a state transition is not.**
 
 Do all four, in order:
 
@@ -405,4 +405,3 @@ If `final_status: PARTIAL_FAILURES`, re-run from §8c (map assertions to evidenc
 - **`dev-stack-adaptive-implementation` skill** in fix-mode — only during §8f focused repair
 - No subagents
 
-Never invoke `security-review` from Stage 8 — that's Stage 9.

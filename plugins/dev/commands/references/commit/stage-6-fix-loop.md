@@ -1,8 +1,8 @@
 ## Stage 6 — Bounded fix loop
 
-**Purpose.** When Stages 3–5 surface blocking findings, delegate fixes to `dev-stack-adaptive-implementation` in **fix-mode**, then re-run every upstream stage. Bounded per finding + per whole-stage re-run — never spin forever.
+**Purpose.** When Stages 4–5 surface blocking findings, delegate fixes to `dev-stack-adaptive-implementation` in **fix-mode**, then re-run every upstream stage. Bounded per finding + per whole-stage re-run — never spin forever.
 
-**Invoked by:** Stages 3 (security), 4 (code review), 5 (acceptance regression). NOT a standalone stage. Each entry into Stage 6 targets a specific set of findings.
+**Invoked by:** Stages 4 (code review) and 5 (acceptance regression). NOT a standalone stage. Each entry into Stage 6 targets a specific set of findings.
 
 **On completion:** every finding that entered the loop is either resolved (fixed) or escalated (bounds exceeded → `units/<repo>/status.md § ## Run history (a BLOCKED entry)` + halt).
 
@@ -10,20 +10,20 @@
 
 ### 6a. Preconditions
 
-- One of Stages 3-5 produced findings that block at commit-time threshold
-- The findings file (`security-findings-commit.md`, `code-review-findings.md`, `status.md` § `## Acceptance`) has been written and is readable
+- Stage 4 or Stage 5 produced findings that block at commit-time threshold
+- The findings file (`units/<repo>/findings.md` § `## Code review`, `status.md` § `## Acceptance`) has been written and is readable
 - Stack + inferred patterns are still available in `units/<repo>/status.md § ## Run history`
 
 ### 6a.i. Non-skippable execution (v2.3.27 — closes the "findings surfaced but agent didn't invoke fix loop" gap)
 
-**Whenever any of Stages 3, 4, or 5 produces one or more BLOCKING findings, the origin stage MUST invoke the fix loop in this file via the Skill / Agent tool (delegating to `dev-stack-adaptive-implementation` in fix-mode). Internal reasoning that "the finding is small, I'll just fix it inline" or "the agent will pick it up later" is NOT sufficient evidence of execution — the skill's own invocation log is the evidence. Skip = spec violation.**
+**Whenever Stage 4 or Stage 5 produces one or more BLOCKING findings, the origin stage MUST invoke the fix loop in this file via the Skill / Agent tool (delegating to `dev-stack-adaptive-implementation` in fix-mode). Internal reasoning that "the finding is small, I'll just fix it inline" or "the agent will pick it up later" is NOT sufficient evidence of execution — the skill's own invocation log is the evidence. Skip = spec violation.**
 
 Same class of "spec exists but subagent doesn't execute it" bug as v2.3.21 (compose mechanical fix pass) and v2.3.25 (Stage 7 semantic merge). Findings surface, the agent reports them, and the agent moves to Stage 8 push without invoking Stage 6. Push then lands broken code because the review said "block" and nobody acted on it.
 
 Every entry into Stage 6 — even trivial ones with a single Critical finding — records an invocation trace in `status.md` § `## Run history`. Recording format (Stage 8 §8a's precondition check reads this):
 
 ```yaml
-stage-3:                       # or stage-4 / stage-5 depending on origin
+stage-4:                       # or stage-5 depending on origin
   status: DONE
   findings:
     critical: 0                # after fix loop; must be zero to advance
@@ -58,7 +58,7 @@ stage-3:                       # or stage-4 / stage-5 depending on origin
           reverified: false
           disposition: escalated   # bound reached — never silently `deferred`
           reason: "fix requires removing the legacy export; scope decision"
-      cascade_rerun: true      # the single 3→4→5 re-run after the rounds
+      cascade_rerun: true      # the single 4→5 re-run after the rounds
     exit_state: CLEAN | ESCALATED
     escalation_file: null | units/<repo>/status.md § ## Run history (a BLOCKED entry)
 ```
@@ -73,7 +73,6 @@ If a stage completes with BLOCKING findings resolved but no `fix_loop_invocation
 
 | Origin stage | Focused fix attempts per finding | Broad re-runs of the whole stage |
 |---|---|---|
-| Stage 3 (security) | 3 per finding | 1 (whole security re-scan) |
 | Stage 4 (code review) | 3 per finding | 1 (whole review re-scan) |
 | Stage 5 (acceptance regression) | 3 per failing row | 2 (whole acceptance re-verification) |
 | Non-blocking findings (Medium/Low/Minor/Nit) | batched per round, re-verified per finding | 2 rounds, then 1 cascade (§6e.i) |
@@ -132,17 +131,23 @@ review that inspected nothing.
 ### 6b.iv. A finding goes back to build — commit never implements
 
 **`/dev:commit` validates; it does not write features.** Every repair is delegated
-to the build half — `dev-stack-adaptive-implementation` in fix-mode — which is the
-skill that wrote the code in the first place and knows the repo's conventions,
-`coding-standards.md` and the stack.
+to the build half — `dev-stack-adaptive-implementation` in **fix mode** (that skill's
+`## Two modes` § defines it) — the skill that wrote the code in the first place.
+
+**Fix mode is the build contract, scoped to one finding.** The repair agent detects the
+stack, infers patterns from the neighbours of `allowed_files`, and holds to
+`coding-standards.md` on every line, exactly as a build does. `minimal-surface` bounds
+*which files* it touches, never *how well* it writes them — the repair diff is reviewed
+against the same nine dimensions as the original, so a repair written below standard
+does not close the loop, it adds a round to it. §6c passes it what it needs to meet that
+contract; a repair invoked without those inputs is a spec violation, not a shortcut.
 
 ```
-  Stage 3 security  ┐
-  Stage 4 code review ├─ finding ──▶ build repair (fix-mode)
-  Stage 5 tests     ┘                      │  minimal change, allowed_files only
+  Stage 4 code review ┐─ finding ──▶ build repair (fix-mode)
+  Stage 5 tests       ┘                    │  minimal change, allowed_files only
                                             │  + a regression test for the finding
           ◀────── re-review ─────────────┘
-          recompute the snapshot, re-run 3 → 4 → 5 in order
+          recompute the snapshot, re-run 4 → 5 in order
 ```
 
 **The repair writes a regression test for the finding**, not only a fix. A defect
@@ -153,8 +158,8 @@ for a bug fix is the same, and it applies here.
 from the test map** before re-running the stage — the fastest signal is the one row
 that failed, and it costs one command rather than a suite.
 
-**Order matters on the re-run: 3 → 4 → 5.** A security fix can break a test; a code
-fix can open a security hole. Never re-run only the originating stage.
+**Order matters on the re-run: 4 → 5.** A code fix can break a test. Never re-run
+only the originating stage.
 
 ### 6c. Fix-mode invocation
 
@@ -163,18 +168,28 @@ For each blocking finding, invoke `dev-stack-adaptive-implementation` in fix-mod
 ```
 Prompt to skill:
   Fix mode.
-  Finding: <full finding entry from security-findings-commit.md OR code-review-findings.md OR status.md § ## Acceptance row>
+  Finding: <full finding entry from units/<repo>/findings.md § ## Code review OR status.md § ## Acceptance row>
   Suggested fix: <fix_suggestion field if present, or "diagnose from failure_scenario">
+  allowed_files: <the finding's file + its test>
+  detected_stack: <the `detected_stack:` block from units/<repo>/status.md § ## Run history>
+  Standards: shared-context/coding-standards.md § <repo> — §§6-12 are hard limits on
+    every line you write, identical to a build.
   Constraint: minimal-surface change; do NOT expand scope; do NOT refactor unrelated code.
+    This bounds WHICH files you touch, not how well you write them.
+  Self-check before reporting `fixed`: read your own diff against the nine review
+    dimensions — correctness, convention adherence, error handling, testability,
+    BR enforcement, naming, reuse, engineering standards, API design. A repair that
+    closes this finding and opens a new one has moved the finding, not resolved it.
   Persist per-finding decision to dev/decisions.md as DEC-###.
 ```
 
 The skill:
 1. Reads the finding
 2. Locates the relevant file + line
-3. Applies the smallest correct change
+3. Applies the smallest correct change, written to `coding-standards.md`
 4. Runs the localized re-verify (the specific test that failed, or a re-lint/re-typecheck if the finding was from a static check)
-5. Reports fixed | still-failing
+5. Self-checks the diff against the nine dimensions above
+6. Reports fixed | still-failing
 
 ---
 
@@ -182,7 +197,6 @@ The skill:
 
 Fix findings in the order they blocked. Within a stage:
 
-- Stage 3 findings: highest-severity first (Critical before High). Within severity, by first-listed order.
 - Stage 4 findings: Blocker before Major. Within severity, by first-listed order.
 - Stage 5 findings: highest-priority AC/BR/NFR row first (from parent's `acceptance-criteria.md` ordering).
 
@@ -192,19 +206,18 @@ If a fix in one dimension breaks another dimension's test (rare but possible), t
 
 ### 6d.i. Re-run only what the repair could have affected
 
-Re-running all three reviewers after every fix is correct and wasteful. Re-run on
+Re-running both reviewers after every fix is correct and wasteful. Re-run on
 this rule, computed from the repair's actual diff:
 
 | Reviewer | Re-runs when |
 |---|---|
-| **security** | any source file changed. Always — a fix anywhere can open a hole, and this is the cheapest place to be paranoid |
 | **test verification** | always. The repair changed code that tests assert on |
 | **code review** | only when the repair touched a file in its finding set, or a file it cited as evidence |
 
 **Recompute the snapshot first and record the new sha.** Findings from the
 previous round cite the old one; a reviewer that is not re-run keeps its earlier
 verdict, and that verdict must still name the snapshot it was formed against.
-Stage 8 checks all three agree (§8a).
+Stage 8 checks both agree (§8a).
 
 **A reviewer that is skipped is recorded as skipped**, with the reason — not left
 to look like it ran.
@@ -215,13 +228,12 @@ After ALL blocking findings for the origin stage are fixed:
 
 1. Broad re-run of the origin stage on the current branch state
 2. If origin stage now clean → re-run every earlier stage in order:
-   - If origin = Stage 5: re-run Stage 3, then Stage 4, then Stage 5
-   - If origin = Stage 4: re-run Stage 3, then Stage 4
-   - If origin = Stage 3: re-run Stage 3 only
+   - If origin = Stage 5: re-run Stage 4, then Stage 5
+   - If origin = Stage 4: re-run Stage 4 only
 3. Any of those re-runs surfaces new blocking findings → re-enter Stage 6 with the new findings
-4. Loop exits ONLY when all of Stages 3-5 pass at commit-time thresholds
+4. Loop exits ONLY when both of Stages 4-5 pass at commit-time thresholds
 
-Order matters: fixing a code-review Major may introduce a security concern; fixing a security issue may break an acceptance test. Never assume "just re-run the origin stage" is enough.
+Order matters: fixing a code-review Major may break an acceptance test. Never assume "just re-run the origin stage" is enough.
 
 ---
 
@@ -269,7 +281,7 @@ Each round is:
 3. **Any finding that did not clear carries into the next round**, with what was tried
    recorded against it.
 
-**Bound: 2 rounds.** Then one full 3→4→5 cascade re-run to catch anything the fixes
+**Bound: 2 rounds.** Then one full 4→5 cascade re-run to catch anything the fixes
 disturbed.
 
 **Why rounds rather than the per-finding loop.** Routing forty findings through the
@@ -372,7 +384,7 @@ Multiple Stage 6 invocations across a single `/dev:commit` run each get their ow
 ### 6h. Skills / agents invoked
 
 - `dev-stack-adaptive-implementation` (fix-mode) — the sole executor of fixes
-- Re-invokes Stages 3+4+5 stage refs after each fix — those in turn invoke `security-review` + `dev-stack-adaptive-code-review` + test runners
+- Re-invokes Stages 4+5 stage refs per §6d.i and §6e — those in turn invoke `dev-stack-adaptive-code-review` + test runners
 
 Never spawn parallel fix agents on distinct findings — findings often interact; serial fixing is the safer default. If two findings are provably orthogonal (e.g. one is a comment fix in file A, the other a type fix in file B) parallel fixing is fine, but the default is serial.
 

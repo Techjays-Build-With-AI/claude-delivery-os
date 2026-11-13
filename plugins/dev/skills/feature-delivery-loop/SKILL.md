@@ -1,11 +1,11 @@
 ---
 name: feature-delivery-loop
-description: Deliver one already-planned task (a parent feature or a sub-task) through the v2.2 three-command flow — `/dev:build` (11-stage build loop) followed by `/dev:commit` (10-stage commit loop) — rather than a one-shot code dump. Use when the user asks to "build/implement a task", "run the delivery loop", "develop FEAT-…", "take this feature to a PR", or hand an already-planned task to development. Refuses if `/dev:plan` hasn't run for this task OR if `units/<repo>/plan-blockers.md` has unresolved entries — those routes to `/dev:plan` / `/dev:plan --resume`. Enforces the two-gate security model (Critical-only at build, Critical+High at commit), the dynamic stack-adaptive skills (implementation + code-review + qa-greenfield-harness), and semantic context merge (unit-level, not text-level) via `tl-semantic-context-merge`. Uses MC's existing status enum (`todo | readyForDev | inProgress | agentExecuting | devReview | blocked | done`) — never invents local MC states. Orchestrates `/dev:build` first then `/dev:commit`; each is user-invoked (never runs both back-to-back on its own).
+description: Deliver one already-planned task (a parent feature or a sub-task) through the v2.2 three-command flow — `/dev:build` (10-stage build loop) followed by `/dev:commit` (9-stage commit loop) — rather than a one-shot code dump. Use when the user asks to "build/implement a task", "run the delivery loop", "develop FEAT-…", "take this feature to a PR", or hand an already-planned task to development. Refuses if `/dev:plan` hasn't run for this task OR if `units/<repo>/plan-blockers.md` has unresolved entries — those routes to `/dev:plan` / `/dev:plan --resume`. Enforces the dynamic stack-adaptive skills (implementation + code-review + qa-greenfield-harness), and semantic context merge (unit-level, not text-level) via `tl-semantic-context-merge`. Uses MC's existing status enum (`todo | readyForDev | inProgress | agentExecuting | devReview | blocked | done`) — never invents local MC states. Orchestrates `/dev:build` first then `/dev:commit`; each is user-invoked (never runs both back-to-back on its own).
 ---
 
 # Feature Delivery Loop (v2.2 — planned task → validated PR handoff)
 
-You are the outer wrapper that turns an **already-planned task** — either a parent feature (parent-alone) or one sub-task of a split feature — into a working, validated, review-ready PR. Planning (readiness gate, impact analysis, implementation.md, plan-blocker resolution) is `/dev:plan`'s job. Building (branch, harness, implement, test, security-build-gate, context flip) is `/dev:build`'s job. Committing (security-commit-gate, code review, acceptance re-verify, semantic-context-merge, push, PR) is `/dev:commit`'s job.
+You are the outer wrapper that turns an **already-planned task** — either a parent feature (parent-alone) or one sub-task of a split feature — into a working, validated, review-ready PR. Planning (readiness gate, impact analysis, implementation.md, plan-blocker resolution) is `/dev:plan`'s job. Building (branch, harness, implement, test, context flip) is `/dev:build`'s job. Committing (code review, acceptance re-verify, semantic-context-merge, push, PR) is `/dev:commit`'s job.
 
 This skill is the **loop coordinator** — it doesn't run the stages itself; it ensures the developer invokes `/dev:build` and `/dev:commit` in the right order with the right preconditions.
 
@@ -32,7 +32,7 @@ Read the **`delivery-os-conventions`** skill first (v2.2) — the loop-control s
 
 - `units/<repo>/status.md § ## Run history` (by `/dev:build`)
 - `units/<repo>/status.md § ## Run history` (by `/dev:commit`)
-- `units/<repo>/status.md § ## Run history`, `units/<repo>/status.md § ## Acceptance`, `dev/decisions.md`, `units/<repo>/findings.md § ## Security — build`, `units/<repo>/findings.md § ## Security — commit`, `units/<repo>/findings.md § ## Code review`, `units/<repo>/findings.md § ## Context merge`, `dev/context-merge-conflicts.md`, `units/<repo>/pr-summary.md § ## How to verify`, `units/<repo>/pr-summary.md`, `units/<repo>/status.md § ## Run history (a BLOCKED entry)`
+- `units/<repo>/status.md § ## Run history`, `units/<repo>/status.md § ## Acceptance`, `dev/decisions.md`, `units/<repo>/findings.md § ## Code review`, `units/<repo>/findings.md § ## Context merge`, `dev/context-merge-conflicts.md`, `units/<repo>/pr-summary.md § ## How to verify`, `units/<repo>/pr-summary.md`, `units/<repo>/status.md § ## Run history (a BLOCKED entry)`
 - MC task status via `mcp__task-mcp__update_task_status`
 - git: `git show <remote>/<base>:<path>` (baseline read) at Stage 7 semantic merge
 
@@ -44,7 +44,7 @@ Produces `implementation.md` + `implementation.md §2 Impacted components` + `un
 
 If `/dev:plan` hasn't run → this loop refuses and instructs the user to run `/dev:plan <target>` first.
 
-### 2. `/dev:build <target>` — 11 stages
+### 2. `/dev:build <target>` — 10 stages
 
 **Precondition:** `implementation.md` exists, `status.md` `status: readyForDev`, and any `units/<repo>/plan-blockers.md` is either absent or fully `status: RESOLVED`.
 
@@ -59,7 +59,6 @@ Stages (see `plugins/dev/commands/build.md` + refs):
 7. Test writing (same skill)
 8. Test execution locally
 9. Acceptance map validation
-10. Security review — **build-time, report-only** (records every severity, blocks nothing)
 11. Update code-context units (`designed → implemented`)
 12. Summary + `units/<repo>/pr-summary.md § ## How to verify`
 
@@ -78,10 +77,9 @@ Stages (see `plugins/dev/commands/commit.md` + refs):
 1. Identity + branch verification
 2. Lock + flip to `devReview` (local) + `devReview` (MC)
 3. Base branch selection
-4. Security review — **commit-time strict gate, Critical + High blocking** (same skill as build, stricter threshold)
 5. Code review — via `dev-stack-adaptive-code-review` skill, Blocker + Major blocking
 6. Acceptance-map re-verification + last-sub-task E2E resolution
-7. Bounded fix loop (routes back to Stages 3–5 on findings)
+7. Bounded fix loop (routes back to Stages 4–5 on findings)
 8. Semantic context merge — via `tl-semantic-context-merge` skill, unit-level not line-level
 9. Push branch
 10. Raise PR (body = `units/<repo>/pr-summary.md`, composed via slim `dev-pr-handoff` skill)
@@ -107,15 +105,6 @@ Use MC's existing enum verbatim. Never invent local variants.
 | DONE | done | PR merge webhook (v2.3) |
 
 The webhook that flips MC `done` on PR merge is v2.3 scope. In v2.2 the MC status stays at `devReview` after `/dev:commit` — human reviewer + merge close the loop manually.
-
-## Two-gate security model
-
-Security review runs TWICE with different thresholds:
-
-- **`/dev:build` Stage 9 (build-time)** — report-only. Every severity recorded and carried to commit; nothing blocked. Rapid dev iteration friendly.
-- **`/dev:commit` Stage 3 (commit-time)** — Critical + High blocking. Medium warns. Low logged. Strict pre-PR gate.
-
-Same `security-review` skill invocation with different `severity_threshold`. Build-deferred Highs surface at commit time; they either got fixed in dev iteration or now block.
 
 ## New v2.2 skills orchestrated
 
@@ -167,7 +156,6 @@ For each command run, emit progress broadcasts:
 ## Principles
 
 - **Context is the source of truth.** Don't begin `/dev:build` until `/dev:plan` produced a decidable plan. A missing blocker resolution IS a blocker.
-- **Two-gate security.** Fast at build, strict at commit. Same skill, two configs.
 - **Stack-adaptive, not stack-hardcoded.** No per-stack playbooks — repo patterns are the source.
 - **Semantic merge, not line merge.** Unit-level context merge on commit; git text-merge can't handle the graph.
 - **Prove behaviour with evidence.** Acceptance-map rows must cite tests that actually run.

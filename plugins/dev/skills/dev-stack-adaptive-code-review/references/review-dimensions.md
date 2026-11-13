@@ -184,9 +184,10 @@ Each dimension applies to every diff regardless of stack. Framework-specific SIG
   pending decisions, never as findings against the diff.
 - **`enforcement.available: false` is where you matter most.** No installed tool
   checks §13's dependency directions, so the reviewer is the only check there is.
-- **Do not re-run `security-review`'s or Dependabot's job.** §14 and §18 do not exist
-  in this contract; vulnerability classes and dependency advisories have their own
-  owners. Check only how *this repo* implements auth, validation and secrets.
+- **Do not re-run Dependabot's job.** §14 and §18 do not exist in this contract;
+  dependency advisories have their own owner. Check only how *this repo* implements
+  auth, validation and secrets — a missing auth guard on a new endpoint is a
+  Blocker here, because no other stage looks for it.
 
 **Every finding cites `rule_id`**, the declared limit or rule text, the observed
 value, and the file and line — so a reader can check the call without re-deriving it. Dimension 8 checks the diff against those limits. If `coding-standards.md` is missing or a section is blank, escalate that as a Blocker on `units/<repo>/status.md § ## Run history (a BLOCKED entry)` — the review cannot fire without the contract to check against, and the fix goes upstream to whoever authors standards.
@@ -319,7 +320,9 @@ For each finding written to `units/<repo>/findings.md § ## Code review` OR emit
 ## Not this skill's job
 
 - Reviewing style (lint / format catches these)
-- Reviewing security (`security-review` skill's job in `/dev:commit` Stage 3)
+- Scanning for vulnerability classes (SQLi, XSS, SSRF and the rest) — the delivery
+  loop runs no security scanner, so this is uncovered by design. What IS in scope is
+  how this repo implements auth, validation and secrets (Dimension 3)
 - Reviewing test coverage numbers (Stage 8 `## Acceptance` table covers correctness; QA gates cover the numbers)
 - Reviewing performance micro-optimizations (only NFR-declared perf targets are checked)
 - Speculating about "future maintenance burden" without concrete evidence
