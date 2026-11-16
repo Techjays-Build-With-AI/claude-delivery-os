@@ -1,6 +1,6 @@
 ## Stage 11 — Report summary + `pr-summary.md` § `## How to verify`
 
-**Purpose.** Two artifacts. First: in-terminal summary so the developer knows what happened. Second: `units/<repo>/pr-summary.md § ## How to verify` — a developer-facing setup + run guide for verifying locally (NOT the PR summary — that's `/dev:commit`'s job). The runbook lives at `units/<repo>/pr-summary.md § ## How to verify` (v2.3.11) — implementation.md is plan-only and does not carry the verify runbook.
+**Purpose.** Two artifacts, composed from **one** read of `status.md` and the run's own state — they draw on the same facts, so read once and write both rather than walking the state twice. First: in-terminal summary so the developer knows what happened. Second: `units/<repo>/pr-summary.md § ## How to verify` — a developer-facing setup + run guide for verifying locally (NOT the PR summary — that's `/dev:commit`'s job). The runbook lives at `units/<repo>/pr-summary.md § ## How to verify` (v2.3.11) — implementation.md is plan-only and does not carry the verify runbook.
 
 **Runs after Stage 10.** Final stage. status `inProgress` · phase `built` (build phase done; local state stays inProgress until `/dev:commit` flips to devReview)
 
@@ -16,6 +16,47 @@
 ---
 
 ### 11b. Compose the in-terminal summary
+
+<!-- governed-by: build-declares-commit-executes -->
+
+**If `stage-7.unplanned_executions` is non-empty, say so first — above everything else.**
+The build status is `PARTIAL_UNPLANNED_RUN` (Stage 8 §8g) and the human needs to know
+before they read a single other number:
+
+```
+⚠ Something executed during this build, which executes nothing.
+
+  npx vitest run --coverage        builder subagent (Stage 5-6)
+    prompted by: superpowers:verification-before-completion
+    result:      42 files, 474 passed   ← NOT evidence. Nothing here is verified.
+
+  /dev:commit Stage 5 will execute the map from zero and discard these numbers.
+```
+
+**Never print those results as if they were the build's evidence.** A green count in a
+build summary is the exact thing this reads as, and it is how an unverified build gets
+reported as a verified one. Name the command, name what prompted it, and label the
+result as discarded.
+
+A gate nobody surfaces is half a gate: Stage 8 can refuse `COMPLETE`, but the human
+only ever sees this summary.
+
+Close with the stage timing table, read from each stage's `duration_s` in `## Run history`
+— one row per stage that ran, in order, then the total. Stages that were skipped show
+`SKIPPED` and no duration. This is the only place the run's cost is visible in one view,
+so print it even when every stage was fast:
+
+```
+stage                         duration
+4  qa harness gate              <s>
+5-6 implement + tests           <s>
+7  verify test map              <s>
+8  acceptance table             <s>
+10 context units                <s>
+11 summary                      <s>
+                                ─────
+total                           <s>
+```
 
 Print to stdout with clear structure:
 
@@ -43,15 +84,6 @@ Tests:
   · Coverage:          72.4% lines (≥60% required)
   · All Required gates: 7/7 pass
 
-Security review (build-time, REPORT-ONLY — nothing blocked, nothing repaired):
-  · Critical:  1   ⚠ blocks at /dev:commit — fix it now or it stops the commit
-  · High:      2   ⚠ blocks at /dev:commit
-  · Medium:    1
-  · Low:       1
-  See: units/<repo>/findings.md § ## Security — build
-
-  Every finding above travels to /dev:commit Stage 3. Critical and High
-  block delivery there; the rest must be dispositioned before the PR opens.
 
 Acceptance map: 12/12 rows resolved
   · Pass locally:    12  (Unit + Integration + Component + Concurrency tiers per qa/quality-gates.md)
@@ -85,7 +117,6 @@ Files written by this run:
   - units/<repo>/status.md § ## Run history
   - units/<repo>/status.md § ## Run history
   - units/<repo>/status.md § ## Acceptance
-  - units/<repo>/findings.md § ## Security — build
   - units/<repo>/pr-summary.md § ## How to verify
   - dev/decisions.md
 ```
@@ -263,10 +294,9 @@ Use the repo's real commands and package manager, not this example. **Give each 
 
 ## 9. Known follow-ups
 
-<From `[HELD]` markers in the plan, `deferred-to-e2e` rows in `## Acceptance` table, and any Medium/Low security findings>
+<From `[HELD]` markers in the plan and `deferred-to-e2e` rows in the `## Acceptance` table>
 
 - E2E: 4 ACs marked deferred-to-e2e — closed by the last sub-task to land (per parent Feature-4's rollup Sub-tasks table)
-- Security warnings deferred to /dev:commit's stricter gate: SR-B-001 (auth guard on POST /supplier), SR-B-002 (axios version pin)
 - Rate-limiting on POST /supplier NOT added — parent NFR doesn't require it; add via /qa:setup if needed
 
 ## 10. Rollback

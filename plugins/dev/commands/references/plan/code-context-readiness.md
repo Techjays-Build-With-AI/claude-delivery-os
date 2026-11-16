@@ -164,7 +164,7 @@ Before Stage 2 starts, verify `qa/quality-gates.md` state:
   multiSelect: false
   ```
 
-- **On "Yes"** → invoke `/qa:audit` → `/qa:plan` → `/qa:setup` inline (skills: `qa-audit`, `qa-plan`, `qa-test-setup`). Wait for `qa/quality-gates.md` `harness_status: Ready`. Log `qa_setup_completed: true` to `status.md` § `## Run history`. Continue to §1f.
+- **On "Yes"** → invoke `/qa:audit` → `/qa:plan` → `/qa:setup` inline (skills: `qa-test-audit`, `qa-test-setup`). Wait for `qa/quality-gates.md` `harness_status: Ready`. Log `qa_setup_completed: true` to `status.md` § `## Run history`. Continue to §1f.
 - **On "Skip"** → write a marker file `qa/quality-gates.md` with skeleton frontmatter `harness_status: Stack-Inferred`, `stack_inferred: true`, `inferred_from: <shared-context/technology-stack.md OR repo/package.json OR ...>`, `skipped_at_plan: <ISO timestamp>`, and the stack-detected tier pool for each capability class. Log `qa_setup_skipped: true` to `status.md` § `## Run history`. Continue to §1f.
 
 The `stack-inferred: true` marker signals to `/dev:build` Stage 0 that the tier pool came from stack detection (not from a QA audit), so the build gate is softened accordingly (see [`build.md`](../../build.md) §2 QA gate check). The NEW feature's coverage is still 100% at every applicable tier — the skip only affects backfill of the EXISTING codebase.

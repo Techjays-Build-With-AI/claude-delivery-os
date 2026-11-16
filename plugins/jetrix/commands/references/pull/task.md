@@ -132,7 +132,8 @@ Reached only when §3 returned `pulled: 0`. The ref may still be a real ticket t
 
    Sync-state lands under `tasks/<slug>.md` — the same key `/jetrix:pull list` writes, so skip-unchanged and `expected_updated_at` work across a pull → push cycle for these tickets too.
 
-4. **Do not synthesise the 8-file BA layout for these.** `features/` means "decomposed from scope"; a bug that never went through `/ba:features` does not belong there. `/dev:plan` reads `tasks/<slug>.md` directly and writes its own outputs to `tasks/<slug>/dev/`.
+<!-- governed-by: non-feature-run-path -->
+4. **Do not synthesise the 8-file BA layout for these.** `features/` means "decomposed from scope"; a bug that never went through `/ba:features` does not belong there. `/dev:plan` reads `tasks/<slug>.md` directly and writes its own outputs to `tasks/<slug>/units/<repo>/`.
 
 Report:
 ```

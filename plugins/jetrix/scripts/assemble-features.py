@@ -81,7 +81,27 @@ from typing import Any
 # ---------------------------------------------------------------------------
 # Transform: strip_file_paths — mirrors push/feature.md §3 verbatim.
 # ---------------------------------------------------------------------------
+# A fenced block is content, not a file reference. Split it out and leave it
+# byte-for-byte: the cleanup passes below delete runs of 2-4 backticks, which
+# is exactly what a ``` fence is, and the prose rules cannot tell a diagram's
+# `api/x` from a real path.
+_FENCE_BLOCK = re.compile(
+    r'((?:^|\n)[ \t]*(?:```|~~~).*?(?:\n[ \t]*(?:```|~~~)[ \t]*(?=\n|$)|\Z))',
+    re.DOTALL,
+)
+
+
 def strip_file_paths(text: str) -> str:
+    if not text:
+        return text
+    # re.split with one group -> even indices are prose, odd are fenced blocks.
+    parts = _FENCE_BLOCK.split(text)
+    return ''.join(
+        p if i % 2 else _strip_segment(p) for i, p in enumerate(parts)
+    ).strip()
+
+
+def _strip_segment(text: str) -> str:
     if not text:
         return text
     # File-reference prose  ("… — see foo.md.", "(see foo.md)", "see `foo.md`")
@@ -101,13 +121,7 @@ def strip_file_paths(text: str) -> str:
 
     # Mid-content analysis-tag citations inside a larger bracket.
     text = re.sub(
-        r'\b(?:SIMULATED|TL|QA|BA|DEBUG|NOTE|REVIEW|TODO|FIXME|INTERNAL|code)\s*[›>]\s*[^,\]\n]+',
-        '', text,
-    )
-
-    # Bare code-ext filenames in prose.
-    text = re.sub(
-        r'\b[a-zA-Z][a-zA-Z0-9_-]*\.(md|js|ts|jsx|tsx|py|go|java|rb|rs|kt|swift|json|yaml|yml)\b\.?',
+        r'\b(?:SIMULATED|TL|QA|BA|DEBUG|NOTE|REVIEW|TODO|FIXME|INTERNAL|code)\s*›\s*[^,\]\n]+',
         '', text,
     )
 
@@ -162,7 +176,7 @@ def strip_file_paths(text: str) -> str:
 
     text = re.sub(r'\|\s*#\s*\|\s*Scenario\s*\|', r'| No. | Scenario |', text)
 
-    return text.strip()
+    return text
 
 
 def rewrite_feat_to_task(text: str, task_num_by_feat: dict[str, int]) -> str:

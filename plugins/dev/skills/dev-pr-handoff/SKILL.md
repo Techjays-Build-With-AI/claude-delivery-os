@@ -13,13 +13,12 @@ The v2.2 slim-down: this skill was previously a state-transitioning agent; it no
 
 Read **`delivery-os-conventions`** and **`references/pr-and-escalation.md`** if not in context. Inputs from the task's `dev/` folder:
 
-- For a PR summary: `units/<repo>/status.md § ## Run history`, `units/<repo>/status.md § ## Run history`, `units/<repo>/status.md § ## Acceptance`, `units/<repo>/status.md § ## Run history`, `units/<repo>/findings.md § ## Security — commit`, `units/<repo>/findings.md § ## Code review`, `units/<repo>/findings.md § ## Context merge`, `dev/decisions.md`, plus parent BA files (`feature.md`, `business-rules.md`, `nfrs.md`).
+- For a PR summary: `units/<repo>/status.md § ## Run history`, `units/<repo>/status.md § ## Run history`, `units/<repo>/status.md § ## Acceptance`, `units/<repo>/status.md § ## Run history`, `units/<repo>/findings.md § ## Code review`, `units/<repo>/findings.md § ## Context merge`, `dev/decisions.md`, plus parent BA files (`feature.md`, `business-rules.md`, `nfrs.md`).
 - For an escalation: `units/<repo>/status.md § ## Run history` OR `units/<repo>/status.md § ## Run history` (the failing run log), the finding chain, `status.md`, plus optional `units/<repo>/plan-blockers.md` if plan-time is the halt.
 
 ## PR summary composition
 
 1. **Verify the gate is passable.** Check `units/<repo>/status.md § ## Run history`:
-   - Stage 3 (security): zero Critical + zero High
    - Stage 4 (code review): zero Blocker + zero Major
    - Stage 5 (acceptance): all rows `✅` or valid `⏸ deferred-to-e2e`
    - Stage 7 (semantic merge): zero unresolved conflicts
@@ -33,7 +32,6 @@ Read **`delivery-os-conventions`** and **`references/pr-and-escalation.md`** if 
    - Test coverage summary (numbers only)
    - Acceptance criteria table
    - Business rules enforcement table
-   - Security review outcome (commit-time thresholds)
    - Code review outcome (severity breakdown)
    - Follow-up suggestions (Minor findings, non-blocking)
    - Semantic context merge summary
@@ -61,7 +59,7 @@ Read **`delivery-os-conventions`** and **`references/pr-and-escalation.md`** if 
 - **NEVER** modify `status.md` or each feature’s own `status.md`
 - **NEVER** flip local state (that's the orchestrator's job)
 - **NEVER** merge, push, deploy, or approve
-- **NEVER** create the branch, execute tests, or run security scans (upstream stages do this)
+- **NEVER** create the branch or execute tests (upstream stages do this)
 - **NEVER** inflate a summary to get a feature through a failing gate
 - **NEVER** downgrade a real blocker into an assumption to avoid escalating
 

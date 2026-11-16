@@ -35,7 +35,26 @@ If missing (rare — should be present from `/dev:build`), re-run the same detec
 
 ### Phase 2 — Review dimensions
 
+<!-- rule: code-review-dimension-count
+     scope: plugins/dev
+     phrases: "9 review dimensions" | "9 dimensions" | "nine dimensions"
+            | "9-dimensions" -->
+
 Follow **`references/review-dimensions.md`** — the 9 dimensions to review, each with concrete signals per stack pattern (via **`references/stack-signals.md`**).
+
+**Nine, and the count is load-bearing.** It was stated as **seven** in three places —
+`dev_readme.md`, `dev-agent.md`'s description, and the `dimensions_reviewed:` template
+in `stage-4-code-review.md` — all of them omitting **Dimension 8 (engineering
+standards)** and **Dimension 9 (API design and contract)**.
+
+The template mattered most: an agent writing the record it was shown reviews what the
+record lists, and the trace then says nine dimensions ran when seven did. The two that
+went missing are the two a reviewer is least likely to reach unprompted — and since
+2.3.28 removed the security stage, Dimension 8 is also where a missing auth guard on a
+new endpoint is caught. Nothing else looks for it.
+
+**Record all nine in `dimensions_reviewed:`, every run.** A short list is not brevity;
+it is a statement that the absent ones were not examined.
 
 For each dimension, iterate every changed file in the diff and record findings. Each finding gets:
 - Severity (Blocker / Major / Minor / Nit)

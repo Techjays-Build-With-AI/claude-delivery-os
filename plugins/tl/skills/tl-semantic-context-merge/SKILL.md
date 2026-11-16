@@ -1,6 +1,6 @@
 ---
 name: tl-semantic-context-merge
-description: Invoked during /dev:commit Stage 7 (semantic-context-merge). Merges the feature branch's code-context units (the ones flipped from designed→implemented in /dev:build Stage 10) against the base branch's baseline context (the `main` env in context-mcp), so the resulting index rows + unit-file frontmatter reflect the union of what other in-flight branches have already landed. Graph-aware unit-level merge — NOT a text-level three-way merge. Reads baseline via context-mcp `context_pull_manifest(env=main)`, compares against local unit files, applies field-level LWW per unit + row-union on layer indexes, and writes the merged result back. On conflict (rare — same unit id modified in incompatible ways in both baseline and branch), records the conflict in `dev/context-merge-conflicts.md` for human resolution and halts. Never overwrites baseline blindly; never re-runs designed→implemented transitions; treats the context graph as data, not code.
+description: Invoked during /dev:commit Stage 7 (semantic-context-merge). Merges the feature branch's code-context units (the ones flipped from designed→implemented in /dev:build Stage 10) against the base branch's baseline context (read from the base branch in git), so the resulting index rows + unit-file frontmatter reflect the union of what other in-flight branches have already landed. Graph-aware unit-level merge — NOT a text-level three-way merge. Reads baseline via `git show <remote>/<base>:<path>`, compares against local unit files, applies field-level LWW per unit + row-union on layer indexes, and writes the merged result back. On conflict (rare — same unit id modified in incompatible ways in both baseline and branch), records the conflict in `dev/context-merge-conflicts.md` for human resolution and halts. Never overwrites baseline blindly; never re-runs designed→implemented transitions; treats the context graph as data, not code.
 ---
 
 # TL Semantic Context Merge
@@ -17,8 +17,8 @@ Read the **`delivery-os-conventions`** skill first if not in context — you nee
 
 Inputs:
 - The feature's owned unit files that flipped this run (from `units/<repo>/status.md § ## Run history` Stage 10's `context_units_updated:` list)
-- The corresponding baseline units + indexes on `main` env via `context-mcp` `context_pull_manifest(solution_id, env='main')`
-- The three layer indexes (`<repo>/context/code-context/frontend/frontend-index.md`, `<repo>/context/code-context/backend/backend-index.md`, `<repo>/context/code-context/database/database-index.md`) — same URL sources
+- The corresponding baseline units + indexes on the base branch, read with `git show <remote>/<base>:<path>`
+- The three layer indexes (`<repo>/context/code-context/frontend/frontend-index.md`, `<repo>/context/code-context/backend/backend-index.md`, `<repo>/context/code-context/database/database-index.md`) — same source
 - Overview files if the feature added new pages/endpoints/entities that require an overview entry
 
 Outputs:
@@ -32,15 +32,15 @@ Outputs:
 ### Phase 1 — Pull baseline + inventory local changes
 
 1. Read `units/<repo>/status.md § ## Run history` Stage 10's `context_units_updated:` block. This is the exact list of unit files this feature touched.
-2. Call `mcp__context-mcp__context_pull_manifest(solution_id=<from .jetrix/project.json>, env='main')` — receive signed download URLs for every context doc in baseline.
-3. Filter the manifest response to:
+2. Read each baseline path with `git show <remote>/<base>:<path>`. Stage 2 already fetched the base branch, so every baseline copy is in the local object store.
+3. Limit the read to:
    - The touched unit files (by repo-relative path)
    - The three layer indexes: `<repo>/context/code-context/frontend/frontend-index.md`, `<repo>/context/code-context/backend/backend-index.md`, `<repo>/context/code-context/database/database-index.md`
    - The three overviews: `<repo>/context/code-context/frontend/_overview.md`, `<repo>/context/code-context/backend/_overview.md`, `<repo>/context/code-context/database/_overview.md`
-4. Download those specific baseline docs to a scratch dir (`dev/.context-merge-scratch/main/…`).
+4. Write those baseline copies to a scratch dir (`dev/.context-merge-scratch/<base>/…`).
 5. Read the corresponding local (feature-branch) files — the ones `/dev:build` produced.
 
-Never pull the whole graph — bandwidth waste. Only the paths this feature touched + the 3 indexes + 3 overviews.
+Never read the whole graph. Only the paths this feature touched + the 3 indexes + 3 overviews.
 
 ### Phase 2 — Apply the merge rules
 
@@ -89,13 +89,13 @@ Then HALT — do NOT let `/dev:commit` proceed to Stage 8/9 push+PR. State goes 
 
 **Rule 6 — Never re-run `designed → implemented`.** The origin transition happened in `/dev:build` Stage 10 with commits already in the branch. This skill preserves that — never touches the `origin:` field on units this feature owns.
 
-**Rule 7 — Baseline is read-only via context-mcp.** Never call any write-side tool against `env='main'`. If merging succeeds, the push side of `env='dev'` happens later via a separate flow — NOT this skill's job.
+**Rule 7 — Baseline is read-only.** Never write to the base branch from this skill. If merging succeeds, publishing the merged context happens later via a separate flow — NOT this skill's job.
 
 **Rule 8 — Halt on conflict.** If any true semantic conflict is found, this skill halts. `/dev:commit` will not proceed. Human resolves via `context-merge-conflicts.md`, then reruns `/dev:commit --resume`.
 
 **Rule 9 — No subagents.** This skill runs inline in the `/dev:commit` main session; the merge must be reasoned about with the full context in view, not distributed.
 
-**Rule 10 — Never touch context/features/.** Features live in MC via task-mcp, not context-mcp. If a path with `context/features/` appears, ignore.
+**Rule 10 — Never touch context/features/.** Features live in MC via task-mcp, not in the code-context tree. If a path with `context/features/` appears, ignore.
 
 ## Completion criteria
 
@@ -107,7 +107,7 @@ Then HALT — do NOT let `/dev:commit` proceed to Stage 8/9 push+PR. State goes 
 
 ## Skills / agents invoked
 
-- context-mcp: `context_pull_manifest(env='main')` — read baseline only
+- git: `git show <remote>/<base>:<path>` — read baseline only
 - No other MCPs (no writes here — pushes are outside this skill)
 - No subagents (see Rule 9)
 

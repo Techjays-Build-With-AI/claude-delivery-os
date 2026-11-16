@@ -2,7 +2,7 @@
 
 **Purpose.** For every TL unit this task built (endpoint, entity, page), update the unit file in the target repo's `<repo>/context/code-context/` to reflect that it's now real code, not just design. Adds source-file citation + commit stamp + confidence promotion.
 
-**Runs after Stage 9 security review passes.** State: `agentExecuting` (unchanged). MC: `inProgress`.
+**Runs after Stage 8 acceptance validation.** State: `agentExecuting` (unchanged). MC: `inProgress`.
 
 **On completion:** every owned unit is marked `origin: implemented` with the concrete evidence pointing at the code. Layer indexes reflect the new status. Ready for `/dev:commit` Stage 7's semantic merge.
 
@@ -10,12 +10,9 @@
 
 ### 10a. Preconditions (v2.3.27 — HARD gates)
 
-- `units/<repo>/status.md § ## Run history` `stage-9.status: DONE` (or SKIPPED)
 - Changes present in the working tree — `/dev:build` commits nothing, so there is no branch history to count
 - Target repo has `<repo>/context/code-context/` — created by `tl-feature-planning` (internal) OR `/tl:code-map`
-- **Stage 9 ran and recorded its findings** — read `status.md` § `## Run history` for `stage-9.status: DONE | SKIPPED` and a `findings_recorded:` block (or `reason:` when skipped). Missing → HALT with `blocker: stage-9-not-run`.
-
-  **A Critical finding here does NOT halt Stage 10.** Stage 9 is report-only; `/dev:commit` Stage 3 is the security authority and blocks the *delivery*. Flipping a unit to `implemented` records that the code was written, which is true whatever the review found — and the finding travels in `findings.md`, where the commit gate reads it. The earlier gate, written when Stage 9 owned a repair loop, would now halt every build on a trace nothing writes.
+- `units/<repo>/status.md § ## Run history` `stage-8.status: DONE`
 
 If context tree is missing → escalate. `/dev:plan` should have run `tl-feature-planning` (internal) to create the graph; if we got here without it, that's a plan-side gap.
 
@@ -37,7 +34,34 @@ Grep the `Used by Features` column for THIS task's `FEAT-<AREA>-NN` (parent) OR 
 
 ### 10c. Update each unit file's frontmatter
 
-For each owned unit file:
+**Decide the two facts that need judgment, then let the script apply the rest.**
+Per owned unit, you decide only: the canonical source file that implements it
+(`mapped_from`, plus the entry-point line where resolvable), and the first test that
+asserts on it (`test_ref`). Everything that follows from those two is mechanical and
+identical for every unit, so it is applied once, the same way, rather than hand-edited
+N times.
+
+Write your decisions to `.jetrix/cache/context-units.json`:
+
+```json
+[{"file": "context/code-context/backend/domains/supplier/EP-SUP-01.md",
+  "mapped_from": "src/routes/supplier.ts",
+  "mapped_from_line": 42,
+  "test_ref": "tests/endpoints/supplier.spec.ts"}]
+```
+
+Then run it — this performs §10c, §10d and §10e in one pass:
+
+```bash
+python "$CLAUDE_PLUGIN_ROOT/scripts/apply-context-updates.py"   --units "<workspace_root>/.jetrix/cache/context-units.json"   --repo  "<repo>"   --task  "FEAT-SUP-001-1"   --index "context/code-context/backend/backend-index.md"
+```
+
+One `--index` per involved layer. It never stages or commits (§10g). Exit 1 names
+every unit it could not update; fix those and re-run — it is idempotent, and a
+Source Reference already present is not appended twice. If the script cannot run,
+record `method: manual` in `## Run history` and apply the rules below by hand.
+
+The rules it applies, for each owned unit file:
 
 Read the file. In frontmatter, apply these updates:
 

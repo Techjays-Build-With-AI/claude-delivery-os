@@ -241,7 +241,7 @@ for (const f of md.map(rel)) {
 // every run, silently, for a reason that points at the wrong stage.
 //
 // This is ERROR, not WARN: the failure mode is a dead happy path. It was
-// found three times by hand (stage-5.gates_run, stage-3/4.fix_loop_invocation)
+// found three times by hand (stage-5.gates_run, stage-4.fix_loop_invocation)
 // before this check existed.
 // An explicit `build.` / `commit.` prefix names the OTHER loop's stage, which is
 // the only unambiguous way to write a cross-loop reference. Without it, a bare
@@ -250,9 +250,10 @@ for (const f of md.map(rel)) {
 const STAGE_REF = /`?(?:(build|commit)\.)?stage-([0-9]+(?:-[0-9]+)?)\.([a-z_]+)/g;
 const recorded = new Map();   // "commit/3" -> Set(field)
 const declaredIn = new Map(); // "commit/3" -> file that holds its yaml block
-// /dev:build and /dev:commit BOTH have a stage-9 (security vs PR), and they are
-// different stages. Keying on the number alone unions them and makes the check
-// silently lenient, so key on the loop the file belongs to.
+// /dev:build and /dev:commit each number their stages independently, so the
+// same number means different stages in the two loops. Keying on the number
+// alone unions them and makes the check silently lenient, so key on the loop
+// the file belongs to.
 const loopOf = (f) => (f.includes("/references/build/") || f.endsWith("/build.md")) ? "build"
                     : (f.includes("/references/commit/") || f.endsWith("/commit.md")) ? "commit"
                     : null;
@@ -505,13 +506,18 @@ for (const f of md.map(rel).filter((x) => /^plugins\/[^/]+\/commands\/[^/]+\.md$
 }
 
 // ---------------------------------------------------------------- report
-const errors = problems.filter((p) => p.level === "ERROR");
-const warns = problems.filter((p) => p.level === "WARN");
+// Computed where it is CONSUMED, not here. Three checks run below this point
+// (vocab, bavocab, rules); a snapshot taken at this line reported them in the
+// per-check table while the process still exited 0, so `[FAIL] bavocab` could
+// sit in CI output under `0 error(s)` and nothing broke.
+const tally = () => ({
+  errors: problems.filter((p) => p.level === "ERROR"),
+  warns: problems.filter((p) => p.level === "WARN"),
+});
 
-if (AS_JSON) {
-  console.log(JSON.stringify({ errors, warns }, null, 2));
-  process.exit(errors.length ? 1 : 0);
-}
+// `--json` used to report and exit HERE, which skipped the three checks below
+// it entirely: a machine reading this output got a different answer from a human
+// reading the table. It now emits at the end, with everything else.
 
 // ----------------------- 10. controlled vocabulary stated in more than one file
 // A controlled set -- `answeredBy`, the coverage states -- is enumerated in the
@@ -587,11 +593,165 @@ const VOCAB = [
   }
 }
 
+// ------------------------- 11. one rule, one home: restatement is an error
+//
+// The header of this file names the defect: ~184 files state the same rules in
+// several places, one gets edited, the rest silently keep saying the old thing.
+// Every check above catches a STRUCTURAL disagreement -- a dead path, a missing
+// key, a renumbered section. None catches the prose case, which is the one that
+// actually bit: `minor-nit-disposition` is stated two opposite ways and both are
+// in force, because nothing compares a paragraph to its own restatement.
+//
+// This check does, without guessing. The author declares the rule's home and the
+// exact phrases that may only appear there:
+//
+//   <!-- rule: minor-nit-disposition
+//        phrases: "surface in PR body ONLY" | "fixed is the default at every severity" -->
+//
+// Any other file is then free to REFERENCE it, never to restate it:
+//
+//   <!-- governed-by: minor-nit-disposition -->
+//
+// Three errors, each one a defect this session found by hand:
+//
+//   dangling    `governed-by` names a rule nobody declares
+//               (`fix-mode` was invoked for months and defined nowhere)
+//   two-homes   the same id declared in two files
+//               (there is no "mostly canonical")
+//   restated    a declared phrase appears outside its home, with no governed-by
+//               (the Minor/Nit contradiction, found by reading, not by tooling)
+//
+// Adding a rule costs one comment. Every file that restates it then fails until
+// it references instead -- which is the whole point: reuse becomes the cheap path.
+{
+  const RULE_DECL = /<!--\s*rule:\s*([a-z0-9][a-z0-9-]*)\s*([\s\S]*?)-->/g;
+  const GOVERNED  = /<!--\s*governed-by:\s*([a-z0-9][a-z0-9-]*)\s*-->/g;
+  const lineOf = (t, i) => (i < 0 ? 0 : t.slice(0, i).split("\n").length);
+
+  const rules = new Map();   // id -> { file, phrases[] }
+  const refs  = [];          // { id, file }
+  const mdRel = md.map(rel);
+
+  for (const f of mdRel) {
+    const t = text.get(f);
+    if (!t) continue;
+    for (const m of t.matchAll(RULE_DECL)) {
+      const id = m[1];
+      const phrases = [...m[2].matchAll(/"([^"]{8,})"/g)].map((p) => p[1]);
+      // `scope: plugins/dev` limits the rule to one subtree. Without it a phrase
+      // is global, and "9 dimensions" means the dev review dimensions here and
+      // the BA scope-review dimensions over there -- two real rules, same words.
+      const sc = /scope:\s*([A-Za-z0-9_./-]+)/.exec(m[2]);
+      const scope = sc ? sc[1] : null;
+      if (rules.has(id)) {
+        add("ERROR", "rules", f, lineOf(t, m.index),
+            `rule \`${id}\` is already declared in ${rules.get(id).file} — a rule has one home`,
+            "move this one to a `governed-by:` reference");
+        continue;
+      }
+      rules.set(id, { file: f, phrases, scope });
+      if (!phrases.length)
+        add("WARN", "rules", f, lineOf(t, m.index),
+            `rule \`${id}\` declares no phrases — nothing stops another file restating it`,
+            'add  phrases: "the decisive sentence"');
+    }
+    for (const m of t.matchAll(GOVERNED)) refs.push({ id: m[1], file: f, idx: m.index });
+  }
+
+  for (const r of refs) {
+    if (!rules.has(r.id)) {
+      const t = text.get(r.file);
+      add("ERROR", "rules", r.file, lineOf(t, r.idx),
+          `governed-by: \`${r.id}\` — no file declares that rule`,
+          "a reference to a rule that does not exist is how `fix-mode` survived unimplemented");
+    }
+  }
+
+  const refsByFile = new Map();
+  for (const r of refs) {
+    if (!refsByFile.has(r.file)) refsByFile.set(r.file, new Set());
+    refsByFile.get(r.file).add(r.id);
+  }
+
+  for (const [id, rule] of rules) {
+    for (const phrase of rule.phrases) {
+      for (const f of mdRel) {
+        if (f === rule.file || isHistory(f)) continue;
+        if (rule.scope && !f.startsWith(rule.scope)) continue;
+        const t = text.get(f);
+        if (!t) continue;
+        // Case-INsensitive: "Build executes nothing" and "build executes nothing"
+        // are the same claim, and a capital letter is not a reason to miss one.
+        // loop-control.md stated the rule in lower case and slipped a
+        // case-sensitive pass -- the exact miss this check exists to prevent.
+        const at = t.toLowerCase().indexOf(phrase.toLowerCase());
+        if (at < 0) continue;
+        if (refsByFile.get(f)?.has(id)) continue;   // referenced, not restated
+        add("ERROR", "rules", f, lineOf(t, at),
+            `restates rule \`${id}\`, whose home is ${rule.file}`,
+            `reference it with <!-- governed-by: ${id} --> instead of repeating "${phrase.slice(0, 60)}"`);
+      }
+    }
+  }
+}
+
+// ------------------------ 12. a named skill must be a skill that exists
+//
+// `dev-stack-adaptive-implementation` was told to run "in fix-mode" for months
+// and no such mode was defined; `qa-agent.md` told the QA agent that
+// `dev-validation` runs the per-feature tests, years after it was retired. Both
+// read as fact because a backticked skill name looks like a citation.
+//
+// A backticked `<plugin>-<name>` that matches the naming shape of a skill must
+// resolve to a real skill directory, an agent, or be marked as history. The
+// retirement notes that SAY "retired" are the legitimate case and are allowed
+// by the same-line marker, because naming a dead thing to say it is dead is the
+// opposite of this defect.
+{
+  const skillDirs = new Set();
+  for (const f of files) {
+    const m = /plugins\/[^/]+\/skills\/([^/]+)\//.exec(rel(f));
+    if (m) skillDirs.add(m[1]);
+  }
+  const agentFiles = new Set();
+  for (const f of files) {
+    const m = /plugins\/[^/]+\/agents\/([^/]+)\.md$/.exec(rel(f));
+    if (m) agentFiles.add(m[1]);
+  }
+  const RETIRED = /retired|removed|replaced|folded into|no longer|used to|former|legacy|deleted|was\s/i;
+  // Words that LOOK like skill names and are not. `dev-local` is an adjective
+  // ("other dev-local files" = files that never leave the machine), not a skill.
+  const NOT_A_SKILL = new Set(["dev-local"]);
+
+  for (const f of md.map(rel)) {
+    if (isHistory(f)) continue;
+    const lines = text.get(f).split("\n");
+    lines.forEach((l, i) => {
+      for (const m of l.matchAll(/`((?:dev|tl|ba|qa|doc)-[a-z][a-z-]{4,})`/g)) {
+        const name = m[1];
+        if (skillDirs.has(name) || agentFiles.has(name) || NOT_A_SKILL.has(name)) continue;
+        if (RETIRED.test(l)) continue;        // "Retired: `x`" is the honest case
+        if (l.includes(name + ".md")) continue; // a filename, not a skill
+        add("ERROR", "skillrefs", f, i + 1,
+            `names \`${name}\` as if it were a skill, and no such skill exists`,
+            "either it was renamed/retired (say so on the same line) or the reference is wrong");
+      }
+    });
+  }
+}
+
+const { errors, warns } = tally();
+
+if (AS_JSON) {
+  console.log(JSON.stringify({ errors, warns }, null, 2));
+  process.exit(errors.length ? 1 : 0);
+}
+
 const byCheck = {};
 for (const p of problems) (byCheck[p.check] ||= []).push(p);
 
 console.log(`\nlint-plugins — ${md.length} markdown files, ${files.length} total\n`);
-for (const check of ["paths", "refs", "struct", "schema", "internal", "status", "tokens", "scope", "writers", "blocks", "contracts", "frontmatter", "bavocab"]) {
+for (const check of ["paths", "refs", "struct", "schema", "internal", "status", "tokens", "scope", "writers", "blocks", "contracts", "frontmatter", "bavocab", "rules", "skillrefs"]) {
   const rows = (byCheck[check] || []).filter((p) => p.level === "ERROR" || SHOW_WARN);
   const nE = (byCheck[check] || []).filter((p) => p.level === "ERROR").length;
   const nW = (byCheck[check] || []).filter((p) => p.level === "WARN").length;

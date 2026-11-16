@@ -23,6 +23,38 @@ Read the **`delivery-os-conventions`** contract if not in context. Your inputs a
 
 You write to the **target repo** — real code, real tests, on the branch `/dev:build` Stage 3 created.
 
+## Two modes
+
+| Mode | Invoked by | Input | Writes to |
+|---|---|---|---|
+| **build** (default) | `/dev:build` Stages 5–6 | `implementation.md` build sequence | the files that sequence names |
+| **fix** | `/dev:commit` Stage 6 fix loop | one finding + `allowed_files` | `allowed_files` only |
+
+Everything below applies to both. Where a step names `implementation.md`, fix mode
+substitutes the finding.
+
+### Fix mode
+
+Inputs are `{finding, allowed_files, detected_stack, repo}`. There is no build sequence
+and no `implementation.md`. Run the three phases scoped:
+
+- **Phase 1** — take `detected_stack` from the caller when supplied; detect it otherwise.
+- **Phase 2** — infer patterns from the neighbours of `allowed_files` (the files beside it,
+  and the file's own existing code), not 10 repo-wide reads.
+- **Phase 3** — one step: the smallest correct change that closes the finding, plus the
+  regression test for it.
+
+**`minimal-surface` bounds WHERE you write, never HOW WELL.** The repair diff is read by
+<!-- governed-by: code-review-dimension-count -->
+`dev-stack-adaptive-code-review` against the same nine dimensions as any other code:
+correctness, convention adherence, error handling, testability, BR enforcement, naming,
+reuse, engineering standards, API design. Rules 13 and 14 below hold on every line a
+repair writes exactly as they hold on a build.
+
+**Self-check the diff against those nine dimensions before reporting `fixed`.** A repair
+that closes its finding and opens a new one has not reduced the finding count — it has
+moved it into the next round, and the fix loop is bounded against exactly that.
+
 ## The three phases inside this skill
 
 ### Phase 1 — Stack detection (before any code write)
@@ -229,7 +261,7 @@ This is DIFFERENT from the retired "Deferred to E2E" plan-time concept. Here it'
 2. For each Satisfies ID: cross-match to a concern class (Data-integrity, Operation contract, etc.).
 3. From `qa/quality-gates.md` tier pool for this sub-task's capability class, list the Required tiers.
 4. Intersect: {concern-class tiers} ∩ {Required tiers for capability class}. Write a test at every tier in the intersection.
-5. Log each test file + test name + tier in `units/<repo>/status.md § ## Run history` per step.
+5. Collect each test file + test name + tier per step; write them all to `units/<repo>/status.md § ## Run history` in one edit when the phase ends, in step order.
 
 **A slow test under instrumentation is a harness finding, not a test to patch.**
 
@@ -365,6 +397,7 @@ these, which hold in every repo regardless of what the neighbouring code does:
 |---|---|
 | **API contract** | every new operation validates its input at the boundary, returns the repo's error envelope, and uses status codes that match its semantics — even where the endpoint beside it does not |
 | **Contract consistency** | request/response field naming, pagination, filtering and error shape match the repo's *dominant* pattern; where the repo is genuinely inconsistent, follow the one that is correct, not the one that is nearest |
+| **File placement** | a `confirmed` `coding-standards.md` §2 decides where a new file goes, even where the repo files that kind of thing elsewhere; `inferred` or absent falls back to Rule 1 and reports the mismatch. See `plugins/delivery-os-core/skills/delivery-os-conventions/references/project-structure.md` §5 |
 | **Reuse** | Rule 2. An existing abstraction is extended, never paralleled |
 | **Clean code** | `coding-standards.md` §§6–12 limits (Rule 13) apply to every line written, whatever the surrounding file looks like |
 | **Error paths** | every failure branch is handled; "the existing handler doesn't either" is not a reason |

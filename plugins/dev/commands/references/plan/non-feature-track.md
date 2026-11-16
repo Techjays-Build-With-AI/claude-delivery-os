@@ -42,9 +42,23 @@ Missing a required input → do **not** invent it. Write a `PB-###` blocker into
 
 Plan **writes back into `tasks/<slug>.md`**, then publishes it through the existing `/jetrix:push task` path as the last step of the same run. Routing the push through that path rather than calling `feature_upsert_bundle` reuses tab-splitting, identity, the stale-write guard, and the per-type gate instead of duplicating them.
 
+<!-- rule: non-feature-run-path
+     phrases: "tasks/<slug>/units/<repo>/" -->
+
+**One layout, shared with the feature track.** A non-feature ticket's run files live
+under `units/<repo>/` exactly as a feature's do — the only difference is the parent
+folder (`tasks/<slug>/` rather than `features/<slug>/`) and that a non-feature never
+splits, so there is always exactly one `<repo>`.
+
+> This path was written two ways — the diagram below said `tasks/<slug>/dev/` while
+> the write instructions after it said `units/<repo>/`, and `/dev:build` read the
+> first. **Plan wrote the implementation where build did not look**, so every
+> non-feature ticket's plan was unreachable. One spelling only;
+> `scripts/lint-plugins.js` §11 now fails a second.
+
 ```
 tasks/<slug>.md               ← ticket AND push source. Plan edits this in place.
-tasks/<slug>/dev/
+tasks/<slug>/units/<repo>/
   analysis.md                 ← reasoning, never pushed
   implementation.md           ← build's copy, keeps paths + unit ids
   plan-blockers.md

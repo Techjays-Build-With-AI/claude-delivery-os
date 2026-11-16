@@ -1,7 +1,7 @@
 # Review snapshot — the one scope every reviewer reads
 
 A **review snapshot** is a real git commit object built from the working tree
-through a throwaway index. It gives security review, code review and test
+through a throwaway index. It gives code review and test
 verification a single, stable, diffable scope — without moving the working
 tree, the real index, or HEAD.
 

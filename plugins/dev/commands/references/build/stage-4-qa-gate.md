@@ -2,12 +2,29 @@
 
 **Purpose.** Guarantee the target repo has a runnable, Active test harness (`qa/quality-gates.md` with `harness_status: Active`) BEFORE `/dev:build` starts writing code. Bootstrap it automatically if not — no user prompts.
 
-**Runs per feature/sub-task after Stage 3 branch creation** and before Stage 5 implementation.
+**Runs after Stage 3 branch creation**, before Stage 5 implementation — once per repo per run (see 4a0-0).
 
 **On completion:** the target repo has:
 1. A working test framework installed
 2. `qa/quality-gates.md` with `harness_status: Active` and Required table populated
 3. `dev/test-decision.md` audit log (only if bootstrap fired) — records what was chosen and why
+
+---
+
+### 4a0-0. Once per repo per run
+
+A batch run builds several tasks into the same repo. Nothing in Stages 5-11 writes `qa/quality-gates.md`, so proving it Active once settles it for every task in that run.
+
+Before 4a, read `.jetrix/cache/qa-gate-cache.json`. Reuse its verdict when an entry matches this repo path AND `gates_hash` equals `sha256(<repo>/qa/quality-gates.md)` AND `run_id` is this run:
+
+```yaml
+stage-4:
+  status: DONE
+  qa_gate_state: reused-this-run
+  gates_hash: <sha256>
+```
+
+Then go to Stage 5. On any miss, run 4a normally and write the entry on success. Bootstrap (4b) never reuses — it is what creates the file the hash is taken from.
 
 ---
 
@@ -158,4 +175,4 @@ If `--resume` finds `stage-4.status: DONE` **or `SKIPPED`** in `status.md` § `#
 - **`qa-greenfield-harness` skill** — only when §4b fires (harness missing or Draft)
 - No subagents — Stage 4 runs in the dev-agent's own context
 
-Never invoke `dev-stack-adaptive-implementation` from Stage 4 — that's Stage 5's job. Never invoke Claude Code's `security-review` — that's Stage 9.
+Never invoke `dev-stack-adaptive-implementation` from Stage 4 — that's Stage 5's job.

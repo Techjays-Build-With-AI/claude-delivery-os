@@ -112,6 +112,7 @@ Routing is deterministic at every step — no prompt. A target resolved here rea
    Then continue on the non-feature track (§2f) exactly as a pulled ticket would. Thin content is fine — a missing required input becomes a `PB-###` and `/dev:resolve` walks it.
 
 3. **Internal `FEAT-<AREA>-NN`** — grep `features/*/feature.md` frontmatter for the id.
+<!-- governed-by: non-feature-run-path -->
 4. **Blank** — call `task-mcp.feature_list_bundle(solution_id, status='todo')` → take **all** of them as the target set, grouped by `requirement`. One requirement → plan the batch without asking. More than one → ask which requirement, not which feature. Fallback: scan `features/*/status.md` for `status: todo` if MC unavailable. Add any local `tasks/<slug>.md` not yet planned (no `tasks/<slug>/units/<repo>/status.md`) to the same set — a hand-filed ticket is legitimate unplanned work, and `feature_list_bundle` cannot see one because it filters to `taskType="feature"`. Report the set you are about to plan; do not ask the user to pick from it.
 
 For **multi-target** forms:
@@ -198,6 +199,10 @@ schema_version: 2.0
 produced_by: dev
 feature_id: FEAT-HCAL-01
 started_at: <ISO>
+---
+
+**Time every stage.** Each stage's `## Run history` block carries `started_at`, `ended_at` and `duration_s` (integer seconds). Write them on the same edit that records the stage's result — never as a second write. A stage that halts records them too, so a halted run still says where the time went. The run summary prints the per-stage table.
+
 ---
 
 ## Stage 1 — Code-context readiness + QA-gate check
@@ -506,7 +511,8 @@ Each per-task worker inside Stage 2 spawns a `dev-agent` subagent to run readine
 1. Read this feature's `stage-1-results` block from `status.md` § `## Run history`
 2. Pre-flight (MC status + local drift + cross-sub-task deps)
 3. Readiness validation (base build green? harness ok? critical gaps?)
-4. Impact analysis — 12-dimension matrix (frontend/backend/DB/authz/integrations/jobs/notifications/monitoring/tests/docs/flags/analytics)
+<!-- governed-by: impact-matrix-dimensions -->
+4. Impact analysis — 12-dimension matrix, **stack-agnostic names**: Surfaces / Operations / Stored data / Authz / Integrations / Background jobs / Notifications / Observability / Existing tests / Docs / Flags / Analytics
 5. Development planning — ordered build steps + test strategy + risks + rollback
 6. Write `units/<repo>/analysis.md` (or `units/<repo>/analysis.md` for parent-alone) with yaml sections: `build_sequence`, `impact_matrix`, `test_strategy`, `risks_and_rollback`
 7. Emit skill invocations log to `status.md` § `## Run history` (each dev-agent invocation with inputs + outputs + duration)

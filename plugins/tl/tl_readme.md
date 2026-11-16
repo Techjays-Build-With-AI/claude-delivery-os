@@ -34,7 +34,7 @@ Once it's done, the workspace is build-ready: `/dev:build <feature>` (and the de
 
 ## Semantic context merge (`tl-semantic-context-merge` — invoked by `/dev:commit` Stage 7)
 
-New in v2.2. Merges a feature branch's flipped `origin: implemented` code-context units against the `main` env baseline via `context-mcp` — **graph-aware, unit-level merge**, not a git text-level merge.
+New in v2.2. Merges a feature branch's flipped `origin: implemented` code-context units against the base-branch baseline read from git — **graph-aware, unit-level merge**, not a git text-level merge.
 
 - **Per-unit fields:** LWW by `updated_at`, with transition-order rules for `origin` (`deprecated > implemented > designed`; never regress)
 - **Layer indexes** (`backend-index.md`, `frontend-index.md`, `database-index.md` — filenames on disk; doc_types are `endpoint-index` / `page-index` / `entity-index` respectively): row union by `unit_id`; per-row field-level LWW using the underlying unit file's `updated_at`
@@ -42,7 +42,7 @@ New in v2.2. Merges a feature branch's flipped `origin: implemented` code-contex
 - **Overview files:** LWW for prose, derived counts regenerated after the union
 - **Real conflicts** (tied timestamps, incompatible immutable fields like `unit_id` / `layer` / `method` / `table_name`, contract type mismatches): halt with `dev/context-merge-conflicts.md` for human resolution; `[x]`-tick a choice or hand-merge, then `/dev:commit --resume`
 
-Baseline is read-only (`context-mcp` `context_pull_manifest(env='main')`). Never invokes `git merge`. Solves the "Semantic Memory Merging" concern from the design meeting: index rows update as a set, unit files update as records, and unit ids are the merge key across branches.
+Baseline is read-only (`git show <remote>/<base>:<path>`). Never invokes `git merge`. Solves the "Semantic Memory Merging" concern from the design meeting: index rows update as a set, unit files update as records, and unit ids are the merge key across branches.
 
 Full spec in `plugins/tl/skills/tl-semantic-context-merge/`:
 - `SKILL.md` — 3-phase workflow + hard rules

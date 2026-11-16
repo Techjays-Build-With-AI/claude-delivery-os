@@ -17,7 +17,7 @@ The **Quality Assurance Agent** makes a repository *properly testable* and defin
 Delivery OS already has a dev agent that writes and runs tests **for the feature it builds**. QA does **not** compete with it:
 
 - **QA owns the harness and the strategy** — frameworks, config, CI wiring, coverage measurement and thresholds, the e2e harness (Playwright config + page-object/fixtures skeleton), test-data factories, mocking, conventions, and the **quality-gate contract**.
-- **Dev owns the per-feature tests** — it writes each feature's unit/integration/e2e tests *inside* QA's harness, and `dev-validation` runs them per feature.
+- **Dev owns the per-feature tests** — it writes each feature's unit/integration/e2e tests *inside* QA's harness, and `/dev:commit` Stage 5 runs them per feature.
 - **QA does not run per-feature validation** — `/qa:setup` runs a one-time **smoke** run to prove the harness works; ongoing per-feature suites are the dev loop's job.
 
 QA builds the kitchen; dev cooks each dish.
@@ -70,7 +70,7 @@ Under `qa/` (created on first run):
 `qa/quality-gates.md` is the join between QA and Dev:
 
 - **Dev readiness gate** (`feature-delivery-loop`) reads it to confirm a usable harness exists before building. If it's missing or `harness_status` isn't `Active`, the gate routes to QA (`/qa:audit` → `/qa:setup`) — the same way project-zero routes to `/dev:bootstrap`.
-- **`dev-validation`** reads it to know which checks are **Required**, the exact command for each, and the bar (coverage floor, when e2e/contract tests are mandatory) — then maps results into the feature's `status.md` § `## Acceptance`.
+- **`/dev:build` Stage 4** reads it to know which checks are **Required**, and **`/dev:commit` Stage 5** runs them, the exact command for each, and the bar (coverage floor, when e2e/contract tests are mandatory) — then maps results into the feature's `status.md` § `## Acceptance`.
 
 So the dev loop stops guessing the repo's tooling and verifies against a real, QA-owned standard.
 

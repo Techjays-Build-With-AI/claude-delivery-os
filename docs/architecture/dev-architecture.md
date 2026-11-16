@@ -28,13 +28,13 @@ reviews, and ships.
             │  plan-blockers.md PB-###             │
             ▼                                      │
    ┌─────────────────┐ ◄───────────────────────────┤
-   │   /dev:build    │  11 stages                  │
+   │   /dev:build    │  10 stages                  │
    │   implement     │                             │
    └────────┬────────┘                             │
             │  code · tests · test-map · Acceptance table
             ▼                                      │
    ┌─────────────────┐ ◄───────────────────────────┘
-   │   /dev:commit   │  12 stages — the only executor
+   │   /dev:commit   │  9 stages — the only executor
    │   verify + ship │
    └────────┬────────┘
             │
@@ -51,7 +51,7 @@ folds human reviewer feedback on an open PR back through the commit stages.
 |---|---|---|
 | `/dev:plan` | Technical design, split decision, blocker detection | Write code |
 | `/dev:build` | Implementation, test authoring, test map, acceptance table | Execute the suite · commit · push |
-| `/dev:commit` | Test execution, security, code review, context merge, PR | Implement new behaviour |
+| `/dev:commit` | Test execution, code review, context merge, PR | Implement new behaviour |
 
 **Build declares; commit executes.** Build writes the tests and proves the map is runnable but
 does not run the suite. This keeps exactly one executor, so a passing claim has exactly one
@@ -214,7 +214,7 @@ Tokens format so design tooling can read them without a bespoke parser.
 
 ---
 
-## 5. Build process — eleven stages
+## 5. Build process — ten stages
 
 | Stage | Action | Gate |
 |---|---|---|
@@ -225,8 +225,7 @@ Tokens format so design tooling can read them without a bespoke parser.
 | 5–6 | Implement and write tests, per build-sequence step | |
 | 7 | **Verify the test map** | Halts on a dangling or incomplete map |
 | 8 | Validate against acceptance criteria, business rules, test scenarios, NFRs | |
-| 9 | Security review — report-only | Critical blocks |
-| 10 | Flip context units `designed → implemented` | Refuses if Critical findings are unaddressed |
+| 10 | Flip context units `designed → implemented` | |
 | 11 | Summary and pull-request material | |
 
 ### 5.1 Stack-adaptive implementation
@@ -277,18 +276,9 @@ Review is **diff-scoped only** — never the whole repository.
 **The tier governs whether a *missing section* stops the build — not whether a *violation* does.**
 A Blocker-severity performance finding blocks like any other Blocker.
 
-Security and dependency vulnerabilities are deliberately **not** in the standards file. They are
-owned by the security review and by dependency auditing, and restating them would create a second
-source that drifts from the one with teeth.
-
-### 6.3 Security review
-
-Runs twice, with different thresholds:
-
-| Where | Scope | Blocks on |
-|---|---|---|
-| Build stage 9 | Snapshot-scoped, report-only | Critical |
-| Commit stage 3 | Strict | Critical **and** High |
+Dependency vulnerabilities are deliberately **not** in the standards file. They are owned by
+dependency auditing and by `/tl:maturity`, and restating them would create a second source that
+drifts from the one with teeth.
 
 Every severity is recorded either way; the difference is what stops the run.
 
@@ -379,7 +369,7 @@ origin.**
 | `context/test-map/<feature>.md` | Which test proves which assertion, and how to run it |
 | `status.md § ## Acceptance` | Each assertion's executed result |
 | `status.md § ## Run history` | Per-stage status plus fix-loop invocation traces |
-| Security and code review findings | Every severity recorded, with what blocked |
+| Code review findings | Every severity recorded, with what blocked |
 | `pr-summary.md § How to verify` | The reviewer's runbook |
 | Context units flipped to `implemented` | The graph now reflects reality |
 

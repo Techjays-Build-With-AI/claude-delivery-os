@@ -2,7 +2,7 @@
 
 **Purpose.** `/dev:build` writes to the working tree without committing (v2.3.20 invariant in `build.md`). This stage is where the ONE commit boundary happens: gather all working-tree changes from Stages 5-6 (code + tests) + Stage 10 (context units) + relevant Stage 11 outputs → structure the commit(s) → land them on the current branch. Stage 8 then pushes.
 
-**Runs between Stage 7 (semantic context merge) and Stage 8 (push branch).** After all quality gates (Stages 3–6) pass and the semantic merge is clean.
+**Runs between Stage 7 (semantic context merge) and Stage 8 (push branch).** After all quality gates (Stages 4–6) pass and the semantic merge is clean.
 
 **On completion:** the branch has one (or, with `--structured`, several) clean commit(s) with structured messages; no untracked files in the source or test scope; secrets scan clean; `units/<repo>/pr-summary.md § ## How to verify` explicitly EXCLUDED from the commit set.
 
@@ -10,7 +10,7 @@
 
 ### 7.5a. Preconditions
 
-- Stages 3–7 all `status: DONE` in `units/<repo>/status.md § ## Run history`
+- Stages 4–7 all `status: DONE` in `units/<repo>/status.md § ## Run history`
 - `git status` in target repo is well-formed (branch checked out, no rebase in progress, no merge conflict)
 - Working tree HAS uncommitted changes (else skip cleanly per §7.5g)
 
@@ -25,7 +25,7 @@ Target repo:
 **The staged set is the review snapshot's path set. Not the working tree.**
 
 Stage 0 recorded `scope_selected[]` in `status.md` and built `$SNAP` from those
-paths; Stages 3, 4 and 5 reviewed that snapshot. Staging anything else delivers
+paths; Stages 4 and 5 reviewed that snapshot. Staging anything else delivers
 bytes nobody reviewed, which is the failure the whole snapshot mechanism exists to
 prevent — review one set of changes, ship another.
 
@@ -56,7 +56,7 @@ Then categorize each path in the set:
 | `context/code-context/**` | `context-unit` | YES |
 | `context/test-map/**` | `test-map` | YES — written by build Stage 5-6; it is what `/dev:commit` Stage 5 executes, so a map left uncommitted makes the next run unable to re-derive what was verified |
 | `CLAUDE.md` (repo root) | `repo-doc` | YES — the `delivery-os:*` pointer blocks written by `/tl:scaffold`, `/dev:plan` and build Stage 5-6. It is how the next session finds the context graph, the test map and the repo's UI system at all |
-| `units/<repo>/pr-summary.md § ## How to verify`, `units/<repo>/status.md § ## Run history`, `dev/*-status.md § ## Run history`, `units/<repo>/status.md § ## Run history`, `units/<repo>/status.md § ## Acceptance`, `dev/security-findings-*.md`, `dev/decisions.md`, `dev/escalation-*.md`, `dev/task-update-run.md` | `dev-local` | **NO** — LOCAL only |
+| `units/<repo>/pr-summary.md § ## How to verify`, `units/<repo>/status.md § ## Run history`, `dev/*-status.md § ## Run history`, `units/<repo>/status.md § ## Run history`, `units/<repo>/status.md § ## Acceptance`, `dev/decisions.md`, `dev/escalation-*.md`, `dev/task-update-run.md` | `dev-local` | **NO** — LOCAL only |
 | `.jetrix/**` | `workspace-local` | **NO** — workspace state, not repo state |
 | `qa/quality-gates.md`, `shared-context/*`, `ba/**`, `features/**` | `workspace-local` | **NO** — those are workspace files, live outside the target repo unless the target repo IS the workspace |
 | Other | `unknown` | ASK the user to categorize each (source / test / context / local-only-do-not-commit); halt if not answered within the run |
@@ -73,7 +73,7 @@ the categorizer is the consumer half of that contract and will otherwise stop th
 
 ### 7.5b.i. Flip `gates_passed`
 
-Every finding from Stages 3, 4 and 5 is now closed or dispositioned, so set
+Every finding from Stages 4 and 5 is now closed or dispositioned, so set
 `gates_passed: true` on this run's `.jetrix/cache/session.json` row. Until
 this moment the guard hook refuses `git push` in this repo; after it, Stage 8
 may push.

@@ -102,6 +102,21 @@ Node labels MUST be quoted (`["1. <phase>"]`, not `[1. <phase>]`) — unquoted l
 
 ## 2. Impacted components
 
+<!-- rule: impact-matrix-dimensions
+     phrases: "Surfaces / Operations / Stored data" | "12-dimension matrix"
+            | "12 stack-agnostic dimensions" -->
+
+**The twelve names are stack-agnostic, and that is the point of them.** `Surfaces`,
+not `frontend`. `Operations`, not `backend`. `Stored data`, not `DB`.
+`Observability`, not `monitoring`. A plan written in layer names is a plan that has
+already chosen an architecture, which is the decision §1–§8 exists to defer to the
+repo.
+
+> `/dev:plan` described this matrix as `frontend/backend/DB/authz/.../monitoring/…`
+> while the template it produces used the agnostic set. The command that creates the
+> document disagreed with the document, so an agent reading the command wrote layer
+> names into a frame built to avoid them.
+
 Impact matrix over the 12 stack-agnostic dimensions — **list only the dimensions this task actually affects.** A dimension the task does not touch is left out of the table entirely; do not write an `N/A` row for it (Rule 11.12). A row that is present must carry a real impact statement.
 
 | Dimension | Impact |

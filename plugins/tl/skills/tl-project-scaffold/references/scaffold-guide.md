@@ -78,6 +78,16 @@ Prefer the stack's **official generator/starter** over hand-rolling — it gives
 types and shared components live — is the decision that every later feature inherits, and it is the
 one most often improvised.
 
+**Start from `plugins/delivery-os-core/skills/delivery-os-conventions/references/project-structure.md`.**
+Its §2 says whether this stack's framework already dictates the layout (transcribe it) or leaves the
+decision open (decide it, and ask -- `engineering-standards.md` §3 step 5); its §4 carries the default
+shape for the stacks that leave it open. The research below is how you version-pin what that file
+points at, not a substitute for it.
+
+**Whatever you choose, `coding-standards.md` §2 must end up `confirmed`, not `inferred`.** A generator's
+tree is not evidence of a decision, and an `inferred` §2 is skipped by every write-time check -- the
+structure then reverts to whatever the generator left.
+
 **Before creating folders, look up the current recommended structure for the exact stack and major
 version you just confirmed.** Use `WebFetch` against, in this order:
 

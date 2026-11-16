@@ -93,7 +93,9 @@ None. (This file records any `--split`/`--no-split` used.)
 1. **`description` mode** → sub-task **Description** (6-section user-story format per Rule 13; see the skill's §description).
 2. **`implementation` mode, scoped to that repo's units only** → sub-task **Implementation** (8-section stack-agnostic template §1–§8: Build sequence, Impacted components, Operations exposed and consumed, Stored data changes, User-facing surfaces, Touch points, Risks and rollback, Shared contract).
 
-Each subagent writes to disk directly:
+Each subagent **returns** both composed documents; the caller writes them once the fan-out
+settles. Same rule as Stage 2 §2f, and for the same reason — some harnesses refuse file writes
+from a subagent, and a subagent that cannot write still returns, so the stage fails silently:
 
 - `.jetrix/features/<slug>/units/<repo>/description.md`
 - `.jetrix/features/<slug>/units/<repo>/implementation.md`
@@ -121,6 +123,12 @@ phase: planned
 owner_lock: null
 branch: null
 ```
+
+**Verify, do not assume.** After writing, confirm each expected `description.md`,
+`implementation.md` and `status.md` exists and is non-empty. A sub-task whose files are missing
+does **not** continue to the push: record it as a failed sub-task with the reason and let its
+siblings carry on. A sub-task pushed from files that were never written produces an MC tab that
+looks filled in.
 
 **After all N sub-task subagents return successfully:** the rollup compose is DEFERRED until after the sub-task MC push completes (§4e) and read-back verifies (§4f.i). See §4c.i below.
 
@@ -161,7 +169,9 @@ Sub-task files on disk are ALWAYS preserved regardless of where the halt occurs 
 
 ### 4d. Compose branch B — parent alone
 
-**Single tl-agent subagent** running `tl-feature-compose` in **`implementation` mode** on the parent. Reads BOTH the TL context units AND `units/<repo>/analysis.md` scratchpad. Output → `.jetrix/features/<slug>/implementation.md` with `compose_mode: implementation` + `capabilities:` in frontmatter (v2.3 — parent-alone Implementation now writes to `implementation.md` at feature root, not `tl-plan.md`). Writes ALL 8 sections (§1–§8, stack-agnostic per v2.3.16) in one pass. Verify runbook is produced separately by /dev:build Stage 11 as `units/<repo>/pr-summary.md § ## How to verify` — implementation.md is plan-only.
+**Single tl-agent subagent** running `tl-feature-compose` in **`implementation` mode** on the parent. Reads BOTH the TL context units AND `units/<repo>/analysis.md` scratchpad. **Returns** the composed document; the caller writes it to
+`.jetrix/features/<slug>/implementation.md` (same rule as §4c and Stage 2 §2f — never a subagent
+write), then confirms it exists and is non-empty before the push. Written with `compose_mode: implementation` + `capabilities:` in frontmatter (v2.3 — parent-alone Implementation now writes to `implementation.md` at feature root, not `tl-plan.md`). Writes ALL 8 sections (§1–§8, stack-agnostic per v2.3.16) in one pass. Verify runbook is produced separately by /dev:build Stage 11 as `units/<repo>/pr-summary.md § ## How to verify` — implementation.md is plan-only.
 
 Skip §4e's `subtask_upsert_bundle` call — there are no sub-tasks. Proceed directly to §4f (parent Implementation push).
 

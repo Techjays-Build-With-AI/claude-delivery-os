@@ -159,9 +159,12 @@ developer would otherwise stop and ask about is surfaced as a plan blocker first
 
 ### Phase 7 — Build and ship *(Dev)*
 
-Build implements against the plan, writes tests, and produces a verifiable test map. Commit is
-the only executor: it runs the suite, reviews security and code, re-verifies acceptance,
-merges the context graph and raises the pull request. Gates block; they do not warn.
+Build implements against the plan, writes tests, and produces a verifiable test map —
+and executes none of it. Commit is the only executor, and it reviews before it runs:
+code review and test-map review read the same snapshot in parallel, every finding is
+repaired in one pass, and only then does the suite execute, once. Commit then
+re-verifies acceptance, merges the context graph and raises the pull request. Gates
+block; they do not warn.
 
 ---
 
@@ -235,14 +238,13 @@ SRC-###  →  CLR-###  →  scope §3.x  →  FEAT-<AREA>-NN  →  EP-/PAGE-/ENT
 
 ## 7. Platform integration
 
-Four MCP servers connect the local workspace to the Jetrix platform.
+Three MCP servers connect the local workspace to the Jetrix platform.
 
 | Server | Moves | Direction |
 |---|---|---|
 | `project-mcp` | Solutions, applications, environments, repositories, connection maps | Read + connection writes |
 | `scope-mcp` | Scope document, registers, shared context | Push and pull |
 | `task-mcp` | Features and tasks, comments, attachments | Push and pull |
-| `deliverable-mcp` | Client-facing HTML deliverables | Push |
 
 File bytes never pass through the agent's context. Uploads broker a signed URL and stream from
 disk; downloads fetch in parallel directly from storage. A hundred-file push costs the same

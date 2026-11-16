@@ -4,6 +4,7 @@
 
 **Runs after Stage 7 tests pass.** State: `agentExecuting` (unchanged). MC: `inProgress`.
 
+<!-- governed-by: build-declares-commit-executes -->
 **On completion:** `units/<repo>/status.md § ## Acceptance` contains one row per applicable AC/BR/TS/NFR, either `⏳ pending` (a sound, runnable test is mapped to it) or `⏸ deferred-to-e2e` (cross-sub-task E2E, closed by last sub-task). **Not `✅ pass` — build runs nothing**; `/dev:commit` Stage 5 executes and fills the result in.
 
 ---
@@ -13,7 +14,8 @@
 - `units/<repo>/status.md § ## Run history` `stage-7.status` is **`DONE` or `SKIPPED`** (SKIPPED only via §7a0, `--skip-qa`)
 - Stage 7 verified the test map (`rows_verified` equals `rows_total`), or recorded `SKIPPED`
 
-**There are no gate results to check, because build runs no tests.** Stage 7 records `executed: false` and every row is `pending`. This stage maps each assertion to the test that will prove it and checks that test is *sound* — it does not and cannot report whether it passes. `/dev:commit` Stage 5 executes and fills the result in.
+<!-- governed-by: build-declares-commit-executes -->
+**There are no gate results to check, because build runs no tests.** Stage 7 records `executed: false` and every row is `pending`. This stage maps each assertion to the test that will prove it. **Soundness is already settled — do not re-derive it.** Stage 7's script proved, for every row, that the file exists, the named test resolves to exactly one test, the run command is populated, the service tokens are startable and the fixtures are defined; read `.jetrix/cache/test-map-verify.json` and treat a `rows[]` entry with `ok: true` as sound. A row Stage 7 failed never reaches this stage, because Stage 7 halts. What this stage adds is the mapping judgment: which assertion each test actually proves. It does not and cannot report whether it passes. `/dev:commit` Stage 5 executes and fills the result in.
 
 ---
 
@@ -126,6 +128,8 @@ Result mapping at build — **no row can be `✅ pass` here**, because nothing r
 | a test cites the assertion | component | any (mocking axios OK at component tier) | ⏳ pending |
 | a test cites the assertion | integration/contract/concurrency/e2e | none | ⏳ pending |
 | a test cites the assertion | integration/contract/concurrency/e2e | some | ❌ mock-contradicts-tier |
+| an e2e test re-proves an assertion a cheaper tier already covers, naming nothing the browser adds | e2e | — | ❌ tier-redundant (§8c.i) |
+| a test file this run wrote that no CI job executes | — | — | ❌ test-not-in-ci (§8c.ii) |
 | No test found | — | — | ❌ missing-test (fail) |
 
 **Except under `--tests-only` and `--vulnerable`** (§7a1), which execute because they
@@ -134,9 +138,84 @@ verdict routing in §8f — there is no commit coming to fill a `⏳ pending` ro
 
 **`⏳ pending` is the normal, healthy outcome of a build.** It means: the assertion has a test, the test declares a tier it does not contradict, and the map can run it. `/dev:commit` Stage 5 replaces every `⏳ pending` with `✅ pass`, `❌ fail`, `❌ real-service-not-run` or `flaky`.
 
-**The two statuses build still owns are the two that need no run.** `missing-test` is a coverage gap visible by grepping; `mock-contradicts-tier` is visible by reading the imports. Both are build's own unfinished work, and both must be fixed here rather than carried to commit as a surprise.
+**The four statuses build still owns are the four that need no run.** `missing-test` is a coverage gap visible by grepping; `mock-contradicts-tier` is visible by reading the imports; `tier-redundant` is visible by reading the map's own Tier column; `test-not-in-ci` is visible by reading the workflow. All four are build's own unfinished work, and all four must be fixed here rather than carried to commit as a surprise.
 
 **Never mark `⏳ pending` on a `mock-contradicts-tier` row** — a mocked "integration" test is not a test awaiting a run, it is a false coverage claim, and letting it reach commit as `pending` hands commit a green it did not earn. The repair loop (§8f) either fixes the test (replaces the mock with a real fixture) or splits it (unit test at unit tier + integration test at integration tier).
+
+---
+
+### 8c.i. One rule, one proof — and what an e2e row has to earn
+
+**The policy.** One unit test per rule. One integration or page test per acceptance
+criterion. **E2E for every journey that cannot be proven below it — and at least one
+that proves the system works assembled.**
+
+**This is not an argument against e2e.** E2E is the only tier where nothing is
+mocked: the real browser, the real server, the real database. A feature whose e2e
+coverage is zero has never been shown to work as a user meets it, however green the
+rest is. A map that declares an e2e tier **must carry at least one `cross-system`
+row**, or it fails `e2e-journey-missing`. What follows removes duplicates, never the
+proof.
+
+Overlap at the cheap tiers is close to free and is left alone — a duplicated unit
+test costs milliseconds and sometimes reads better than the indirection that would
+remove it. The cost is concentrated in e2e: it is the slowest tier, the flakiest,
+and the one that drags a whole map re-run behind it when it fails.
+
+**An e2e row whose assertion is already covered at `unit`, `component`,
+`integration` or `contract` must name what the browser adds**, in its `Needs` cell:
+
+| Token | The row needs |
+|---|---|
+| `real-layout` | a real viewport — widths, themes, CSS that jsdom does not compute |
+| `real-input` | real keyboard or pointer input, not a programmatic `.focus()` |
+| `multi-session` | two users, or two browser contexts at once |
+| `real-timezone` | the browser's own clock and zone |
+| `cross-system` | the journey spans both repos end to end |
+
+No token, and the assertion is proven below — **`❌ tier-redundant`. The fix is to
+delete the e2e row, not to invent a justification.** `scripts/verify-test-map.py`
+applies this, so it is settled by the map rather than argued per review.
+
+**Why it is the Needs cell and not a verdict about the test.** The question is not
+*"is this test good"* — all sixteen e2e rows on Task-23's frontend were valid tests
+that failed when the behaviour broke. It is *"does this need a browser"*. Fifteen
+ACs covered by 103 rows ran the map six times across eighty minutes, and the audit
+that followed found half the e2e rows re-proved what page-level tests already
+proved. Applying the table above to that map keeps exactly the eight the audit kept
+— the two time-zone journeys, the 360px render, the two keyboard paths, the two
+multi-user checks and the one end-to-end filter journey — and drops exactly the
+eight it dropped.
+
+---
+
+### 8c.ii. A test no CI job runs is not coverage
+
+**The check.** For every test file this run wrote, find the CI job that would execute
+it. A runner selecting by glob — vitest over `**/*.test.ts`, Playwright over its
+`testDir` — already covers a new file in that tree: nothing to change, nothing to
+record. The gap is a job whose command names files, or a script narrower than the
+tree. `playwright test e2e/smoke.spec.ts` runs one spec and silently ignores every
+sibling written beside it, so a feature can ship twelve specs of which one runs.
+
+**Two outcomes, decided by the file's own `requires:` header** (Rule 7.ii):
+
+| The new file needs | Action |
+|---|---|
+| nothing the job does not already provide | **widen the selector by naming the file**, and say so in the build summary. Broaden a glob to the whole tree only when every file already there is satisfied by this job too — otherwise the tree-wide glob sweeps in the specs that need services |
+| a service the job does not start (`backend-running`, `real-db`, a broker, a container) | **HALT `blocker: test-not-in-ci`**, naming the file, the job, and what it needs |
+
+**Widening is safe in the first case and destructive in the second.** A spec needing a
+real API, added to a job that starts no API, does not become covered — it becomes a red
+pipeline on everyone's next pull request, and the quickest way anyone makes that stop is
+to delete the test. Halting instead puts the choice where the services are wired, which
+is `/qa:setup`'s, under the contract in `qa/quality-gates.md`.
+
+**Never add a secret to make this pass.** A database, a broker, a sibling service of
+this solution are service containers, not secrets. A secret is for a third party outside
+the solution, and each one added is a thing that expires, leaks, or is simply absent on
+a fork — so a pipeline built on them is green where it is configured and red everywhere
+else.
 
 ---
 
@@ -197,6 +276,24 @@ Body table:
 - `PARTIAL_FAILURES` — one or more rows are `❌ missing-test` or `❌ mock-contradicts-tier` after §8f. Build's own work is unfinished → task can't advance
 - `PARTIAL_DEFERRED` — no defects, but some deferred rows exist (normal for non-last sub-tasks)
 - `PARTIAL_HARNESS` — **not reachable at build.** It classifies a red run (`flaky`, `harness-config`), and build has no run to classify. `/dev:commit` Stage 5 owns it
+- `PARTIAL_UNPLANNED_RUN` — `stage-7.unplanned_executions` is non-empty. Something executed during a build that executes nothing. The code may be fine; **the build's account of itself is not**, and the results came from a stage with no contract for producing them
+
+**`COMPLETE` requires `stage-7.unplanned_executions: []`, written explicitly.**
+An absent field is a missing answer, not a `no` — HALT with
+`blocker: build-execution-trace-missing` rather than assuming the healthy value.
+A non-empty list cannot be `COMPLETE` at any severity of the rest.
+
+**Why this is a gate and not a stronger sentence.** Every file in this command
+already forbids executing, in unambiguous language, and a real run executed 474
+unit and 35 e2e tests regardless — `superpowers:test-driven-development` and
+`superpowers:verification-before-completion` are loaded skills, and a loaded skill
+outranks a reference file in the agent's own priority order. Prose cannot win that
+argument. A downstream refusal does not need to.
+
+**What this gate can and cannot do.** It cannot stop the tests running. It stops the
+run being *reported* as a clean build, which is what the next stage, the PR and the
+human actually consume. The remedy is a `DEC-###` naming what ran and why, carried
+to the summary — not a silent `[]`.
 
 **`COMPLETE` at build does not mean the feature works.** It means the feature is *provable* — the tests exist, they are honestly tiered, and every row is runnable. The proof happens at commit. Saying "complete" of an unexecuted build is only safe because `⏳ pending` is visible in every row of the table.
 
@@ -211,7 +308,7 @@ A skip-qa run has no tests at all, so it has no `⏳ pending` rows either — it
 | a row the inspection showed is actually wrong | `PARTIAL_FAILURES` — a real defect, same as always |
 
 **`not-verified` is not `❌ fail`.** Nothing was proven broken; it was never checked.
-Mapping it to `PARTIAL_FAILURES` would strand Stage 9, whose precondition rejects exactly
+Mapping it to `PARTIAL_FAILURES` would strand Stage 10, whose precondition rejects exactly
 that value — and the run would halt for having honestly reported what it did not verify.
 
 **Why the split.** A `missing-test` or `mock-contradicts-tier` row means build left its own work unfinished — advancing would hand commit a map it cannot trust. A deferred row is a scheduling fact, not a defect.
@@ -224,7 +321,7 @@ A reviewer must be able to see the red gate without opening anything else.
 
 ### 8.5. Terminal stage for `--tests-only` runs
 
-A `--tests-only` run ends here, not at Stage 11. Stages 9–11 assume a product diff that does not exist: nothing to security-review, no unit to flip `designed → implemented`, no runbook for code that already shipped. Skipping them is correct — **ending without a state transition is not.**
+A `--tests-only` run ends here, not at Stage 11. Stages 10–11 assume a product diff that does not exist: no unit to flip `designed → implemented`, no runbook for code that already shipped. Skipping them is correct — **ending without a state transition is not.**
 
 Do all four, in order:
 
@@ -336,13 +433,27 @@ harness_config_remedy:
 
 Neither may read `pass`. When a run's only red rows are `flaky` or `harness-config`, the status is **`PARTIAL_HARNESS`** — the gate is genuinely red, the fix is a human decision rather than another repair cycle, and the task still advances carrying both forward. A single `defect` row anywhere in the run makes it `PARTIAL_FAILURES` instead, and it stops.
 
-**Focused repair** (`defect` only):
+**Focused repair** (`defect` only).
+
+<!-- governed-by: build-declares-commit-executes -->
+> **Not reachable from a build.** Build executes nothing, so no row here carries a
+> `defect` verdict from a run — §8f's opening says so. This block is live for
+> `/dev:commit`'s fix loop, which reads this section, and for a `--resume` carrying
+> a verdict set elsewhere. At build itself the two reachable repairs are the table
+> above: `missing-test` and `mock-contradicts-tier`.
 
 1. Identify the failing test's file + line
-2. Delegate back to `dev-stack-adaptive-implementation` in "fix mode" — give it the failure output + the test file
-3. Skill applies a focused code fix (small diff)
+2. Delegate back to `dev-stack-adaptive-implementation` in **fix mode** (that skill's `## Two modes` § defines it). Pass the same contract `/dev:commit` Stage 6 passes — `stage-6-fix-loop.md` §6c is the canonical prompt, and the repair agent gets no less here:
+   - the failure output and the test file
+   - `allowed_files`, and the `detected_stack:` block from `status.md § ## Run history`
+   - `shared-context/coding-standards.md § <repo>` — §§6–12 are hard limits on every line, identical to the surrounding build
+   - the nine review dimensions, to self-check the diff against before reporting `fixed`
+3. Skill applies a focused code fix (small diff), written to the standards above — `minimal-surface` bounds which files it touches, never how well it writes them
 4. Re-run JUST the failing test (`pnpm test <path>` / `pytest <path>::<name>`)
 5. If pass → continue to next failing row. If fail → next attempt.
+
+<!-- governed-by: code-review-dimension-count -->
+**Repair code is reviewed like any other code** — at `/dev:commit` Stage 4, against the nine dimensions. A repair written below standard does not end the work; it moves the finding into a later round, which is why the contract above is not optional here.
 
 **Broad cycle:** re-run all of Stage 7 (all Required gates) after 3 focused attempts on a row hit their limit. Two broad cycles allowed.
 
@@ -405,4 +516,3 @@ If `final_status: PARTIAL_FAILURES`, re-run from §8c (map assertions to evidenc
 - **`dev-stack-adaptive-implementation` skill** in fix-mode — only during §8f focused repair
 - No subagents
 
-Never invoke `security-review` from Stage 8 — that's Stage 9.

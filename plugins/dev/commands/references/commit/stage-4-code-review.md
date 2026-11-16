@@ -2,15 +2,14 @@
 
 **Purpose.** Delegate the feature-diff code review to `dev-stack-adaptive-code-review` skill. Reviews the diff against the repo's own conventions + parent's Business Rules. Reports findings in 4 severity tiers: `Blocker` / `Major` / `Minor` / `Nit`. At commit-time, blocks on `Blocker` and `Major`. `Minor` + `Nit` do not block — they are fixed in Stage 6's single batched pass (`stage-6-fix-loop.md` §6e.i), not deferred.
 
-**Runs after Stage 3 (security review passed).** State: `devReview` (unchanged); MC: `devReview` (unchanged). On any Blocker/Major finding, fix loop kicks in.
+**Runs after Stage 2 (base branch selected), in parallel with Stage 5's review phase (5R)** — both read the same snapshot and neither executes anything (`commit.md` §5a). Their findings merge into one repair pass, and only then does 5X execute. State: `devReview` (unchanged); MC: `devReview` (unchanged). On any Blocker/Major finding, fix loop kicks in.
 
-**On completion:** `units/<repo>/findings.md § ## Code review` written (or `ReportFindings` emitted); zero Blocker + zero Major.
+**On completion:** `units/<repo>/findings.md § ## Code review` written; zero Blocker + zero Major.
 
 ---
 
 ### 4a. Preconditions
 
-- Stage 3 done, zero Critical + zero High security findings
 - Branch still up-to-date with base (`git fetch <remote>` before invocation)
 - `units/<repo>/status.md § ## Run history` present with `detected_stack:` + `inferred_patterns:` blocks from `/dev:build`
 
@@ -23,6 +22,11 @@ nothing, so `<base>...HEAD` is empty on a freshly-built task and this stage woul
 review zero bytes while reporting a clean result. `$SNAP` is built at Stage 0 from
 the working tree — see `references/common/review-snapshot.md`.
 
+**On a re-run from the fix loop this is a confirmation pass, not this stage again**
+(`stage-6-fix-loop.md` §6e.ii): it reads the repair diff rather than the feature
+diff, runs correctness, error_handling, br_enforcement and testability only, and
+admits Blocker and Major only. The first invocation below is always the full one.
+
 Invoke `dev-stack-adaptive-code-review` inline (no subagent per the skill's Rule 9). Pass:
 
 - The feature diff — `git diff <base>..$SNAP`, the review snapshot Stage 0 built. **Under `tests_only`** it is the same snapshot; the product-code dimensions with nothing to read are skipped rather than reported empty (`commit.md` §2). If the review skill refuses to run, follow `commit.md` → *When a required tool cannot run*
@@ -31,7 +35,11 @@ Invoke `dev-stack-adaptive-code-review` inline (no subagent per the skill's Rule
 - Parent's `business-rules.md` — for BR enforcement checks
 - Parent's `nfrs.md` — for NFR-declared perf/rate targets
 
-The skill emits findings via `ReportFindings` tool if available, or writes directly to `units/<repo>/findings.md § ## Code review`.
+The skill writes every finding to `units/<repo>/findings.md § ## Code review`, in the
+structure below. Where `ReportFindings` is available it emits there **as well** — that
+tool renders to the UI and writes no file, so it is the display, never the record.
+A run that only emitted has left no audit trail: the next round cannot read `## Settled`,
+and a finding closed last round is raised again as new.
 
 ---
 
@@ -131,13 +139,13 @@ one of those is a recall problem.
 
 **Zero Blocker + Zero Major** → mark Stage 4 done. Minor + Nit findings persist in the findings file and carry into Stage 6's batched fix pass, where `fixed` is the default disposition. Advance to Stage 5.
 
-**One or more Blocker/Major** → invoke the fix loop per `stage-6-fix-loop.md` §6a.i (v2.3.27). The fix loop is **MANDATORY and VERIFIABLE** — this stage MUST invoke `dev-stack-adaptive-implementation` in fix-mode via the Skill / Agent tool and record a `stage-4.fix_loop_invocation:` block in `status.md` § `## Run history` (fields per §6a.i). Applying the fix inline without recording the invocation trace is a spec violation and Stage 8 §8a will refuse to push. After fix loop, Stage 3 (security) + Stage 4 (code review) both re-run from the top — code fixes may introduce new security concerns.
+**One or more Blocker/Major** → invoke the fix loop per `stage-6-fix-loop.md` §6a.i (v2.3.27). The fix loop is **MANDATORY and VERIFIABLE** — this stage MUST invoke `dev-stack-adaptive-implementation` in fix-mode via the Skill / Agent tool and record a `stage-4.fix_loop_invocation:` block in `status.md` § `## Run history` (fields per §6a.i). Applying the fix inline without recording the invocation trace is a spec violation and Stage 8 §8a will refuse to push. After fix loop, Stage 4 (code review) re-runs from the top.
 
 ---
 
 ### 4e. Interaction with build-time deferred findings
 
-Not applicable — `/dev:build` doesn't run code review; only security. Code review is exclusively a commit-time stage.
+Not applicable — `/dev:build` doesn't run code review. Code review is exclusively a commit-time stage.
 
 ---
 
@@ -152,7 +160,17 @@ stage-4:
   finished_at: <ISO>
   snapshot_sha: 0f50921291d9
   scope: "snapshot vs develop (18 files, +624/-12)"
-  dimensions_reviewed: [correctness, conventions, error_handling, testability, br_enforcement, naming, reuse]
+  # ALL NINE, every run. A short list here is a record saying the missing ones
+  # were never looked at -- and the two that kept going missing are the two a
+  # reviewer is least likely to reach on its own.
+  dimensions_reviewed: [correctness, conventions, error_handling, testability,
+                        br_enforcement, naming, reuse, engineering_standards,
+                        api_design]
+  pass: full                          # full | confirmation (-- 6e.ii)
+  # A confirmation pass records confirmation_dimensions instead, and leaves
+  # dimensions_reviewed alone: that field is Stage 8 8a's evidence that the nine
+  # ran on the feature, and a confirmation pass is not that evidence.
+  # confirmation_dimensions: [correctness, error_handling, br_enforcement, testability]
   findings:
     blocker: 0
     major: 0
