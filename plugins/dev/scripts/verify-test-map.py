@@ -25,6 +25,13 @@ import sys
 DASH = "—"
 NEEDS_TOKENS = {"real-db", "backend-running", "frontend-running", "real-auth", DASH, "-", ""}
 
+# What only a real browser and a real stack can give. An e2e row whose assertion is
+# already proven at a cheaper tier has to name one of these, or it is a second proof
+# of a rule that was already proven -- see stage-8-validate.md.
+JUSTIFY_TOKENS = {"real-layout", "real-input", "multi-session", "real-timezone", "cross-system"}
+NEEDS_TOKENS |= JUSTIFY_TOKENS
+CHEAP_TIERS = {"unit", "component", "integration", "contract"}
+
 # How each language declares a test name. Group 1 is always the name.
 NAME_PATTERNS = [
     re.compile(r"""\b(?:it|test)(?:\.\w+)*\s*\(\s*(['"`])(.+?)\1""", re.S),   # js/ts
@@ -160,6 +167,45 @@ def main() -> int:
         return 2
 
     results = [check_row(r, repo) for r in rows]
+
+    # tier-redundant: an e2e row re-proving an assertion a cheaper tier already covers,
+    # without naming what the browser adds.
+    def col(row, name):
+        for k, v in row.items():
+            if k.strip().lower() == name:
+                return v or ""
+        return ""
+
+    cheap = {col(r, "id") for r in rows if col(r, "tier").lower() in CHEAP_TIERS}
+    for row, res in zip(rows, results):
+        if col(row, "tier").lower() != "e2e" or col(row, "id") not in cheap:
+            continue
+        toks = {cell(t) for t in re.split(r"[;,]", col(row, "needs"))}
+        if toks & JUSTIFY_TOKENS:
+            continue
+        res["ok"] = False
+        res.setdefault("failures", []).append({
+            "blocker": "tier-redundant",
+            "detail": "%s is proven at a cheaper tier; name what the browser adds (%s) or drop the row"
+                      % (col(row, "id"), "/".join(sorted(JUSTIFY_TOKENS))),
+        })
+
+    # e2e-journey-missing: a map with an e2e tier must prove the system assembled at
+    # least once. Removing duplicates must never remove the only unmocked proof.
+    e2e_rows = [r for r in rows if col(r, "tier").lower() == "e2e"]
+    if e2e_rows and not any(
+        {cell(t) for t in re.split(r"[;,]", col(r, "needs"))} & {"cross-system"}
+        for r in e2e_rows
+    ):
+        results.append({
+            "id": "(map)", "test": "", "ok": False,
+            "failures": [{
+                "blocker": "e2e-journey-missing",
+                "detail": "the map declares e2e rows but none is a cross-system journey; "
+                          "at least one must prove the assembled system",
+            }],
+        })
+
     failed = [r for r in results if not r["ok"]]
     report = {
         "rows_total": len(results),

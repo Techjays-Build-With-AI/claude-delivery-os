@@ -165,7 +165,57 @@ Treating an in-process dependency as external halts a suite that would have pass
    - **Frontend (dev server)**: an `e2e` test drives a browser against this — without it Playwright/Cypress hits a dead port, which fails as a connection error, not as the behaviour under test. **If the e2e runner's own config declares a `webServer` block, let it own the frontend and do not start one here** — it pins the port, and a second server would either collide or serve a different one. Start it here only when that block is absent, using the pinned command from `qa-greenfield-harness/references/gates-template.md`. Never assume `3000`
    - Database: check for `docker-compose.yml`, `podman-compose.yml`, or platform-specific test-container config; else use ambient (already-running) service
 2. **Read the required env vars** from the service's `.env.example` — every var listed must be present in the runtime env. If ANY is missing → **HALT Stage 7 with `blocker: required-env-vars-missing`**, listing which vars for which service. Do NOT run tests with partial env — that's how the "Bearer null / mocked-integration passes" bug propagates.
-3. **Start the service** with a health-check probe (max 30s wait). Health check per service type:
+2b. **These tiers may not write to a non-local database.** Step 2 checks the vars are
+   present; this checks where they point. Resolve the URI the service will actually use
+   and classify its host:
+
+   | URI | Verdict |
+   |---|---|
+   | `localhost` / `127.0.0.1`, or a container this run started | run |
+   | in-process — `mongodb-memory-server`, Testcontainers, an embedded engine | run |
+   | any remote host, any `mongodb+srv://`, any URI carrying credentials | **HALT `blocker: remote-db-in-test-run`** |
+
+   These tiers create users and rows. Pointed at a hosted cluster they write to something
+   every run and every teammate shares, and the first run that halts mid-suite leaves its
+   fixtures there. Step 1's *"else use ambient (already-running) service"* resolves a
+   database by what is reachable, and a remote cluster is always reachable — that is the
+   hole this closes. Name the host in the halt, never the credentials, and state the
+   remedy: point the service at a local database for the run.
+3. **Probe the port first. Start only if nothing is there.**
+
+   | Probe | Action |
+   |---|---|
+   | nothing listening | start it, then health-check as below |
+   | listening, and it identifies as this build | **adopt it** — record `adopted: true`, start nothing |
+   | listening, and it does not | a previous run's own service → reclaim it per below; anything else → HALT `blocker: stale-service-on-port`, naming host, port and pid |
+
+   **Liveness is not identity.** `curl -f .../health` returning 2xx proves something is
+   answering, never that it is the code under test. A server left by an earlier branch
+   answers it exactly as this one does, and the suite then reports green against code the
+   diff does not contain — a worse outcome than any halt. Identify by the build the
+   service reports (a sha or branch on its health route), else by the pid's start time
+   against the branch's newest commit. Neither available → HALT; a server that cannot say
+   what it is running is a stale one.
+
+   **Reclaim this system's own litter; never touch anything else.** A port held by a
+   service a previous delivery-os run started is ours to clear, and clearing it needs no
+   human. Search every `units/<repo>/status.md` in the workspace for an
+   `external_services_started:` entry on this port and stop that process only when all
+   three of these match:
+
+   | Must match | Why |
+   |---|---|
+   | `port` | it is the port being reclaimed |
+   | `pid` | it is that entry's process |
+   | the pid's real start time is at or after the entry's `started_at` | pids are reused after a reboot, and without this the match is a coincidence |
+
+   All three hold → stop it, record `reclaimed_pid` naming the entry it matched, and start
+   the correct build. Any one missing, or no entry at all → HALT. **A process with no
+   record is someone else's** — started by hand, or by another tool — and a run that frees
+   its port by killing whatever holds it will one day kill the server the user was
+   working in. The halt names the pid and the user decides.
+
+   Health check per service type (max 30s wait):
    - HTTP service: `curl -f http://localhost:<port>/health` or `curl -f http://localhost:<port>/` returns 2xx/3xx
    - Database: framework-native ping (e.g. `pg_isready`, `mongosh --eval "db.runCommand({ping:1})"`)
    - Custom: probe defined in service's `.env.example` `HEALTH_CHECK_CMD` if present
@@ -177,6 +227,9 @@ Treating an in-process dependency as external halts a suite that would have pass
        command: npm run dev
        pid: 12456
        port: 8080
+       adopted: false
+       reclaimed_pid: null
+       db_host: localhost
        env_vars_verified: [DATABASE_URL, SECRET, FIREBASE_SERVICE_ACCOUNT]
        health_check: "curl -f http://localhost:8080/health"
        started_at: 2026-09-01T14:22:03Z

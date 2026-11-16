@@ -128,6 +128,8 @@ Result mapping at build — **no row can be `✅ pass` here**, because nothing r
 | a test cites the assertion | component | any (mocking axios OK at component tier) | ⏳ pending |
 | a test cites the assertion | integration/contract/concurrency/e2e | none | ⏳ pending |
 | a test cites the assertion | integration/contract/concurrency/e2e | some | ❌ mock-contradicts-tier |
+| an e2e test re-proves an assertion a cheaper tier already covers, naming nothing the browser adds | e2e | — | ❌ tier-redundant (§8c.i) |
+| a test file this run wrote that no CI job executes | — | — | ❌ test-not-in-ci (§8c.ii) |
 | No test found | — | — | ❌ missing-test (fail) |
 
 **Except under `--tests-only` and `--vulnerable`** (§7a1), which execute because they
@@ -136,9 +138,84 @@ verdict routing in §8f — there is no commit coming to fill a `⏳ pending` ro
 
 **`⏳ pending` is the normal, healthy outcome of a build.** It means: the assertion has a test, the test declares a tier it does not contradict, and the map can run it. `/dev:commit` Stage 5 replaces every `⏳ pending` with `✅ pass`, `❌ fail`, `❌ real-service-not-run` or `flaky`.
 
-**The two statuses build still owns are the two that need no run.** `missing-test` is a coverage gap visible by grepping; `mock-contradicts-tier` is visible by reading the imports. Both are build's own unfinished work, and both must be fixed here rather than carried to commit as a surprise.
+**The four statuses build still owns are the four that need no run.** `missing-test` is a coverage gap visible by grepping; `mock-contradicts-tier` is visible by reading the imports; `tier-redundant` is visible by reading the map's own Tier column; `test-not-in-ci` is visible by reading the workflow. All four are build's own unfinished work, and all four must be fixed here rather than carried to commit as a surprise.
 
 **Never mark `⏳ pending` on a `mock-contradicts-tier` row** — a mocked "integration" test is not a test awaiting a run, it is a false coverage claim, and letting it reach commit as `pending` hands commit a green it did not earn. The repair loop (§8f) either fixes the test (replaces the mock with a real fixture) or splits it (unit test at unit tier + integration test at integration tier).
+
+---
+
+### 8c.i. One rule, one proof — and what an e2e row has to earn
+
+**The policy.** One unit test per rule. One integration or page test per acceptance
+criterion. **E2E for every journey that cannot be proven below it — and at least one
+that proves the system works assembled.**
+
+**This is not an argument against e2e.** E2E is the only tier where nothing is
+mocked: the real browser, the real server, the real database. A feature whose e2e
+coverage is zero has never been shown to work as a user meets it, however green the
+rest is. A map that declares an e2e tier **must carry at least one `cross-system`
+row**, or it fails `e2e-journey-missing`. What follows removes duplicates, never the
+proof.
+
+Overlap at the cheap tiers is close to free and is left alone — a duplicated unit
+test costs milliseconds and sometimes reads better than the indirection that would
+remove it. The cost is concentrated in e2e: it is the slowest tier, the flakiest,
+and the one that drags a whole map re-run behind it when it fails.
+
+**An e2e row whose assertion is already covered at `unit`, `component`,
+`integration` or `contract` must name what the browser adds**, in its `Needs` cell:
+
+| Token | The row needs |
+|---|---|
+| `real-layout` | a real viewport — widths, themes, CSS that jsdom does not compute |
+| `real-input` | real keyboard or pointer input, not a programmatic `.focus()` |
+| `multi-session` | two users, or two browser contexts at once |
+| `real-timezone` | the browser's own clock and zone |
+| `cross-system` | the journey spans both repos end to end |
+
+No token, and the assertion is proven below — **`❌ tier-redundant`. The fix is to
+delete the e2e row, not to invent a justification.** `scripts/verify-test-map.py`
+applies this, so it is settled by the map rather than argued per review.
+
+**Why it is the Needs cell and not a verdict about the test.** The question is not
+*"is this test good"* — all sixteen e2e rows on Task-23's frontend were valid tests
+that failed when the behaviour broke. It is *"does this need a browser"*. Fifteen
+ACs covered by 103 rows ran the map six times across eighty minutes, and the audit
+that followed found half the e2e rows re-proved what page-level tests already
+proved. Applying the table above to that map keeps exactly the eight the audit kept
+— the two time-zone journeys, the 360px render, the two keyboard paths, the two
+multi-user checks and the one end-to-end filter journey — and drops exactly the
+eight it dropped.
+
+---
+
+### 8c.ii. A test no CI job runs is not coverage
+
+**The check.** For every test file this run wrote, find the CI job that would execute
+it. A runner selecting by glob — vitest over `**/*.test.ts`, Playwright over its
+`testDir` — already covers a new file in that tree: nothing to change, nothing to
+record. The gap is a job whose command names files, or a script narrower than the
+tree. `playwright test e2e/smoke.spec.ts` runs one spec and silently ignores every
+sibling written beside it, so a feature can ship twelve specs of which one runs.
+
+**Two outcomes, decided by the file's own `requires:` header** (Rule 7.ii):
+
+| The new file needs | Action |
+|---|---|
+| nothing the job does not already provide | **widen the selector by naming the file**, and say so in the build summary. Broaden a glob to the whole tree only when every file already there is satisfied by this job too — otherwise the tree-wide glob sweeps in the specs that need services |
+| a service the job does not start (`backend-running`, `real-db`, a broker, a container) | **HALT `blocker: test-not-in-ci`**, naming the file, the job, and what it needs |
+
+**Widening is safe in the first case and destructive in the second.** A spec needing a
+real API, added to a job that starts no API, does not become covered — it becomes a red
+pipeline on everyone's next pull request, and the quickest way anyone makes that stop is
+to delete the test. Halting instead puts the choice where the services are wired, which
+is `/qa:setup`'s, under the contract in `qa/quality-gates.md`.
+
+**Never add a secret to make this pass.** A database, a broker, a sibling service of
+this solution are service containers, not secrets. A secret is for a third party outside
+the solution, and each one added is a thing that expires, leaks, or is simply absent on
+a fork — so a pipeline built on them is green where it is configured and red everywhere
+else.
 
 ---
 
