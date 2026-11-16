@@ -45,6 +45,7 @@ and no `implementation.md`. Run the three phases scoped:
   regression test for it.
 
 **`minimal-surface` bounds WHERE you write, never HOW WELL.** The repair diff is read by
+<!-- governed-by: code-review-dimension-count -->
 `dev-stack-adaptive-code-review` against the same nine dimensions as any other code:
 correctness, convention adherence, error handling, testability, BR enforcement, naming,
 reuse, engineering standards, API design. Rules 13 and 14 below hold on every line a
@@ -396,6 +397,7 @@ these, which hold in every repo regardless of what the neighbouring code does:
 |---|---|
 | **API contract** | every new operation validates its input at the boundary, returns the repo's error envelope, and uses status codes that match its semantics — even where the endpoint beside it does not |
 | **Contract consistency** | request/response field naming, pagination, filtering and error shape match the repo's *dominant* pattern; where the repo is genuinely inconsistent, follow the one that is correct, not the one that is nearest |
+| **File placement** | a `confirmed` `coding-standards.md` §2 decides where a new file goes, even where the repo files that kind of thing elsewhere; `inferred` or absent falls back to Rule 1 and reports the mismatch. See `plugins/delivery-os-core/skills/delivery-os-conventions/references/project-structure.md` §5 |
 | **Reuse** | Rule 2. An existing abstraction is extended, never paralleled |
 | **Clean code** | `coding-standards.md` §§6–12 limits (Rule 13) apply to every line written, whatever the surrounding file looks like |
 | **Error paths** | every failure branch is handled; "the existing handler doesn't either" is not a reason |
