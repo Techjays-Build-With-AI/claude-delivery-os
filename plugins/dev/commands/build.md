@@ -11,6 +11,35 @@ Read the **`delivery-os-conventions`** skill first if it's not in context — th
 
 **The single invariant:** `/dev:build` runs on a decidable plan or refuses. Never prompts the user mid-run.
 
+<!-- governed-by: build-declares-commit-executes -->
+
+## Skill precedence inside `/dev:build`
+
+**Two installed skills are out-ranked for the duration of this command:**
+`superpowers:test-driven-development` and `superpowers:verification-before-completion`.
+Both instruct an agent to run tests before calling work done. Inside `/dev:build`
+that instruction is wrong — build writes tests and a verified map and **executes
+none of it**; `/dev:commit` Stage 5 is the only executor.
+
+This is stated at the command level because a loaded skill outranks a reference
+file in the agent's priority order. A run that executed 474 unit and 35 e2e tests
+here did so with every stage file forbidding it, and was not wrong to prefer the
+skill — nothing had told it which wins. This does.
+
+**It applies to every subagent this command dispatches**, including the builder at
+Stages 5–6, which never reads this file. Stage 5-6 §5-6a repeats it for that reason;
+that repetition is deliberate and marked.
+
+**Verification before completion is satisfied here by the map, not by a run.** Stage 7
+proves every row's file exists, its named test resolves to exactly one test, its
+command is populated and its fixtures are defined. That *is* the verification this
+command can honestly perform. Claiming a green suite it never ran would be the
+opposite of the skill's intent.
+
+**If something executes anyway, record it** in `stage-7.unplanned_executions` and
+let Stage 8 §8g classify the run `PARTIAL_UNPLANNED_RUN`. Recording is never the
+violation; writing `[]` after executing is.
+
 ## 0. Delegate to `dev-agent`
 
 **Every mode of this command runs as a `dev-agent` subagent**, never in the main conversation. The invariant
@@ -44,7 +73,8 @@ something mid-run belongs inline; one that cannot, does not.
 - Local feature folder: `features/supplier-onboarding`
 - Sub-task folder: `features/supplier-onboarding/units/backend`
 - Internal id: `FEAT-<AREA>-NN`
-- **Non-feature ticket**: `tasks/<slug>.md` (bug / story / task / epic planned via `/dev:plan` §2f). A markdown path **outside** `tasks/`, or a free-text description, has not been planned yet — say so and point at `/dev:plan <that path or description>`, which adopts it; never adopt either here, because build needs a plan. Its plan lives at `tasks/<slug>/dev/` — read `implementation.md`, `status.md`, and `plan-blockers.md` from there, not from `features/`. Never split: a non-feature builds in one repo, on `fix/<slug>` for a bug, `feature/<slug>` otherwise.
+<!-- governed-by: non-feature-run-path -->
+- **Non-feature ticket**: `tasks/<slug>.md` (bug / story / task / epic planned via `/dev:plan` §2f). A markdown path **outside** `tasks/`, or a free-text description, has not been planned yet — say so and point at `/dev:plan <that path or description>`, which adopts it; never adopt either here, because build needs a plan. Its plan lives at `tasks/<slug>/units/<repo>/` — read `implementation.md`, `status.md`, and `plan-blockers.md` from there, not from `features/`. Never split: a non-feature builds in one repo, on `fix/<slug>` for a bug, `feature/<slug>` otherwise.
 - Blank: **every task at `readyForDev`** — scan each feature’s own `status.md` **and** `tasks/*/units/<repo>/status.md`, and build the lot, bounded by `--concurrency`. Features and non-feature tickets go into one set; do not ask the user to choose between the two groups. The default matches `/dev:plan` and `/ba:features`: a blank command means the whole batch, and a target means that one thing.
 - `list=<name>` / `requirement=<slug>` / `--all` — the multi-target forms, resolved exactly as `/dev:plan` §2a resolves them, then filtered to `readyForDev`. `--all` with `requirement=<slug>` scopes to that initiative.
 

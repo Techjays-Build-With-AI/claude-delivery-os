@@ -4,6 +4,7 @@
 
 **Runs after Stage 7 tests pass.** State: `agentExecuting` (unchanged). MC: `inProgress`.
 
+<!-- governed-by: build-declares-commit-executes -->
 **On completion:** `units/<repo>/status.md § ## Acceptance` contains one row per applicable AC/BR/TS/NFR, either `⏳ pending` (a sound, runnable test is mapped to it) or `⏸ deferred-to-e2e` (cross-sub-task E2E, closed by last sub-task). **Not `✅ pass` — build runs nothing**; `/dev:commit` Stage 5 executes and fills the result in.
 
 ---
@@ -13,6 +14,7 @@
 - `units/<repo>/status.md § ## Run history` `stage-7.status` is **`DONE` or `SKIPPED`** (SKIPPED only via §7a0, `--skip-qa`)
 - Stage 7 verified the test map (`rows_verified` equals `rows_total`), or recorded `SKIPPED`
 
+<!-- governed-by: build-declares-commit-executes -->
 **There are no gate results to check, because build runs no tests.** Stage 7 records `executed: false` and every row is `pending`. This stage maps each assertion to the test that will prove it. **Soundness is already settled — do not re-derive it.** Stage 7's script proved, for every row, that the file exists, the named test resolves to exactly one test, the run command is populated, the service tokens are startable and the fixtures are defined; read `.jetrix/cache/test-map-verify.json` and treat a `rows[]` entry with `ok: true` as sound. A row Stage 7 failed never reaches this stage, because Stage 7 halts. What this stage adds is the mapping judgment: which assertion each test actually proves. It does not and cannot report whether it passes. `/dev:commit` Stage 5 executes and fills the result in.
 
 ---
@@ -197,6 +199,24 @@ Body table:
 - `PARTIAL_FAILURES` — one or more rows are `❌ missing-test` or `❌ mock-contradicts-tier` after §8f. Build's own work is unfinished → task can't advance
 - `PARTIAL_DEFERRED` — no defects, but some deferred rows exist (normal for non-last sub-tasks)
 - `PARTIAL_HARNESS` — **not reachable at build.** It classifies a red run (`flaky`, `harness-config`), and build has no run to classify. `/dev:commit` Stage 5 owns it
+- `PARTIAL_UNPLANNED_RUN` — `stage-7.unplanned_executions` is non-empty. Something executed during a build that executes nothing. The code may be fine; **the build's account of itself is not**, and the results came from a stage with no contract for producing them
+
+**`COMPLETE` requires `stage-7.unplanned_executions: []`, written explicitly.**
+An absent field is a missing answer, not a `no` — HALT with
+`blocker: build-execution-trace-missing` rather than assuming the healthy value.
+A non-empty list cannot be `COMPLETE` at any severity of the rest.
+
+**Why this is a gate and not a stronger sentence.** Every file in this command
+already forbids executing, in unambiguous language, and a real run executed 474
+unit and 35 e2e tests regardless — `superpowers:test-driven-development` and
+`superpowers:verification-before-completion` are loaded skills, and a loaded skill
+outranks a reference file in the agent's own priority order. Prose cannot win that
+argument. A downstream refusal does not need to.
+
+**What this gate can and cannot do.** It cannot stop the tests running. It stops the
+run being *reported* as a clean build, which is what the next stage, the PR and the
+human actually consume. The remedy is a `DEC-###` naming what ran and why, carried
+to the summary — not a silent `[]`.
 
 **`COMPLETE` at build does not mean the feature works.** It means the feature is *provable* — the tests exist, they are honestly tiered, and every row is runnable. The proof happens at commit. Saying "complete" of an unexecuted build is only safe because `⏳ pending` is visible in every row of the table.
 
@@ -336,13 +356,27 @@ harness_config_remedy:
 
 Neither may read `pass`. When a run's only red rows are `flaky` or `harness-config`, the status is **`PARTIAL_HARNESS`** — the gate is genuinely red, the fix is a human decision rather than another repair cycle, and the task still advances carrying both forward. A single `defect` row anywhere in the run makes it `PARTIAL_FAILURES` instead, and it stops.
 
-**Focused repair** (`defect` only):
+**Focused repair** (`defect` only).
+
+<!-- governed-by: build-declares-commit-executes -->
+> **Not reachable from a build.** Build executes nothing, so no row here carries a
+> `defect` verdict from a run — §8f's opening says so. This block is live for
+> `/dev:commit`'s fix loop, which reads this section, and for a `--resume` carrying
+> a verdict set elsewhere. At build itself the two reachable repairs are the table
+> above: `missing-test` and `mock-contradicts-tier`.
 
 1. Identify the failing test's file + line
-2. Delegate back to `dev-stack-adaptive-implementation` in "fix mode" — give it the failure output + the test file
-3. Skill applies a focused code fix (small diff)
+2. Delegate back to `dev-stack-adaptive-implementation` in **fix mode** (that skill's `## Two modes` § defines it). Pass the same contract `/dev:commit` Stage 6 passes — `stage-6-fix-loop.md` §6c is the canonical prompt, and the repair agent gets no less here:
+   - the failure output and the test file
+   - `allowed_files`, and the `detected_stack:` block from `status.md § ## Run history`
+   - `shared-context/coding-standards.md § <repo>` — §§6–12 are hard limits on every line, identical to the surrounding build
+   - the nine review dimensions, to self-check the diff against before reporting `fixed`
+3. Skill applies a focused code fix (small diff), written to the standards above — `minimal-surface` bounds which files it touches, never how well it writes them
 4. Re-run JUST the failing test (`pnpm test <path>` / `pytest <path>::<name>`)
 5. If pass → continue to next failing row. If fail → next attempt.
+
+<!-- governed-by: code-review-dimension-count -->
+**Repair code is reviewed like any other code** — at `/dev:commit` Stage 4, against the nine dimensions. A repair written below standard does not end the work; it moves the finding into a later round, which is why the contract above is not optional here.
 
 **Broad cycle:** re-run all of Stage 7 (all Required gates) after 3 focused attempts on a row hit their limit. Two broad cycles allowed.
 

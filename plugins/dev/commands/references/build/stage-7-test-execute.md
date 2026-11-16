@@ -57,6 +57,7 @@ reports nothing it can stand behind:
 For these two, execute **§7b.i–§7h of this file** in full, then continue
 to Stage 8 with real pass/fail rows.
 
+<!-- governed-by: build-declares-commit-executes -->
 **This is not an exception to "build declares, commit executes" — it is that rule
 applied.** Execution belongs wherever the diff stops moving. In the delivery flow
 that is commit; in a terminal maintenance run there is no commit, so it is here.
@@ -101,13 +102,28 @@ evidence trail differs.
 
 The checks it applies, one per row:
 
+<!-- rule: test-map-blocker-ids
+     phrases: "missing-test-file" | "missing-test-case" | "ambiguous-test-case"
+            | "missing-fixture" | "test-map-incomplete" | "test-map-unstartable" -->
+
+**One vocabulary, both commands.** `/dev:commit` §5a.00 re-runs these same checks
+against the working tree, and emits these same ids. One defect, one name, whichever
+stage happened to see it.
+
+> Until 2.3.29 the two sides used different names for one fact —
+> `test-map-dangling-test` here, `missing-test-file` there — and this side used a
+> *single* id for three distinct defects, so a report could not tell "no such file"
+> from "no such test" from "that name matches two tests". `ambiguous-test-case` is
+> new: the condition was always detected, it just had no name of its own.
+
 | Check | Fails when | Blocker |
 |---|---|---|
-| **Test file exists** | the `Test` column names a path not on disk | `test-map-dangling-test` |
-| **Named test exists** | the file exists but holds no test matching `::name` | `test-map-dangling-test` |
+| **Test file exists** | the `Test` column names a path not on disk | `missing-test-file` |
+| **Named test exists** | the file exists but holds no test matching `::name` | `missing-test-case` |
+| **Named test is unique** | the runner's substring filter would select more than one | `ambiguous-test-case` |
 | **`Run it` is populated** | the cell is empty or `—` | `test-map-incomplete` |
 | **`Needs` is startable** | a token is not `real-db`, `backend-running`, `frontend-running`, `real-auth` or `—` | `test-map-unstartable` |
-| **Fixture exists** | the `Fixtures` column names a factory or seed not on disk | `test-map-dangling-fixture` |
+| **Fixture exists** | the `Fixtures` column names a factory or seed not on disk | `missing-fixture` |
 
 **Match the test name the way the runner does.** The runner's `-t` filter is a
 substring match, so a row must name **exactly one** test. `create.spec.ts::duplicate`
@@ -366,14 +382,39 @@ Append to `units/<repo>/status.md § ## Run history`:
 stage-7:
   status: DONE                          # DONE | FAILED | BLOCKED
   started_at: 2026-08-31T15:07:22Z
-  gates_run: 7
-  gates_passed: 7
-  gates_failed: 0
-  gates_flaky: 0
+  executed: false                       # ALWAYS false here — this stage reads, never runs
+  rows_verified: 14
+  rows_total: 14
+
+  # REQUIRED, every run. Anything that EXECUTED during this build, whatever
+  # stage or subagent ran it, with the command and what prompted it. `[]` is
+  # the healthy value and must be written explicitly -- an absent field is a
+  # missing answer, not a "no".
+  unplanned_executions: []
   finished_at: 2026-08-31T15:12:41Z
 ```
 
 `FAILED` if any gate ended in `FAIL` after Stage 8's repair loop is done and still couldn't fix.
+
+**Why `unplanned_executions` exists rather than a sterner sentence.** A real run
+executed 474 unit and 35 e2e tests at this stage, recorded `executed: false`
+correctly, and then parked the results in an invented `builder_run_results:` key —
+because the schema had nowhere to put them and the agent would not throw them away.
+It was honest; **nothing was reading.** This field is that place, and `§8g` gates on
+it, so an execution that happens anyway cannot be reported as a clean build:
+
+```yaml
+unplanned_executions:
+  - command: "npx vitest run --coverage"
+    ran_by: "builder subagent (Stage 5-6)"
+    prompted_by: "superpowers:verification-before-completion"
+    result: "42 files, 474 passed"
+```
+
+**Recording it is never the violation — hiding it is.** A run that declares what it
+did gets a `PARTIAL_UNPLANNED_RUN` status and a line in the summary. A run that
+executes and writes `[]` has falsified its own record, and the next stage cannot
+tell the difference between that and a clean build.
 
 ---
 

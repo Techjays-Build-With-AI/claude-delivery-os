@@ -1,18 +1,69 @@
 ## Stage 5 — Final `## Acceptance` table verification (commit-time)
 
-**Purpose.** Re-verify every row in `units/<repo>/status.md § ## Acceptance` is still green. `/dev:build` built the map; between build and commit the developer may have hand-edited code (typo fix, refactor, additional cleanup) that could have broken tests. Never push a branch on stale test evidence.
+**Purpose.** Settle every row in `units/<repo>/status.md § ## Acceptance`: that the
+map tells the truth, that each row's test proves what it claims, and that the code
+passes it. `/dev:build` writes the map and executes nothing, so commit is where
+every row moves off `⏳ pending`.
 
 Also: if this task is the LAST sub-task to land under the parent (all sibling sub-tasks are DONE in MC), run any `⏸ deferred-to-e2e` rows now.
 
-**Runs after Stage 4 (code review passed).** State: `devReview` (unchanged); MC: `devReview` (unchanged). On any regression, fix loop kicks in.
+**On completion:** every row in `status.md` § `## Acceptance` is `✅ pass` OR `⏸ deferred-to-e2e` (with clear reason) — or, where a red row classified `flaky` / `harness-config` per §5b.i.
 
-**On completion:** every row in `status.md` § `## Acceptance` is `✅ pass` OR `⏸ deferred-to-e2e` (with clear reason) — or, where the build handed over as `PARTIAL_HARNESS`, a carried `flaky` / `harness-config` row per §5b.i.
+---
+
+### 5.0. Two phases — review, then execute ONCE
+
+**The expensive half of this stage runs after every known finding is fixed, not
+before.** Reading the map and running the suite answer different questions and cost
+three orders of magnitude apart, so they are separated:
+
+| Phase | Sections | Asks | Test executions |
+|---|---|---|---|
+| **5R — review** | §5a.00 · §5a.0 · §5d.i coverage | Does the map tell the truth? Does each test prove its row? Does every ticket row have a test at all? | **zero** |
+| **5X — execute** | §5a.0a · §5b · §5b.i · §5c · §5d | Do they pass? | all of them |
+
+**5R is read-only and runs in parallel with Stage 4** (`commit.md` §5a) — neither
+reviewer needs a green suite to do its reading. Their findings merge into one repair
+pass.
+
+**5X runs once, after Stage 6 has cleared every Stage 4 and 5R finding.** Executing
+before those repairs lands means executing against code that is about to change: the
+run is invalidated by the repair that follows it, and then repeated. A loop that
+repaired twelve review findings over three rounds paid for the full map three times
+to learn nothing it kept.
+
+```
+Stage 4 code review  ┐
+                     ├── parallel · read-only · 0 executions
+Stage 5R map review  ┘
+          │
+          ▼   all findings from both → ONE repair pass (Stage 6)
+          │
+Stage 5X  EXECUTE ─── once: every row + coverage + the suite gate twice
+          │
+          ▼   red? → classify §5b.i → defect → repair → re-run the failed
+              rows and the suite gate. Not the whole map again.
+```
+
+**Nothing is skipped by this ordering.** Every row is still executed, and the suite
+gate still runs twice before any green is recorded (§5b). What moves is *when* — one
+execution after the repairs instead of one before each of them.
 
 ---
 
 ### 5a. Preconditions
 
-- Stage 4 done, zero commit-time-blocking findings
+**For 5R** — the same snapshot Stage 4 reads, and nothing else. It does **not** wait
+on Stage 4; the two are dispatched together.
+
+- `units/<repo>/status.md § ## Acceptance` exists (from `/dev:build` Stage 8)
+- the review snapshot is built (`commit.md` Stage 0)
+
+**For 5X** — the gate that makes the single execution worth running:
+
+- **Stage 4 AND 5R are both done, with zero findings open at commit-time threshold.**
+  A finding still open means code is still about to change; executing now buys a
+  result the next repair invalidates. Open findings → Stage 6 first, then return here
 - `units/<repo>/status.md § ## Acceptance` exists (from `/dev:build` Stage 8)
 - **Services are started by this stage, not assumed** — §5a.0a. `/dev:build`
   Stage 7 tears its services down when it finishes, so by commit time nothing is
@@ -23,6 +74,10 @@ Also: if this task is the LAST sub-task to land under the parent (all sibling su
 
 ### 5a.0a. Execute the map — commit decides nothing
 
+> **Phase 5X.** Runs once, and only once §5a's 5X precondition holds: Stage 4 and
+> 5R both clean. Everything from here to §5d is the executing half.
+
+<!-- governed-by: build-declares-commit-executes -->
 **Build declared; commit executes.** The test map
 (`<repo>/context/test-map/<feature-slug>.md`) carries, per scenario, the command
 that runs it and what that command needs running. This stage runs those commands.
@@ -51,6 +106,7 @@ floor `qa/quality-gates.md § <repo>` declares.
 
 **Use the map's command verbatim.** Not a reconstruction of it. The map was written
 by the agent that wrote the test; if its command is wrong, that is a
+<!-- governed-by: test-map-blocker-ids -->
 `missing-test-case` finding, not something to work around.
 
 **3. Fixtures and mock data are the ones build already created.** Do not generate
@@ -65,6 +121,9 @@ and this stage falls back to the Required gates in `qa/quality-gates.md`, report
 that it did so. On Route B there is no map by design; the verifier infers (§5a.i).
 
 ### 5a.00. Verify the test map against reality
+
+> **Phase 5R.** Reading only — every check below is settled by opening files. Runs
+> in parallel with Stage 4, before anything executes.
 
 `<repo>/context/test-map/<feature-slug>.md` (written at `/dev:build` Stage 5-6)
 claims a scenario → test → tier → fixture mapping. Check each claim:
@@ -84,6 +143,11 @@ No map at all on Route A is itself a Major: Stage 5-6 was supposed to write one.
 On Route B there is none by design — the verifier infers instead (§5a.i).
 
 ### 5a.0. The test-verifier — what it adds over Stage 8c
+
+> **Phase 5R.** The verifier's judgement — *does this assertion prove its row?* — is
+> formed by reading the test, not by running it. A test that proves nothing proves
+> nothing whether it is green or red, so this costs no execution and happens before
+> 5X.
 
 Build and Commit must not answer the same question with different authority.
 
@@ -140,9 +204,27 @@ If step 2 fails to execute (test framework changed, spec renamed) → treat as `
 
 ---
 
-### 5b.i. Rows carried from a `PARTIAL_HARNESS` build
+### 5b.i. A red row that is not a defect — wherever it first went red
 
-`/dev:build` Stage 8 may hand over rows whose failure it classified `flaky` or `harness-config` rather than `defect`. They are red, but the code is not wrong and the remedy is a human `DEC-###` against the harness — which this stage may not apply.
+A row can be red because the code is wrong, or because the test is unreliable or
+the harness is misconfigured. Those are different facts with different remedies,
+and only the first belongs to the fix loop. Classify every red row per
+`references/build/stage-7-test-execute.md` §7f.i before routing it. A `flaky` or
+`harness-config` row is red, but the code is not wrong and the remedy is a human
+`DEC-###` against the harness — which this stage may not apply.
+
+**Two sources, one rule.**
+
+| Where the row went red | |
+|---|---|
+| **Carried from a `PARTIAL_HARNESS` build** | `/dev:build` Stage 8 classified it and handed it over |
+| **First seen here** — on the initial §5b run, or on any re-run inside the Stage 6 fix loop | classify it now, per §7f.i |
+
+**The second case is the one that gets missed.** A timeout that appears in fix-loop
+round 2 is the same kind of fact as one that appeared at build, and takes the same
+verdict. Admitting it as a Blocker because it arrived late sends a config problem
+into a loop that is forbidden to fix config — see §6a.ii of
+`stage-6-fix-loop.md`, which refuses an unclassified row at the loop's entrance.
 
 Re-run such a row once, exactly as §5b does, then:
 
@@ -257,9 +339,28 @@ the committer saw.
 
 ### 5e. Route to fix loop or advance
 
+**From 5R** — findings only; no row changes verdict, because nothing has run. Every
+`## Test verification` finding joins Stage 4's into the single repair pass. 5R never
+advances to Stage 7 on its own, and never triggers 5X directly: Stage 6 does, once
+both reviewers are clean.
+
+**From 5X:**
+
 **Every row `✅ pass` or acceptably `⏸ deferred-to-e2e`** → mark Stage 5 done. Advance to Stage 7 (semantic merge).
 
-**One or more `⚠ regression` or `❌ fail`** → invoke the fix loop per `stage-6-fix-loop.md` §6a.i (v2.3.27). The fix loop is **MANDATORY and VERIFIABLE** — this stage MUST invoke `dev-stack-adaptive-implementation` in fix-mode via the Skill / Agent tool and record a `stage-5.fix_loop_invocation:` block in `status.md` § `## Run history` (fields per §6a.i). Applying the fix inline without recording the invocation trace is a spec violation and Stage 8 §8a will refuse to push. After fix loop, Stages 4+5 both re-run from the top.
+**One or more `⚠ regression` or `❌ fail`** → classify per §5b.i first, then invoke the fix loop per `stage-6-fix-loop.md` §6a.i (v2.3.27) for the rows that classified `defect`. The fix loop is **MANDATORY and VERIFIABLE** — this stage MUST invoke `dev-stack-adaptive-implementation` in fix-mode via the Skill / Agent tool and record a `stage-5.fix_loop_invocation:` block in `status.md` § `## Run history` (fields per §6a.i). Applying the fix inline without recording the invocation trace is a spec violation and Stage 8 §8a will refuse to push.
+
+**What re-runs after that repair — not the whole stage.** The repair is scoped to
+`allowed_files`; re-executing all of 5X would run the map a second time to re-learn
+rows no repair could have touched.
+
+| | Re-runs |
+|---|---|
+| the failed rows | always |
+| the suite gate, twice (§5b) | always — the recorded green must reflect the final code |
+| other map rows | no — the §6e exit check covers them |
+| Stage 4 | only if the repair touched a file it reviewed (`stage-6-fix-loop.md` §6d.i) |
+| 5R | only if the repair added a test or changed the map |
 
 ---
 
@@ -271,12 +372,31 @@ Append to `units/<repo>/status.md § ## Run history`:
 here and not written is a halt on every run; a field written elsewhere in this
 file and absent here does not exist as far as the gate is concerned.
 
+**Both phases are recorded.** Stage 8 §8a gates on `phase_execute.executed` specifically,
+because 5R alone settles no row — a run that reviewed, repaired and advanced would
+otherwise present an Acceptance table of claims nothing executed.
+
 ```yaml
 stage-5:
   status: DONE
   started_at: <ISO>
   finished_at: <ISO>
   snapshot_sha: 0f50921291d9            # the scope these results cite
+
+  phase_review:                             # the read — parallel with Stage 4
+    finished_at: <ISO>
+    snapshot_sha: 0f50921291d9
+    findings: {blocker: 0, major: 0, minor: 2, nit: 1}
+    executions: 0                       # ALWAYS zero. Non-zero is a spec violation
+
+  phase_execute:                             # the single execution
+    executed: true                      # Stage 8 HALTS on false or missing
+    started_at: <ISO>
+    finished_at: <ISO>
+    snapshot_sha: 0f50921291d9          # post-repair; must equal 5R's by exit (§8a)
+    full_map_runs: 1                    # 1 on a healthy run; each extra is a
+                                        # repair that landed after the execution
+    rescoped_runs: 0                    # §6d.i re-runs: failed rows + suite gate
 
   # what actually executed - Stage 8 refuses to push without this
   external_services_started:

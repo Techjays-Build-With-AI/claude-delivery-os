@@ -5,6 +5,19 @@ argument-hint: "<task-number | Task-N | slug | features/<slug> | tasks/<slug>.md
 
 # /dev:commit
 
+<!-- rule: commit-stage-count
+     phrases: "9-stage commit loop" | "9 stages" -->
+
+**This command is 9 stages, and the numbers have gaps on purpose.** There is no
+Stage 3 — security review was removed in 2.3.28 and the slot was left empty rather
+than renumbered, because 182+ cross-file references cite stage numbers and a
+renumber breaks every one of them silently. `/dev:build` is 10 stages and has no
+Stage 9, for the same reason.
+
+> Any file stating this count carries `<!-- governed-by: commit-stage-count -->`.
+> The count was already wrong in one place while being right in four others —
+> `feature-delivery-loop/SKILL.md` said 9 in its description and 10 in its body.
+
 You are the entry point for the 9-stage commit loop. **Orchestrator only** — parses args, resolves identity, verifies `/dev:build` completed, then routes each stage to its reference file under `plugins/dev/commands/references/commit/`. Do NOT paraphrase the stage files' instructions — `Read` them and execute verbatim.
 
 Read the **`delivery-os-conventions`** skill first if it's not in context — the v2.2 loop-control state model + MC status mapping. Then read the task's `units/<repo>/status.md § ## Run history`.
@@ -24,7 +37,8 @@ Read the **`delivery-os-conventions`** skill first if it's not in context — th
 - Local feature slug: `supplier-onboarding`
 - Local feature folder: `features/supplier-onboarding`
 - Sub-task folder: `features/supplier-onboarding/units/backend`
-- **Non-feature ticket**: `tasks/<slug>.md` — run state lives at `tasks/<slug>/dev/` (`status.md` § `## Run history`, `status.md`). Every stage is unchanged: same code review, same acceptance re-verify, same PR. Only the path to the run files differs.
+<!-- governed-by: non-feature-run-path -->
+- **Non-feature ticket**: `tasks/<slug>.md` — run state lives at `tasks/<slug>/units/<repo>/` (`status.md` § `## Run history`, `status.md`). Every stage is unchanged: same code review, same acceptance re-verify, same PR. Only the path to the run files differs.
 - Internal id: `FEAT-<AREA>-NN`
 - Blank: **every task that is finished and uncommitted** — `status: inProgress` · `phase: built` **or** `adopted` · `ready_for_dev_commit: true`, across `features/*/units/<repo>/status.md` and `tasks/*/units/<repo>/status.md`. Same default as `/dev:plan` and `/dev:build`: blank means the whole set, a target means that one thing.
 - `list=<name>` / `requirement=<slug>` / `--all` — resolved as `/dev:plan` §2a resolves them, then filtered to the gate above.
@@ -107,6 +121,7 @@ Any missing → this task is not built. **Single target:** halt with the "run /d
 | `COMPLETE` · `PARTIAL_DEFERRED` | proceed |
 | `PARTIAL_HARNESS` | a Required gate is red for a **harness** reason, not a defect. Proceed only after `AskUserQuestion` confirms, and carry the `harness_config_remedy` and flaky rows into Stage 5 (§5b.i) and the PR body. Never report this run as green |
 | `PARTIAL_FAILURES` | **halt** — an unfixed defect. Name the red rows; `/dev:build` should not have advanced |
+| `PARTIAL_UNPLANNED_RUN` | something executed during a build that executes nothing (`stage-7.unplanned_executions`). **Proceed, and ignore every result it produced.** Those numbers came from a stage with no contract for producing them, against code the review has not yet seen. Stage 5 re-executes from zero exactly as it would on a clean build, and the PR body names what ran and why |
 
 **Read `tests_only`** from the same file. When `true`, build Stages 9–11 were skipped by design: expect no `context/code-context/**` changes and no `units/<repo>/pr-summary.md § ## How to verify`, and never treat their absence as a missed stage.
 
@@ -115,7 +130,7 @@ Any missing → this task is not built. **Single target:** halt with the "run /d
 | Stage | Under `tests_only` |
 |---|---|
 | 4 code review | Review the test files — assertion strength, tier honesty, no disabled or loosened tests. Skip the product-code dimensions that have no diff to read |
-| 5 acceptance | Unchanged — re-verify every row. This is the stage that catches code edited between build and commit |
+| 5 acceptance | Unchanged in substance, two phases (§5.0). **5R** reads the map alongside Stage 4; **5X** executes every row once, after the repairs. This is the stage that catches code edited between build and commit |
 | 7 context merge | Unchanged — it is cheap, and a zero-change result is the expected outcome |
 
 **Check the diff, do not assume it.** `tests_only` says the *build* wrote no product code; it does not promise the change set carries none — earlier harness commits often do. Read `git diff <base>..$SNAP` (the review snapshot, below), and where product files appear, review them normally and say so. Report pre-existing findings as pre-existing, never as introduced by this commit.
@@ -396,17 +411,32 @@ Read each stage's reference file and execute verbatim. Fix loop is inline routin
 
 ### 5a. The reviewers are two fresh-context agents, run in parallel
 
-Stages 4 and 5 are **read-only reviews of one snapshot**, so they run at the
-same time, each as its own agent with its own context.
+Stage 4 and **Stage 5's review phase (5R)** are read-only reads of one snapshot, so
+they run at the same time, each as its own agent with its own context.
 
 ```
 commit:<repo>
   ├─ review:code:<repo>        dev-stack-adaptive-code-review    read-only
-  └─ review:tests:<repo>       dev-test-verifier                 read-only
+  └─ review:tests:<repo>       dev-test-verifier                 read-only, 5R only
 ```
 
 **Readers parallel, writers serial.** Both reviewers at once is safe. Two
 repair agents in one working tree collide, so Stage 6 is always serial (§6).
+
+**Neither agent executes a test.** 5R asks whether the map is honest and whether
+each test proves its row — both settled by reading. Execution is Stage 5's second
+phase (5X), which runs **once**, after Stage 6 has cleared every finding these two
+produced (`stage-5-acceptance.md` §5.0).
+
+```
+   4 ∥ 5R  ──▶  6 (repair every finding)  ──▶  5X (execute, once)  ──▶  7
+                        ▲                            │
+                        └──── defect only ───────────┘
+```
+
+Executing alongside the review means executing against code the review is about to
+change. The run is then thrown away by the repair that follows it, and paid for
+again on the next round.
 
 #### What each reviewer is given — and what it is not
 
@@ -484,11 +514,11 @@ Where the refusal is fixable, name the fix in the summary rather than only repor
 
 ### Stage 5 — Final `## Acceptance` table verification
 
-**Read** `plugins/dev/commands/references/commit/stage-5-acceptance.md` and execute verbatim. Re-runs every `## Acceptance` table row's test; deferred-to-e2e resolves if this is the last sub-task landing. Regression routes to Stage 6 fix loop.
+**Read** `plugins/dev/commands/references/commit/stage-5-acceptance.md` and execute verbatim. **Two phases** (§5.0): **5R** reviews the map — is it honest, does each test prove its row — read-only and parallel with Stage 4; **5X** executes every row, once, after Stage 6 has cleared the findings from both reviewers. Deferred-to-e2e resolves if this is the last sub-task landing. Regression routes to Stage 6 fix loop.
 
 ### Stage 6 — Bounded fix loop
 
-**Read** `plugins/dev/commands/references/commit/stage-6-fix-loop.md`. Not a standalone stage — invoked from Stage 4 or 5 when findings block. After each fix batch, upstream stages re-run in order. Bounds exceeded → escalation + halt.
+**Read** `plugins/dev/commands/references/commit/stage-6-fix-loop.md`. Not a standalone stage — invoked from Stage 4, 5R or 5X when findings block. Re-runs are computed from the repair's diff (§6d.i), and which side of 5X the repair lands on decides what that costs (§6e). Bounds exceeded → escalation + halt.
 
 ### Stage 7 — Semantic context merge (v2.3.25 — MANDATORY EXECUTION, not skippable)
 

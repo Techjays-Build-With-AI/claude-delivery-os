@@ -8,7 +8,7 @@ The **Developer Agent** takes an approved, TL-planned feature and **builds + shi
 | **Commands** | `/dev:bootstrap [spec]` · **`/dev:plan <task>`** · **`/dev:resolve --plan <task>`** · **`/dev:build <task>`** · **`/dev:commit <task>`** · `/dev:fix-review <task> feedback=<...>` |
 | **Input** | BA feature breakdown (`features/<slug>/`), TL context graph (`<repo>/context/code-context/{frontend,backend,database}`), product repository, and (for `/dev:build`) plan artifacts `/dev:plan` produced with `plan-blockers.md` all `RESOLVED` |
 | **Output** | Working code on `feature/FEAT-<AREA>-NN-<slug>[-<repo>]`, `dev/` context files per task, each feature’s own `status.md`, `units/<repo>/pr-summary.md § ## How to verify` (developer verification guide), and a merged / mergeable PR with `units/<repo>/pr-summary.md` as body |
-| **Skills** | `feature-delivery-loop` · `dev-stack-adaptive-implementation` · `dev-stack-adaptive-code-review` · `qa-greenfield-harness` · `dev-pr-handoff` (slimmed to content-only). `dev-validation` retired (folded into `/dev:build` Stages 7–9). |
+| **Skills** | `feature-delivery-loop` · `dev-stack-adaptive-implementation` · `dev-stack-adaptive-code-review` · `qa-greenfield-harness` · `dev-pr-handoff` (slimmed to content-only). `dev-validation` retired — its map verification is `/dev:build` Stage 7 (read-only) and its execution is `/dev:commit` Stage 5. |
 
 ---
 
@@ -36,6 +36,7 @@ The **Developer Agent** takes an approved, TL-planned feature and **builds + shi
          │  (developer verifies locally per pr-summary.md § ## How to verify)
          ▼
 
+<!-- governed-by: commit-stage-count -->
 /dev:commit <task>     ── 9-stage commit loop
                         ── dev-stack-adaptive-code-review (7 dimensions × 4 severity tiers)
                         ── `## Acceptance` table re-verification + last-sub-task E2E resolution
@@ -92,7 +93,8 @@ Uses MC's existing enum verbatim — no invented local variants.
 ## Stack-adaptive skills (dynamic, not per-stack playbooks)
 
 - **`dev-stack-adaptive-implementation`** — detects stack + infers repo patterns (naming, imports, DI, error handling, async, testing conventions) then implements + writes tests matching THIS repo's idioms. No per-stack playbook — the repo is the source of truth.
-- **`dev-stack-adaptive-code-review`** — 7 review dimensions (correctness / conventions / errors / testability / BR enforcement / naming / reuse) × 4 severity tiers (Blocker / Major / Minor / Nit). Blocker + Major block at commit-time; Minor + Nit surface in PR body.
+<!-- governed-by: code-review-dimension-count -->
+- **`dev-stack-adaptive-code-review`** — 9 review dimensions (correctness / conventions / errors / testability / BR enforcement / naming / reuse / engineering standards / API design) × 4 severity tiers (Blocker / Major / Minor / Nit). Blocker + Major block at commit-time; Minor + Nit surface in PR body.
 - **`qa-greenfield-harness`** — auto-bootstraps a deterministic per-stack test harness when `qa/quality-gates.md` is missing / Draft. NEVER prompts the user during `/dev:build`. Prompts only in `/qa:audit` / `/qa:plan`.
 
 ---

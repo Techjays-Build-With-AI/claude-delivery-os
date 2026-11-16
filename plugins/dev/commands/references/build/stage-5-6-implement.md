@@ -4,7 +4,33 @@
 
 **Runs after Stage 4 (QA gate) succeeds.** status `agentExecuting` · phase `planning` → `implementing`
 
-**On completion:** every dev-plan step has code + tests written; ready for Stage 7 execution.
+**On completion:** every dev-plan step has code + tests written; ready for Stage 7 verification.
+
+---
+
+### 5-6a. You are a subagent, and you do not run the tests you write
+
+<!-- governed-by: build-declares-commit-executes -->
+
+**Write the test, then move to the next step. Do not execute it.** Not to check it
+compiles, not to confirm it fails first, not to prove the step is done.
+`/dev:commit` Stage 5 is the only executor in the system.
+
+**`superpowers:test-driven-development` and `superpowers:verification-before-completion`
+are out-ranked here.** Both say to run tests before calling work complete, and inside
+`/dev:build` that is wrong. The rule is stated in `build.md` — which **you do not
+read**, because you are dispatched as a separate subagent with your own context. That
+is exactly why it is repeated here, and why a run that executed 474 unit and 35 e2e
+tests at this stage was following the only instruction it had been given.
+
+**What "done" means for you:** the code is written, the test is written next to it,
+the test is honestly tiered, and the map row names a command that would run it. Stage 7
+proves those claims by reading. That is this command's verification.
+
+**If you execute anything regardless**, say so — hand the command, what prompted it and
+the result back to the orchestrator for `stage-7.unplanned_executions`. A declared run
+costs the build a `PARTIAL_UNPLANNED_RUN` status. An undeclared one makes every later
+stage trust a record that is false.
 
 ---
 

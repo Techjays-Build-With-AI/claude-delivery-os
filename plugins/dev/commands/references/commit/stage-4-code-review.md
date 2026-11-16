@@ -2,7 +2,7 @@
 
 **Purpose.** Delegate the feature-diff code review to `dev-stack-adaptive-code-review` skill. Reviews the diff against the repo's own conventions + parent's Business Rules. Reports findings in 4 severity tiers: `Blocker` / `Major` / `Minor` / `Nit`. At commit-time, blocks on `Blocker` and `Major`. `Minor` + `Nit` do not block — they are fixed in Stage 6's single batched pass (`stage-6-fix-loop.md` §6e.i), not deferred.
 
-**Runs after Stage 2 (base branch selected).** State: `devReview` (unchanged); MC: `devReview` (unchanged). On any Blocker/Major finding, fix loop kicks in.
+**Runs after Stage 2 (base branch selected), in parallel with Stage 5's review phase (5R)** — both read the same snapshot and neither executes anything (`commit.md` §5a). Their findings merge into one repair pass, and only then does 5X execute. State: `devReview` (unchanged); MC: `devReview` (unchanged). On any Blocker/Major finding, fix loop kicks in.
 
 **On completion:** `units/<repo>/findings.md § ## Code review` written; zero Blocker + zero Major.
 
@@ -155,7 +155,12 @@ stage-4:
   finished_at: <ISO>
   snapshot_sha: 0f50921291d9
   scope: "snapshot vs develop (18 files, +624/-12)"
-  dimensions_reviewed: [correctness, conventions, error_handling, testability, br_enforcement, naming, reuse]
+  # ALL NINE, every run. A short list here is a record saying the missing ones
+  # were never looked at -- and the two that kept going missing are the two a
+  # reviewer is least likely to reach on its own.
+  dimensions_reviewed: [correctness, conventions, error_handling, testability,
+                        br_enforcement, naming, reuse, engineering_standards,
+                        api_design]
   findings:
     blocker: 0
     major: 0

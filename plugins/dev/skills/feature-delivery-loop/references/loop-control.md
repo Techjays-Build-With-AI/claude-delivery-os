@@ -232,6 +232,7 @@ A good escalation names what was attempted, the precise blocker, its impact (whi
 
 **Mandatory — all must hold:**
 - Task scope implemented per `implementation.md`
+<!-- governed-by: build-declares-commit-executes -->
 - Every row of `context/test-map/<feature-slug>.md` verified against the disk — spec exists, named test exists, fixture exists, `Needs` startable (Stage 7). **No gate is run here; build executes nothing**
 - Every parent AC + BR + TS + NFR row in `units/<repo>/status.md § ## Acceptance` is `⏳ pending` OR properly `⏸ deferred-to-e2e`, and none is `❌ missing-test` or `❌ mock-contradicts-tier` (Stage 8). **`✅ pass` is not reachable at build** — `/dev:commit` Stage 5 runs the tests and fills the result in
 - Every owned code-context unit flipped `origin: designed → implemented` with valid Source References (Stage 10)
@@ -243,7 +244,8 @@ Fails any → task stays `agentExecuting` or drops to `BLOCKED` via bounded fix 
 
 **Mandatory — all must hold:**
 - Zero Blocker AND zero Major code-review findings (Stage 4)
-- Every `## Acceptance` table row still `✅ pass` at commit-time re-verify OR valid `⏸ deferred-to-e2e` (Stage 5)
+- `## Test verification` written and clean, by the review phase (Stage 5R) — map honest, every row's test proves its row
+- Every `## Acceptance` table row `✅ pass` OR valid `⏸ deferred-to-e2e`, from the single execution (Stage 5X), with `stage-5.phase_execute.executed: true`
 - Semantic-context-merge clean (Stage 7) — zero unresolved conflicts in `dev/context-merge-conflicts.md`
 - Branch pushed successfully (Stage 8)
 - PR raised with `units/<repo>/pr-summary.md` as body (Stage 9)

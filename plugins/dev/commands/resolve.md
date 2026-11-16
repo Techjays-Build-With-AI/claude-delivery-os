@@ -22,6 +22,7 @@ Read the **`delivery-os-conventions`** skill first if not in context — the v2.
 - Local feature slug: `holiday-calendar-management`
 - Local feature folder: `features/holiday-calendar-management`
 - Internal id: `FEAT-<AREA>-NN`
+<!-- governed-by: non-feature-run-path -->
 - **Non-feature ticket**: `tasks/<slug>.md` — blockers live at `tasks/<slug>/units/<repo>/plan-blockers.md`
 - Blank: find the ONE target whose `dev/*plan-blockers.md` has `status: OPEN`, scanning **both** `features/*/dev/` and `tasks/*/dev/`. If more than one → list them and ask which.
 

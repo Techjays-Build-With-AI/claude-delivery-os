@@ -72,6 +72,7 @@ Read from disk:
   - `features/<slug>/tl-plan.md` — parent rollup as reference
 - **Non-feature ticket** (§2f):
   - `tasks/<slug>.md` — the ticket itself; its `## Headings` ARE the MC tabs
+<!-- governed-by: non-feature-run-path -->
   - `tasks/<slug>/units/<repo>/implementation.md` and `units/<repo>/status.md` — the build's copy; the ticket's own `## Implementation` section is what reaches MC
 
 ### Non-feature tickets — what differs

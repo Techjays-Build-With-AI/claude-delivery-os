@@ -92,7 +92,7 @@ The TL owns technical design, so this is where contracts and schemas legitimatel
 - **Ground it.** Every field, status code, column, and relationship should trace to the feature's workflow, a business rule (`BR-###`), a data entity (`DATA-###`), or an integration (`INT-###`). Cite the source on the unit.
 - **Mark confidence.** `Confirmed` where a register states it; `Assumed` / `Likely` where you designed it to fill a gap. Never present an assumption as confirmed.
 - **Escalate real unknowns.** When something that changes the design is genuinely undecided — an external API's contract, the auth/authorization model, a retention or PII rule, an idempotency requirement on a money-moving call — record an **open question** on the unit (owner + impact), don't guess.
-- **Log decisions.** Append a `DEC-###` row to `shared-context/decision-log.md` for each material design choice (chosen auth scheme, pagination style, soft-delete vs hard-delete, sync vs async on an integration). This is the same decision-log the `tl-resolve` loop writes to, so design and review stay consistent and auditable.
+- **Log decisions.** Append a `DEC-###` row to `shared-context/decision-log.md` for each material design choice (chosen auth scheme, pagination style, soft-delete vs hard-delete, sync vs async on an integration). This is the same decision-log the `/dev:resolve` loop writes to, so design and review stay consistent and auditable.
 
 ---
 

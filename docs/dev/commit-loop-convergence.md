@@ -2,8 +2,9 @@
 
 Investigation record · v1.0 · 2026-11-13
 
-**Status:** three changes landed in `37140ed`. Three more are specified below in
-§5 and not yet applied.
+**Status:** §4 landed in `37140ed`. Everything from §5 onward is in the working
+tree, untested. §8 covers the work that followed — the rules mechanism, the
+build-execution gate, and the audit that found what the earlier passes left stale.
 
 The evidence throughout is one real run — `ui-premium-redesign` / `frontend`, a
 UI restyle in the Testing-Delivery-os workspace — which took over an hour and
@@ -147,7 +148,7 @@ now mandatory and Stage 8 halts on a missing section.
 
 ---
 
-## 5. Not yet applied — repeated test execution
+## 5. Repeated test execution
 
 Four places in the spec re-run tests. They are not equally justified.
 
@@ -224,17 +225,21 @@ defect                    → fix loop
 flaky / harness-config    → PR body
 ```
 
-### 5c. The three edits
+### 5c. The three edits, as landed
 
 | File | Change |
 |---|---|
-| `stage-6-fix-loop.md` §6d.i | `test verification → always` becomes the `allowed_files ∩ Test` rule; add the §7f.i classification precondition |
-| `stage-6-fix-loop.md` §6b.iv | its *"re-run that scenario's own `Run it`"* line becomes the rule rather than the exception it currently contradicts |
-| `stage-5-acceptance.md` §5b.i | widen from "carried from build" to "any red row, wherever first seen" |
+| `stage-6-fix-loop.md` §6d.i | `test verification → always` keeps its "always", but now over `rows whose Test ∈ allowed_files` rather than the whole map. States explicitly that the §6e cascade still runs the full map, and that narrowing the mid-loop re-run and skipping the cascade are different things |
+| `stage-6-fix-loop.md` §6a.ii | **new.** No red row enters the loop unclassified. `defect` → loop; `flaky` / `harness-config` → PR body. Cites §7f.i's own reason and the cold-import case |
+| `stage-6-fix-loop.md` §6b.iv | its *"re-run that scenario's own `Run it`"* line now reads as the mid-loop rule and points at §6d.i, instead of contradicting it |
+| `stage-5-acceptance.md` §5b.i | retitled *"A red row that is not a defect — wherever it first went red"*. Two sources, one rule: carried from a `PARTIAL_HARNESS` build, or first seen here including on a fix-loop re-run |
 
 ---
 
-## 6. The same run, replayed under all six changes
+## 6. The same run, replayed under the §4–§5 changes
+
+Expected behaviour, not a measured result — the changes are specification edits
+and this run has not been re-executed against them.
 
 ```
 Stage 4 ──▶ CR-1..CR-12        unchanged — the reviewer is not touched
@@ -296,3 +301,76 @@ Carried forward from the same investigation and still unapplied:
 - **`stage-5-acceptance.md` Purpose paragraph** still reads "Re-verify every row
   … is still green … stale test evidence", all three phrases assuming build ran
   the suite.
+
+---
+
+## 8. What came after — and the audit that was the point
+
+§1–§7 fixed instances. This section is the part that stops the next round of them.
+
+### 8a. Restatement is a lint error (`rules`, 2.3.30)
+
+This corpus states the same rule in several files, and nothing compared a paragraph
+to its own restatement. Every drift in §7 was found by a human reading. The eleventh
+lint check makes it mechanical: a rule declares its home and the exact phrases that
+may only appear there; any other file carrying one must mark itself
+`<!-- governed-by: <id> -->` or fail the build.
+
+**Prose is not deleted.** A file an agent reads standalone keeps its explanation —
+what changes is that the echo is now tracked, so `grep -rn "governed-by: <id>"` is
+the complete update list. That list previously existed only in memory.
+
+Five rules seeded: `build-declares-commit-executes`, `commit-stage-count`,
+`non-feature-run-path`, `test-map-blocker-ids`, `fix-loop-rerun-scope`.
+
+**The first rule declared found a live bug.** `/dev:plan` wrote a non-feature
+ticket's plan to `tasks/<slug>/units/<repo>/`; `/dev:build` read
+`tasks/<slug>/dev/`. Every bug, story and standalone task had an unreachable plan.
+`non-feature-track.md` held both spellings — its diagram said one, its write
+instructions eleven lines below said the other.
+
+### 8b. The build-execution gate (2.3.31)
+
+§7 listed "build executing tests" as open and said the fix was a stronger sentence.
+That was wrong. Every file already forbade it in unambiguous language and the run
+executed 474 tests anyway, because `superpowers:verification-before-completion` is a
+loaded skill and a loaded skill outranks a reference file. **Prose cannot win that
+argument.**
+
+What works instead is a place to record and a refusal downstream:
+
+- `stage-7.unplanned_executions` — required, `[]` written explicitly; absent HALTS
+- Stage 8 §8g — `PARTIAL_UNPLANNED_RUN`; a non-empty list cannot be `COMPLETE`
+- `/dev:commit` §2 — proceeds, and **discards every result it produced**
+- Stage 11 — surfaces it above everything else; a gate nobody reports is half a gate
+
+The field exists because the offending run *was honest*: it wrote `executed: false`
+correctly, then parked the results in an invented `builder_run_results:` key because
+the schema had nowhere for them. **Nothing was reading.**
+
+### 8c. The audit — what the earlier passes left stale
+
+Reviewing the above against the rest of the corpus, in order of severity:
+
+| Found | Why it mattered |
+|---|---|
+| `dev-agent.md`'s own description said `/dev:build` **"execute tests locally"** | the agent's frontmatter is the first thing it loads. Every stage file said otherwise and this said yes — a strong candidate for the actual cause of the 474-test run |
+| `stage-11-summary.md` did not surface `unplanned_executions` | the gate refused `COMPLETE`, but the human only ever reads the summary |
+| `dev-context-templates.md` enumerated four build statuses, not five | the stale-enumeration class the `bavocab` check already exists for |
+| `commit.md`'s stage table and `fix-review.md` still described Stage 5 as one phase | `/dev:fix-review` would have executed before its round's fixes settled |
+| `stage-7`'s progress block declared `gates_run: 7, gates_passed: 7` | build reporting gates it cannot have run |
+| `ARCHITECTURE.md` said commit *"runs the suite, reviews the code"* | the order is now the opposite, and this is the top-level document |
+| the `rules` check itself matched case-sensitively | `loop-control.md` said "build executes nothing" in lower case and slipped through — the exact miss the check exists to prevent, in the check |
+
+The last row is the useful one. The mechanism caught a restatement **I had written
+four minutes earlier** in `dev-agent.md`, and then its own blind spot caught a
+seventh file. That is the difference between a rule and a checked rule.
+
+### 8d. Still open
+
+- **Enforcement is reactive.** Five rules and one gate. Each exists because something
+  bit. Coverage — every rule that matters carrying a trace and a downstream refusal —
+  is the remaining work.
+- **Nothing here has been run.** Lint proves the files agree. It proves nothing about
+  whether the loop behaves as specified. One `/dev:commit` on a task with a blocking
+  finding, then read `stage-5.phase_execute.full_map_runs`; `1` means it worked.

@@ -1,6 +1,6 @@
 ---
 name: dev-agent
-description: Developer agent (v2.2) that autonomously delivers an approved feature end to end through the three-command flow — /dev:plan (verify TL graph, decide sub-task split, compose per-repo Description + Implementation, create MC sub-tasks, write implementation.md, surface plan blockers as PB-### for user resolution), /dev:build (10-stage build loop — branch, auto-bootstrap qa-greenfield-harness if needed, implement + tests via dev-stack-adaptive-implementation dynamic per stack, execute tests locally, `## Acceptance` table, code-context designed→implemented flip, pr-summary.md § ## How to verify), and /dev:commit (9-stage commit loop — dev-stack-adaptive-code-review 7-dimensions × 4-severity, `## Acceptance` table re-verify + last-sub-task E2E, bounded fix loop, tl-semantic-context-merge unit-level not text-level, push branch, raise PR). Also invoked by /dev:fix-review (fold reviewer feedback back through relevant commit stages) and /dev:bootstrap (greenfield project-zero scaffold via TL). Uses MC's existing status enum verbatim (todo / readyForDev / inProgress / agentExecuting / devReview / blocked / done) — never invents local variants. Escalates business, architecture, schema, dependency, and scope blockers instead of guessing. Never merges, deploys, modifies secrets, scaffolds with a guessed stack, or expands scope without human approval. /dev:build NEVER prompts the user mid-run — all decisions resolve at /dev:plan time via units/<repo>/plan-blockers.md.
+description: Developer agent (v2.2) that autonomously delivers an approved feature end to end through the three-command flow — /dev:plan (verify TL graph, decide sub-task split, compose per-repo Description + Implementation, create MC sub-tasks, write implementation.md, surface plan blockers as PB-### for user resolution), /dev:build (10-stage build loop — branch, auto-bootstrap qa-greenfield-harness if needed, implement + tests via dev-stack-adaptive-implementation dynamic per stack, verify the test map WITHOUT executing it (build runs nothing; /dev:commit Stage 5 is the only executor), `## Acceptance` table left pending, code-context designed→implemented flip, pr-summary.md § ## How to verify), and /dev:commit (9-stage commit loop — dev-stack-adaptive-code-review 9-dimensions × 4-severity, `## Acceptance` table re-verify + last-sub-task E2E, bounded fix loop, tl-semantic-context-merge unit-level not text-level, push branch, raise PR). Also invoked by /dev:fix-review (fold reviewer feedback back through relevant commit stages) and /dev:bootstrap (greenfield project-zero scaffold via TL). Uses MC's existing status enum verbatim (todo / readyForDev / inProgress / agentExecuting / devReview / blocked / done) — never invents local variants. Escalates business, architecture, schema, dependency, and scope blockers instead of guessing. Never merges, deploys, modifies secrets, scaffolds with a guessed stack, or expands scope without human approval. /dev:build NEVER prompts the user mid-run — all decisions resolve at /dev:plan time via units/<repo>/plan-blockers.md.
 model: sonnet
 ---
 
@@ -61,6 +61,9 @@ Refuses on missing plan OR unresolved `plan-blockers.md`. Runs on a decidable pl
 
 End state: local `inProgress` (MC `inProgress`). Ready for `/dev:commit`.
 
+<!-- governed-by: code-review-dimension-count -->
+<!-- governed-by: build-declares-commit-executes -->
+<!-- governed-by: commit-stage-count -->
 ### `/dev:commit <task>` — 9-stage commit loop
 
 0. Identity + branch verification

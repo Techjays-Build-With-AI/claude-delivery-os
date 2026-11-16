@@ -3,7 +3,7 @@
 `qa/quality-gates.md` is the single source of truth for what "verified" means in this repo. It must be **parseable and unambiguous** because three consumers depend on it:
 
 - The **dev readiness gate** (`feature-delivery-loop` → `readiness-and-planning.md` §1b) reads it to confirm a usable test harness exists before building a feature.
-- **`dev-validation`** reads it to know which checks are **Required**, the exact command for each, and the threshold each must clear — instead of guessing the repo's tooling.
+- **`/dev:build` Stage 4** reads it to know which checks are **Required**, and **`/dev:commit` Stage 5** runs them, the exact command for each, and the threshold each must clear — instead of guessing the repo's tooling.
 - The **TL maturity audit** (`tl-maturity-audit`) reads `baseline_status` in its preflight to decide whether the mandatory tooling floor is in place before scoring, and consumes the coverage/gate results as its Test-Quality domain evidence instead of re-scoring testability.
 
 Keep the frontmatter and the gate table stable; consumers key off them.
@@ -102,7 +102,7 @@ The single documented command sequence that proves the harness runs green end to
 
 ## Gate table
 
-One row per gate. `Required` gates are what `dev-validation` must run and pass for a feature to advance; `Optional` gates apply where the feature/project calls for them.
+One row per gate. `Required` gates are what `/dev:commit` Stage 5 must run and pass for a feature to advance; `Optional` gates apply where the feature/project calls for them.
 
 | Gate | Check | Required? | Command | Threshold / rule | Status |
 |---|---|---|---|---|---|
@@ -150,4 +150,4 @@ This is the mechanism that keeps an untestable concern visible. An async consume
 ## How dev consumes this (informative)
 
 - **Readiness gate:** the unit's own `repos.<repo>.harness_status: Active` (and the runner/coverage gates present) → harness exists, proceed. `Draft`/`Broken` or file absent → route to QA (`/qa:audit` → `/qa:setup`), analogous to the project-zero → bootstrap route.
-- **dev-validation:** run every `Required` gate's command, plus any `Optional` gate whose rule the feature triggers; map results into the feature's `status.md` § `## Acceptance`. The `coverage_floor` is the enforced minimum for the feature's changes. For an AI-bearing feature it also runs the TL's `EVAL-` verifiers (QG-011 or directly) and inspects them for reward hacking.
+- **`/dev:commit` Stage 5:** run every `Required` gate's command, plus any `Optional` gate whose rule the feature triggers; map results into the feature's `status.md` § `## Acceptance`. The `coverage_floor` is the enforced minimum for the feature's changes. For an AI-bearing feature it also runs the TL's `EVAL-` verifiers (QG-011 or directly) and inspects them for reward hacking.

@@ -159,9 +159,12 @@ developer would otherwise stop and ask about is surfaced as a plan blocker first
 
 ### Phase 7 — Build and ship *(Dev)*
 
-Build implements against the plan, writes tests, and produces a verifiable test map. Commit is
-the only executor: it runs the suite, reviews the code, re-verifies acceptance,
-merges the context graph and raises the pull request. Gates block; they do not warn.
+Build implements against the plan, writes tests, and produces a verifiable test map —
+and executes none of it. Commit is the only executor, and it reviews before it runs:
+code review and test-map review read the same snapshot in parallel, every finding is
+repaired in one pass, and only then does the suite execute, once. Commit then
+re-verifies acceptance, merges the context graph and raises the pull request. Gates
+block; they do not warn.
 
 ---
 

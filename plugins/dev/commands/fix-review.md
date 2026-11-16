@@ -42,7 +42,7 @@ For each comment in the feedback:
 After all actionable code fixes are applied for THIS round:
 
 1. **Re-run Stage 4 (code review)** — `plugins/dev/commands/references/commit/stage-4-code-review.md`. Any new Blocker/Major → Stage 6 fix-loop.
-3. **Re-run Stage 5 (acceptance re-verify)** — `plugins/dev/commands/references/commit/stage-5-acceptance.md`. Regression → Stage 6 fix-loop.
+3. **Re-run Stage 5** — `plugins/dev/commands/references/commit/stage-5-acceptance.md`. **5R first, alongside step 2's review — both read, neither executes.** Only once both are clean does **5X** execute, once, over the map. Executing before the round's fixes settle re-runs the suite against code that is still changing. Regression → Stage 6 fix-loop, which re-runs the failed rows plus the suite gate (§6d.i), not the whole map.
 4. **If any code-context units were touched** by fixes (rare — reviewers usually don't request context-graph changes, but possible for endpoint contract adjustments) → re-run Stage 7 (semantic-context-merge) — `plugins/dev/commands/references/commit/stage-7-semantic-merge.md`. If clean, otherwise halt with `dev/context-merge-conflicts.md`.
 5. **Skip Stage 8 (push)** if there are no new commits from this round. Otherwise `git push origin <branch>` — the existing PR picks up the new commits automatically.
 

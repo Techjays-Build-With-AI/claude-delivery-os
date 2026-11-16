@@ -61,7 +61,7 @@ One entry per stage, appended. Newest last, so the file reads in the order thing
 - 2m04s
 
 ### 2026-10-21T10:48:11Z · /dev:build · Stage 8 verdict
-- final_status: COMPLETE     # COMPLETE · PARTIAL_DEFERRED · PARTIAL_HARNESS · PARTIAL_FAILURES
+- final_status: COMPLETE     # COMPLETE · PARTIAL_DEFERRED · PARTIAL_HARNESS · PARTIAL_FAILURES · PARTIAL_UNPLANNED_RUN
 - 12/12 §1 steps · 9/9 acceptance rows settled
 
 ### 2026-10-21T11:02:17Z · BLOCKED

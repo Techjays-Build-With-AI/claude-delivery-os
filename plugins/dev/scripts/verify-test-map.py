@@ -107,16 +107,16 @@ def check_row(row: dict, repo: str) -> dict:
     if not rel:
         fail("test-map-incomplete", "Test column is empty")
     elif not os.path.isfile(path):
-        fail("test-map-dangling-test", "no file at %s" % rel)
+        fail("missing-test-file", "no file at %s" % rel)
     elif name:
         names = test_names(path)
         # The runner's -t filter is a substring match. One match is the row's
         # claim; several means the row runs more than it names.
         hits = [n for n in names if name in n]
         if not hits:
-            fail("test-map-dangling-test", "no test in %s matches %r" % (rel, name))
+            fail("missing-test-case", "no test in %s matches %r" % (rel, name))
         elif len(hits) > 1:
-            fail("test-map-dangling-test",
+            fail("ambiguous-test-case",
                  "%r is ambiguous in %s; the runner would also select %s"
                  % (name, rel, ", ".join(repr(h) for h in hits if h != name)[:160]))
 
@@ -135,7 +135,7 @@ def check_row(row: dict, repo: str) -> dict:
         if fx in ("", DASH, "-"):
             continue
         if not fixture_defined(repo, fx):
-            fail("test-map-dangling-fixture", "fixture %r is not defined anywhere in the repo" % fx)
+            fail("missing-fixture", "fixture %r is not defined anywhere in the repo" % fx)
 
     out["ok"] = not out["failures"]
     return out

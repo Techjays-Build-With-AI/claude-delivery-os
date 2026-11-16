@@ -17,6 +17,30 @@
 
 ### 11b. Compose the in-terminal summary
 
+<!-- governed-by: build-declares-commit-executes -->
+
+**If `stage-7.unplanned_executions` is non-empty, say so first — above everything else.**
+The build status is `PARTIAL_UNPLANNED_RUN` (Stage 8 §8g) and the human needs to know
+before they read a single other number:
+
+```
+⚠ Something executed during this build, which executes nothing.
+
+  npx vitest run --coverage        builder subagent (Stage 5-6)
+    prompted by: superpowers:verification-before-completion
+    result:      42 files, 474 passed   ← NOT evidence. Nothing here is verified.
+
+  /dev:commit Stage 5 will execute the map from zero and discard these numbers.
+```
+
+**Never print those results as if they were the build's evidence.** A green count in a
+build summary is the exact thing this reads as, and it is how an unverified build gets
+reported as a verified one. Name the command, name what prompted it, and label the
+result as discarded.
+
+A gate nobody surfaces is half a gate: Stage 8 can refuse `COMPLETE`, but the human
+only ever sees this summary.
+
 Close with the stage timing table, read from each stage's `duration_s` in `## Run history`
 — one row per stage that ran, in order, then the total. Stages that were skipped show
 `SKIPPED` and no duration. This is the only place the run's cost is visible in one view,

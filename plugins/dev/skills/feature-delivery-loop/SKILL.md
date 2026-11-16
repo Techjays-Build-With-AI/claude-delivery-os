@@ -38,6 +38,23 @@ Read the **`delivery-os-conventions`** skill first (v2.2) — the loop-control s
 
 ## The v2.2 three-command flow
 
+<!-- rule: build-declares-commit-executes
+     phrases: "build declares, commit executes" | "Build declared; commit executes"
+            | "build runs nothing" | "build runs no tests" | "Build executes nothing" -->
+
+**The division of labour: `/dev:build` declares, `/dev:commit` executes.** Build writes
+the code, the tests and a verified test map, and **runs none of it** — every
+`## Acceptance` row leaves build as `⏳ pending`. `/dev:commit` Stage 5 is the only
+executor in the system, and the only thing that touches git history.
+
+This is what makes a build unable to lie about green, and it is why a build that
+reports tests passing has violated its contract regardless of what the tests said.
+
+> **Echoing this rule elsewhere is fine; owning it elsewhere is not.** Any file
+> restating it carries `<!-- governed-by: build-declares-commit-executes -->`, so
+> `grep -rn "governed-by: build-declares-commit-executes"` lists every site to
+> update when it changes. `scripts/lint-plugins.js` §11 fails an unmarked restatement.
+
 ### 1. `/dev:plan <target>` — MUST run first
 
 Produces `implementation.md` + `implementation.md §2 Impacted components` + `units/<repo>/plan-blockers.md` + `status.md` at `status: readyForDev`. Any blocker → `units/<repo>/plan-blockers.md` with `status: OPEN | RESOLVING | RESOLVED` — resolution is user-driven at plan time.
@@ -68,7 +85,8 @@ Stages (see `plugins/dev/commands/build.md` + refs):
 
 The `units/<repo>/pr-summary.md § ## How to verify` from `/dev:build` Stage 11 tells the developer how to run the feature manually. This is NOT part of the loop — it's a human step.
 
-### 4. `/dev:commit <target>` — 10 stages
+<!-- governed-by: commit-stage-count -->
+### 4. `/dev:commit <target>` — 9 stages
 
 **Precondition:** `status.md` `status: inProgress`, `phase: built` or `adopted`, `ready_for_dev_commit: true`, branch checked out in target repo.
 
@@ -116,7 +134,7 @@ The webhook that flips MC `done` on PR merge is v2.3 scope. In v2.2 the MC statu
 
 **Two modes write no feature code**, both skipping the implementation half and ending at Stage 8.5: `--tests-only` (tests for code already on disk) and `--vulnerable` (dependency upgrades for what `BL-08` / `D1.4` flagged — stack-agnostic, commands read from the repo’s own gates). Neither needs a `/dev:plan` plan; see `/dev:build` §1a and §1b.
 
-Retired: `dev-validation` (folded into `/dev:build` Stages 7-9), `/dev:pr` command (folded into `/dev:commit`), `/dev:validate` command (retired).
+Retired: `dev-validation` — its map verification became `/dev:build` Stage 7 (read-only) and its execution became `/dev:commit` Stage 5; `/dev:pr` command (folded into `/dev:commit`); `/dev:validate` command (retired). **Build has no Stage 9** — 2.3.28 deleted it and left the number vacant.
 
 ## Guardrails (from `references/loop-control.md`)
 

@@ -241,6 +241,7 @@ For each detected issue that survives dedup **and** §5.3.0:
 Write to:
 - Parent-alone: `features/<slug>/units/<repo>/plan-blockers.md`
 - Sub-task: `features/<slug>/units/<repo>/plan-blockers.md` (repo-slug prefix — v2.3 flat dev/ convention)
+<!-- governed-by: non-feature-run-path -->
 - Non-feature ticket: `tasks/<slug>/units/<repo>/plan-blockers.md` (never split, so never repo-prefixed)
 
 **Frontmatter:**

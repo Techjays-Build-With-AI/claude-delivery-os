@@ -8,7 +8,7 @@ undo it.
 ```
 units/<repo>/findings.md
   ## Code review             /dev:commit Stage 4     Blocker + Major block
-  ## Test verification       /dev:commit Stage 5     required gates block
+  ## Test verification       /dev:commit Stage 5R    written by the REVIEW phase
   ## Context merge           /dev:commit Stage 7     conflicts block
   ## Settled                 any stage                decisions that carry forward
 ```

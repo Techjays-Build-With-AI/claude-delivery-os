@@ -57,7 +57,7 @@ normal state and it is not an error.
 | `gates_passed` | `commit` only — set true at Stage 7.5 once every finding is closed or dispositioned |
 | `deny.git_commit` | refuse `git commit` in this repo |
 | `deny.git_push` | refuse `git push` in this repo **while `gates_passed` is false** |
-| `deny.write_paths` | repo-relative path prefixes that may not be written — the fix loop fills this with the test paths |
+| `deny.write_paths` | repo-relative path prefixes that may not be written — the fix loop fills this with the test files whose rows FAILED, after 5X has run (`stage-6-fix-loop.md` §6b.i). Empty before 5X: nothing is red yet, and 5R's findings are repaired by writing tests |
 
 Unknown fields are ignored, so a newer command can add one without breaking an
 older hook.
@@ -70,7 +70,8 @@ older hook.
 |---|---|---|
 | `/dev:build` Stage 1 | build | append `{kind: "build", deny: {git_commit: true, git_push: true}}` |
 | `/dev:commit` Stage 1 | commit | append `{kind: "commit", gates_passed: false, deny: {git_push: true}}` |
-| Stage 6 fix loop entry | commit | set `deny.write_paths` to this unit's test paths |
+| Stage 6 fix loop entry, post-5X | commit | set `deny.write_paths` to the test files whose rows failed — not the test directory |
+| Stage 6 fix loop entry, pre-5X | commit | leave `deny.write_paths` empty |
 | Stage 6 fix loop exit | commit | empty `deny.write_paths` |
 | `/dev:commit` Stage 7.5, all findings closed | commit | `gates_passed: true` |
 | `/dev:build` Stage 11 | build | **remove the row** |
