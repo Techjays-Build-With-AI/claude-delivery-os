@@ -12,6 +12,19 @@ Two closely-coupled stages. Combined in one reference file because their state t
 
 ### 8a. Preconditions (v2.3.25 — HARD gates that refuse push if any is missing)
 
+**Run the script first; it settles the gates a record can be written past.**
+
+```bash
+python "$CLAUDE_PLUGIN_ROOT/scripts/verify-run-record.py"   --status "units/<repo>/status.md"   --json "<workspace_root>/.jetrix/cache/run-record-verify.json"
+```
+
+**Exit 0** — continue through the list below. **Exit 1** — HALT on the checks it
+names. Every gate here is read by the same agent that wrote the record it reads,
+so the ones that cost time to honour are the ones a run walks past: Task-23
+pushed with `rounds_used: 3` against a bound of 2, annotated *"exceeds the
+two-round bound"* in its own record, and with no `dimensions_reviewed` at all.
+The script does not negotiate, and its failures are not waivable here.
+
 - **Stage 2 base-branch confirmed by user** — check `status.md` § `## Run history` `stage-2.base_confirmed_by_user: true`; missing → HALT with `blocker: stage-2-base-not-confirmed` (user must re-run so the branch prompt fires)
 - **Stage 2 base pulled locally** — check `status.md` § `## Run history` `stage-2.base_pulled_at` timestamp exists; missing → HALT with `blocker: base-branch-not-pulled` (Stage 7 can't merge against a base that isn't on disk)
 - **Stage 4 fix loop invoked if it had blocking findings (v2.3.27)** — read `status.md` § `## Run history` `stage-4.findings`. If (Blocker > 0 OR Major > 0) but no `stage-4.fix_loop_invocation.invoked_at` → HALT with `blocker: stage-4-fix-loop-not-invoked`.

@@ -22,6 +22,11 @@ nothing, so `<base>...HEAD` is empty on a freshly-built task and this stage woul
 review zero bytes while reporting a clean result. `$SNAP` is built at Stage 0 from
 the working tree — see `references/common/review-snapshot.md`.
 
+**On a re-run from the fix loop this is a confirmation pass, not this stage again**
+(`stage-6-fix-loop.md` §6e.ii): it reads the repair diff rather than the feature
+diff, runs correctness, error_handling, br_enforcement and testability only, and
+admits Blocker and Major only. The first invocation below is always the full one.
+
 Invoke `dev-stack-adaptive-code-review` inline (no subagent per the skill's Rule 9). Pass:
 
 - The feature diff — `git diff <base>..$SNAP`, the review snapshot Stage 0 built. **Under `tests_only`** it is the same snapshot; the product-code dimensions with nothing to read are skipped rather than reported empty (`commit.md` §2). If the review skill refuses to run, follow `commit.md` → *When a required tool cannot run*
@@ -161,6 +166,11 @@ stage-4:
   dimensions_reviewed: [correctness, conventions, error_handling, testability,
                         br_enforcement, naming, reuse, engineering_standards,
                         api_design]
+  pass: full                          # full | confirmation (-- 6e.ii)
+  # A confirmation pass records confirmation_dimensions instead, and leaves
+  # dimensions_reviewed alone: that field is Stage 8 8a's evidence that the nine
+  # ran on the feature, and a confirmation pass is not that evidence.
+  # confirmation_dimensions: [correctness, error_handling, br_enforcement, testability]
   findings:
     blocker: 0
     major: 0

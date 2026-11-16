@@ -338,7 +338,7 @@ the map.
 
 **Pre-execution — origin is Stage 4 or 5R.** After ALL blocking findings are fixed:
 
-1. Recompute the snapshot, then re-run **Stage 4 and 5R** over it
+1. Recompute the snapshot, then run **Stage 4 and 5R as a confirmation pass** over it (§6e.ii)
 2. New blocking findings → re-enter Stage 6 with them — bounded, §6b
 3. Both clean → **run 5X once.** This is the first and normally the only execution
    of the run
@@ -353,13 +353,49 @@ invalidated by the repair that followed them.
 1. Repair it, scoped to `allowed_files`
 2. Re-run the failed rows + the suite gate twice (`stage-5-acceptance.md` §5e)
 3. Re-run **Stage 4** only if the repair touched a file it reviewed (§6d.i); **5R**
-   only if the repair added a test or changed the map
+   only if the repair added a test or changed the map. Either is a confirmation
+   pass (§6e.ii), never a fresh review
 4. New blocking findings → re-enter Stage 6 — bounded, §6b
 5. Loop exits ONLY when Stage 4, 5R and 5X are all clean at commit-time thresholds
 
 **A code fix can still break a test, and a test fix can still break the review.**
 That is why step 3 exists rather than trusting the repair's scope. What changed is
 that the re-run is computed from the repair's diff instead of being assumed total.
+
+---
+
+### 6e.ii. The second pass confirms the repair; it does not review it again
+
+**The first pass is where the defects are.** Stage 4 reads the whole feature diff at
+all nine dimensions, and that is what finds the real ones — a date saved on every
+keystroke storing `2026-1`, a deleted row returning after a reload, an overdue count
+racing its own optimistic update. Nothing here narrows that pass.
+
+**Every pass after it reads the repair diff only, and admits Blocker and Major only.**
+
+| | Reads | Dimensions | Admits |
+|---|---|---|---|
+| **Pass 1** — the review | the feature diff | all nine | every severity |
+| **Pass 2+** — confirmation | the repair diff | correctness, error_handling, br_enforcement, testability | Blocker, Major |
+
+A repair is four lines written to a reviewer's own instruction. Asking the naming,
+reuse, conventions, api_design and simplification dimensions to read it will produce
+findings — that is what those dimensions do — and each one is new code, which is a
+third pass. The loop then ends when the reviewer runs out of opinions rather than
+when the code is correct.
+
+**A finding not looked for is not a finding.** This is not deferral and it does not
+touch §6e.i: everything pass 1 raised is still fixed and still dispositioned. What
+changes is that the style dimensions are not re-run over code written to settle them.
+
+Record the pass as `confirmation` with its own `confirmation_dimensions` — never as
+`dimensions_reviewed`, which is Stage 8 §8a's evidence that the nine ran on the
+feature and must keep meaning exactly that.
+
+**Why this and not a bigger counter.** Task-23 spent 2h47m on a frontend unit whose
+feature code took 21 minutes to write, and about thirty findings across four rounds.
+Roughly half were real and all of those came from pass 1. Rounds 3 and 4 existed
+because pass 2 was pass 1 run again.
 
 ---
 

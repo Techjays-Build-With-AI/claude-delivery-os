@@ -164,6 +164,12 @@ the two disagreeing.
 It runs as its own fresh-context agent (`commit.md` §5a) via the
 **`dev-test-verifier`** skill, and writes `findings.md § ## Test verification`.
 
+**Its first run reads the whole test map. Every run after a repair reads only the
+tests that repair touched, and admits Major and above** — the confirmation pass of
+`stage-6-fix-loop.md` §6e.ii. A test edited to settle a verifier finding is the one
+place a second full read is least likely to earn its cost and most likely to
+produce a third.
+
 **Statuses:** `PASS` · `FAIL` · `BLOCKED` · `SKIPPED` · `NOT AUTOMATED` ·
 `INCONCLUSIVE`. **Only `PASS` counts as verified.**
 
@@ -361,6 +367,15 @@ rows no repair could have touched.
 | other map rows | no — the §6e exit check covers them |
 | Stage 4 | only if the repair touched a file it reviewed (`stage-6-fix-loop.md` §6d.i) |
 | 5R | only if the repair added a test or changed the map |
+
+**Bound: 2 full map runs.** The first is 5X itself. A second means one repair
+landed after it and the table had to be rebuilt from scratch. A third means the
+table above was not followed and the run is paying the map to re-learn rows no
+repair could have touched: Task-23's frontend ran it six times across eighty
+minutes, on stale stubs, a mid-animation flake and a filesystem timeout. Count
+`full_map_runs` and `rescoped_runs` separately (§5.0); the third full run
+escalates per `stage-6-fix-loop.md` §6f, and `scripts/verify-run-record.py`
+refuses the push without it.
 
 ---
 
