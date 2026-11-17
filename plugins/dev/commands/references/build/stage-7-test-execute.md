@@ -286,6 +286,19 @@ cd <target-repo-path>
 
 **Timeout per gate:** 20 minutes. If a gate exceeds it, kill the process, mark as `TIMEOUT`, treat as failure. Escalate rather than retry.
 
+**A gate records what it covered, not only that it ran.** Capture `files_checked` beside
+each gate's exit code, and fail `blocker: gate-scope-empty` on either signal:
+
+| Signal | What it means |
+|---|---|
+| the tool reports a file count and it is **0** | the gate inspected nothing and exited 0 |
+| the command resolves to a committed or staged scope — `lint-staged`, `--cached`, `--since`, `--diff-filter` | it selects from git history, and this command commits nothing |
+
+A gate scoped to staged files is not a weak gate here, it is an absent one: the run has
+written every file into the working tree and committed none of them, so the set the gate
+examines is empty and the green it reports is the green of an empty set. The halt names
+the gate, its command, and the unscoped equivalent to put in `qa/quality-gates.md`.
+
 ---
 
 ### 7d. Parse results per framework

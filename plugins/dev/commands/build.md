@@ -454,12 +454,22 @@ Three cheap re-checks:
     confirm the base branch". Do not fall back to `develop`; that silent default is what this replaced.
   - **`base_branch:` names a branch that no longer exists on the remote** → halt and say so. Never cut from
     whatever happens to be checked out.
-- Create branch:
+- Create branch. **The shape comes from `.jetrix/project.json` `branch_pattern` when that field is
+  set to a string**, substituting the tokens `<area>` `<nn>` `<slug>` `<repo>` `<n>`; `null` or absent —
+  the value `/jetrix:init` writes — means the defaults below apply unchanged. A repo whose house rule is
+  `techjays/<slug>` sets it once rather than overriding every ticket.
+  - **A sub-task branch always ends up repo-unique.** A pattern with no `<repo>` token would give both
+    halves of a split feature the same name, so on a sub-task append `-<repo>` to the result instead.
+    Nothing is asked and nothing halts; `techjays/<slug>` yields `techjays/password-reset-backend`.
+  - A pattern that resolves to a protected name falls back to the defaults below, per the rule at the end
+    of this list.
   - Parent-alone → `feature/FEAT-<AREA>-NN-<slug>`
   - Sub-task → `feature/FEAT-<AREA>-NN-<slug>-<repo>`
   - **Filed ticket** → `fix/task-<n>-<slug>` when `task_type` is `bug`, else `feature/task-<n>-<slug>`. There is no `FEAT-<AREA>-NN` for these, so the task number carries the identity.
   - **`--tests-only`** → `test/<scope-slug>`.
-- Never `main` / `master` / `staging` / `production` / `develop`. Confirm base build is green in target repo. Write branch name into `status.md`.
+- Never `main` / `master` / `staging` / `production` / `develop` — only a custom `branch_pattern` can
+  resolve to one of these, and when it does the defaults above are used instead and the summary says so.
+  Confirm base build is green in target repo. Write branch name into `status.md`.
 
 **This stage is not optional, and it runs before any file is touched.** Every change `/dev:build` makes lands on its own branch — a one-line CSS fix on a filed bug as much as a multi-repo feature. If a later gate halts the run, the branch still exists and the working tree is still clean, so nothing is stranded on `main`.
 

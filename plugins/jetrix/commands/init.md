@@ -403,6 +403,7 @@ Create `<workspace_root>/.jetrix/` if missing. Then write `project.json`:
   "solutionType": "<type>",
   "solutionDescription": "<description>",
   "environments": ["dev", "staging", "prod"],
+  "branch_pattern": null,
   "apps": [
     {
       "projectId": "<Project._id>",
@@ -422,7 +423,11 @@ Create `<workspace_root>/.jetrix/` if missing. Then write `project.json`:
 }
 ```
 
-**Idempotency:** on refresh, merge tracker-sourced fields (name, slug, description, apps[], env_branches). Preserve `bound_at`, `tracker.mapping` and `tracker.status_map` — those were confirmed once and are not re-derived. Never write secrets.
+`branch_pattern` is the repo's house rule for branch names, and `null` — the value written here — means
+`/dev:build` uses its own defaults unchanged. A team that wants its own shape edits this one field to a
+string using the tokens `<area>` `<nn>` `<slug>` `<repo>` `<n>`; nobody has to touch it otherwise.
+
+**Idempotency:** on refresh, merge tracker-sourced fields (name, slug, description, apps[], env_branches). Preserve `bound_at`, `branch_pattern`, `tracker.mapping` and `tracker.status_map` — those were confirmed once and are not re-derived. Never write secrets.
 
 **On any other tracker** the `tracker` block carries that tool's values instead — `provider`, the `mcp` name §6 recorded, its `project_ref`, `capabilities.apps: false`, `tabs: 1`, `documents: "none"`, plus the `mapping` and `status_map` confirmed at §6. The top-level `solution*` fields stay empty and `apps[]` is filled from §13.
 
