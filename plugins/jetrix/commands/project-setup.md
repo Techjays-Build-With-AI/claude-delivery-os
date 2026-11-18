@@ -337,7 +337,7 @@ Workspace layout:
   .jetrix/shared-context/         (seeded templates + baseline-profile)
   .jetrix/requirements/<slug>/     (created by /ba:scope, with contentuns/ reviews/)
   .jetrix/features/               (empty — per-feature bundles from /ba:features; dev/ lives under <slug>/)
-  .jetrix/tl/                     (reviews/ maturity/ code-map-registry.md)
+  .jetrix/tl/                     (reviews/ maturity/)
   .jetrix/qa/                     (audits/ health/ escalations/ + quality-gates placeholder)
   .jetrix/doc/                    (decks/ walkthroughs/ workflows/ boards/)
   .jetrix/tasks/                  (empty — non-feature MC tasks)

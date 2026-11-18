@@ -16,6 +16,35 @@ The mental model: **one living scope document** that is created from the first b
   - The same `add` mechanism is how you feed material **back in**: point it at the questions document the client returned, a client-answers document, or a fresh set of discovery/meeting notes, and the agent folds them into the living scope (see "answer round-trip" below).
 - An optional **`mode=…`** token (default `auto` if none given).
 
+## 1a. Ask what kind of work this is — once per requirement
+
+`work_type` decides which §3.x sub-headings apply, so it is settled before anything is
+extracted. **Read it from `requirements/<slug>/scope.md` frontmatter first** — a requirement
+that has been scoped before already carries the answer and must not be asked again. Only when
+there is no scope yet, or it carries no `work_type`, ask:
+
+```
+What kind of work is this?
+
+  1. Client requirement   discovery — what the business wants is still open
+  2. Known task           a change to a system that already exists
+```
+
+| Answer | `work_type` | Effect |
+|---|---|---|
+| 1 | `requirement` | **nothing changes** — all eleven sub-headings, every time |
+| 2 | `known-task` | `ba-extraction` `references/known-task-dimensions.md` decides which apply |
+
+Write it into the scope's frontmatter (`delivery-os-conventions` §2) and pass it to the agent
+at §3. **A scope with no `work_type` reads as `requirement`**, so every scope written before
+this field behaves exactly as it did.
+
+**`known-task` needs the code graph — the graph, not the registry.** Its whole basis is that
+the running code answers the dimensions it skips. §2's gate resolves this: a registry row, or a
+row derived from a context tree that already exists. **Only when the area has no context tree
+at all** does this stop, because nothing short of reading the code can produce one:
+*"known-task mode needs the code context — run `/tl:code-map` for `<repo>`, then re-run."*
+
 If `sources.md` doesn't exist yet, tell the user to run `/delivery-os:init <name>` first (or, if they clearly want to proceed, have the agent scaffold the minimal workspace). Then continue.
 
 Mode table:
@@ -43,18 +72,26 @@ It also arms the version lock: the push sends `expected_version` from sync-state
 version for a file that was pulled. Writing a file you never pulled means the push carries nothing to compare,
 so it overwrites the server copy instead of being told to merge.
 
-**The gate, first.** Read `.jetrix/code-map-registry.md`:
+**The gate, first.** Read `.jetrix/code-map-registry.md` — and, where an older scaffold put it, the legacy
+`.jetrix/tl/code-map-registry.md`:
 
 | What you find | What happens |
 |---|---|
 | **Mapped repos** | read the graph (below), then scope as a change to a working system |
-| **No registry** | greenfield. **Skip the rest of this step** and scope exactly as before |
-| **Repos linked, none mapped** | skip it too, and say so: *"2 repos linked but not mapped — run `/tl:code-map` for a scope that accounts for what exists"* |
+| **No row, but a repo has `context/code-context/` units** | **derive the row** per `tl-code-map` `references/registry-from-context.md`, push it with `/jetrix:push scope code-map-registry.md`, then read the graph as above |
+| **No registry and no context tree** | greenfield with nothing built. **Skip the rest of this step** and scope exactly as before |
+| **Repos linked, no context anywhere** | skip it too, and say so: *"2 repos linked but not mapped — run `/tl:code-map` for a scope that accounts for what exists"* |
+
+**A missing registry is not a missing graph.** A greenfield project built through Delivery OS has a full
+context tree and often no registry — `tl-feature-planning` authored its units and `/dev:build` Stage 10
+flipped them to `implemented`, and no reverse-map ever ran. Row two is what keeps that project from being told
+to map a product it has already mapped; the derivation reads indexes, never source, and is a step on the way
+through rather than a destination.
 
 **Nothing about the existing flow changes when there is no code context.** This step adds a source when one is
-available; it never becomes a prerequisite. A greenfield run reads the client material and nothing else, which
-is what it did before. **Never guess at existing behaviour from a repo name** — absence of a graph is absence
-of knowledge, not permission to assume.
+available; it never becomes a prerequisite. A greenfield run with nothing built reads the client material and
+nothing else, which is what it did before. **Never guess at existing behaviour from a repo name** — absence of
+a graph is absence of knowledge, not permission to assume.
 
 ---
 
@@ -126,9 +163,9 @@ currently does; the graph tells you the starting point, not the destination.
 
 ## 3. Delegate
 
-Invoke the **ba-agent** subagent with the project root, the resolved mode, and the `add` payload (if any). Pass it this instruction:
+Invoke the **ba-agent** subagent with the project root, the resolved mode, the `work_type` from §1a, and the `add` payload (if any). Pass it this instruction:
 
-> Run a BA scope build/update in `<project-root>` using mode `<mode>`. **Where §2 found mapped repos, read the code context first via the `tl-read-code-context` skill, and read `.jetrix/connection-map.md` where it exists** (which apps exist, how they talk, where auth sits, what is already integrated — its `## External integrations` section answers integration questions outright rather than sending them to the ledger) and treat every affected area as a change to a working system: record its current state, cite the unit ids you relied on (`EP-`/`PAGE-`/`ENT-`), and raise a `CON` row wherever the client material and the code disagree rather than silently preferring either. If an `add` payload is provided, ingest those sources first: classify, normalize to summaries under `artifacts/`, and register them in `sources.md`, **referencing originals — never copy, move, or delete them**. **The code context is not one of them**: never give it an `SRC-###`, never summarise it into `artifacts/`. Read it live through the registry and cite unit ids in the scope instead — §2. Then process the registered sources: extract from the summaries, and produce/refresh the **module-centric living scope document** (`requirements/<slug>/scope.md`, conforming to the evolved, use-case-first Techjays Scope Document Template), the supporting registers, and the shared-context/ files. For every module that **forks by type/category/condition**, expand each materially-different route into its own **use case** (§3.x.4 — explanation, workflow, Mermaid flow diagram, worked example), draw the module **master flow** (§3.x.3) with branches mapping 1:1 to those use cases, and mirror each in `requirements/<slug>/registers/use-cases.md`.
+> Run a BA scope build/update in `<project-root>` using mode `<mode>` and `work_type: <work_type>`. **Where `work_type` is `known-task`, read `ba-extraction` `references/known-task-dimensions.md` and apply it** — the sub-headings it marks not-applicable are authored as "None" and raise no `CLR`, and the questions you do raise come from its four sweeps over the units the task touches, each citing the unit ids it came from. Where `work_type` is `requirement`, that file does not apply and all eleven sub-headings are authored as always. **Where §2 found mapped repos, read the code context first via the `tl-read-code-context` skill, and read `.jetrix/connection-map.md` where it exists** (which apps exist, how they talk, where auth sits, what is already integrated — its `## External integrations` section answers integration questions outright rather than sending them to the ledger) and treat every affected area as a change to a working system: record its current state, cite the unit ids you relied on (`EP-`/`PAGE-`/`ENT-`), and raise a `CON` row wherever the client material and the code disagree rather than silently preferring either. If an `add` payload is provided, ingest those sources first: classify, normalize to summaries under `artifacts/`, and register them in `sources.md`, **referencing originals — never copy, move, or delete them**. **The code context is not one of them**: never give it an `SRC-###`, never summarise it into `artifacts/`. Read it live through the registry and cite unit ids in the scope instead — §2. Then process the registered sources: extract from the summaries, and produce/refresh the **module-centric living scope document** (`requirements/<slug>/scope.md`, conforming to the evolved, use-case-first Techjays Scope Document Template), the supporting registers, and the shared-context/ files. For every module that **forks by type/category/condition**, expand each materially-different route into its own **use case** (§3.x.4 — explanation, workflow, Mermaid flow diagram, worked example), draw the module **master flow** (§3.x.3) with branches mapping 1:1 to those use cases, and mirror each in `requirements/<slug>/registers/use-cases.md`.
 >
 > Two things must always happen:
 > 1. **Raise every open item.** Surface all open questions, ambiguities, and assumptions as clarifications (`CLR`) / assumptions (`ASM`) / contradictions (`CON`), and (re)generate the clean, client-facing **the review report’s **Client questions** tab** deliverable from the open clarifications — grouped and prioritized so the team can take it straight to the client.

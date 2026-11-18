@@ -70,6 +70,14 @@ authored: read the section rather than inferring it.
 | says **"None"** (or equivalent) | **`not-applicable`** — excluded from the divisor, **and no question** |
 | **section missing entirely** | **one** `Major` — *"§3.x.9 is absent; does this module integrate with anything?"* — not a dimension gap |
 
+**A `known-task` scope has already decided this — do not re-decide it.** Where the scope's
+frontmatter carries `work_type: known-task`, `/ba:scope` applied `ba-extraction`
+`references/known-task-dimensions.md` when it authored the document: the dimensions that do not
+apply are written as "None", so the table above reads them as `not-applicable` on its own and
+the divisor follows. Read that file to judge whether a section's "None" is the right call, and
+raise a question where it is not — but never grade a known task against the eleven as though it
+were a discovery. The field absent reads as `requirement`, which is this table unchanged.
+
 **Record the evidence on every row** — the section read and what it said. `not-applicable` is a
 finding like any other, and one asserted without naming its section is a guess.
 
