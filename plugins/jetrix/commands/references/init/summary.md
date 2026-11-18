@@ -28,7 +28,7 @@ Workspace layout:
   .jetrix/shared-context/         (seeded templates + baseline-profile)         [scaffold only]
   .jetrix/requirements/<slug>/     (created by /ba:scope)        [not scaffolded only]
   .jetrix/features/               (empty — per-feature bundles from /ba:features) [scaffold only]
-  .jetrix/tl/                     (reviews/ maturity/ code-map-registry.md)     [scaffold only]
+  .jetrix/tl/                     (reviews/ maturity/)                        [scaffold only]
   .jetrix/qa/                     (audits/ health/ escalations/ + gates)        [scaffold only]
   .jetrix/doc/                    (decks/ walkthroughs/ workflows/ boards/)     [scaffold only]
   .jetrix/tasks/                                                                [scaffold only]

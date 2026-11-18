@@ -15,11 +15,53 @@ You are the entry point for a Business Analyst **scope review**. Parse the argum
 
 If no scope can be located (no path given and no `requirements/<slug>/scope.md`), ask the user which scope to review and stop. If a given path doesn't resolve, say so and ask for a valid one rather than guessing.
 
+## 1a. A ticket is not a scope — route it, never grade it
+
+This review scores a document against nine dimensions that **are** the scope template's
+§3.x.N sub-headings. Handed a ticket, `ba-scope-review`'s applicability table reads all nine
+as *"section missing entirely"* and returns **nine `Major` findings** asking whether the
+module integrates with anything — a review of a document nobody wrote. Decide before
+delegating:
+
+| The input | Verdict |
+|---|---|
+| frontmatter says `doc_type: scope` | a scope — continue to §1b |
+| no frontmatter, but §3 carries module sub-headings | a client-supplied scope — continue to §1b |
+| neither | **not a scope** — print the block below and stop |
+
+```
+This looks like a task, not a scope document.
+
+  /dev:plan <ref>      plan a known task — reads the code-context graph, asks only
+                       what the code cannot answer, and raises a PB-### pointing at
+                       /tl:code-map when the area is unmapped
+
+  /ba:review <scope>   review a client requirement against the nine scope dimensions
+```
+
+**Never grade it anyway to be helpful.** A score computed over nine sections the input was
+never meant to carry is not a weak signal, it is a wrong one — and every question it invents
+costs the reader exactly what a real one does. A scope *document* for a known task is what
+`/ba:scope` writes; this guard catches a raw ticket handed straight to the review, which is a
+different thing and has nothing to grade.
+
+## 1b. Read `work_type` — never ask for it
+
+`/ba:scope` settled this when it authored the document, and it is in the scope's frontmatter
+(`delivery-os-conventions` §2). **Read it and pass it on. Do not ask the user again** — a
+second answer here can disagree with the one the document was built under, and then the review
+grades against sub-headings the scope was never asked to fill.
+
+| `work_type` | What the review does |
+|---|---|
+| `requirement`, or absent | the nine dimensions, unchanged — today's behaviour exactly |
+| `known-task` | `ba-extraction` `references/known-task-dimensions.md` governs which apply; the dimensions it excludes are already "None" in the document, so they leave the divisor on their own |
+
 ## 2. Delegate
 
-Invoke the **ba-agent** subagent with the scope reference and output path. Pass it this instruction:
+Invoke the **ba-agent** subagent with the scope reference, the `work_type` from §1b, and the output path. Pass it this instruction:
 
-> Run a **scope review** of the scope document at `<doc-ref>` using the `ba-scope-review` skill — act as a paranoid Business Analyst. Read the whole scope first, then load the scope knowledge base (`requirements/<slug>/registers/examples.md` and the other registers, `requirements/<slug>/ledger.md` (kind: question), `requirements/<slug>/ledger.md` (kind: contradiction), `shared-context/`) when a workspace exists. Decompose the scope into features/modules and, for each, judge coverage across the nine Techjays D&D dimensions (current→future, in/out scope, functional reqs, AI/automation, business rules, data fields, integrations, exceptions, acceptance), interrogate every under-specified point into concrete questions (e.g. "login screen" → which auth method? email vs social vs OTP vs SSO? personal vs corporate email? verification, lockout, MFA, session, roles?), and validate the feature against the client's examples (Pass/Partial/Conflict/No-examples, citing EX ids). Then **screen every question before it counts**: re-search the scope for its answer (record where you looked in `checkedIn`) and name what changes if it stays unanswered (`consequence`) — drop anything the scope already answers, correcting the coverage cell it came from. **Derive** each feature's score from its coverage map rather than judging it — `round(min(coverageScore, cap))`, emitting `coverageScore` and `cap` so it can be audited — give every question a severity (Blocker/Major/Minor/Nit), compute the overall score and scope-readiness verdict (any Blocker caps it), read a run timestamp (`YYYY-MM-DD-HHMMSS`) from the system clock, write the data object to a scratch file (injection input, **not** an output), then generate the interactive `<prefix>-<timestamp>.html` from it with the bundled UTF-8-safe injector (`node assets/inject.js assets/report.html <scratch>/review-data.json __REVIEW_DATA__ <prefix>-<timestamp>.html` — never hand-assemble the HTML, or non-ASCII glyphs like § and — double-encode into mojibake), plus the `<prefix>-<timestamp>.md` artifact (default prefix `requirements/<slug>/reviews/scope-review`) per the report template. Return the executive summary, the feature scorecard, and links to the files.
+> Run a **scope review** of the scope document at `<doc-ref>` with `work_type: <work_type>`, using the `ba-scope-review` skill. **Where `work_type` is `known-task`, read `ba-extraction` `references/known-task-dimensions.md`** and judge applicability by it — the excluded sub-headings are already "None" in the document; question a "None" that looks wrong, but never grade the task against all eleven as though it were a discovery — act as a paranoid Business Analyst. Read the whole scope first, then load the scope knowledge base (`requirements/<slug>/registers/examples.md` and the other registers, `requirements/<slug>/ledger.md` (kind: question), `requirements/<slug>/ledger.md` (kind: contradiction), `shared-context/`) when a workspace exists. Decompose the scope into features/modules and, for each, judge coverage across the nine Techjays D&D dimensions (current→future, in/out scope, functional reqs, AI/automation, business rules, data fields, integrations, exceptions, acceptance), interrogate every under-specified point into concrete questions (e.g. "login screen" → which auth method? email vs social vs OTP vs SSO? personal vs corporate email? verification, lockout, MFA, session, roles?), and validate the feature against the client's examples (Pass/Partial/Conflict/No-examples, citing EX ids). Then **screen every question before it counts**: re-search the scope for its answer (record where you looked in `checkedIn`) and name what changes if it stays unanswered (`consequence`) — drop anything the scope already answers, correcting the coverage cell it came from. **Derive** each feature's score from its coverage map rather than judging it — `round(min(coverageScore, cap))`, emitting `coverageScore` and `cap` so it can be audited — give every question a severity (Blocker/Major/Minor/Nit), compute the overall score and scope-readiness verdict (any Blocker caps it), read a run timestamp (`YYYY-MM-DD-HHMMSS`) from the system clock, write the data object to a scratch file (injection input, **not** an output), then generate the interactive `<prefix>-<timestamp>.html` from it with the bundled UTF-8-safe injector (`node assets/inject.js assets/report.html <scratch>/review-data.json __REVIEW_DATA__ <prefix>-<timestamp>.html` — never hand-assemble the HTML, or non-ASCII glyphs like § and — double-encode into mojibake), plus the `<prefix>-<timestamp>.md` artifact (default prefix `requirements/<slug>/reviews/scope-review`) per the report template. Return the executive summary, the feature scorecard, and links to the files.
 
 ## 3. Surface the result
 

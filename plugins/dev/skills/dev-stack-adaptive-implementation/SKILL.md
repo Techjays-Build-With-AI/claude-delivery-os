@@ -235,6 +235,18 @@ Before `/dev:commit` Stage 5 runs any test file whose `tier:` header is `integra
 
 This is DIFFERENT from the retired "Deferred to E2E" plan-time concept. Here it's a build-time evidence gap that resolves when both sub-tasks land, not a plan-time skip.
 
+**Rule 7.vii — Assert the contract, never the internals.** A test may name what the unit's own code-context declares — an endpoint's response, a page's rendered state, an exported function's return value — and nothing beneath it. **This is a write-time rewrite, not a stop** — the test has not been written yet, so there is nothing to escalate and the build does not pause. On any of these signals, write the contract assertion instead:
+
+| Signal | Why it is not a test of behaviour |
+|---|---|
+| `vi.spyOn` / `jest.spyOn` / `sinon.stub` / `patch` whose target is the module under test | it asserts the code is *written* a particular way, not that it *does* the right thing |
+| `expect(<fn>).toHaveBeenCalled…` where `<fn>` is defined in the file under test | the same claim by another route |
+| importing a symbol the module's public entry point does not export | the test reaches past the contract, so a rename breaks it though nothing it proves has changed |
+
+The rewrite is mechanical: the same scenario, asserted one level out. `expect(validateUnique).toHaveBeenCalled()` becomes `expect(res.status).toBe(409)` against the response the endpoint unit declares. Rename a helper and a contract test still passes; an internals test fails and must be rewritten, which is work that buys no coverage. One team's second ticket rewrote seven of the first ticket's tests for no change in behaviour at all.
+
+**The one case that does halt** is a behaviour no contract can reach — no response, no rendered state, no exported return value expresses it. That is a finding about the unit's design, not a licence to reach around it: HALT with `blocker: test-asserts-internals`, naming the scenario and the unit. It is rare, and a signal the unit needs a surface it does not have.
+
 **Where the tier pool comes from:**
 - `qa/quality-gates.md` `harness_status: Ready` — Required tiers declared for each capability class. Read directly.
 - `qa/quality-gates.md` `harness_status: Stack-Inferred` (user chose Skip at `/dev:plan` §1e) — Required tiers inferred from stack detection and written into the file at plan time. Read directly. Same 100% coverage bar for the new feature; the "Stack-Inferred" marker only signals that the tier pool wasn't confirmed by QA audit, not that coverage is optional.

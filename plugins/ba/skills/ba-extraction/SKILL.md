@@ -40,6 +40,13 @@ Structure (do not reorder, do not drop headings):
 2. **§1 Scope Statement** — one or two sentences defining the delivery boundary.
 3. **§2 Module Breakdown** — `| Module | One-line purpose | Specified in §3? |`. Decompose the business into modules (typical set: Intake, Processing, Validation, Approval, System Updates, Exception Handling, Reporting, Admin, Integrations).
 4. **§3 Module Requirements** — one `### 3.x Module: <Name>` sub-section **per module**, each with all eleven sub-headings, even if "None":
+
+   > **`work_type: known-task` changes which of the eleven apply** — read
+   > `references/known-task-dimensions.md` and follow it. The sub-headings it marks
+   > not-applicable are still authored, as "None", so the document stays structurally
+   > complete; what changes is that they raise no `CLR`. It also says where a known task's
+   > questions come from instead. **`work_type: requirement`, or the field absent, and that
+   > file does not apply** — all eleven, every time, exactly as below.
    - 3.x.1 Current → Future State (current = actors/triggers/systems/manual steps/pain points; future = AI/deterministic/human split) — cite sources.
    - 3.x.2 In Scope / Out of Scope.
    - 3.x.3 **Module Master Flow** — a one/two-line narrative + a Mermaid `flowchart` of the whole journey and its **branch points**; each branch names the use case (§3.x.4) it leads to, so the master flow and the use cases stay 1:1.

@@ -1041,14 +1041,21 @@ generated_at: YYYY-MM-DD
 
 # Code Map Registry
 
-Repositories mapped by `/tl:code-map`. Each repo's context is committed **inside that repo**
-at `<repo>/context/code-context/`; this file is the workspace-level pointer. Before creating a
-new unit, `tl-feature-planning` (internal) resolves match keys through these indexes.
+Repositories whose context this workspace can reach. Each repo's context is committed **inside
+that repo** at `<repo>/context/code-context/`; this file is the workspace-level pointer. Before
+creating a new unit, `tl-feature-planning` (internal) resolves match keys through these indexes.
 
-| Repo key | Path | Layers | Code context root | Mapped at commit | Last mapped | Units |
-|---|---|---|---|---|---|---|
-| acme-api | D:/work/acme/acme-api | backend, database | ./code-context/ | a1b2c3d | 2026-08-14 | 84 EP · 63 ENT |
-| acme-web | D:/work/acme/acme-web | frontend | ./code-context/ | 7f3e9c1 | 2026-08-14 | 41 PAGE |
+`Source` says how the tree came to exist — `reverse-mapped` when `/tl:code-map` read the code,
+`forward-planned` when `tl-feature-planning` authored the units and `/dev:build` Stage 10
+flipped them to `implemented`, `mixed` where a repo holds both. A **greenfield project has a
+real graph and no reverse-map**, so a row can be derived from its tree without reading a line of
+source — see `references/registry-from-context.md`. A later `/tl:code-map` reconciles a
+`forward-planned` tree rather than assuming its own provenance fields are present.
+
+| Repo key | Path | Layers | Code context root | Source | Mapped at commit | Last mapped | Units |
+|---|---|---|---|---|---|---|---|
+| acme-api | D:/work/acme/acme-api | backend, database | ./code-context/ | reverse-mapped | a1b2c3d | 2026-08-14 | 84 EP · 63 ENT |
+| acme-web | D:/work/acme/acme-web | frontend | ./code-context/ | forward-planned | 7f3e9c1 | 2026-08-14 | 41 PAGE |
 
 ## Indexes
 | Repo key | Root | Backend | Frontend | Database |
