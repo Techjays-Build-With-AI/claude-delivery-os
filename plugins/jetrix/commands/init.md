@@ -1,5 +1,5 @@
 ---
-description: Bind the current workspace to a project in your tracker AND scaffold the delivery-os working tree in one command. Jetrix is the default; pass `--tracker=<name>` to bind against any tool whose MCP you have registered — the command finds that MCP, maps its tools once, and everything downstream is identical. The project reference is required to bind: with none, it prints how to get one (or create one) and stops without writing or calling anything. Writes `.jetrix/project.json` (gitignored) with solution + apps + env config + GitHub install info, `.jetrix/cache/repolocation.json` (gitignored) with per-app local repo paths, and pulls the Solution's `connection-map.md` (if built). Then seeds the minimum working tree — `cache/` and `shared-context/decision-log.md`, the same four files `/delivery-os:init` writes, invoked inline as the final step. Every other folder is created by the command that writes into it. Pass `--skip-scaffold` to bind only. Accepts the Solution ObjectId or slug/name — auto-detects. First MCP call triggers Claude Code's OAuth flow (one-time per teammate per machine). Idempotent — re-run to refresh Jetrix-sourced fields without clobbering hand-edits.
+description: Bind the current workspace to a project in your tracker AND scaffold the delivery-os working tree in one command. Jetrix is the default; pass `--tracker=<name>` to bind against any tool whose MCP you have registered — the command finds that MCP, maps its tools once, and everything downstream is identical. The project reference is required to bind: with none, it prints how to get one (or create one) and stops without writing or calling anything. Writes `.jetrix/project.json` (gitignored) with solution + apps + env config + each app's detected git host, `.jetrix/cache/repolocation.json` (gitignored) with per-app local repo paths, and pulls the Solution's `connection-map.md`, offering to build one when the Solution has 2+ apps and none yet. Then seeds the minimum working tree — `cache/` and `shared-context/decision-log.md`, the same four files `/delivery-os:init` writes, invoked inline as the final step. Every other folder is created by the command that writes into it. Pass `--skip-scaffold` to bind only. Accepts the Solution ObjectId or slug/name — auto-detects. First MCP call triggers Claude Code's OAuth flow (one-time per teammate per machine). Idempotent — re-run to refresh Jetrix-sourced fields without clobbering hand-edits.
 argument-hint: "[project-ref] [--tracker=<name>] [refresh] [--skip-scaffold]"
 ---
 
@@ -13,7 +13,7 @@ After a normal run the workspace looks like:
 <workspace>/
 └── .jetrix/                    ← ENTIRELY gitignored (whole folder)
     ├── project.json            (this command writes this)
-    ├── connection-map.md       (this command writes this if the portal built one)
+    ├── connection-map.md       (pulled when the Solution has a map; this command offers to build one if not)
     ├── cache/                  (repolocation.json + sync-state.json)
     └── cache/ shared-context/decision-log.md              (seeded by default; skip with --skip-scaffold)
 ```
@@ -32,8 +32,10 @@ live in their own file are the long self-contained ones:
 | 3 · Migrate the layout | `references/init/migrate.md` |
 | 4 · Resolve the tracker | `references/init/tracker.md` |
 | 9 · Create apps, then confirm | `references/init/apps.md` |
-| 13 · Pull the connection map | `references/init/connection-map.md` |
-| 14 · Report | `references/init/summary.md` |
+| 14 · Connection map — build if missing, then pull | `references/init/connection-map.md` |
+| 16 · Report | `references/init/summary.md` |
+
+Every portal link any of them prints is built per `references/portal-links.md` — never from memory.
 
 **Read a reference file only when you reach its step**, and only if that step applies — three of the five are
 Jetrix-only and are skipped outright on another tracker, and §3 is skipped on any fresh workspace.
@@ -127,7 +129,7 @@ If `<workspace_root>/.jetrix/project.json` already exists:
 - **Same `project_ref`, no `refresh`** → ask *"Workspace already initialized for `<name>` (`<ref>`). Refresh project details? [y/n]"*. On yes, re-fetch. On no, stop.
 - **Different `project_ref`** → hard STOP. *"This workspace is already initialized for `<other-name>` (`<other-ref>`). Use a separate workspace folder for each project."*
 
-A refresh re-fetches the project, its apps and their env branches, and re-attempts the connection map. It **preserves** `bound_at`, the repo paths already given, `tracker.mapping` and `tracker.status_map`.
+A refresh re-fetches the project, its apps and their env branches, and re-attempts the connection map. It **preserves** `bound_at`, the repo paths already given, `tracker.mapping` and `tracker.status_map`, and re-detects each app's `git_host` from its remote.
 
 **Preserving a settled answer is right; preserving a blank is not.** After the re-fetch, walk what is
 still missing and offer to fill it — once, as one prompt, not per app:
@@ -411,6 +413,7 @@ Create `<workspace_root>/.jetrix/` if missing. Then write `project.json`:
       "projectName": "<name>",
       "projectType": "<web application | backend api | mobile application | service>",
       "repoUrl": "<https://github.com/...>",
+      "git_host": null,
       "env_branches": {
         "dev": "dev",
         "staging": "staging",
@@ -423,11 +426,18 @@ Create `<workspace_root>/.jetrix/` if missing. Then write `project.json`:
 }
 ```
 
+**`apps[].git_host` cannot be known yet.** It is read from a local repo's `origin`, and no path
+has been asked for at this point — §13 asks, detects, and re-writes this file. Write the key as
+`null` here rather than omitting it: an absent key and a null one read the same to a consumer,
+but only the absent one lets §13 quietly skip filling it, which is exactly what happened.
+`env_branches` is different — it is tracker-sourced, from the §10 bundle's `envConfigs`, so it is
+already known and is written in full.
+
 `branch_pattern` is the repo's house rule for branch names, and `null` — the value written here — means
 `/dev:build` uses its own defaults unchanged. A team that wants its own shape edits this one field to a
 string using the tokens `<area>` `<nn>` `<slug>` `<repo>` `<n>`; nobody has to touch it otherwise.
 
-**Idempotency:** on refresh, merge tracker-sourced fields (name, slug, description, apps[], env_branches). Preserve `bound_at`, `branch_pattern`, `tracker.mapping` and `tracker.status_map` — those were confirmed once and are not re-derived. Never write secrets.
+**Idempotency:** on refresh, merge tracker-sourced fields (name, slug, description, apps[], env_branches). Preserve `bound_at`, `branch_pattern`, `tracker.mapping`, `tracker.status_map` and any `apps[].git_host` a human set for a self-hosted domain — those were confirmed once and are not re-derived. A `git_host` that was *detected* is re-detected on refresh, because the remote may have moved. Never write secrets.
 
 **On any other tracker** the `tracker` block carries that tool's values instead — `provider`, the `mcp` name §6 recorded, its `project_ref`, `capabilities.apps: false`, `tabs: 1`, `documents: "none"`, plus the `mapping` and `status_map` confirmed at §6. The top-level `solution*` fields stay empty and `apps[]` is filled from §13.
 
@@ -554,6 +564,49 @@ Answers → `<workspace_root>/.jetrix/cache/repolocation.json`:
 
 Keys = `projectId`. Values = absolute path OR literal `"SKIPPED"`.
 
+**Then read each path's git host — no extra question.** A path is all it takes, and the remote is
+the host the teammate will actually push to:
+
+```bash
+git -C "<path>" config --get remote.origin.url
+#   …github.com/<owner>/<repo>     → git_host: "github"
+#   …bitbucket.org/<ws>/<slug>     → git_host: "bitbucket"
+```
+
+**Run that command. Do not decide from a directory listing whether the path is a repo.** `.git`
+is a dotfile, so a plain `ls` shows a Bitbucket clone as *"only a README.md"* — which is how two
+live clones with working remotes came to be reported as *"the app folders aren't git repos"*,
+with no host written for either. Git's own answer is the only evidence that counts, and it costs
+one command per path: a non-repo exits non-zero, which is the `null` case below, and anything you
+tell the user about a repo's git state comes from that exit code.
+
+**Write it back into the `project.json` §12 already wrote** — set `apps[].git_host` on the
+matching app and save the file again. §12 is the only write in the command and it runs *before*
+any repo path has been asked for, so a host held only in the reply is a host nobody ever reads:
+the field was specified, detected, printed, and still absent from every bound workspace. On a
+tracker with no app list, the same re-write carries the `env_branches.dev` this step asked for.
+
+**Print it beside the path**, because this is the value `/dev:commit` will raise a PR against and
+a wrong one is cheapest to catch here:
+
+```
+  D:\work\inhouse-server   bitbucket   dev branch? [develop]
+  D:\work\inhouse-client   github      dev branch? [develop]
+```
+
+**It is per app, not per workspace** — a frontend on one host and a backend on another is an
+ordinary arrangement, so never write one value for the project.
+
+`null` in three cases, each recoverable and none fatal: the row is `"SKIPPED"`, the repo has no
+remote yet, or the host is a company domain — a self-hosted Bitbucket Data Center, GitHub
+Enterprise or GitLab, where the hostname says nothing. Only the third is worth a question, asked
+once, here, while the repos are already on screen. **Never guess a provider from a domain name.**
+
+This is a convenience, not the authority: `project.json` is gitignored, a repo may be cloned
+months later, and a remote can be repointed, so the PR step resolves the host again from the repo
+in front of it (`dev` `references/commit/git-host.md`). Detecting here only means the common case
+is already answered, and a wrong value is visible before any PR depends on it.
+
 **When `capabilities.apps` is `false`** there is no app list to walk, so ask for the repos directly and take the dev branch in the same breath — that tracker has no Integration tab to hold it, and `/dev:build` branches from `dev` while `/dev:commit` defaults its PR base to it:
 
 ```
@@ -586,11 +639,16 @@ A single repo has nothing to wire — skip this entirely. Re-run it any time wit
 
 From here nothing downstream can tell the difference.
 
-## 14. Pull the connection map
+## 14. The connection map — build one if there is none, then pull
 
-Execute `plugins/jetrix/commands/references/init/connection-map.md` verbatim — **Jetrix only, and only when
-the portal has built one.** On any other tracker §13 already wrote `connection-map.md` from the user's own
-answers; running this would overwrite a human's work with a fetch that cannot succeed.
+Execute `plugins/jetrix/commands/references/init/connection-map.md` verbatim — **Jetrix only, and on every
+Jetrix bind.** On any other tracker §13 already wrote `connection-map.md` from the user's own answers; running
+this would overwrite a human's work with a fetch that cannot succeed.
+
+**Do not gate this step on a map existing.** That file handles both halves: it pulls when the portal has built
+one, and when it has not it *offers to build one from here* (§10a.i) rather than printing a portal address.
+Reading "only when the portal has built one" and skipping the file is how the offer came to be unreachable —
+the one case it was written for is the one case that never opened the file.
 
 ## 15. Gitignore and seed
 
