@@ -710,10 +710,12 @@ Per repo whose `context/code-context/` this run changed — skip any repo with n
    git -C <repo> push -u origin context/plan-<requirement-slug>-<YYYY-MM-DD>
    ```
 
-5. **Raise the PR into the base branch the user confirmed at §4**, through the four-step ladder in
+5. **Raise the PR into the base branch the user confirmed at §4**, through the ladder in
    [`stage-8-9-push-pr.md`](references/commit/stage-8-9-push-pr.md) §9c — the same one `/dev:commit`,
-   `/qa:setup` and `/tl:code-map` use. Read it and follow it; do **not** call `gh pr create` on its
-   own, and where the repo has a `PULL_REQUEST_TEMPLATE`, fill that template rather than inventing a
+   `/qa:setup` and `/tl:code-map` use. It resolves the git host from the repo's own remote
+   ([`git-host.md`](references/commit/git-host.md)), so GitHub and Bitbucket both work and the step
+   count differs between them. Read it and follow it; do **not** call `gh pr create` on its own —
+   it exists on one host only, and where the repo has a `PULL_REQUEST_TEMPLATE`, fill that template rather than inventing a
    body.
 
 6. **Print the PR URL and the branch per repo in the batch summary.** A planned context nobody is

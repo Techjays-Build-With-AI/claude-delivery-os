@@ -115,8 +115,12 @@ Print one line:
 or, on soft-fail:
 
 ```
-· No connection-map yet — portal → Connections tab → Build map.
+· No connection-map yet — /jetrix:init refresh offers to build one from here,
+  or: <portal-base>/solutions/explorer/solution/<encoded> → Connections tab.
 ```
+
+Build that link per [`../portal-links.md`](../portal-links.md) — the Solution Explorer route with the encoded
+blob. The Mission Control route takes the raw id and has no Connections tab.
 
 This stage is wiring, not work: on success say where the file landed and stop. The only next step worth
 printing is when the map is what something else was waiting on — name that command, nothing else.

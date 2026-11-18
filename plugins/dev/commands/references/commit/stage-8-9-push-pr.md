@@ -260,22 +260,33 @@ PR title format (used by all three ladder steps):
 - Parent-alone: `<feature title>` (from parent's `feature.md`)
 - Sub-task: `<parent title> — <repo>` (e.g. `Supplier Onboarding — backend`)
 
-Resolve `<owner>/<repo>` from the target repo's `origin` remote:
+**Resolve the host, owner and repo first — `git-host.md` is the one place that does it.**
+<!-- governed-by: git-host-resolution -->
 
 ```bash
-ORIGIN=$(git -C <target-repo> config --get remote.origin.url)
-# Extract owner/repo from git@github.com:<owner>/<repo>.git OR https://github.com/<owner>/<repo>.git
-OWNER_REPO=$(echo "$ORIGIN" | sed -E 's#(git@github.com:|https://github.com/)([^/]+/[^/.]+)(\.git)?#\2#')
-OWNER=$(echo "$OWNER_REPO" | cut -d/ -f1)
-REPO=$(echo "$OWNER_REPO" | cut -d/ -f2)
+. resolve_git_host <target-repo>     # → PROVIDER, HOST, OWNER, REPO  (see references/commit/git-host.md)
 ```
+
+It reads the target repo's `origin` remote, because that is the host `git push` just used; a
+`project.json` value is a fallback for self-hosted domains, never the authority. **Halt with
+`blocker: unknown-git-host`** when neither resolves — a host-specific regex that does not match
+returns the whole URL as the "owner", and the resulting call fails against the wrong API with an
+error that names the wrong product.
+
+**The ladder's shape is the same on every host; its membership is not.** `github` runs all four
+steps below. `bitbucket` has no CLI, so **steps 1 and 3 do not exist** and it runs step 2 then
+step 4. Each step's per-provider endpoint, body shape and answer field are in `git-host.md`;
+read them there rather than assuming GitHub's.
 
 **Try each step in order. On success, log which step ran to `units/<repo>/status.md § ## Run history` and proceed.**
 
-**Step 1 — `gh` CLI (if installed + authed):**
+**Step 1 — `gh` CLI (if installed + authed) — `github` only:**
+
+`gh` speaks to GitHub and nothing else, so on any other provider skip this step without
+reporting it as a failure; there is no CLI missing, there is no CLI.
 
 ```bash
-if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
+if [ "$PROVIDER" = github ] && command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
   gh pr create \
     --base <resolved-base-branch> \
     --head <feature-branch> \
@@ -291,7 +302,7 @@ Windows Git Credential Manager, macOS Keychain, and Linux libsecret all cache th
 
 ```bash
 if [ -z "$PR_METHOD" ]; then
-  CREDS=$(printf 'protocol=https\nhost=github.com\n\n' | git credential fill 2>/dev/null)
+  CREDS=$(printf 'protocol=https\nhost=%s\n\n' "$HOST" | git credential fill 2>/dev/null)
   TOKEN=$(echo "$CREDS" | grep '^password=' | cut -d= -f2-)
   if [ -n "$TOKEN" ]; then
     # node, not jq. jq is NOT a stated dependency of this plugin and is absent on a stock
@@ -299,13 +310,22 @@ if [ -z "$PR_METHOD" ]; then
     # step used jq, a machine without it produced an empty body, a malformed POST and a
     # silent drop to Step 4: the user got a compare link and no reason why.
     BODY=$(node -e "const fs=require('fs');process.stdout.write(JSON.stringify(fs.readFileSync(process.argv[1],'utf8')))" units/<repo>/pr-summary.md)
-    RESPONSE=$(curl -s -X POST \
-      -H "Authorization: Bearer $TOKEN" \
-      -H "Accept: application/vnd.github+json" \
-      -H "X-GitHub-Api-Version: 2022-11-28" \
-      "https://api.github.com/repos/$OWNER/$REPO/pulls" \
-      -d "{\"title\":\"<computed title>\",\"body\":$BODY,\"head\":\"<feature-branch>\",\"base\":\"<resolved-base-branch>\"}")
-    PR_URL=$(printf '%s' "$RESPONSE" | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{try{process.stdout.write(JSON.parse(d).html_url||'')}catch(e){}})")
+    if [ "$PROVIDER" = bitbucket ]; then
+      RESPONSE=$(curl -s -X POST \
+        -H "Authorization: Bearer $TOKEN" \
+        -H "Content-Type: application/json" \
+        "https://api.bitbucket.org/2.0/repositories/$OWNER/$REPO/pullrequests" \
+        -d "{\"title\":\"<computed title>\",\"description\":$BODY,\"source\":{\"branch\":{\"name\":\"<feature-branch>\"}},\"destination\":{\"branch\":{\"name\":\"<resolved-base-branch>\"}}}")
+      PR_URL=$(printf '%s' "$RESPONSE" | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{try{process.stdout.write(JSON.parse(d).links.html.href||'')}catch(e){}})")
+    else
+      RESPONSE=$(curl -s -X POST \
+        -H "Authorization: Bearer $TOKEN" \
+        -H "Accept: application/vnd.github+json" \
+        -H "X-GitHub-Api-Version: 2022-11-28" \
+        "https://api.github.com/repos/$OWNER/$REPO/pulls" \
+        -d "{\"title\":\"<computed title>\",\"body\":$BODY,\"head\":\"<feature-branch>\",\"base\":\"<resolved-base-branch>\"}")
+      PR_URL=$(printf '%s' "$RESPONSE" | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{try{process.stdout.write(JSON.parse(d).html_url||'')}catch(e){}})")
+    fi
     if [ -n "$PR_URL" ]; then
       PR_METHOD=git_credential_fill
       echo "PR opened: $PR_URL"
@@ -325,12 +345,12 @@ reached without a word. Record each attempted step and its reason under `stage-9
 cause. Of `gh`, `jq`, `curl` and `node`, only **node** is guaranteed — never make a step depend on
 the others without a fallback.
 
-**Step 3 — Read token from `gh` config file (if `gh` was authed even though `gh` binary is missing):**
+**Step 3 — Read token from `gh` config file (if `gh` was authed even though `gh` binary is missing) — `github` only:**
 
 Sometimes `gh` was installed on a previous machine or the binary was removed but the config remains. `~/.config/gh/hosts.yml` (`%APPDATA%\GitHub CLI\hosts.yml` on Windows) contains the OAuth token from `gh auth login`. Extract and use it:
 
 ```bash
-if [ -z "$PR_METHOD" ]; then
+if [ -z "$PR_METHOD" ] && [ "$PROVIDER" = github ]; then
   GH_HOSTS="${XDG_CONFIG_HOME:-$HOME/.config}/gh/hosts.yml"
   [ ! -f "$GH_HOSTS" ] && [ -f "$APPDATA/GitHub CLI/hosts.yml" ] && GH_HOSTS="$APPDATA/GitHub CLI/hosts.yml"
   if [ -f "$GH_HOSTS" ]; then
@@ -356,10 +376,18 @@ if [ -z "$PR_METHOD" ]; then
   # with a title only and tell them which file to paste, rather than handing over
   # a URL that silently arrives with half a body or none.
   if [ "${#BODY_ENC}" -lt 6000 ]; then
-    COMPARE_URL="https://github.com/$OWNER/$REPO/compare/<base>...<head>?expand=1&title=$TITLE_ENC&body=$BODY_ENC"
-    echo "Open this URL - the form is pre-filled with title and body:"
+    if [ "$PROVIDER" = bitbucket ]; then
+      # Bitbucket's new-PR form takes source and dest, and carries no body parameter.
+      COMPARE_URL="https://bitbucket.org/$OWNER/$REPO/pull-requests/new?source=<head>&dest=<base>"
+      echo "Open this URL. Bitbucket cannot pre-fill a body, so paste the description from:"
+      echo "  units/<repo>/pr-summary.md"
+    else
+      COMPARE_URL="https://github.com/$OWNER/$REPO/compare/<base>...<head>?expand=1&title=$TITLE_ENC&body=$BODY_ENC"
+      echo "Open this URL - the form is pre-filled with title and body:"
+    fi
   else
     COMPARE_URL="https://github.com/$OWNER/$REPO/compare/<base>...<head>?expand=1&title=$TITLE_ENC"
+    [ "$PROVIDER" = bitbucket ] && COMPARE_URL="https://bitbucket.org/$OWNER/$REPO/pull-requests/new?source=<head>&dest=<base>"
     echo "Open this URL. The body is ${#BODY_ENC} encoded chars - too long for a URL,"
     echo "so the form carries the title only. Paste the description from:"
     echo "  units/<repo>/pr-summary.md"
@@ -398,13 +426,24 @@ comments to fetch because there is no PR to comment on.
 **"PR already exists" handling** — if Step 1 or Steps 2/3 return a "PR already exists" error (`422 Unprocessable Entity` with `A pull request already exists for <head>`):
 
 ```bash
-# Step 1: gh pr edit <pr-number> --body-file units/<repo>/pr-summary.md
-# Steps 2/3 curl: PATCH /repos/$OWNER/$REPO/pulls/<pr-number> with body update
+# Step 1 (github only): gh pr edit <pr-number> --body-file units/<repo>/pr-summary.md
+# Steps 2/3 curl, per provider — see references/commit/git-host.md:
+#   github    PATCH /repos/$OWNER/$REPO/pulls/<n>              {body}
+#   bitbucket PUT   /repositories/$OWNER/$REPO/pullrequests/<n> {title, description}
 ```
 
-Fetch existing PR: `GET /repos/$OWNER/$REPO/pulls?head=$OWNER:<feature-branch>&base=<base>&state=open` → take `.[0].number` → PATCH its body.
+Fetch the existing PR, then update its body. <!-- governed-by: git-host-resolution -->
+
+| | Fetch | Then |
+|---|---|---|
+| `github` | `GET /repos/$OWNER/$REPO/pulls?head=$OWNER:<feature-branch>&base=<base>&state=open` → `.[0].number` | `PATCH …/pulls/<n>` with `{body}` |
+| `bitbucket` | `GET /repositories/$OWNER/$REPO/pullrequests?q=source.branch.name="<feature-branch>"&state=OPEN` → `.values[0].id` | `PUT …/pullrequests/<n>` with `{title, description}` |
+
+**Bitbucket's `PUT` requires `title`** — sending `description` alone clears the title, so send both.
 
 ### 9c.i. Optional: install `gh` on demand (prompt-gated, v2.3.22)
+
+**Only when `PROVIDER` is `github`.** `gh` cannot talk to any other host, so offering it on a Bitbucket repo installs a tool that will not help and leaves the teammate believing the PR failed for want of it. On another provider go straight to Step 4.
 
 If Steps 1–3 all fail AND the machine has no cached HTTPS token at all (only SSH auth for git), OFFER — do NOT silently install — to install `gh`:
 

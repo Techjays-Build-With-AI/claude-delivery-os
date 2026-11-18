@@ -13,8 +13,8 @@ You respond to **reviewer feedback** on a task already at local `devReview` (MC 
 
 - A **task target** (same 4-way resolution as `/dev:plan` Stage 0 / `/dev:build` Stage 0 / `/dev:commit` Stage 0)
 - The **reviewer feedback** source — one of:
-  - `feedback=<path>` — a local file with the reviewer comments (markdown, plain text, or exported from GitHub)
-  - `pr=<link>` — a GitHub PR URL; use `gh pr view <n> --json comments,reviews` to fetch
+  - `feedback=<path>` — a local file with the reviewer comments (markdown, plain text, or exported from the host)
+  - `pr=<link>` — a PR URL. Resolve the host first (`references/commit/git-host.md`): on `github` use `gh pr view <n> --json comments,reviews`, else read the comments through that provider's API — for `bitbucket`, `GET /repositories/$OWNER/$REPO/pullrequests/<n>/comments`
   - Inline — a list of comments in the argument text itself
 
 If target present but feedback source missing → ask where the review comments are and stop.
@@ -34,7 +34,7 @@ For each comment in the feedback:
 
 - **Actionable code fix** — clear defect, missing test, style deviation from repo conventions. Route to Stage 6 fix-loop mechanics (see `plugins/dev/commands/references/commit/stage-6-fix-loop.md`) — invoke `dev-stack-adaptive-implementation` in fix-mode, capped at 3 focused attempts per comment.
 - **Product / architecture decision needed** — comment asks "should we do X instead" where X is a design change beyond scope. Do NOT guess. Write `units/<repo>/status.md § ## Run history (a BLOCKED entry)` with the comment + decision needed + recommended options + rationale. Local state `devReview → BLOCKED`; MC status `devReview → blocked`. Halt for that comment; siblings continue.
-- **Clarification** — comment asks a question about the code. Answer inline via `gh pr comment` (if available) OR record the answer in `dev/pr-comment-replies.md` for the developer to post. No code change.
+- **Clarification** — comment asks a question about the code. Answer inline through the host's comment endpoint when a token is available — `gh pr comment` on `github`, `POST /repositories/$OWNER/$REPO/pullrequests/<n>/comments` with `{content:{raw}}` on `bitbucket` (`references/commit/git-host.md`) — OR record the answer in `dev/pr-comment-replies.md` for the developer to post. No code change.
 - **Nit / opinion** — non-blocking suggestion. Note in `dev/pr-comment-replies.md`; can defer to a follow-up PR.
 
 ## 4. Re-run affected commit stages
@@ -59,7 +59,7 @@ Delegate to `dev-pr-handoff` skill (v2.2 slimmed — content compose only). Rege
 - Updated acceptance table
 - Updated follow-up suggestions (add any Minor from re-runs)
 
-Update the PR body via `gh pr edit <pr-number> --body-file units/<repo>/pr-summary.md`.
+Update the PR body through the host, per `references/commit/git-host.md`: `gh pr edit <pr-number> --body-file units/<repo>/pr-summary.md` on `github`; on `bitbucket`, `PUT /repositories/$OWNER/$REPO/pullrequests/<n>` with **both** `title` and `description`, because sending `description` alone clears the title.
 
 ## 6. Progress log
 
@@ -104,7 +104,7 @@ Comments processed: 7
 
 Re-run: Stage 4 (code review) ✓ · Stage 5 (acceptance) ✓
 Pushed: 2 new commits
-PR body: refreshed via gh pr edit
+PR body: refreshed on the host
 
 Status:        devReview  (unchanged)
 

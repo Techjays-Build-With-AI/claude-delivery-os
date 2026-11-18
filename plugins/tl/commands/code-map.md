@@ -132,9 +132,12 @@ Per mapped repo:
    git -C <repo> push -u origin context/code-map-<mapped-branch>-<YYYY-MM-DD>
    ```
 
-5. **Raise the PR through the four-step ladder** in
+5. **Raise the PR through the ladder** in
    [`stage-8-9-push-pr.md`](../../dev/commands/references/commit/stage-8-9-push-pr.md) §9c — the same one
-   `/dev:commit` and `/qa:setup` use. Read it and follow it; do **not** call `gh pr create` on its own.
+   `/dev:commit` and `/qa:setup` use. It resolves the git host from the repo's own remote
+   ([`git-host.md`](../../dev/commands/references/commit/git-host.md)), so the steps below are the
+   GitHub membership; Bitbucket has no CLI and runs step 2 then the web fallback. Read it and follow
+   it; do **not** call `gh pr create` on its own.
 
    | | |
    |---|---|

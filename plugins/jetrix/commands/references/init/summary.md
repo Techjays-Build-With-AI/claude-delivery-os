@@ -48,7 +48,7 @@ Next:
 
 Where two are genuinely available — repos to map **and** material to scope — lead with the mapping and offer the other on one line beneath it. They are independent tracks, so neither blocks the other.
 
-**One ordering rule overrides the table, on Jetrix.** With **more than one repo and no connection map**, Build map comes before `/tl:code-map` — the map reads each repo in isolation, so without the wiring a mobile API call has no declared backend counterpart and the cross-repo links come out unresolved rather than wired. Say so rather than listing both as equal gaps:
+**One ordering rule overrides the table, on Jetrix.** With **more than one repo and no connection map**, the wiring comes before `/tl:code-map` — the map reads each repo in isolation, so without the wiring a mobile API call has no declared backend counterpart and the cross-repo links come out unresolved rather than wired. Say so rather than listing both as equal gaps:
 
 ```
 Next
@@ -60,6 +60,12 @@ Next
   comes out unresolved, and re-mapping is the only fix.
 ```
 
+**Print that only when §14 already offered to build the map and was declined** — and give the link the
+`references/init/connection-map.md` §10a.i decline branch built, per `references/portal-links.md`. Step 1 is
+otherwise wrong twice over: this command was holding `project_replace_connections` and
+`project_build_connection_map` the whole time, and a Solution whose map was just built from here has no gap to
+report. Having offered, accept the answer — do not re-offer it here under a different name.
+
 A single-repo Solution has nothing to wire, so it goes straight to `/tl:code-map`. **On any other tracker this never arises** — §13 already drew the map from the user's own answers, so mapping can start immediately.
 
 **Report what is missing, then carry on — never refuse over a gap.** A bind against a project with no apps, no connection map or no linked repo is a normal mid-engagement state, so name each gap and the step that fills it, and close with the exact line to run afterwards:
@@ -68,7 +74,7 @@ A single-repo Solution has nothing to wire, so it goes straight to `/tl:code-map
 Gaps:
   · no apps on this project            portal → add one per repo
   · Admin panel has no linked repo     portal → that app → Integration tab
-  · connection-map not built           portal → Connections → Build map
+  · connection-map not built           declined here — portal → Connections → Build map
 
   Pick them up with:  /jetrix:init refresh
 ```
