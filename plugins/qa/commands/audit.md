@@ -49,4 +49,22 @@ node ${CLAUDE_PLUGIN_ROOT}/../delivery-os-core/scripts/serve-review.js .jetrix/q
 
 Read the port from its `DELIVERY_OS_SERVE_READY` line — `delivery-os-conventions` §1.e. Save approvals POSTs back to it, so the approvals file lands in `qa/reviews/` and `/qa:plan` can be run against the path the toast shows. Opened from `file://` instead, Save degrades to a download and the page says so; report the local path and carry on rather than failing the audit over it.
 
+## 4. Record the testability metric
+
+Last action of the run, after the report is written and the server is up. Send the score this
+audit just produced, per [`jetrix` `references/metrics.md`](../../jetrix/commands/references/metrics.md):
+
+```
+mcp__task-mcp__metrics_record(
+  solution_id = <project.json solutionId>,
+  event       = "testability",
+  project_id  = <the audited repo's apps[].projectId>,
+  values      = { score: <readiness score>, verdict: "<verdict>", areas: { <area>: <score>, … } }
+)
+```
+
+**Every run is recorded, not just the first.** The number that matters is the move from the audit
+before `/qa:setup` to the one after, and only the server can see both. Jetrix only, and a failed
+call prints one line and never fails the audit — the report is the deliverable, the metric is not.
+
 **Report `Current coverage` as a measured number** whenever coverage tooling exists — run it and read the result; never estimate. This is the figure the human needs to set a reachable floor at `/qa:plan`: on an existing repo the floor is baselined to what the code passes **today** and ratcheted afterwards, not set to a greenfield default it cannot meet. Where no coverage tool is configured, say `not instrumented` rather than implying zero.

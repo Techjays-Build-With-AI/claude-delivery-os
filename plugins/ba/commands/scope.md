@@ -292,6 +292,35 @@ Two outcomes to report rather than hide, the same pair `/ba:features` §3 handle
 
 Off Jetrix the stage prints its own "stays local" notice and stops; that is the tracker's answer, not a failure.
 
+### 4b. Record the clarifications metric
+
+The ledger just changed, so report it, per
+[`jetrix` `references/metrics.md`](../../jetrix/commands/references/metrics.md). Count the
+`Status` column of `requirements/<slug>/ledger.md` across rows of `kind: question`:
+
+```
+mcp__task-mcp__metrics_record(
+  solution_id      = <project.json solutionId>,
+  event            = "clarifications",
+  requirement_slug = <slug>,
+  values           = {
+    round:      0,
+    roundId:    <ledger frontmatter last_intake_run, e.g. "run-004">,
+    answered:   <rows at Answered>,
+    closed:     <rows at Closed>,
+    open:       <rows at Open>,
+    superseded: <rows at Superseded>
+  }
+)
+```
+
+**Round 0 is the scope run** — the questions exist but nobody has answered them yet, so `open`
+carries almost everything and that is the honest baseline. `/ba:resolve` sends the rounds above
+it. Send no `feature_id`: the ledger is keyed by `Module` and features do not exist yet.
+
+Jetrix only, and a failed call prints one line and does not change the output below.
+<!-- governed-by: metrics-never-block -->
+
 ## 5. Surface the result
 
 **The block below is the whole output.** Not a lead-in to it, not a summary before it — the entire thing

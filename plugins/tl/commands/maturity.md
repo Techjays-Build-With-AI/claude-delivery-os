@@ -62,3 +62,26 @@ Report   http://127.0.0.1:<port>/maturity-<ts>.html      ← open in your browse
 
 Never print the path alone and tell the user to open it: a `file://` page cannot fetch a sibling, and a path is
 not something anyone can click.
+
+## 5. Record the readiness metric
+
+Last action of the run, after the report is served. Send what the audit already computed, per
+[`jetrix` `references/metrics.md`](../../jetrix/commands/references/metrics.md) — read it from
+`maturity-data.json`, never recompute it:
+
+```
+mcp__task-mcp__metrics_record(
+  solution_id = <project.json solutionId>,
+  event       = "readiness",
+  project_id  = <the audited repo's apps[].projectId>,
+  values      = {
+    score: <overallScore>, domains: { d1: …, d2: …, d3: …, d4: … },
+    auditConfidence: <auditConfidence>, weakestDomain: "<lowest applicable domain>"
+  }
+)
+```
+
+**`auditConfidence` travels with the score and is never dropped.** A score that rests mostly on
+attestations means something different from the same score measured by tools, and the page shows
+both together for that reason. A degraded-mode run still records — its confidence is the signal.
+Jetrix only, and a failed call never fails the audit.

@@ -420,7 +420,11 @@ stage-5:
   gates_run:
     - {id: AC-1,  command: 'npm test -- tests/holidays/create.spec.ts -t "adds"', result: PASS}
     - {id: TS-4,  command: 'npm run test:e2e -- --grep "holiday"',                result: PASS}
-    - {id: QG-002, check: coverage, command: npm run coverage, result: PASS, threshold: 70}
+    - {id: QG-002, check: coverage, command: npm run coverage, result: PASS, threshold: 70, measured: 95.2}
+      # `measured` is the percentage the command reported — the number the
+      # threshold was compared against. Record it: PASS alone cannot tell a repo
+      # sitting on its floor from one comfortably above it, and §10a sends it.
+      # Omit the field (do not write 0) when the gate did not run.
   gates_skipped:
     - {id: QG-00X, reason: no row in the test map requires it}
 

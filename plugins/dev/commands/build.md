@@ -321,6 +321,41 @@ Keep `harness_status` vocabulary aligned with Stage 4: `Active` · `Stack-Inferr
 
 The Stack-Inferred path is the intentional escape hatch for teams that want to plan+build a new feature WITHOUT first backfilling test coverage on an existing codebase. The NEW feature still gets 100% coverage at every applicable tier — the inference just skips the audit-of-existing-code step. Backfill of existing coverage is deferred to a later `/qa:audit → /qa:plan → /qa:setup` run.
 
+### Stage 0f. Record the gaps metric — this is the moment "before code" ends
+
+Once Stage 0 has passed and before any stage runs, record the size of what is about to be built,
+per [`jetrix` `references/metrics.md`](../../jetrix/commands/references/metrics.md):
+
+```
+mcp__task-mcp__metrics_record(
+  solution_id      = <project.json solutionId>,
+  event            = "gaps",
+  feature_id       = <the feature's FEAT-<AREA>-NN>,
+  requirement_slug = <the requirements/<slug>/ this feature sits under>,
+  values           = {
+    unitsTouched: <count of units named across units/<repo>/implementation.md §1>,
+    appIds:       [ <apps[].projectId for each units/<repo>/ folder> ]
+  }
+)
+```
+
+**`requirement_slug` is the folder name, read from the path you are already in** —
+`requirements/<slug>/features/<feature>/`. It is the grouping key that puts this feature under
+its requirement on the page; it is not a count and you send no CLR numbers here.
+
+**The CLR count is not yours to send.** `/ba:scope` and `/ba:resolve` report it against the
+requirement, because the ledger is the BA's and is keyed by `Module` with no `FEAT-ID` column.
+Reporting it from here would leave every scoped-but-unbuilt requirement at zero.
+
+**Send it on every run and let the server keep the first.** "Before code" means before the
+*first* build, and the server holds that rule; a command that tries to detect its own re-run is
+reading state it does not own. Jetrix only, and a failed call prints one line and lets Stage 1
+start on time. <!-- governed-by: metrics-never-block -->
+
+**PB is not counted here.** `/dev:plan` sends it as its own `planBlockers` event, because the
+blockers answered in conversation never reach `plan-blockers.md` and counting the file would
+score a clean planning run at zero.
+
 ## 3. Route to stages 1–11 (per-task workers; parallel fan-out for split-parent targets; resume-aware)
 
 **Target-based routing (v2.3.20 — parallel fan-out for split features):**

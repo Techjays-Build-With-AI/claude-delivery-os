@@ -726,6 +726,49 @@ Per repo whose `context/code-context/` this run changed — skip any repo with n
 **Stay on the new branch.** `/dev:build` cuts feature branches from the confirmed base, not from this
 one; switching back here only hides what was just written.
 
+## 6c. Record the planning metrics
+
+After the workers finish and before the summary, one call per planned target, per
+[`jetrix` `references/metrics.md`](../../jetrix/commands/references/metrics.md).
+
+**Feature target — `planBlockers`:**
+
+```
+mcp__task-mcp__metrics_record(
+  solution_id = <project.json solutionId>,
+  event       = "planBlockers",
+  feature_id  = <FEAT-<AREA>-NN>,
+  values      = { pbRaised: <every PB-### this run raised>, pbResolved: <those with an answer> }
+)
+```
+
+**Count the run, not the file.** `units/<repo>/plan-blockers.md` holds the blockers that were
+**deferred** — this command asks blockers in conversation as they arise, folds the answered ones
+and plans on, so the file is silent about every blocker the process handled well. Counting it
+would score the cleanest possible run at zero and make the gaps metric read as "nobody asked
+anything". Report both numbers from the run you just did, inline answers included.
+
+**Bug target (§2f) — `bugLink`:**
+
+```
+mcp__task-mcp__metrics_record(
+  solution_id = <project.json solutionId>,
+  event       = "bugLink",
+  task_id     = <the bug's MC task_object_id>,
+  project_id  = <apps[].projectId for the repo the fix lands in>,
+  feature_id  = <the owning feature, or omit entirely>
+)
+```
+
+The link is **found, never typed**: this command already resolved which code units the fix
+touches, and each unit's `## Used by Features` names the feature that owns it. **That section
+reads `(as-built)` on every reverse-mapped unit until forward planning links one**, so on a repo
+onboarded by `/tl:code-map` most bugs resolve to no feature at all — that is the normal case
+there, not a failure. Omit `feature_id` and the bug counts against the app alone. Never guess an
+owner to fill the field.
+
+Jetrix only. A failed call prints one line and never fails the plan.
+
 ## 7. Batch summary
 
 After all workers complete (or fail), print the summary.

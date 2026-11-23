@@ -91,6 +91,27 @@ fix-review-round-<n>:
 
 ## 7. Surface the result
 
+### 7a. Record the first-pass metric
+
+A reviewer asking for changes is the definition of not passing first time, so record it before
+printing, per [`jetrix` `references/metrics.md`](../../jetrix/commands/references/metrics.md):
+
+```
+mcp__task-mcp__metrics_record(
+  solution_id = <project.json solutionId>,
+  event       = "firstPass",
+  feature_id  = <FEAT-<AREA>-NN>,
+  values      = { firstPass: false, failedGate: "reviewer", appIds: [ <apps[].projectId …> ] }
+)
+```
+
+**Send it whenever this command runs at all** — the trigger is reviewer feedback existing, not
+what the feedback turned out to be. A round where every comment was a Nit still means a human had
+to ask, which is what this metric measures. `/dev:commit` may already have recorded a pass; the
+server flips it to `false` and never back, so a second round changes nothing and needs no check.
+
+Jetrix only, and a failed call never fails the round.
+
 Print in-terminal:
 
 ```

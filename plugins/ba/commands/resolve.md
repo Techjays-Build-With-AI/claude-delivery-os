@@ -97,6 +97,36 @@ Run `/jetrix:push scope` after the republish, for the same reason §3a republish
 already out there and a stale copy is worse than no copy. Hash-diffed per file, so a round that moved nothing
 pushes nothing, and the two failure cases are reported exactly as `/ba:scope` §4a states them.
 
+### 3c. Record the clarifications metric
+
+This round moved the ledger, so report it, per
+[`jetrix` `references/metrics.md`](../../jetrix/commands/references/metrics.md). Count the
+`Status` column of `requirements/<slug>/ledger.md` across rows of `kind: question` **after** the
+round's edits were applied:
+
+```
+mcp__task-mcp__metrics_record(
+  solution_id      = <project.json solutionId>,
+  event            = "clarifications",
+  requirement_slug = <slug>,
+  values           = {
+    round:      <this round's number — the one in the summary above>,
+    roundId:    <ledger frontmatter last_resolve_round, e.g. "2026-11-20-115214">,
+    answered:   <rows at Answered>,
+    closed:     <rows at Closed>,
+    open:       <rows at Open>,
+    superseded: <rows at Superseded>
+  }
+)
+```
+
+**One row per round, and the server keeps them all.** Review → resolve is a loop, and a
+requirement converging from 12 open to 1 across three rounds is the measurement — never try to
+update the previous round. Send no `feature_id`: the ledger is keyed by `Module`.
+
+Jetrix only, and a failed call prints one line and does not change the output below.
+<!-- governed-by: metrics-never-block -->
+
 ## 4. Surface the result
 
 When the agent returns, present the **round summary**: how many questions were Resolved / Accepted-as-assumption / Needs-verification (list the follow-ups the author still needs to answer) / still Open, the score and verdict movement (e.g. "3.4 → 6.2, Significant gaps → Estimate with caveats"), which scope edits were applied, and any `DEC`/`ASM`/`CLR` rows logged.

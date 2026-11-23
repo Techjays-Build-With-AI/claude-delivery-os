@@ -598,6 +598,88 @@ If the working tree has nothing to commit (someone already committed manually mi
 
 ## 6. Stage 10 — Report summary
 
+### 10a. Record the first-pass metric
+
+Before printing, record whether this feature needed a fixing round, per
+[`jetrix` `references/metrics.md`](../../jetrix/commands/references/metrics.md):
+
+```
+mcp__task-mcp__metrics_record(
+  solution_id = <project.json solutionId>,
+  event       = "firstPass",
+  feature_id  = <FEAT-<AREA>-NN>,
+  values      = {
+    firstPass:  <true when no BLOCKING gate failed on the first attempt>,
+    failedGate: <"code-review" | "acceptance" | "tests" | null>,
+    appIds:     [ <apps[].projectId for each units/<repo>/ folder> ]
+  }
+)
+```
+
+**Blocking gates only (v2.3.45).** This metric asks whether anything *real* was wrong the first
+time, so that it reads as a measure of how good the plan was. A `Minor` or a `Nit` being tidied up
+is not a failed gate — `dev-stack-adaptive-code-review` calls a `Nit` trailing whitespace or a
+stale comment, and routing those through Stage 6's batched pass is the normal, healthy path.
+
+**Do not key this off `fix_loop_invocation`.** That block is recorded whenever ANY finding at ANY
+severity existed before the loop (`stage-6-fix-loop.md` §6a.i), so its presence does not mean a
+blocking gate failed. Keying off it is what made this metric read 0% on every feature forever.
+
+**The answer is already on disk — read the counts, don't judge the run.** From
+`units/<repo>/status.md` § `## Run history`:
+
+| Condition | Result |
+|---|---|
+| `stage-4.findings.blocker > 0` or `stage-4.findings.major > 0` | `firstPass: false`, `failedGate: "code-review"` |
+| `stage-5.rows_failed > 0` | `firstPass: false`, `failedGate: "acceptance"` |
+| `stage-5.rows_regressed > 0` | `firstPass: false`, `failedGate: "tests"` |
+| none of the above | `firstPass: true`, `failedGate: null` |
+
+Test the rows in that order and stop at the first match, so a run that tripped two gates names the
+one that stopped it first. Deciding this from memory of the run instead of from the recorded counts
+is how a feature that failed its acceptance table gets reported as a clean pass.
+
+Send it on every commit. The server keeps the first result and lets a later `/dev:fix-review`
+flip it to `false`, never back. Jetrix only, and a failed call never fails the commit — the PR is
+already open at this point, and no metric is worth reporting a successful commit as failed.
+
+### 10b. Record the verification metric
+
+`firstPass` is one bit. This is the evidence behind it — how much the review found and how much of
+it was dealt with, how much of the acceptance table actually executed and passed, and what the
+coverage command measured. Every number is already in `units/<repo>/status.md` § `## Run history`;
+read them, do not recompute and do not estimate.
+
+```
+mcp__task-mcp__metrics_record(
+  solution_id = <project.json solutionId>,
+  event       = "verification",
+  feature_id  = <FEAT-<AREA>-NN>,
+  project_id  = <this sub-task's repo projectId>,
+  values      = {
+    findingsRaised:    <stage-4.findings blocker + major + minor + nit, before the loop>,
+    findingsFixed:     <fix_attempts with resolved: true, plus the non-blocking rounds' fixed count>,
+    acceptanceRows:    <stage-5.rows_total>,
+    acceptancePassed:  <stage-5.rows_pass_commit_time>,
+    acceptanceDeferred:<stage-5.rows_deferred_to_e2e>,
+    coveragePct:       <the coverage gate's `measured` in stage-5.gates_run, or null>
+  }
+)
+```
+
+**`coveragePct` is null, never 0, when no coverage gate ran.** A repo in `Stack-Inferred` mode has
+no coverage floor to run against, and reporting that as 0% would read as "no tests" when the truth
+is "not measured here". The page prints `—` for null and never averages it in.
+
+**Deferred rows are not failures.** A row deferred to e2e has not run yet, so it belongs in neither
+the passed nor the failed count — send it separately and let the page divide by
+`acceptanceRows − acceptanceDeferred`.
+
+Repo-scoped, so a feature split across repos sends one call per sub-task, the same as `firstPass`.
+Every run is kept: re-running `/dev:commit` after a fix is a new, later measurement and the trend
+across them is what shows whether the harness is improving. Same failure rule as §10a — one line,
+never a halt.
+
 In-terminal summary:
 
 ```
