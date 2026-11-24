@@ -247,7 +247,7 @@ for (const f of md.map(rel)) {
 // the only unambiguous way to write a cross-loop reference. Without it, a bare
 // `stage-8.x` in commit.md means commit's stage 8 - and build's stage 8 is a
 // different stage that happens to share a number.
-const STAGE_REF = /`?(?:(build|commit)\.)?stage-([0-9]+(?:-[0-9]+)?)\.([a-z_]+)/g;
+const STAGE_REF = /`?(?:(build|commit)\.)?stage-([0-9]+(?:-[0-9]+)?)\.([a-z0-9_]+)/g;
 const recorded = new Map();   // "commit/3" -> Set(field)
 const declaredIn = new Map(); // "commit/3" -> file that holds its yaml block
 // /dev:build and /dev:commit each number their stages independently, so the
@@ -271,7 +271,7 @@ for (const f of md.map(rel)) {
     const n = loop + "/" + head[1];
     if (!recorded.has(n)) { recorded.set(n, new Set()); declaredIn.set(n, f); }
     const after = inner.slice(inner.indexOf(head[0]) + head[0].length);
-    for (const k of after.matchAll(/^ {2}([a-z_]+):/gm)) recorded.get(n).add(k[1]);
+    for (const k of after.matchAll(/^ {2}([a-z0-9_]+):/gm)) recorded.get(n).add(k[1]);
   }
 }
 
