@@ -662,10 +662,22 @@ mcp__task-mcp__metrics_record(
     acceptanceRows:    <stage-5.rows_total>,
     acceptancePassed:  <stage-5.rows_pass_commit_time>,
     acceptanceDeferred:<stage-5.rows_deferred_to_e2e>,
-    coveragePct:       <the coverage gate's `measured` in stage-5.gates_run, or null>
+    coveragePct:       <the coverage gate's `measured` in stage-5.gates_run, or null>,
+    headSha:           <the sha Stage 8 pushed — `git rev-parse HEAD` in this repo>
   }
 )
 ```
+
+**`headSha` is what lets a hand-pushed fix be seen.** The metric counts a feature as first-pass
+only if the PR merged with no human code edits, and on merge MC compares the PR's `head.sha`
+against the newest `headSha` recorded for this feature. Authorship cannot answer that question:
+this command runs on the developer's machine and commits with their git identity, so its commits
+and a hand-written one have the same author. The sha can.
+
+It rides on `verification` rather than on §10a's `firstPass` deliberately — `firstPass` is a
+singleton and keeps its FIRST write, so a `/dev:commit --resume` would leave a stale sha there and
+accuse a developer who did nothing. `verification` keeps every run, so its newest row always holds
+the real head.
 
 **`coveragePct` is null, never 0, when no coverage gate ran.** A repo in `Stack-Inferred` mode has
 no coverage floor to run against, and reporting that as 0% would read as "no tests" when the truth
